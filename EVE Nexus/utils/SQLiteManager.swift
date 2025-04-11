@@ -46,33 +46,10 @@ class SQLiteManager {
         }
     }
 
-    // 关闭数据库连接
-    func closeDatabase() {
-        dbQueue.sync {
-            dbLock.lock()
-            defer { dbLock.unlock() }
-
-            if db != nil {
-                sqlite3_close(db)
-                db = nil
-                // 清空缓存
-                clearCache()
-                Logger.info("数据库已关闭")
-            }
-        }
-    }
-
     // 清除缓存
     func clearCache() {
         queryCache.removeAllObjects()
         Logger.info("查询缓存已清空")
-    }
-
-    // 获取查询日志
-    func getQueryLogs() -> [(query: String, parameters: [Any], timestamp: Date)] {
-        return logsQueue.sync {
-            queryLogs
-        }
     }
 
     // 添加查询日志

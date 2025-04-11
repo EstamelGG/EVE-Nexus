@@ -119,55 +119,6 @@ public class UniverseStructureAPI {
         }
     }
 
-    // 批量加载建筑物信息
-    private func loadStructuresFromCache(structureIds: [Int64]) -> [Int64: UniverseStructureInfo] {
-        var results: [Int64: UniverseStructureInfo] = [:]
-
-        // 构建IN查询的占位符
-        let placeholders = String(repeating: "?,", count: structureIds.count).dropLast()
-        let sql = """
-                SELECT structure_id, name, owner_id, solar_system_id, type_id, timestamp
-                FROM structure_cache
-                WHERE structure_id IN (\(placeholders))
-            """
-
-        let result = databaseManager.executeQuery(sql, parameters: structureIds)
-
-        switch result {
-        case let .success(rows):
-            let currentTime = Int64(Date().timeIntervalSince1970)
-            var expiredIds: [Int64] = []
-
-            for row in rows {
-                let structureId = row["structure_id"] as! Int64
-                let timestamp = row["timestamp"] as! Int64
-
-                // 检查是否过期
-                if currentTime - timestamp > 7 * 24 * 3600 {
-                    expiredIds.append(structureId)
-                    continue
-                }
-
-                results[structureId] = UniverseStructureInfo(
-                    name: row["name"] as! String,
-                    owner_id: Int(row["owner_id"] as! Int64),
-                    solar_system_id: Int(row["solar_system_id"] as! Int64),
-                    type_id: Int(row["type_id"] as! Int64)
-                )
-            }
-
-            // 批量删除过期缓存
-            if !expiredIds.isEmpty {
-                deleteStructureCacheBatch(structureIds: expiredIds)
-            }
-
-        case let .error(error):
-            Logger.error("批量加载建筑物缓存失败: \(error)")
-        }
-
-        return results
-    }
-
     private func saveStructureToCache(_ structure: UniverseStructureInfo, structureId: Int64) {
         saveStructuresToCache([(structureId, structure)])
     }

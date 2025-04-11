@@ -4,199 +4,32 @@ import Foundation
 import Security
 import SwiftUI
 
-// 添加 SecureStorage 类
-class SecureStorage {
-    static let shared = SecureStorage()
-
-    private init() {}
-
-    func saveToken(_ token: String, for characterId: Int) throws {
-        Logger.info(
-            "SecureStorage: 开始保存 refresh token 到 SecureStorage - 角色ID: \(characterId), token前缀: \(String(token.prefix(10)))..."
-        )
-
-        guard let tokenData = token.data(using: .utf8) else {
-            Logger.error("SecureStorage: 无法将 token 转换为数据")
-            throw KeychainError.unhandledError(status: errSecParam)
-        }
-
-        let query: [String: Any] = [
-            String(kSecClass): kSecClassGenericPassword,
-            String(kSecAttrAccount): "token_\(characterId)",
-            String(kSecValueData): tokenData,
-            String(kSecAttrAccessible): kSecAttrAccessibleAfterFirstUnlock,
-        ]
-
-        let status = SecItemAdd(query as CFDictionary, nil)
-        if status == errSecDuplicateItem {
-            // 如果已存在，则更新
-            let updateQuery: [String: Any] = [
-                String(kSecClass): kSecClassGenericPassword,
-                String(kSecAttrAccount): "token_\(characterId)",
-            ]
-            let updateAttributes: [String: Any] = [
-                String(kSecValueData): tokenData
-            ]
-            let updateStatus = SecItemUpdate(
-                updateQuery as CFDictionary, updateAttributes as CFDictionary
-            )
-            if updateStatus != errSecSuccess {
-                Logger.error(
-                    "SecureStorage: 更新 refresh token 失败 - 角色ID: \(characterId), 错误码: \(updateStatus)"
-                )
-                throw KeychainError.unhandledError(status: updateStatus)
-            }
-            Logger.info("SecureStorage: 成功更新了 refresh token - 角色ID: \(characterId)")
-        } else if status != errSecSuccess {
-            Logger.error(
-                "SecureStorage: 保存 refresh token 失败 - 角色ID: \(characterId), 错误码: \(status)")
-            throw KeychainError.unhandledError(status: status)
-        } else {
-            Logger.info("SecureStorage: 成功保存新的 refresh token - 角色ID: \(characterId)")
-        }
-    }
-
-    func loadToken(for characterId: Int) throws -> String? {
-        Logger.info("SecureStorage: 开始尝试从 Keychain 加载 refresh token - 角色ID: \(characterId)")
-
-        let query: [String: Any] = [
-            String(kSecClass): kSecClassGenericPassword,
-            String(kSecAttrAccount): "token_\(characterId)",
-            String(kSecReturnData): true,
-            String(kSecMatchLimit): kSecMatchLimitOne,
-        ]
-
-        Logger.info("SecureStorage: 查询参数 - account: token_\(characterId)")
-
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-
-        if status == errSecItemNotFound {
-            Logger.error(
-                "SecureStorage: 在 Keychain 中未找到 refresh token - 角色ID: \(characterId), 错误: 项目不存在")
-            return nil
-        } else if status != errSecSuccess {
-            Logger.error(
-                "SecureStorage: 从 Keychain 加载 refresh token 失败 - 角色ID: \(characterId), 错误码: \(status)"
-            )
-            throw KeychainError.unhandledError(status: status)
-        }
-
-        guard let data = result as? Data else {
-            Logger.error(
-                "SecureStorage: refresh token 数据格式错误 - 角色ID: \(characterId), 无法转换为 Data 类型")
-            return nil
-        }
-
-        guard let token = String(data: data, encoding: .utf8) else {
-            Logger.error(
-                "SecureStorage: refresh token 数据格式错误 - 角色ID: \(characterId), 无法转换为 UTF-8 字符串")
-            return nil
-        }
-
-        Logger.info(
-            "SecureStorage: 成功从 Keychain 加载 refresh token - 角色ID: \(characterId), token前缀: \(String(token.prefix(10)))..."
-        )
-        return token
-    }
-
-    func deleteToken(for characterId: Int) throws {
-        let query: [String: Any] = [
-            String(kSecClass): kSecClassGenericPassword,
-            String(kSecAttrAccount): "token_\(characterId)",
-        ]
-
-        let status = SecItemDelete(query as CFDictionary)
-        if status != errSecSuccess, status != errSecItemNotFound {
-            throw KeychainError.unhandledError(status: status)
-        }
-    }
-
-    // 列出所有有效的 token
-    func listValidTokens() -> [Int] {
-        Logger.info("SecureStorage: 开始检查所有有效的 refresh token")
-
-        let query: [String: Any] = [
-            String(kSecClass): kSecClassGenericPassword,
-            String(kSecReturnAttributes): true,
-            String(kSecMatchLimit): kSecMatchLimitAll,
-        ]
-
-        var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-
-        if status == errSecItemNotFound {
-            Logger.info("SecureStorage: 未找到任何 refresh token")
-            return []
-        } else if status != errSecSuccess {
-            Logger.error("SecureStorage: 查询 refresh token 失败，错误码: \(status)")
-            return []
-        }
-
-        guard let items = result as? [[String: Any]] else {
-            Logger.error("SecureStorage: 无法解析查询结果")
-            return []
-        }
-
-        var validCharacterIds: [Int] = []
-
-        for item in items {
-            if let account = item[String(kSecAttrAccount)] as? String,
-                account.hasPrefix("token_"),
-                let characterIdStr = account.split(separator: "_").last,
-                let characterId = Int(characterIdStr)
-            {
-                // 检查 token 是否有效
-                if let token = try? loadToken(for: characterId), !token.isEmpty {
-                    validCharacterIds.append(characterId)
-                    Logger.info("SecureStorage: 找到有效的 refresh token - 角色ID: \(characterId)")
-                }
-            }
-        }
-
-        Logger.info("SecureStorage: 共找到 \(validCharacterIds.count) 个有效的 refresh token")
-        return validCharacterIds
-    }
-}
-
-enum KeychainError: Error {
-    case unhandledError(status: OSStatus)
-}
-
 // 导入技能队列数据模型
 // typealias SkillQueueItem = EVE_Nexus.SkillQueueItem
 
-// OAuth认证相关的数据模型
-struct EVEAuthToken: Codable {
-    let access_token: String
-    let expires_in: Int
-    let token_type: String
-    let refresh_token: String
-}
-
 struct EVECharacterInfo: Codable {
-    public let CharacterID: Int
-    public let CharacterName: String
-    public let ExpiresOn: String
-    public let Scopes: String
-    public let TokenType: String
-    public let CharacterOwnerHash: String
-    public var corporationId: Int?
-    public var allianceId: Int?
-    public var tokenExpired: Bool = false
+    let CharacterID: Int
+    let CharacterName: String
+    let ExpiresOn: String
+    let Scopes: String
+    let TokenType: String
+    let CharacterOwnerHash: String
+    var corporationId: Int?
+    var allianceId: Int?
+    var refreshTokenExpired: Bool = false
 
     // 动态属性
-    public var totalSkillPoints: Int?
-    public var unallocatedSkillPoints: Int?
-    public var walletBalance: Double?
-    public var skillQueueLength: Int?
-    public var currentSkill: CurrentSkillInfo?
-    public var locationStatus: CharacterLocation.LocationStatus?
-    public var location: SolarSystemInfo?
-    public var queueFinishTime: TimeInterval?  // 添加队列总剩余时间属性
+    var totalSkillPoints: Int?
+    var unallocatedSkillPoints: Int?
+    var walletBalance: Double?
+    var skillQueueLength: Int?
+    var currentSkill: CurrentSkillInfo?
+    var locationStatus: CharacterLocation.LocationStatus?
+    var location: SolarSystemInfo?
+    var queueFinishTime: TimeInterval?  // 添加队列总剩余时间属性
 
     // 内部类型定义
-    public struct CurrentSkillInfo: Codable {
+    struct CurrentSkillInfo: Codable {
         let skillId: Int
         let name: String
         let level: String
@@ -217,7 +50,7 @@ struct EVECharacterInfo: Codable {
         case location
         case locationStatus
         case currentSkill
-        case tokenExpired
+        case refreshTokenExpired
         case corporationId
         case allianceId
         case skillQueueLength
@@ -242,7 +75,7 @@ struct EVECharacterInfo: Codable {
             CharacterLocation.LocationStatus.self, forKey: .locationStatus
         )
         currentSkill = try container.decodeIfPresent(CurrentSkillInfo.self, forKey: .currentSkill)
-        tokenExpired = try container.decodeIfPresent(Bool.self, forKey: .tokenExpired) ?? false
+        refreshTokenExpired = try container.decodeIfPresent(Bool.self, forKey: .refreshTokenExpired) ?? false
         corporationId = try container.decodeIfPresent(Int.self, forKey: .corporationId)
         allianceId = try container.decodeIfPresent(Int.self, forKey: .allianceId)
         skillQueueLength = try container.decodeIfPresent(Int.self, forKey: .skillQueueLength)
@@ -263,7 +96,7 @@ struct EVECharacterInfo: Codable {
         try container.encodeIfPresent(location, forKey: .location)
         try container.encodeIfPresent(locationStatus, forKey: .locationStatus)
         try container.encodeIfPresent(currentSkill, forKey: .currentSkill)
-        try container.encode(tokenExpired, forKey: .tokenExpired)
+        try container.encode(refreshTokenExpired, forKey: .refreshTokenExpired)
         try container.encodeIfPresent(corporationId, forKey: .corporationId)
         try container.encodeIfPresent(allianceId, forKey: .allianceId)
         try container.encodeIfPresent(skillQueueLength, forKey: .skillQueueLength)
@@ -281,14 +114,14 @@ extension EVECharacterInfo: Equatable {
 // ESI配置模型
 struct ESIConfig: Codable {
     let clientId: String
-    let clientSecret: String
-    let callbackUrl: String
+    //    let clientSecret: String
+    //    let callbackUrl: String
     let urls: ESIUrls
     var scopes: [String]
 
     struct ESIUrls: Codable {
-        let authorize: String
-        let token: String
+        //        let authorize: String
+        //        let token: String
         let verify: String
     }
 }
@@ -298,24 +131,18 @@ struct CharacterAuth: Codable {
     var character: EVECharacterInfo
     let addedDate: Date
     let lastTokenUpdateTime: Date
-
-    // 检查是否需要更新令牌
-    func shouldUpdateToken(minimumInterval: TimeInterval = 300) -> Bool {
-        return Date().timeIntervalSince(lastTokenUpdateTime) >= minimumInterval
-    }
 }
 
 // 添加用户管理的 ViewModel
 @MainActor
 class EVELoginViewModel: ObservableObject {
     @Published var characterInfo: EVECharacterInfo?
-    @Published var isLoggedIn: Bool = false
+    // @Published var isLoggedIn: Bool = false
     @Published var showingError: Bool = false
     @Published var errorMessage: String = ""
     @Published var characters: [EVECharacterInfo] = []
     @Published var characterPortraits: [Int: UIImage] = [:]
     let databaseManager: DatabaseManager
-    private let databaseQueue = DispatchQueue(label: "com.eve.nexus.database", qos: .userInitiated)
 
     init(databaseManager: DatabaseManager = DatabaseManager()) {
         self.databaseManager = databaseManager
@@ -369,7 +196,7 @@ class EVELoginViewModel: ObservableObject {
         Task { @MainActor in
             let allCharacters = EVELogin.shared.loadCharacters()
             characters = allCharacters.map { $0.character }
-            isLoggedIn = !characters.isEmpty
+            // isLoggedIn = !characters.isEmpty
 
             Task {
                 for character in characters {
@@ -401,14 +228,14 @@ class EVELoginViewModel: ObservableObject {
 
                 // 3. 更新 UI（已在 MainActor 上下文中）
                 characterInfo = character
-                isLoggedIn = true
+                // isLoggedIn = true
                 loadCharacters()
 
                 // 4. 加载新角色的头像
                 await loadCharacterPortrait(characterId: character.CharacterID)
             } catch {
                 errorMessage = error.localizedDescription
-                showingError = true
+                showingError = false
                 Logger.error("登录失败: \(error)")
             }
         }
@@ -426,9 +253,9 @@ class EVELoginViewModel: ObservableObject {
         }
 
         // 如果没有角色了，更新登录状态
-        if characters.isEmpty {
-            isLoggedIn = false
-        }
+        //        if characters.isEmpty {
+        //            isLoggedIn = false
+        //        }
     }
 
     // 更新角色顺序
@@ -447,6 +274,18 @@ class EVELogin {
     private let characterOrderKey = "EVECharacterOrder"
     private let databaseManager: DatabaseManager
 
+    private static let defaultConfig = ESIConfig(
+        clientId: EVEConfig.OAuth.clientId,
+        //        clientSecret: EVEConfig.OAuth.clientSecret,
+        //        callbackUrl: EVEConfig.OAuth.redirectURI.absoluteString,
+        urls: ESIConfig.ESIUrls(
+            //            authorize: EVEConfig.OAuth.authorizationEndpoint.absoluteString,
+            //            token: EVEConfig.OAuth.tokenEndpoint.absoluteString,
+            verify: EVEConfig.OAuth.verifyEndpoint.absoluteString
+        ),
+        scopes: []  // 将在 loadConfig 中填充
+    )
+
     private init() {
         session = URLSession.shared
         databaseManager = DatabaseManager()
@@ -459,7 +298,9 @@ class EVELogin {
 
         // 1. 获取角色信息
         let character = try await getCharacterInfo(
-            token: authState.lastTokenResponse?.accessToken ?? "")
+            token: authState.lastTokenResponse?.accessToken ?? "",
+            forceRefresh: true
+        )
         Logger.info(
             "EVELogin: 成功获取角色信息 - 名称: \(character.CharacterName), ID: \(character.CharacterID)")
 
@@ -476,7 +317,7 @@ class EVELogin {
     }
 
     // 保存角色信息
-    private func saveCharacterInfo(_ character: EVECharacterInfo) async throws {
+    func saveCharacterInfo(_ character: EVECharacterInfo) async throws {
         Logger.info(
             "EVELogin: 开始保存角色信息 - 角色: \(character.CharacterName) (\(character.CharacterID))")
 
@@ -573,48 +414,8 @@ class EVELogin {
         return updatedCharacter
     }
 
-    // 执行后台刷新
-    func performBackgroundRefresh() async throws {
-        Logger.info("EVELogin: 开始执行后台刷新...")
-
-        // 获取所有角色
-        let characters = loadCharacters()
-        guard !characters.isEmpty else {
-            Logger.info("EVELogin: 无需执行后台刷新，未找到角色信息")
-            return
-        }
-
-        // 为每个角色刷新令牌和信息
-        for character in characters {
-            do {
-                // 1. 刷新令牌
-                _ = try await AuthTokenManager.shared.getAccessToken(
-                    for: character.character.CharacterID)
-                Logger.info("EVELogin: 成功刷新角色 \(character.character.CharacterName) 的令牌")
-
-                // 2. 更新角色信息
-                let updatedCharacter = try await loadDetailedInfo(character: character.character)
-
-                // 3. 发送通知
-                NotificationCenter.default.post(
-                    name: Notification.Name("CharacterDetailsUpdated"),
-                    object: nil,
-                    userInfo: ["character": updatedCharacter]
-                )
-
-                Logger.info("EVELogin: 成功更新角色 \(character.character.CharacterName) 的信息")
-            } catch {
-                Logger.error("EVELogin: 更新角色 \(character.character.CharacterName) 失败: \(error)")
-                // 继续处理下一个角色
-                continue
-            }
-        }
-
-        Logger.info("EVELogin: 后台刷新完成")
-    }
-
     // 获取角色信息
-    private func getCharacterInfo(token: String) async throws -> EVECharacterInfo {
+    private func getCharacterInfo(token: String, forceRefresh: Bool) async throws -> EVECharacterInfo {
         guard let config = config,
             let verifyURL = URL(string: config.urls.verify)
         else {
@@ -629,7 +430,9 @@ class EVELogin {
 
         // 获取角色的公开信息以更新军团和联盟ID
         let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(
-            characterId: characterInfo.CharacterID)
+            characterId: characterInfo.CharacterID,
+            forceRefresh: forceRefresh
+        )
         characterInfo.corporationId = publicInfo.corporation_id
         characterInfo.allianceId = publicInfo.alliance_id
 
@@ -690,7 +493,17 @@ class EVELogin {
 
         // 3. 清除 AuthTokenManager 中的缓存
         Task {
-            await AuthTokenManager.shared.clearTokens(for: characterId)
+            await AuthTokenManager.shared.clearAllTokens(for: characterId)
+        }
+
+        // 4. 清理 CharacterDatabase 中的相关数据
+        Task {
+            do {
+                try await CharacterDatabaseManager.shared.deleteCharacterData(characterId: characterId)
+                Logger.info("已清理角色 \(characterId) 在数据库中的所有数据")
+            } catch {
+                Logger.error("清理角色 \(characterId) 的数据库数据失败: \(error)")
+            }
         }
 
         UserDefaults.standard.synchronize()
@@ -766,22 +579,36 @@ class EVELogin {
 
         // 异步加载 scopes
         Task {
-            let scopes = await ScopeManager.shared.getScopes()
+            let scopes = await ScopeManager.shared.getLatestScopes()
             await MainActor.run {
                 self.config?.scopes = scopes
             }
         }
     }
 
-    // 重置token状态
-    func resetTokenExpired(characterId: Int) {
-        // 不再需要手动管理 token 状态，由 AuthTokenManager 处理
-        Task {
-            do {
-                _ = try await AuthTokenManager.shared.getAccessToken(for: characterId)
-                Logger.info("EVELogin: 已重置角色 \(characterId) 的 token 状态")
-            } catch {
-                Logger.error("EVELogin: 重置角色 \(characterId) 的 token 状态失败: \(error)")
+    // 更新角色的 refreshTokenExpired 状态
+    func updateCharacterRefreshTokenExpiredStatus(characterId: Int, expired: Bool) {
+        var characters = loadCharacters()
+        if let index = characters.firstIndex(where: { $0.character.CharacterID == characterId }) {
+            var updatedCharacter = characters[index].character
+            if updatedCharacter.refreshTokenExpired != expired {
+                Logger.info("将人物 \(characterId) 的 refresh token 过期状态从 \(updatedCharacter.refreshTokenExpired) 改为 \(expired)")
+                updatedCharacter.refreshTokenExpired = expired
+                characters[index] = CharacterAuth(character: updatedCharacter, addedDate: characters[index].addedDate, lastTokenUpdateTime: Date())
+                
+                // 保存更新后的角色信息
+                if let encodedData = try? JSONEncoder().encode(characters) {
+                    UserDefaults.standard.set(encodedData, forKey: charactersKey)
+                }
+                
+                // 发送通知以更新UI
+                NotificationCenter.default.post(
+                    name: Notification.Name("CharacterDetailsUpdated"),
+                    object: nil,
+                    userInfo: ["character": updatedCharacter]
+                )
+            } else {
+                Logger.info("人物 \(characterId) 的 refresh token 过期状态为 \(updatedCharacter.refreshTokenExpired), 无需更改")
             }
         }
     }
@@ -802,34 +629,36 @@ class EVELogin {
             tokenType: token.token_type,
             characterId: character.CharacterID
         )
+        
+        // 3. 重置refreshTokenExpired状态
+        updateCharacterRefreshTokenExpiredStatus(characterId: character.CharacterID, expired: false)
 
         Logger.info("EVELogin: 认证状态已保存")
     }
 
     // 添加 getScopes 方法到类内部
     func getScopes() async -> [String] {
-        let scopes = await ScopeManager.shared.getScopes()
+        let scopes = await ScopeManager.shared.getLatestScopes()
         // 更新配置中的 scopes
         await MainActor.run {
             self.config?.scopes = scopes
         }
         return scopes
     }
-}
 
-// 在 EVELogin 类中添加私有静态配置
-extension EVELogin {
-    fileprivate static let defaultConfig = ESIConfig(
-        clientId: "7339147833b44ad3815c7ef0957950c2",
-        clientSecret: "cgEH3hswersReqCFUyzRmsvb7C7wBAPYVq2IM2Of",
-        callbackUrl: "eveauthpanel://callback/",
-        urls: ESIConfig.ESIUrls(
-            authorize: "https://login.eveonline.com/v2/oauth/authorize/",
-            token: "https://login.eveonline.com/v2/oauth/token",
-            verify: "https://login.eveonline.com/oauth/verify"
-        ),
-        scopes: []  // 将在 loadConfig 中填充
-    )
+    func resetRefreshTokenExpired(characterId: Int) {
+        // 不再需要手动管理 token 状态，由 AuthTokenManager 处理
+        Task {
+            do {
+                _ = try await AuthTokenManager.shared.getAccessToken(for: characterId)
+                // 明确将refreshTokenExpired设置为false
+                updateCharacterRefreshTokenExpiredStatus(characterId: characterId, expired: false)
+                Logger.info("EVELogin: 已重置角色 \(characterId) 的 token 状态")
+            } catch {
+                Logger.error("EVELogin: 重置角色 \(characterId) 的 token 状态失败: \(error)")
+            }
+        }
+    }
 }
 
 // 添加 ScopeManager 类
@@ -866,10 +695,12 @@ class ScopeManager {
     // 保存 scopes 到本地文件
     private func saveScopesToFile(_ scopes: [String]) {
         do {
-            let scopesDict = ["scopes": scopes]
+            // 对 scopes 数组进行排序
+            let sortedScopes = scopes.sorted()
+            let scopesDict = ["scopes": sortedScopes]
             let data = try JSONEncoder().encode(scopesDict)
             try data.write(to: latestScopesPath)
-            Logger.info("成功保存 scopes 到本地文件")
+            Logger.info("成功保存 scopes 到本地文件，共 \(sortedScopes.count) 个权限")
         } catch {
             Logger.error("保存 scopes 到本地文件失败: \(error)")
         }
@@ -887,7 +718,7 @@ class ScopeManager {
             method: "GET",
             headers: ["Accept": "application/json"],
             noRetryKeywords: nil,
-            timeouts: [2, 5, 5, 10, 10]
+            timeouts: [2, 5, 5]
         )
 
         let swagger = try JSONDecoder().decode(SwaggerResponse.self, from: data)
@@ -904,21 +735,47 @@ class ScopeManager {
     }
 
     // 获取 scopes
-    func getScopes(forceRefresh: Bool = false) async -> [String] {
-        // 如果强制刷新或本地文件不存在，尝试从网络获取
-        if forceRefresh || !FileManager.default.fileExists(atPath: latestScopesPath.path) {
+    func getLatestScopes(forceRefresh: Bool = false) async -> [String] {
+        // 检查是否需要刷新
+        var shouldRefresh = forceRefresh
+        
+        if !shouldRefresh && FileManager.default.fileExists(atPath: latestScopesPath.path) {
+            do {
+                let attributes = try FileManager.default.attributesOfItem(atPath: latestScopesPath.path)
+                if let modificationDate = attributes[.modificationDate] as? Date {
+                    let timeInterval = Date().timeIntervalSince(modificationDate)
+                    let days = Int(timeInterval) / (24 * 3600)
+                    let remainingDays = 7 - days
+                    shouldRefresh = timeInterval >= 7 * 24 * 3600
+                    
+                    let dateFormatter = DateFormatter()
+                    dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+                    let lastUpdateStr = dateFormatter.string(from: modificationDate)
+                    
+                    Logger.info("""
+                        Scopes 文件状态:
+                        - 最后更新时间: \(lastUpdateStr)
+                        - 已过去天数: \(days) 天
+                        - 剩余有效期: \(remainingDays) 天
+                        - 是否需要刷新: \(shouldRefresh ? "是" : "否")
+                        """)
+                }
+            } catch {
+                Logger.error("检查 latest_scopes.json 文件属性失败: \(error)")
+                shouldRefresh = true
+            }
+        } else if !shouldRefresh {
+            Logger.info("latest_scopes.json 文件不存在，需要创建")
+            shouldRefresh = true
+        }
+
+        // 如果需要刷新，尝试从网络获取
+        if shouldRefresh {
             do {
                 Logger.info("尝试从网络获取最新 scopes")
                 return try await fetchLatestScopes()
             } catch {
-                Logger.error("从网络获取 scopes 失败: \(error)，尝试使用本地硬编码的 scopes")
-                // 如果网络获取失败，尝试使用硬编码的 scopes
-                if let hardcodedScopes = loadHardcodedScopes() {
-                    return hardcodedScopes
-                }
-                // 如果硬编码的 scopes 也无法加载，返回空数组
-                Logger.error("加载硬编码的 scopes 也失败")
-                return []
+                Logger.error("从网络获取 scopes 失败: \(error)，尝试使用本地文件")
             }
         }
 

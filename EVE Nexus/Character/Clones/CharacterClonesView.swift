@@ -8,6 +8,11 @@ private struct MergedCloneLocation: Identifiable {
     let clones: [JumpClone]
 
     var cloneCount: Int { clones.count }
+    
+    // 计算该位置所有克隆体的植入体总数
+    var totalImplantsCount: Int {
+        clones.reduce(0) { $0 + $1.implants.count }
+    }
 }
 
 // 植入体信息结构
@@ -70,6 +75,7 @@ struct CharacterClonesView: View {
     @State private var locationTypeId: Int?
     @State private var implantDetails: [ImplantInfo] = []  // 修改类型
     @State private var mergedCloneLocations: [MergedCloneLocation] = []
+    @State private var hasInitialized = false // 追踪是否已执行初始化
 
     private let dateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -84,6 +90,17 @@ struct CharacterClonesView: View {
             initialValue: LocationInfoLoader(
                 databaseManager: databaseManager, characterId: Int64(character.CharacterID)
             ))
+    }
+    
+    // 加载克隆体数据，但只在首次调用时执行
+    private func loadCloneDataIfNeeded() {
+        guard !hasInitialized else { return }
+        
+        hasInitialized = true
+        
+        Task {
+            await loadCloneData()
+        }
     }
 
     var body: some View {
@@ -224,7 +241,8 @@ struct CharacterClonesView: View {
                                     databaseManager: databaseManager,
                                     locationLoader: locationLoader,
                                     characterId: character.CharacterID,
-                                    cloneCount: location.cloneCount
+                                    cloneCount: location.cloneCount,
+                                    totalImplantsCount: location.totalImplantsCount
                                 )
                             }
                         }
@@ -234,8 +252,8 @@ struct CharacterClonesView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_Jump_Clones", comment: ""))
-        .task {
-            await loadCloneData()
+        .onAppear {
+            loadCloneDataIfNeeded()
         }
         .refreshable {
             await loadCloneData(forceRefresh: true)
@@ -357,12 +375,13 @@ struct CloneLocationRow: View {
     let locationLoader: LocationInfoLoader?
     let characterId: Int
     let cloneCount: Int
+    let totalImplantsCount: Int
     @State private var locationDetail: LocationInfoDetail?
     @State private var locationTypeId: Int?
 
     init(
         locationId: Int, locationType: String, databaseManager: DatabaseManager,
-        locationLoader: LocationInfoLoader?, characterId: Int, cloneCount: Int = 1
+        locationLoader: LocationInfoLoader?, characterId: Int, cloneCount: Int = 1, totalImplantsCount: Int = 0
     ) {
         self.locationId = locationId
         self.locationType = locationType
@@ -370,6 +389,7 @@ struct CloneLocationRow: View {
         self.locationLoader = locationLoader
         self.characterId = characterId
         self.cloneCount = cloneCount
+        self.totalImplantsCount = totalImplantsCount
     }
 
     var body: some View {
@@ -402,8 +422,9 @@ struct CloneLocationRow: View {
 
                     Text(
                         String(
-                            format: NSLocalizedString("Character_Clone_Count", comment: ""),
-                            cloneCount
+                            format: NSLocalizedString("Character_Clone_And_Implants_Count", comment: ""),
+                            cloneCount,
+                            totalImplantsCount
                         )
                     )
                     .font(.caption)

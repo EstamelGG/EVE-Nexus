@@ -127,18 +127,6 @@ class CharacterWalletAPI {
         return isValid
     }
 
-    // 检查日志缓存是否有效
-    private func isJournalCacheValid(_ cache: WalletJournalCacheEntry) -> Bool {
-        let timeInterval = Date().timeIntervalSince(cache.timestamp)
-        return timeInterval < cacheTimeout
-    }
-
-    // 检查交易记录缓存是否有效
-    private func isTransactionsCacheValid(_ cache: WalletTransactionsCacheEntry) -> Bool {
-        let timeInterval = Date().timeIntervalSince(cache.timestamp)
-        return timeInterval < cacheTimeout
-    }
-
     // 从UserDefaults获取缓存
     private func getDiskCache(characterId: Int) -> CacheEntry? {
         let key = walletCachePrefix + String(characterId)
@@ -166,15 +154,6 @@ class CharacterWalletAPI {
             UserDefaults.standard.set(encoded, forKey: key)
         } else {
             Logger.error("保存钱包缓存到磁盘失败 - Key: \(key)")
-        }
-    }
-
-    // 清除缓存
-    private func clearCache(characterId: Int) {
-        cacheQueue.async(flags: .barrier) {
-            self.memoryCache.removeValue(forKey: characterId)
-            let key = self.walletCachePrefix + String(characterId)
-            UserDefaults.standard.removeObject(forKey: key)
         }
     }
 
@@ -256,35 +235,6 @@ class CharacterWalletAPI {
         saveToDiskCache(characterId: characterId, cache: cacheEntry)
 
         return Double(stringValue) ?? 0.0
-    }
-
-    // 获取钱包日志的缓存键
-    private func getJournalCacheKey(characterId: Int) -> String {
-        return walletJournalCachePrefix + String(characterId)
-    }
-
-    // 获取缓存的钱包日志
-    private func getCachedJournal(characterId: Int) -> String? {
-        let key = getJournalCacheKey(characterId: characterId)
-        guard let data = UserDefaults.standard.data(forKey: key),
-            let cache = try? JSONDecoder().decode(WalletJournalCacheEntry.self, from: data),
-            isJournalCacheValid(cache)
-        else {
-            return nil
-        }
-        return cache.jsonString
-    }
-
-    // 保存钱包日志到缓存
-    private func saveJournalToCache(jsonString: String, characterId: Int) {
-        let cache = WalletJournalCacheEntry(jsonString: jsonString, timestamp: Date())
-        let key = getJournalCacheKey(characterId: characterId)
-        if let encoded = try? JSONEncoder().encode(cache) {
-            Logger.info("保存钱包日志到缓存 - Key: \(key), 数据大小: \(encoded.count) bytes")
-            UserDefaults.standard.set(encoded, forKey: key)
-        } else {
-            Logger.error("保存钱包日志到缓存失败 - Key: \(key)")
-        }
     }
 
     // 从数据库获取钱包日志
@@ -411,8 +361,8 @@ class CharacterWalletAPI {
         }
     }
 
-    // 获取钱包日志（公开方法）
-    public func getWalletJournal(characterId: Int, forceRefresh: Bool = false) async throws
+    // 获取钱包日志
+    func getWalletJournal(characterId: Int, forceRefresh: Bool = false) async throws
         -> String?
     {
         // 检查数据库中是否有数据，以及是否需要刷新
@@ -480,11 +430,6 @@ class CharacterWalletAPI {
 
         Logger.info("钱包日志获取完成，共\(journalEntries.count)条记录")
         return journalEntries
-    }
-
-    // 获取钱包交易记录的缓存键
-    private func getTransactionsCacheKey(characterId: Int) -> String {
-        return walletTransactionsCachePrefix + String(characterId)
     }
 
     // 从数据库获取钱包交易记录
@@ -625,8 +570,8 @@ class CharacterWalletAPI {
         }
     }
 
-    // 获取钱包交易记录（公开方法）
-    public func getWalletTransactions(characterId: Int, forceRefresh: Bool = false) async throws
+    // 获取钱包交易记录
+    func getWalletTransactions(characterId: Int, forceRefresh: Bool = false) async throws
         -> String?
     {
         // 检查数据库中是否有数据，以及是否需要刷新
@@ -688,17 +633,5 @@ class CharacterWalletAPI {
 
         Logger.info("成功获取钱包交易记录，共\(transactions.count)条记录")
         return transactions
-    }
-
-    // 保存交易记录到缓存
-    private func saveTransactionsToCache(jsonString: String, characterId: Int) {
-        let cache = WalletTransactionsCacheEntry(jsonString: jsonString, timestamp: Date())
-        let key = getTransactionsCacheKey(characterId: characterId)
-        if let encoded = try? JSONEncoder().encode(cache) {
-            Logger.info("保存钱包交易记录到缓存 - Key: \(key), 数据大小: \(encoded.count) bytes")
-            UserDefaults.standard.set(encoded, forKey: key)
-        } else {
-            Logger.error("保存钱包交易记录到缓存失败 - Key: \(key)")
-        }
     }
 }

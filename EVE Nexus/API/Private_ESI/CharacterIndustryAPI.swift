@@ -490,17 +490,4 @@ class CharacterIndustryAPI {
 
         return jobs
     }
-
-    // 清除所有缓存
-    func clearAllCache() {
-        // 只清除 UserDefaults 中的查询时间记录
-        let defaults = UserDefaults.standard
-        for key in defaults.dictionaryRepresentation().keys {
-            if key.hasPrefix(lastIndustryQueryKey) {
-                defaults.removeObject(forKey: key)
-            }
-        }
-
-        Logger.debug("清除工业项目查询时间记录")
-    }
 }

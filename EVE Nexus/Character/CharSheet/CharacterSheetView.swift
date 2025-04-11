@@ -23,6 +23,7 @@ struct CharacterSheetView: View {
     @State private var birthday: String?
     @State private var medals: [CharacterMedal]?
     @State private var isLoadingMedals = true
+    @State private var hasInitialized = false // 追踪是否已初始化
 
     // UserDefaults 键名常量
     private let lastShipTypeIdKey: String
@@ -73,6 +74,61 @@ struct CharacterSheetView: View {
                 )
                 _currentShip = State(initialValue: lastShip)
                 _shipTypeName = State(initialValue: typeName)
+            }
+        }
+    }
+    
+    // 初始化数据加载，确保只加载一次
+    private func loadInitialDataIfNeeded() {
+        guard !hasInitialized else { return }
+        
+        hasInitialized = true
+        
+        Task {
+            // 1. 首先加载本地数据库中的数据
+            loadLocalData()
+
+            // 2. 从缓存加载位置信息
+            if let data = UserDefaults.standard.data(forKey: lastLocationKey),
+                let locationCache = try? JSONDecoder().decode(LocationCache.self, from: data)
+            {
+                await loadLocationFromCache(locationCache)
+            }
+
+            // 3. 并行加载所有网络数据
+            await withTaskGroup(of: Void.self) { group in
+                // 加载在线状态
+                group.addTask {
+                    await loadOnlineStatus()
+                }
+
+                // 加载位置信息（强制刷新）
+                group.addTask {
+                    await loadLocationInfo(forceRefresh: true)
+                }
+
+                // 加载飞船信息
+                group.addTask {
+                    await loadShipInfo()
+                }
+
+                // 加载跳跃疲劳
+                group.addTask {
+                    await loadFatigueInfo()
+                }
+
+                // 加载军团和联盟信息
+                group.addTask {
+                    await loadCorporationAndAllianceInfo()
+                }
+
+                // 加载奖章信息
+                group.addTask {
+                    await loadMedalsInfo()
+                }
+
+                // 等待所有任务完成
+                await group.waitForAll()
             }
         }
     }
@@ -287,13 +343,22 @@ struct CharacterSheetView: View {
                                     OnlineStatusIndicator(
                                         isOnline: true,
                                         size: 8,
-                                        isLoading: true
+                                        isLoading: true,
+                                        statusUnknown: false
                                     )
                                 } else if let status = onlineStatus {
                                     OnlineStatusIndicator(
                                         isOnline: status.online,
                                         size: 8,
-                                        isLoading: false
+                                        isLoading: false,
+                                        statusUnknown: false
+                                    )
+                                } else {
+                                    OnlineStatusIndicator(
+                                        isOnline: false,
+                                        size: 8,
+                                        isLoading: false,
+                                        statusUnknown: true
                                     )
                                 }
                             }
@@ -561,6 +626,8 @@ struct CharacterSheetView: View {
                             }
                         }
                     }
+                } header: {
+                    Text(NSLocalizedString("Timer", comment: ""))
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
@@ -610,52 +677,8 @@ struct CharacterSheetView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_Character_Sheet", comment: ""))
-        .task {
-            // 1. 首先加载本地数据库中的数据
-            loadLocalData()
-
-            // 2. 从缓存加载位置信息
-            if let data = UserDefaults.standard.data(forKey: lastLocationKey),
-                let locationCache = try? JSONDecoder().decode(LocationCache.self, from: data)
-            {
-                await loadLocationFromCache(locationCache)
-            }
-
-            // 3. 并行加载所有网络数据
-            await withTaskGroup(of: Void.self) { group in
-                // 加载在线状态
-                group.addTask {
-                    await loadOnlineStatus()
-                }
-
-                // 加载位置信息（强制刷新）
-                group.addTask {
-                    await loadLocationInfo(forceRefresh: true)
-                }
-
-                // 加载飞船信息
-                group.addTask {
-                    await loadShipInfo()
-                }
-
-                // 加载跳跃疲劳
-                group.addTask {
-                    await loadFatigueInfo()
-                }
-
-                // 加载军团和联盟信息
-                group.addTask {
-                    await loadCorporationAndAllianceInfo()
-                }
-
-                // 加载奖章信息
-                group.addTask {
-                    await loadMedalsInfo()
-                }
-
-                // 等待所有任务完成
-                await group.waitForAll()
-            }
+        .onAppear {
+            loadInitialDataIfNeeded()
         }
         .refreshable {
             // 用户下拉刷新时，强制从API获取最新数据
@@ -702,57 +725,6 @@ struct CharacterSheetView: View {
             }
         } catch {
             Logger.error("获取飞船信息失败: \(error)")
-        }
-    }
-
-    // 加载建筑物信息
-    private func loadStructureInfo(structureId: Int64, location: CharacterLocation) async {
-        let structureInfo = try? await UniverseStructureAPI.shared.fetchStructureInfo(
-            structureId: structureId,
-            characterId: character.CharacterID
-        )
-        if let info = await locationLoader?.loadLocationInfo(locationIds: [structureId]).first?
-            .value
-        {
-            await MainActor.run {
-                self.locationDetail = info
-                self.locationStatus = location.locationStatus
-                self.locationTypeId = structureInfo?.type_id
-            }
-        }
-    }
-
-    // 加载空间站信息
-    private func loadStationInfo(stationId: Int64, location: CharacterLocation) async {
-        let query = "SELECT stationTypeID FROM stations WHERE stationID = ?"
-        if case let .success(rows) = databaseManager.executeQuery(
-            query, parameters: [Int(stationId)]
-        ),
-            let row = rows.first,
-            let typeId = row["stationTypeID"] as? Int
-        {
-            if let info = await locationLoader?.loadLocationInfo(locationIds: [stationId]).first?
-                .value
-            {
-                await MainActor.run {
-                    self.locationDetail = info
-                    self.locationStatus = location.locationStatus
-                    self.locationTypeId = typeId
-                }
-            }
-        }
-    }
-
-    // 加载星系信息
-    private func loadSolarSystemInfo(location: CharacterLocation) async {
-        if let info = await getSolarSystemInfo(
-            solarSystemId: location.solar_system_id, databaseManager: databaseManager
-        ) {
-            await MainActor.run {
-                self.currentLocation = info
-                self.locationStatus = location.locationStatus
-                self.locationTypeId = nil
-            }
         }
     }
 
@@ -903,128 +875,6 @@ struct CharacterSheetView: View {
         ) {
             Logger.error("保存角色状态失败: \(error)")
         }
-    }
-
-    private func loadCharacterStateFromDatabase() -> Bool {
-        let query = """
-                SELECT * FROM character_current_state 
-                WHERE character_id = ? AND last_update > ?
-            """
-
-        // 只加载1小时内的缓存数据
-        let oneHourAgo = Int(Date().timeIntervalSince1970) - 3600
-
-        let result = CharacterDatabaseManager.shared.executeQuery(
-            query,
-            parameters: [Int64(character.CharacterID), oneHourAgo]
-        )
-
-        if case let .success(rows) = result,
-            let row = rows.first
-        {
-            // 加载位置信息
-            if let solarSystemId = row["solar_system_id"] as? Int64 {
-                Task {
-                    // 检查是否在建筑物中
-                    if let structureId = row["structure_id"] as? Int64 {
-                        // 建筑物
-                        let structureInfo = try? await UniverseStructureAPI.shared
-                            .fetchStructureInfo(
-                                structureId: structureId,
-                                characterId: character.CharacterID
-                            )
-                        if let info = await locationLoader?.loadLocationInfo(locationIds: [
-                            structureId
-                        ]).first?.value {
-                            await MainActor.run {
-                                self.locationDetail = info
-                                self.locationStatus = CharacterLocation.LocationStatus(
-                                    rawValue: row["location_status"] as? String ?? "")
-                                self.locationTypeId = structureInfo?.type_id
-                            }
-                        }
-                    }
-                    // 检查是否在空间站中
-                    else if let stationId = row["station_id"] as? Int64 {
-                        // 空间站
-                        let query = "SELECT stationTypeID FROM stations WHERE stationID = ?"
-                        if case let .success(rows) = databaseManager.executeQuery(
-                            query, parameters: [Int(stationId)]
-                        ),
-                            let row = rows.first,
-                            let typeId = row["stationTypeID"] as? Int
-                        {
-                            if let info = await locationLoader?.loadLocationInfo(locationIds: [
-                                stationId
-                            ]).first?.value {
-                                await MainActor.run {
-                                    self.locationDetail = info
-                                    self.locationStatus = CharacterLocation.LocationStatus(
-                                        rawValue: row["location_status"] as? String ?? "")
-                                    self.locationTypeId = typeId
-                                }
-                            }
-                        }
-                    }
-                    // 在太空中
-                    else {
-                        if let info = await getSolarSystemInfo(
-                            solarSystemId: Int(solarSystemId), databaseManager: databaseManager
-                        ) {
-                            await MainActor.run {
-                                self.currentLocation = info
-                                self.locationStatus = CharacterLocation.LocationStatus(
-                                    rawValue: row["location_status"] as? String ?? "")
-                                self.locationTypeId = nil
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 加载飞船信息
-            if let shipTypeId = row["ship_type_id"] as? Int64,
-                let shipItemId = row["ship_item_id"] as? Int64,
-                let shipName = row["ship_name"] as? String
-            {
-                let shipInfo = CharacterShipInfo(
-                    ship_item_id: shipItemId,
-                    ship_name: shipName,
-                    ship_type_id: Int(shipTypeId)
-                )
-
-                // 获取飞船类型名称（从主数据库获取）
-                let typeQuery = "SELECT name FROM types WHERE type_id = ?"
-                if case let .success(typeRows) = databaseManager.executeQuery(
-                    typeQuery, parameters: [Int(shipTypeId)]
-                ),
-                    let typeRow = typeRows.first,
-                    let typeName = typeRow["name"] as? String
-                {
-                    Task { @MainActor in
-                        self.currentShip = shipInfo
-                        self.shipTypeName = typeName
-                    }
-                }
-            }
-
-            // 获取角色出生日期
-            let birthdayQuery = "SELECT birthday FROM character_info WHERE character_id = ?"
-            if case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
-                birthdayQuery, parameters: [character.CharacterID]
-            ),
-                let row = rows.first,
-                let birthdayStr = row["birthday"] as? String
-            {
-                Task { @MainActor in
-                    self.birthday = birthdayStr
-                }
-            }
-
-            return true
-        }
-
-        return false
     }
 
     private func getSecurityStatusColor(_ security: Double) -> Color {

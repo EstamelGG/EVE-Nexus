@@ -10,6 +10,11 @@ class Logger {
     private var currentLogFile: URL?
     private let maxLogFiles = 7  // 保留最近7天的日志
     private let ifWriteToFile = false  // 是否输出日志到文件？基本是debug用的，用户不需要这个功能
+    
+    // 日志长度限制
+    private static var maxDebugLogLength = 500  // debug日志最大长度
+    private static var maxInfoLogLength = 300   // info日志最大长度
+    
     private init() {
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
         dateFormatter.locale = Locale(identifier: "en_US_POSIX")
@@ -122,12 +127,14 @@ class Logger {
 
     // 公共日志方法
     static func debug(_ message: String) {
-        os_log("%{public}@", type: .debug, message)
+        let truncatedMessage = truncateMessage(message, maxLength: maxDebugLogLength)
+        os_log("%{public}@", type: .debug, truncatedMessage)
         shared.writeToFile(message, type: .debug)
     }
 
     static func info(_ message: String) {
-        os_log("%{public}@", type: .info, message)
+        let truncatedMessage = truncateMessage(message, maxLength: maxInfoLogLength)
+        os_log("%{public}@", type: .info, truncatedMessage)
         shared.writeToFile(message, type: .info)
     }
 
@@ -174,16 +181,6 @@ class Logger {
             }
     }
 
-    // 读取日志文件内容
-    static func readLogFile(_ file: URL) -> String {
-        do {
-            return try String(contentsOf: file, encoding: .utf8)
-        } catch {
-            os_log("Failed to read log file: %{public}@", type: .error, error.localizedDescription)
-            return "Failed to read log file: \(error.localizedDescription)"
-        }
-    }
-
     // 清除所有日志文件
     static func clearAllLogs() {
         let logPath = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(
@@ -199,6 +196,15 @@ class Logger {
             os_log(
                 "Failed to clear log files: %{public}@", type: .error, error.localizedDescription
             )
+        }
+    }
+
+    // 截断消息到指定长度
+    private static func truncateMessage(_ message: String, maxLength: Int) -> String {
+        if message.count <= maxLength {
+            return message
+        } else {
+            return message.prefix(maxLength) + "......"
         }
     }
 }

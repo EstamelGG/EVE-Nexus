@@ -15,6 +15,7 @@ struct CharacterMailDetailView: View {
     @State private var showingComposeView = false
     @State private var composeType: ComposeType?
     @ObservedObject var databaseManager = DatabaseManager.shared
+    @State private var hasInitialized = false // 追踪是否已执行初始化
 
     enum ComposeType {
         case reply, replyAll, forward
@@ -28,6 +29,17 @@ struct CharacterMailDetailView: View {
             case .forward:
                 return NSLocalizedString("Main_EVE_Mail_Forward", comment: "")
             }
+        }
+    }
+
+    // 初始化数据加载方法
+    private func loadInitialDataIfNeeded() {
+        guard !hasInitialized else { return }
+        
+        hasInitialized = true
+        
+        Task {
+            await viewModel.loadMailContent(characterId: characterId, mailId: mail.mail_id)
         }
     }
 
@@ -153,8 +165,8 @@ struct CharacterMailDetailView: View {
                 .interactiveDismissDisabled()
             }
         }
-        .task {
-            await viewModel.loadMailContent(characterId: characterId, mailId: mail.mail_id)
+        .onAppear {
+            loadInitialDataIfNeeded()
         }
     }
 

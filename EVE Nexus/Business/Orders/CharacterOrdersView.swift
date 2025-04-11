@@ -436,19 +436,5 @@ struct CharacterOrdersView: View {
                 .padding(.vertical, 4)
             }
         }
-
-        private func formatDate(_ dateString: String) -> String {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-
-            guard let date = formatter.date(from: dateString) else {
-                return dateString
-            }
-
-            let displayFormatter = DateFormatter()
-            displayFormatter.dateStyle = .short
-            displayFormatter.timeStyle = .short
-            return displayFormatter.string(from: date)
-        }
     }
 }

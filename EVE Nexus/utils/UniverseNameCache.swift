@@ -8,33 +8,6 @@ actor UniverseNameCache {
 
     private init() {}
 
-    func getName(for id: Int) -> String? {
-        // 先检查内存缓存
-        if let name = memoryCache[id] {
-            return name
-        }
-
-        // 如果内存缓存没有，检查数据库
-        let query = """
-                SELECT name 
-                FROM universe_names 
-                WHERE id = ? 
-                AND datetime(last_updated) > datetime('now', '-24 hours')
-            """
-        if case let .success(results) = CharacterDatabaseManager.shared.executeQuery(
-            query, parameters: [id]
-        ),
-            let row = results.first,
-            let name = row["name"] as? String
-        {
-            // 找到后更新内存缓存
-            memoryCache[id] = name
-            return name
-        }
-
-        return nil
-    }
-
     func setName(_ name: String, for id: Int, category: String = "unknown") {
         // 更新内存缓存
         memoryCache[id] = name

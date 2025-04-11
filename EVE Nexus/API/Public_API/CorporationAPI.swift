@@ -50,11 +50,10 @@ class CorporationAPI {
     {
         let logoURL = getLogoURL(corporationId: corporationId, size: size)
 
-        var options: KingfisherOptionsInfo = await [
+        var options: KingfisherOptionsInfo = [
             .cacheOriginalImage,
-            .backgroundDecode,
-            .scaleFactor(UIScreen.main.scale),
-            .transition(.fade(0.2)),
+            .diskCacheExpiration(.days(30)),  // 磁盘缓存30天
+            .memoryCacheExpiration(.days(7)),  // 内存缓存7天
         ]
 
         // 如果需要强制刷新，添加相应的选项
@@ -63,18 +62,33 @@ class CorporationAPI {
             options.append(.fromMemoryCacheOrRefresh)
         }
 
-        return try await withCheckedThrowingContinuation { continuation in
-            KingfisherManager.shared.retrieveImage(with: logoURL, options: options) { result in
-                switch result {
-                case let .success(imageResult):
-                    Logger.info("成功获取军团图标 - 军团ID: \(corporationId), 大小: \(size)")
-                    continuation.resume(returning: imageResult.image)
-                case let .failure(error):
-                    Logger.error(
-                        "获取军团图标失败 - 军团ID: \(corporationId) - URL: \(logoURL), 错误: \(error)")
-                    continuation.resume(throwing: NetworkError.invalidImageData)
+        do {
+            return try await withCheckedThrowingContinuation { continuation in
+                KingfisherManager.shared.retrieveImage(with: logoURL, options: options) { result in
+                    switch result {
+                    case let .success(imageResult):
+                        Logger.info("成功获取军团图标 - 军团ID: \(corporationId), 大小: \(size)")
+                        continuation.resume(returning: imageResult.image)
+                    case let .failure(error):
+                        Logger.error(
+                            "获取军团图标失败 - 军团ID: \(corporationId) - URL: \(logoURL), 错误: \(error)")
+                        // 尝试获取默认图标
+                        if let defaultImage = UIImage(named: "not_found") {
+                            Logger.info("使用默认图标替代 - 军团ID: \(corporationId)")
+                            continuation.resume(returning: defaultImage)
+                        } else {
+                            continuation.resume(throwing: NetworkError.invalidImageData)
+                        }
+                    }
                 }
             }
+        } catch {
+            Logger.error("获取军团图标发生异常 - 军团ID: \(corporationId), 错误: \(error)")
+            // 再次尝试获取默认图标
+            if let defaultImage = UIImage(named: "not_found") {
+                return defaultImage
+            }
+            throw error
         }
     }
 

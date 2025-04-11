@@ -445,7 +445,7 @@ struct SearchResultRow: View {
                     .frame(width: 38, height: 38)
                     .cornerRadius(6)
             } else {
-                UniversePortrait(id: result.id, type: result.type.recipientType, size: 32)
+                UniversePortrait(id: result.id, type: result.type.recipientType, size: 64, displaySize: 32)
                     .frame(width: 38, height: 38)
                     .cornerRadius(6)
             }
@@ -944,47 +944,6 @@ class SearcherViewModel: ObservableObject {
         return icons[closestIndex]
     }
 
-    // 直接从ESI获取名称的方法
-    private func fetchNamesFromESI(ids: [Int]) async throws -> [Int: String] {
-        let urlString = "https://esi.evetech.net/latest/universe/names/?datasource=tranquility"
-        guard let url = URL(string: urlString) else {
-            throw NetworkError.invalidURL
-        }
-
-        // 准备请求数据
-        let jsonData = try JSONEncoder().encode(ids)
-
-        // 发送POST请求
-        let data = try await NetworkManager.shared.fetchData(
-            from: url,
-            method: "POST",
-            body: jsonData
-        )
-
-        // 解析响应数据
-        let responses = try JSONDecoder().decode([UniverseNameResponse].self, from: data)
-
-        // 转换为字典
-        var namesMap: [Int: String] = [:]
-        for response in responses {
-            namesMap[response.id] = response.name
-        }
-
-        return namesMap
-    }
-
-    // 直接从ESI获取角色公开信息的方法
-    private func fetchCharacterInfoFromESI(characterId: Int) async throws -> CharacterPublicInfo {
-        let urlString =
-            "https://esi.evetech.net/latest/characters/\(characterId)/?datasource=tranquility"
-        guard let url = URL(string: urlString) else {
-            throw NetworkError.invalidURL
-        }
-
-        let data = try await NetworkManager.shared.fetchData(from: url)
-        return try JSONDecoder().decode(CharacterPublicInfo.self, from: data)
-    }
-
     func search(
         characterId: Int, searchText: String, type: SearcherView.SearchType,
         character: EVECharacterInfo, showOnlyMyCorp: Bool, showOnlyMyAlliance: Bool
@@ -1124,33 +1083,6 @@ class SearcherViewModel: ObservableObject {
             self.error = error
         }
         searchingStatus = ""
-    }
-
-    func filterResults(corporationFilter: String, allianceFilter: String) {
-        // 保存当前的过滤条件
-        currentCorpFilter = corporationFilter
-        currentAllianceFilter = allianceFilter
-
-        let corpFilter = corporationFilter.lowercased()
-        let allianceFilter = allianceFilter.lowercased()
-
-        if corpFilter.isEmpty && allianceFilter.isEmpty {
-            // 如果没有过滤条件，显示所有结果
-            filteredResults = searchResults
-        } else {
-            // 根据过滤条件筛选结果
-            filteredResults = searchResults.filter { result in
-                let matchCorp =
-                    corpFilter.isEmpty
-                    || (result.corporationName?.lowercased().contains(corpFilter) ?? false)
-                let matchAlliance =
-                    allianceFilter.isEmpty
-                    || (result.allianceName?.lowercased().contains(allianceFilter) ?? false)
-                return matchCorp && matchAlliance
-            }
-        }
-
-        Logger.debug("过滤结果：原有 \(searchResults.count) 个结果，过滤后剩余 \(filteredResults.count) 个结果")
     }
 
     func debounceSearch(

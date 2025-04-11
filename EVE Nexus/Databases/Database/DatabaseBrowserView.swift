@@ -1,4 +1,3 @@
-import SQLite3
 import SwiftUI
 
 // 浏览层级
@@ -27,7 +26,7 @@ struct DatabaseBrowserView: View {
     let level: BrowserLevel
 
     // 静态缓存
-    private static var navigationCache: [BrowserLevel: ([DatabaseListItem], [Int: String])] = [:]
+    private static var navigationCache: [BrowserLevel: ([DatabaseListItem], [Int: String], [Int: String])] = [:]
     private static let maxCacheSize = 10  // 最大缓存层级数
     private static var cacheAccessTime: [BrowserLevel: Date] = [:]  // 记录访问时间
 
@@ -52,7 +51,7 @@ struct DatabaseBrowserView: View {
     }
 
     // 获取缓存数据
-    private func getCachedData(for level: BrowserLevel) -> ([DatabaseListItem], [Int: String])? {
+    private func getCachedData(for level: BrowserLevel) -> ([DatabaseListItem], [Int: String], [Int: String])? {
         if let cachedData = Self.navigationCache[level] {
             // 更新访问时间
             Self.updateAccessTime(for: level)
@@ -63,7 +62,7 @@ struct DatabaseBrowserView: View {
     }
 
     // 设置缓存数据
-    private func setCacheData(for level: BrowserLevel, data: ([DatabaseListItem], [Int: String])) {
+    private func setCacheData(for level: BrowserLevel, data: ([DatabaseListItem], [Int: String], [Int: String])) {
         Self.navigationCache[level] = data
         Self.updateAccessTime(for: level)
     }
@@ -93,7 +92,7 @@ struct DatabaseBrowserView: View {
                 loadData: { dbManager in
                     // 检查缓存
                     if let cachedData = getCachedData(for: level) {
-                        return cachedData
+                        return (cachedData.0, cachedData.1)
                     }
 
                     // 如果没有缓存，加载数据并缓存
@@ -107,18 +106,34 @@ struct DatabaseBrowserView: View {
                         IconManager.shared.preloadCommonIcons(icons: icons)
                     }
 
-                    return data
+                    return (data.0, data.1)
                 },
                 searchData: { dbManager, searchText in
                     // 搜索不使用缓存
+                    let searchResult: ([DatabaseListItem], [Int: String], [Int: String])
+                    
                     switch level {
                     case .categories:
-                        return dbManager.searchItems(searchText: searchText)
+                        searchResult = dbManager.searchItems(searchText: searchText)
                     case let .groups(categoryID, _):
-                        return dbManager.searchItems(searchText: searchText, categoryID: categoryID)
+                        searchResult = dbManager.searchItems(searchText: searchText, categoryID: categoryID)
                     case let .items(groupID, _):
-                        return dbManager.searchItems(searchText: searchText, groupID: groupID)
+                        searchResult = dbManager.searchItems(searchText: searchText, groupID: groupID)
                     }
+                    
+                    let (items, metaGroupNames, _) = searchResult
+                    
+                    // 对搜索结果进行排序：先按科技等级，再按名称
+                    let sortedItems = items.sorted { item1, item2 in
+                        // 首先按科技等级排序
+                        if item1.metaGroupID != item2.metaGroupID {
+                            return (item1.metaGroupID ?? -1) < (item2.metaGroupID ?? -1)
+                        }
+                        // 科技等级相同时按名称排序
+                        return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+                    }
+                    
+                    return (sortedItems, metaGroupNames, [:])
                 }
             )
         }
@@ -130,7 +145,7 @@ struct DatabaseBrowserView: View {
 
     // 根据层级加载数据
     private func loadDataForLevel(_ dbManager: DatabaseManager) -> (
-        [DatabaseListItem], [Int: String]
+        [DatabaseListItem], [Int: String], [Int: String]
     ) {
         // 检查缓存
         if let cachedData = getCachedData(for: level) {
@@ -153,7 +168,7 @@ struct DatabaseBrowserView: View {
 
     // 从数据库加载数据
     private func loadDataFromDatabase(_ dbManager: DatabaseManager) -> (
-        [DatabaseListItem], [Int: String]
+        [DatabaseListItem], [Int: String], [Int: String]
     ) {
         switch level {
         case .categories:
@@ -190,7 +205,7 @@ struct DatabaseBrowserView: View {
                     )
                 )
             }
-            return (items, [:])
+            return (items, [:], [:])
 
         case let .groups(categoryID, _):
             let (published, unpublished) = dbManager.loadGroups(for: categoryID)
@@ -226,11 +241,21 @@ struct DatabaseBrowserView: View {
                     )
                 )
             }
-            return (items, [:])
+            return (items, [:], [:])
 
         case let .items(groupID, groupName):
             let (published, unpublished, metaGroupNames) = dbManager.loadItems(for: groupID)
-            let items = (published + unpublished).map { item in
+            // 对物品进行排序：先按科技等级，再按名称
+            let sortedItems = (published + unpublished).sorted { item1, item2 in
+                // 首先按科技等级排序
+                if item1.metaGroupID != item2.metaGroupID {
+                    return (item1.metaGroupID) < (item2.metaGroupID)
+                }
+                // 科技等级相同时按名称排序
+                return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+            }
+            
+            let items = sortedItems.map { item in
                 DatabaseListItem(
                     id: item.id,
                     name: item.name,
@@ -260,7 +285,7 @@ struct DatabaseBrowserView: View {
                     )
                 )
             }
-            return (items, metaGroupNames)
+            return (items, metaGroupNames, [:])
         }
     }
 

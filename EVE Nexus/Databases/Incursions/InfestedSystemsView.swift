@@ -150,35 +150,18 @@ class InfestedSystemsViewModel: ObservableObject {
                 if systems.first != nil {
                     do {
                         Logger.debug("开始加载联盟图标: \(allianceId)，影响 \(systems.count) 个星系")
-                        let logoURL = URL(
-                            string:
-                                "https://images.evetech.net/alliances/\(allianceId)/logo?size=64")!
-
-                        // 使用 KF 加载图标
-                        KingfisherManager.shared.retrieveImage(
-                            with: logoURL,
-                            options: [
-                                .processor(
-                                    DownsamplingImageProcessor(size: CGSize(width: 64, height: 64))),
-                                .cacheOriginalImage,
-                                .transition(.fade(0.25)),
-                            ]
-                        ) { result in
-                            switch result {
-                            case let .success(imageResult):
-                                Logger.debug("联盟图标加载成功: \(allianceId)")
-                                // 更新所有使用这个联盟图标的系统
-                                for system in systems {
-                                    system.icon = Image(uiImage: imageResult.image)
-                                }
-                            case let .failure(error):
-                                Logger.error("加载联盟图标失败: \(allianceId), error: \(error)")
-                            }
-
-                            // 更新所有相关系统的加载状态
-                            for system in systems {
-                                system.isLoadingIcon = false
-                            }
+                        
+                        // 使用AllianceAPI加载图标
+                        let allianceImage = try await AllianceAPI.shared.fetchAllianceLogo(
+                            allianceID: allianceId, 
+                            size: 64,
+                            forceRefresh: false
+                        )
+                        
+                        Logger.debug("联盟图标加载成功: \(allianceId)")
+                        // 更新所有使用这个联盟图标的系统
+                        for system in systems {
+                            system.icon = Image(uiImage: allianceImage)
                         }
 
                         // 加载联盟名称
@@ -190,6 +173,13 @@ class InfestedSystemsViewModel: ObservableObject {
                             }
                             Logger.debug("联盟名称加载成功: \(allianceId)")
                         }
+                    } catch {
+                        Logger.error("加载联盟图标失败: \(allianceId), error: \(error)")
+                    }
+                    
+                    // 更新所有相关系统的加载状态
+                    for system in systems {
+                        system.isLoadingIcon = false
                     }
                 }
             }

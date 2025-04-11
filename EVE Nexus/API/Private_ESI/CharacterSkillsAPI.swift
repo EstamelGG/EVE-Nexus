@@ -234,21 +234,6 @@ public class CharacterSkillsAPI {
         }
     }
 
-    // 创建技能队列表
-    private func setupSkillQueueTable() {
-        let createTableSQL = """
-                CREATE TABLE IF NOT EXISTS skill_queue_cache (
-                    character_id INTEGER PRIMARY KEY,
-                    queue_data TEXT,
-                    last_updated TEXT DEFAULT CURRENT_TIMESTAMP
-                );
-            """
-
-        if case let .error(error) = CharacterDatabaseManager.shared.executeQuery(createTableSQL) {
-            Logger.error("创建技能队列表失败: \(error)")
-        }
-    }
-
     // 保存技能队列到数据库
     private func saveSkillQueue(characterId: Int, queue: [SkillQueueItem]) -> Bool {
         do {
@@ -289,7 +274,7 @@ public class CharacterSkillsAPI {
                 SELECT queue_data, last_updated 
                 FROM character_skill_queue 
                 WHERE character_id = ?
-                AND datetime(last_updated) > datetime('now', '-5 minutes')
+                AND datetime(last_updated) > datetime('now', '-1 hours')
             """
 
         if case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
@@ -366,7 +351,7 @@ public class CharacterSkillsAPI {
                        bonus_remaps, accrued_remap_cooldown_date, last_remap_date, last_updated
                 FROM character_attributes 
                 WHERE character_id = ? 
-                AND datetime(last_updated) > datetime('now', '-8 hours')
+                AND datetime(last_updated) > datetime('now', '-1 hours')
             """
 
         if case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(

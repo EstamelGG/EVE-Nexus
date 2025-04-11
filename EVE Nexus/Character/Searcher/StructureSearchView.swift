@@ -52,25 +52,6 @@ struct StructureSearchView: View {
             }
     }
 
-    // 加载位置信息
-    private func loadLocationInfo(systemId: Int) async throws -> (
-        security: Double, systemName: String, regionName: String
-    ) {
-        guard
-            let solarSystemInfo = await getSolarSystemInfo(
-                solarSystemId: systemId, databaseManager: DatabaseManager.shared
-            )
-        else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "未找到位置信息"])
-        }
-
-        return (
-            security: solarSystemInfo.security,
-            systemName: solarSystemInfo.systemName,
-            regionName: solarSystemInfo.regionName
-        )
-    }
-
     // 批量加载位置信息
     private func loadBatchLocationInfo(systemIds: [Int]) async throws -> [Int: (
         security: Double, systemName: String, regionName: String
@@ -90,25 +71,6 @@ struct StructureSearchView: View {
         }
 
         return result
-    }
-
-    // 加载类型图标
-    private func loadTypeIcon(typeId: Int) throws -> String {
-        let sql = """
-                SELECT 
-                    icon_filename
-                FROM types
-                WHERE type_id = ?
-            """
-
-        guard
-            case let .success(rows) = DatabaseManager.shared.executeQuery(sql, parameters: [typeId]),
-            let row = rows.first
-        else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "未找到类型图标"])
-        }
-
-        return row["icon_filename"] as! String
     }
 
     // 批量加载类型图标
@@ -295,7 +257,7 @@ struct StructureSearchView: View {
 
             // 计算合适的批次大小：最小1，最大10，默认为总数的1/5
             let batchSize = min(max(structureIds.count / 5, 1), 10)
-
+            Logger.info("batchSize: \(batchSize)")
             // 收集所有建筑物的系统ID和类型ID
             var allSystemIds: [Int] = []
             var allTypeIds: [Int] = []

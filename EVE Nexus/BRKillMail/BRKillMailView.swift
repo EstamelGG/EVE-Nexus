@@ -36,6 +36,13 @@ class KillMailViewModel: ObservableObject {
     private let databaseManager = DatabaseManager.shared
     let kbAPI = KbEvetoolAPI.shared
     private var currentIndex = 0
+    private let fileManager = FileManager.default
+    private var cacheDirectory: URL {
+        let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let kbDirectory = documentsPath.appendingPathComponent("kb")
+        try? fileManager.createDirectory(at: kbDirectory, withIntermediateDirectories: true)
+        return kbDirectory
+    }
 
     struct CachedKillMailData {
         let mails: [KillMailEntry]
@@ -46,6 +53,43 @@ class KillMailViewModel: ObservableObject {
 
     init(characterId: Int) {
         self.characterId = characterId
+    }
+
+    private func getCacheFilePath(for type: String) -> URL {
+        return cacheDirectory.appendingPathComponent("\(type)_\(characterId).json")
+    }
+
+    private func saveToCache(_ data: [String: Any], for type: String) {
+        let filePath = getCacheFilePath(for: type)
+        var cacheData = data
+        cacheData["update_time"] = Date().timeIntervalSince1970
+        
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: cacheData, options: .prettyPrinted)
+            try jsonData.write(to: filePath)
+            Logger.info("保存到缓存文件: \(filePath)")
+        } catch {
+            Logger.error("保存缓存失败: \(error)")
+        }
+    }
+
+    private func loadFromCache(for type: String) -> [String: Any]? {
+        let filePath = getCacheFilePath(for: type)
+        
+        guard let data = try? Data(contentsOf: filePath),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let updateTime = dict["update_time"] as? TimeInterval else {
+            return nil
+        }
+        
+        // 检查缓存是否过期（1小时）
+        let cacheAge = Date().timeIntervalSince1970 - updateTime
+        if cacheAge > 3600 {
+            try? fileManager.removeItem(at: filePath)
+            return nil
+        }
+        Logger.info("从缓存加载文件: \(filePath)")
+        return dict
     }
 
     private func convertToEntries(_ mails: [[String: Any]]) -> [KillMailEntry] {
@@ -71,30 +115,44 @@ class KillMailViewModel: ObservableObject {
         }
     }
 
-    private func loadData(for filter: KillMailFilter) async {
+    private func loadData(for filter: KillMailFilter, forceRefresh: Bool = false) async {
         guard characterId > 0 else {
-            errorMessage = String(
-                format: NSLocalizedString("KillMail_Invalid_Character_ID", comment: ""), characterId
-            )
+            await MainActor.run {
+                errorMessage = String(
+                    format: NSLocalizedString("KillMail_Invalid_Character_ID", comment: ""), characterId
+                )
+                isLoading = false
+            }
             return
         }
 
-        // 设置加载状态
-        await MainActor.run { isLoading = true }
+        if !forceRefresh {
+            await MainActor.run { isLoading = true }
+        }
 
         do {
             let response: [String: Any]
-            switch filter {
-            case .all:
-                response = try await kbAPI.fetchCharacterKillMails(characterId: characterId)
-            case .kill:
-                response = try await kbAPI.fetchCharacterKillMails(
-                    characterId: characterId, filter: .kill
-                )
-            case .loss:
-                response = try await kbAPI.fetchCharacterKillMails(
-                    characterId: characterId, filter: .loss
-                )
+            
+            // 如果不是强制刷新，尝试从缓存加载
+            if !forceRefresh, let cachedData = loadFromCache(for: "km") {
+                response = cachedData
+            } else {
+                // 从API加载
+                switch filter {
+                case .all:
+                    response = try await kbAPI.fetchCharacterKillMails(characterId: characterId)
+                case .kill:
+                    response = try await kbAPI.fetchCharacterKillMails(
+                        characterId: characterId, filter: .kill
+                    )
+                case .loss:
+                    response = try await kbAPI.fetchCharacterKillMails(
+                        characterId: characterId, filter: .loss
+                    )
+                }
+                
+                // 保存到缓存
+                saveToCache(response, for: "km")
             }
 
             guard let mails = response["data"] as? [[String: Any]] else {
@@ -130,7 +188,6 @@ class KillMailViewModel: ObservableObject {
                 if let total = response["totalPages"] as? Int {
                     self.totalPages = total
                 }
-                // 始终重置isLoading，因为loadData是最后一个完成的操作
                 self.isLoading = false
             }
         } catch {
@@ -142,8 +199,8 @@ class KillMailViewModel: ObservableObject {
     }
 
     func refreshData(for filter: KillMailFilter) async {
-        cachedData.removeValue(forKey: filter)
-        await loadData(for: filter)
+        await MainActor.run { isLoading = true }
+        await loadData(for: filter, forceRefresh: true)
     }
 
     private func loadOrganizationIcons(for mails: [[String: Any]]) async -> (
@@ -161,7 +218,7 @@ class KillMailViewModel: ObservableObject {
                 {
                     // 只有当联盟ID有效且图标未加载时才加载联盟图标
                     if allianceIcons[allyId] == nil,
-                        let icon = await loadOrganizationIcon(type: "alliance", id: allyId)
+                        let icon = await loadSingleOrganizationIcon(type: "alliance", id: allyId)
                     {
                         allianceIcons[allyId] = icon
                     }
@@ -171,7 +228,7 @@ class KillMailViewModel: ObservableObject {
                 {
                     // 只有在没有有效联盟ID的情况下才加载军团图标
                     if corporationIcons[corpId] == nil,
-                        let icon = await loadOrganizationIcon(type: "corporation", id: corpId)
+                        let icon = await loadSingleOrganizationIcon(type: "corporation", id: corpId)
                     {
                         corporationIcons[corpId] = icon
                     }
@@ -182,21 +239,13 @@ class KillMailViewModel: ObservableObject {
         return (allianceIcons, corporationIcons)
     }
 
-    private func loadOrganizationIcon(type: String, id: Int) async -> UIImage? {
+    private func loadSingleOrganizationIcon(type: String, id: Int) async -> UIImage? {
         do {
             switch type {
             case "alliance":
                 return try await AllianceAPI.shared.fetchAllianceLogo(allianceID: id, size: 64)
             case "corporation":
-                return try await CorporationAPI.shared.fetchCorporationLogo(
-                    corporationId: id, size: 64
-                )
-            case "character":
-                // 暂时保持原有的获取方式，直到我们实现CharacterAPI
-                let urlString = "https://images.evetech.net/characters/\(id)/portrait?size=64"
-                guard let url = URL(string: urlString) else { return nil }
-                let data = try await NetworkManager.shared.fetchData(from: url)
-                return UIImage(data: data)
+                return try await CorporationAPI.shared.fetchCorporationLogo(corporationId: id, size: 64)
             default:
                 return nil
             }
@@ -233,20 +282,37 @@ class KillMailViewModel: ObservableObject {
         return infoMap
     }
 
-    func loadStats() async {
-        // 如果已经加载过数据，则直接返回
-        if characterStats != nil {
+    func loadStats(forceRefresh: Bool = false) async {
+        if !forceRefresh && characterStats != nil {
             return
         }
 
-        // 设置加载状态
-        await MainActor.run { isLoading = true }
+        if !forceRefresh {
+            await MainActor.run { isLoading = true }
+        }
+
+        // 如果不是强制刷新，尝试从缓存加载
+        if !forceRefresh, let cachedData = loadFromCache(for: "stats"),
+           let stats = try? JSONDecoder().decode(CharBattleIsk.self, from: try JSONSerialization.data(withJSONObject: cachedData)) {
+            await MainActor.run {
+                self.characterStats = stats
+                if self.killMails.isEmpty {
+                    self.isLoading = false
+                }
+            }
+            return
+        }
 
         do {
             let stats = try await ZKillMailsAPI.shared.fetchCharacterStats(characterId: characterId)
+            // 保存到缓存
+            if let jsonData = try? JSONEncoder().encode(stats),
+               let dict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                saveToCache(dict, for: "stats")
+            }
+            
             await MainActor.run {
                 self.characterStats = stats
-                // 只有在没有加载killMails时才重置isLoading
                 if self.killMails.isEmpty {
                     self.isLoading = false
                 }
@@ -257,7 +323,6 @@ class KillMailViewModel: ObservableObject {
                     format: NSLocalizedString("KillMail_Stats_Failed", comment: ""),
                     error.localizedDescription
                 ))
-            // 出错时也需要重置isLoading
             await MainActor.run {
                 if self.killMails.isEmpty {
                     self.isLoading = false
@@ -307,6 +372,11 @@ class KillMailViewModel: ObservableObject {
             }
         }
     }
+
+    func refreshStats() async {
+        await MainActor.run { isLoading = true }
+        await loadStats(forceRefresh: true)
+    }
 }
 
 struct BRKillMailView: View {
@@ -314,28 +384,32 @@ struct BRKillMailView: View {
     @StateObject private var viewModel: KillMailViewModel
     @State private var selectedFilter: KillMailFilter = .all
     @State private var isLoading = false
+    @State private var hasInitialized = false  // 跟踪是否已执行初始加载
 
     init(characterId: Int) {
         self.characterId = characterId
         _viewModel = StateObject(wrappedValue: KillMailViewModel(characterId: characterId))
     }
-
-    private func loadData() {
-        guard !isLoading else { return }
-
+    
+    // 执行初始数据加载，但只在第一次调用时执行
+    private func loadInitialDataIfNeeded() {
+        guard !hasInitialized && !isLoading else { return }
+        
+        hasInitialized = true
         isLoading = true
+        
         Task {
             // 创建一个任务组，同时加载战斗统计信息和战斗记录
             await withTaskGroup(of: Void.self) { group in
                 group.addTask {
                     await viewModel.loadStats()
                 }
-
+                
                 group.addTask {
                     await viewModel.loadDataIfNeeded(for: selectedFilter)
                 }
             }
-
+            
             // 所有任务完成后重置isLoading
             isLoading = false
         }
@@ -462,11 +536,12 @@ struct BRKillMailView: View {
         .listStyle(.insetGrouped)
         .navigationTitle(NSLocalizedString("KillMail_View_Title", comment: ""))
         .refreshable {
-            await viewModel.loadStats()
+            // 依次刷新战斗统计和战斗记录
+            await viewModel.refreshStats()
             await viewModel.refreshData(for: selectedFilter)
         }
         .onAppear {
-            loadData()
+            loadInitialDataIfNeeded()
         }
     }
 }

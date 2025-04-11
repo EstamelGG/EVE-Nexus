@@ -43,16 +43,10 @@ class AllianceAPI {
     {
         let logoURL = getLogoURL(allianceId: allianceID, size: size)
 
-        var options: KingfisherOptionsInfo = await [
+        var options: KingfisherOptionsInfo = [
             .cacheOriginalImage,
-            .backgroundDecode,
-            .scaleFactor(UIScreen.main.scale),
-            .transition(.fade(0.2)),
-            .cacheSerializer(FormatIndicatedCacheSerializer.png),  // 使用PNG格式缓存
             .diskCacheExpiration(.days(30)),  // 磁盘缓存30天
             .memoryCacheExpiration(.days(7)),  // 内存缓存7天
-            .processor(DownsamplingImageProcessor(size: CGSize(width: size, height: size))),  // 下采样处理
-            .alsoPrefetchToMemory,  // 预加载到内存
         ]
 
         // 如果需要强制刷新，添加相应的选项
@@ -61,17 +55,32 @@ class AllianceAPI {
             options.append(.fromMemoryCacheOrRefresh)
         }
 
-        return try await withCheckedThrowingContinuation { continuation in
-            KingfisherManager.shared.retrieveImage(with: logoURL, options: options) { result in
-                switch result {
-                case let .success(imageResult):
-                    Logger.info("成功获取联盟图标 - 联盟ID: \(allianceID), 大小: \(size)")
-                    continuation.resume(returning: imageResult.image)
-                case let .failure(error):
-                    Logger.error("获取联盟图标失败 - 联盟ID: \(allianceID), 错误: \(error)")
-                    continuation.resume(throwing: NetworkError.invalidImageData)
+        do {
+            return try await withCheckedThrowingContinuation { continuation in
+                KingfisherManager.shared.retrieveImage(with: logoURL, options: options) { result in
+                    switch result {
+                    case let .success(imageResult):
+                        Logger.info("成功获取联盟图标 - 联盟ID: \(allianceID), 大小: \(size)")
+                        continuation.resume(returning: imageResult.image)
+                    case let .failure(error):
+                        Logger.error("获取联盟图标失败 - 联盟ID: \(allianceID), 错误: \(error)")
+                        // 尝试获取默认图标
+                        if let defaultImage = UIImage(named: "not_found") {
+                            Logger.info("使用默认图标替代 - 联盟ID: \(allianceID)")
+                            continuation.resume(returning: defaultImage)
+                        } else {
+                            continuation.resume(throwing: NetworkError.invalidImageData)
+                        }
+                    }
                 }
             }
+        } catch {
+            Logger.error("获取联盟图标发生异常 - 联盟ID: \(allianceID), 错误: \(error)")
+            // 再次尝试获取默认图标
+            if let defaultImage = UIImage(named: "not_found") {
+                return defaultImage
+            }
+            throw error
         }
     }
 

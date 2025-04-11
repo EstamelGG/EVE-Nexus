@@ -134,6 +134,7 @@ struct MarketItemSelectorBaseView<Content: View>: View {
 
     @State private var items: [DatabaseListItem] = []
     @State private var marketGroupNames: [Int: String] = [:]
+    @State private var metaGroupNames: [Int: String] = [:]  // 添加科技等级名称字典
     @State private var searchText = ""
     @State private var isSearchActive = false
     @State private var isLoading = false
@@ -145,8 +146,7 @@ struct MarketItemSelectorBaseView<Content: View>: View {
         guard !items.isEmpty else { return [] }
 
         // 按categoryID和groupID组织数据
-        var groupedByCategory: [Int: [(groupID: Int, name: String, items: [DatabaseListItem])]] =
-            [:]
+        var groupedByCategory: [Int: [(groupID: Int, name: String, items: [DatabaseListItem])]] = [:]
 
         // 首先按categoryID和groupID分组
         for item in items {
@@ -173,30 +173,102 @@ struct MarketItemSelectorBaseView<Content: View>: View {
         let categoryPriority = [6, 7, 32, 8, 4, 16, 18, 87, 20, 22, 9, 5]
 
         // 按优先级顺序排序分类
-        let sortedCategories = groupedByCategory.keys.sorted { cat1, cat2 in
-            let index1 = categoryPriority.firstIndex(of: cat1) ?? Int.max
-            let index2 = categoryPriority.firstIndex(of: cat2) ?? Int.max
-            if index1 == index2 {
-                return cat1 < cat2  // 如果都不在优先级列表中，按ID升序
-            }
-            return index1 < index2  // 按优先级排序
-        }
-
-        // 构建最终结果
         var result: [(id: Int, name: String, items: [DatabaseListItem])] = []
-
-        for categoryID in sortedCategories {
-            if let categoryGroups = groupedByCategory[categoryID] {
-                // 在每个分类内部，按groupID排序
-                let sortedGroups = categoryGroups.sorted { $0.groupID < $1.groupID }
-
-                for group in sortedGroups {
-                    result.append((id: group.groupID, name: group.name, items: group.items))
+        for categoryID in categoryPriority {
+            if let groups = groupedByCategory[categoryID] {
+                for group in groups.sorted(by: { $0.groupID < $1.groupID }) {
+                    // 对每个组内的物品进行排序
+                    let sortedItems = group.items.sorted { item1, item2 in
+                        // 首先按科技等级排序
+                        if item1.metaGroupID != item2.metaGroupID {
+                            return (item1.metaGroupID ?? -1) < (item2.metaGroupID ?? -1)
+                        }
+                        // 科技等级相同时按名称排序
+                        return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+                    }
+                    result.append((id: group.groupID, name: group.name, items: sortedItems))
                 }
             }
         }
 
-        return result.filter { !$0.items.isEmpty }
+        // 添加未在优先级列表中的分类
+        for (categoryID, groups) in groupedByCategory {
+            if !categoryPriority.contains(categoryID) {
+                for group in groups.sorted(by: { $0.groupID < $1.groupID }) {
+                    // 对每个组内的物品进行排序
+                    let sortedItems = group.items.sorted { item1, item2 in
+                        // 首先按科技等级排序
+                        if item1.metaGroupID != item2.metaGroupID {
+                            return (item1.metaGroupID ?? -1) < (item2.metaGroupID ?? -1)
+                        }
+                        // 科技等级相同时按名称排序
+                        return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+                    }
+                    result.append((id: group.groupID, name: group.name, items: sortedItems))
+                }
+            }
+        }
+
+        return result
+    }
+
+    var groupedItems: [(id: Int, name: String, items: [DatabaseListItem])] {
+        let publishedItems = items.filter { $0.published }
+        let unpublishedItems = items.filter { !$0.published }
+
+        var result: [(id: Int, name: String, items: [DatabaseListItem])] = []
+
+        // 按科技等级分组
+        var techLevelGroups: [Int?: [DatabaseListItem]] = [:]
+        for item in publishedItems {
+            let techLevel = item.metaGroupID
+            if techLevelGroups[techLevel] == nil {
+                techLevelGroups[techLevel] = []
+            }
+            techLevelGroups[techLevel]?.append(item)
+        }
+
+        // 添加已发布物品组
+        for (techLevel, items) in techLevelGroups.sorted(by: { ($0.key ?? -1) < ($1.key ?? -1) }) {
+            if let techLevel = techLevel {
+                let name =
+                    metaGroupNames[techLevel]
+                    ?? NSLocalizedString("Main_Database_base", comment: "基础物品")
+                // 对每个科技等级组内的物品按名称排序
+                let sortedItems = items.sorted { item1, item2 in
+                    item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+                }
+                result.append((id: techLevel, name: name, items: sortedItems))
+            }
+        }
+
+        // 添加未分组的物品
+        if let ungroupedItems = techLevelGroups[nil], !ungroupedItems.isEmpty {
+            // 对未分组物品按名称排序
+            let sortedItems = ungroupedItems.sorted { item1, item2 in
+                item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+            }
+            result.append(
+                (
+                    id: -2, name: NSLocalizedString("Main_Database_ungrouped", comment: "未分组"),
+                    items: sortedItems
+                ))
+        }
+
+        // 添加未发布物品组
+        if !unpublishedItems.isEmpty {
+            // 对未发布物品按名称排序
+            let sortedItems = unpublishedItems.sorted { item1, item2 in
+                item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+            }
+            result.append(
+                (
+                    id: -1, name: NSLocalizedString("Main_Database_unpublished", comment: "未发布"),
+                    items: sortedItems
+                ))
+        }
+
+        return result
     }
 
     var body: some View {
@@ -297,6 +369,9 @@ struct MarketItemSelectorBaseView<Content: View>: View {
         }
         .onAppear {
             setupSearch()
+            // 加载科技等级名称
+            let metaGroupIDs = Set(items.compactMap { $0.metaGroupID })
+            metaGroupNames = databaseManager.loadMetaGroupNames(for: Array(metaGroupIDs))
         }
     }
 
@@ -599,7 +674,7 @@ struct MarketQuickbarView: View {
     @State private var isShowingAddAlert = false
     @State private var newQuickbarName = ""
     @State private var searchText = ""
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = true
+    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
 
     private var filteredQuickbars: [MarketQuickbar] {
         if searchText.isEmpty {
@@ -1043,7 +1118,8 @@ struct MarketQuickbarDetailView: View {
 
             // 初始添加并发数量的任务
             for _ in 0..<concurrency {
-                if let item = pendingItems.popLast() {
+                if !pendingItems.isEmpty {
+                    let item = pendingItems.removeFirst()
                     group.addTask {
                         do {
                             let orders = try await MarketOrdersAPI.shared.fetchMarketOrders(
@@ -1067,7 +1143,8 @@ struct MarketQuickbarDetailView: View {
                 }
 
                 // 如果还有待处理的物品，添加新任务
-                if let item = pendingItems.popLast() {
+                if !pendingItems.isEmpty {
+                    let item = pendingItems.removeFirst()
                     group.addTask {
                         do {
                             let orders = try await MarketOrdersAPI.shared.fetchMarketOrders(
@@ -1086,8 +1163,8 @@ struct MarketQuickbarDetailView: View {
         }
     }
 
-    // 获取物品的最低卖价和库存状态
-    private func getLowestSellPrice(for item: DatabaseListItem) -> (
+    // 获取列表的总价和库存状态
+    private func getListPrice(for item: DatabaseListItem) -> (
         price: Double?, insufficientStock: Bool
     ) {
         guard let orders = marketOrders[item.id] else { return (nil, true) }
@@ -1145,7 +1222,7 @@ struct MarketQuickbarDetailView: View {
                     Text(item.name)
                         .lineLimit(1)
 
-                    let priceInfo = getLowestSellPrice(for: item)
+                    let priceInfo = getListPrice(for: item)
                     if let price = priceInfo.price {
                         Text(
                             NSLocalizedString("Main_Market_Avg_Price", comment: "")
@@ -1227,7 +1304,7 @@ struct MarketQuickbarDetailView: View {
                         Text(item.name)
                             .lineLimit(1)
 
-                        let priceInfo = getLowestSellPrice(for: item)
+                        let priceInfo = getListPrice(for: item)
                         if let price = priceInfo.price {
                             Text(
                                 NSLocalizedString("Main_Market_Avg_Price", comment: "")
@@ -1330,7 +1407,7 @@ struct MarketQuickbarDetailView: View {
         var hasInsufficientStock = false
 
         for item in items {
-            let priceInfo = getLowestSellPrice(for: item)
+            let priceInfo = getListPrice(for: item)
             if let price = priceInfo.price {
                 let quantity = quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1
                 total += price * Double(quantity)

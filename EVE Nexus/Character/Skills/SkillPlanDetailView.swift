@@ -630,21 +630,6 @@ struct SkillPlanDetailView: View {
         }
     }
 
-    private func getSkillRank(_ skillId: Int) -> Int {
-        let query = """
-                SELECT rank
-                FROM types
-                WHERE type_id = ?
-            """
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [skillId]),
-            let row = rows.first,
-            let rank = row["rank"] as? Int
-        {
-            return rank
-        }
-        return 1  // 默认返回1，避免除以0
-    }
-
     private func calculateSkillDetails(_ skill: PlannedSkill) -> (
         startSP: Int, endSP: Int, requiredSP: Int, trainingTime: TimeInterval
     ) {
@@ -958,11 +943,5 @@ struct SkillPlanDetailView: View {
             currentSkillPoints: skill.currentSkillPoints,
             isCompleted: isCompleted
         )
-    }
-}
-
-extension UserDefaults {
-    func contains(key: String) -> Bool {
-        return object(forKey: key) != nil
     }
 }

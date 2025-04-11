@@ -14,46 +14,11 @@ class CharacterDataService {
         return try await ServerStatusAPI.shared.fetchServerStatus(forceRefresh: forceRefresh)
     }
 
-    /// 获取角色基本信息
-    func getCharacterInfo(id: Int, forceRefresh: Bool = false) async throws -> CharacterPublicInfo {
-        return try await CharacterAPI.shared.fetchCharacterPublicInfo(
-            characterId: id, forceRefresh: forceRefresh
-        )
-    }
-
     /// 获取角色头像
     func getCharacterPortrait(id: Int, forceRefresh: Bool = false) async throws -> UIImage {
         return try await CharacterAPI.shared.fetchCharacterPortrait(
             characterId: id, forceRefresh: forceRefresh
         )
-    }
-
-    // MARK: - 组织信息
-
-    /// 获取军团信息
-    func getCorporationInfo(id: Int, forceRefresh: Bool = false) async throws -> (
-        info: CorporationInfo, logo: UIImage
-    ) {
-        async let info = CorporationAPI.shared.fetchCorporationInfo(
-            corporationId: id, forceRefresh: forceRefresh
-        )
-        async let logo = CorporationAPI.shared.fetchCorporationLogo(
-            corporationId: id, forceRefresh: forceRefresh
-        )
-        return try await (info, logo)
-    }
-
-    /// 获取联盟信息
-    func getAllianceInfo(id: Int, forceRefresh: Bool = false) async throws -> (
-        info: AllianceInfo, logo: UIImage
-    ) {
-        async let info = AllianceAPI.shared.fetchAllianceInfo(
-            allianceId: id, forceRefresh: forceRefresh
-        )
-        async let logo = AllianceAPI.shared.fetchAllianceLogo(
-            allianceID: id, forceRefresh: forceRefresh
-        )
-        return try await (info, logo)
     }
 
     // MARK: - 状态信息
@@ -88,13 +53,6 @@ class CharacterDataService {
     /// 获取克隆状态
     func getCloneStatus(id: Int, forceRefresh: Bool = false) async throws -> CharacterCloneInfo {
         return try await CharacterClonesAPI.shared.fetchCharacterClones(
-            characterId: id, forceRefresh: forceRefresh
-        )
-    }
-
-    /// 获取角色属性点
-    func getAttributes(id: Int, forceRefresh: Bool = false) async throws -> CharacterAttributes {
-        return try await CharacterSkillsAPI.shared.fetchAttributes(
             characterId: id, forceRefresh: forceRefresh
         )
     }

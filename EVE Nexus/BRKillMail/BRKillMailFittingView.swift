@@ -89,36 +89,14 @@ struct BRKillMailFittingView: View {
 
     // 从EVE官方API加载飞船图片
     private func loadShipImage(typeId: Int) async {
-        let urlString = "https://images.evetech.net/types/\(typeId)/render"
-        guard let url = URL(string: urlString) else {
-            Logger.error("装配图标: 无效的飞船图片URL")
-            return
-        }
-
-        let processor = DownsamplingImageProcessor(size: CGSize(width: 300, height: 300))
-        let options: KingfisherOptionsInfo = [
-            .processor(processor),
-            .scaleFactor(UIScreen.main.scale),
-            .cacheOriginalImage,
-            .memoryCacheExpiration(.days(7)),
-            .diskCacheExpiration(.days(30)),
-        ]
-
-        await withCheckedContinuation { continuation in
-            KingfisherManager.shared.retrieveImage(
-                with: KF.ImageResource(downloadURL: url), options: options
-            ) { result in
-                Task { @MainActor in
-                    switch result {
-                    case let .success(imageResult):
-                        shipImage = Image(uiImage: imageResult.image)
-                        Logger.debug("装配图标: 成功加载飞船图片 - TypeID: \(typeId)")
-                    case let .failure(error):
-                        Logger.error("装配图标: 加载飞船图片失败 - \(error)")
-                    }
-                    continuation.resume()
-                }
+        do {
+            let image = try await ItemRenderAPI.shared.fetchItemRender(typeId: typeId, size: 512)
+            await MainActor.run {
+                shipImage = Image(uiImage: image)
+                Logger.debug("装配图标: 成功加载飞船图片 - TypeID: \(typeId)")
             }
+        } catch {
+            Logger.error("装配图标: 加载飞船图片失败 - \(error)")
         }
     }
 
@@ -164,14 +142,17 @@ struct BRKillMailFittingView: View {
 
     // 加载 killmail 数据
     private func loadKillMailData() async {
+        // 首先尝试获取飞船ID并加载飞船图片
         if let victInfo = killMailData["vict"] as? [String: Any],
-            let items = victInfo["itms"] as? [[Int]],
-            let shipId = victInfo["ship"] as? Int
-        {
-            Logger.debug("装配图标: 开始处理击毁数据，飞船ID: \(shipId)，装备数量: \(items.count)")
-
-            // 加载飞船图片
+           let shipId = victInfo["ship"] as? Int {
             await loadShipImage(typeId: shipId)
+        }
+        
+        // 然后处理装备数据
+        if let victInfo = killMailData["vict"] as? [String: Any],
+           let items = victInfo["itms"] as? [[Int]],
+           let shipId = victInfo["ship"] as? Int {
+            Logger.debug("装配图标: 开始处理击毁数据，飞船ID: \(shipId)，装备数量: \(items.count)")
 
             // 按槽位ID分组物品，并收集所有不重复的typeId
             var slotItems: [Int: [[Int]]] = [:]

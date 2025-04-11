@@ -68,25 +68,6 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
         }
     }
 
-    /// 关闭数据库
-    func closeDatabase() {
-        if let db = db {
-            sqlite3_close(db)
-            self.db = nil
-        }
-    }
-
-    /// 清除查询缓存
-    func clearCache() {
-        // 不再需要缓存管理
-    }
-
-    /// 获取查询日志
-    func getQueryLogs() -> [(query: String, parameters: [Any], timestamp: Date)] {
-        // 如果需要查询日志，可以自己实现
-        return []
-    }
-
     /// 重置数据库
     func resetDatabase() {
         Logger.info("开始重置角色数据库...")
@@ -523,57 +504,6 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
         }
     }
 
-    // MARK: - Public Methods
-
-    /// 检查数据库是否已初始化
-    func isDatabaseInitialized() -> Bool {
-        return true
-    }
-
-    // MARK: - Character Methods
-
-    /// 保存或更新角色信息
-    func saveCharacter(character _: CharacterAuth) {
-        // 暂时不实现
-    }
-
-    /// 获取所有角色信息
-    func getAllCharacters() -> [EVECharacterInfo] {
-        // 暂时返回空数组
-        return []
-    }
-
-    /// 获取指定角色信息
-    func getCharacter(id _: Int) -> CharacterAuth? {
-        // 暂时返回nil
-        return nil
-    }
-
-    /// 删除角色信息
-    func deleteCharacter(id _: Int) {
-        // 暂时不实现
-    }
-
-    /// 更新角色的钱包余额
-    func updateWalletBalance(characterId _: Int, balance _: Double) {
-        // 暂时不实现
-    }
-
-    /// 更新角色的技能点信息
-    func updateSkillPoints(characterId _: Int, totalSP _: Int, queueLength _: Int) {
-        // 暂时不实现
-    }
-
-    /// 更新角色的位置信息
-    func updateLocation(characterId _: Int, locationId _: Int) {
-        // 暂时不实现
-    }
-
-    /// 更新角色显示顺序
-    func updateCharacterOrder(characterIds _: [Int]) {
-        // 暂时不实现
-    }
-
     /// 执行查询
     func executeQuery(_ query: String, parameters: [Any] = [])
         -> SQLiteResult
@@ -754,5 +684,44 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                 }
             }
         }
+    }
+
+    // MARK: - Character Data Management
+
+    /// 删除指定角色的所有相关数据
+    func deleteCharacterData(characterId: Int) async throws {
+        Logger.info("开始清理角色 \(characterId) 的数据库数据...")
+        
+        // 准备删除语句
+        let deleteStatements = [
+            "DELETE FROM character_current_state WHERE character_id = ?",
+            "DELETE FROM mailbox WHERE character_id = ?",
+            "DELETE FROM mail_lists WHERE character_id = ?",
+            "DELETE FROM wallet_journal WHERE character_id = ?",
+            "DELETE FROM wallet_transactions WHERE character_id = ?",
+            "DELETE FROM character_info WHERE character_id = ?",
+            "DELETE FROM character_skill_queue WHERE character_id = ?",
+            "DELETE FROM character_skills WHERE character_id = ?",
+            "DELETE FROM clones WHERE character_id = ?",
+            "DELETE FROM implants WHERE character_id = ?",
+            "DELETE FROM character_attributes WHERE character_id = ?",
+            "DELETE FROM loyalty_points WHERE character_id = ?",
+            "DELETE FROM industry_jobs WHERE character_id = ?",
+            "DELETE FROM mining_ledger WHERE character_id = ?",
+            "DELETE FROM contracts WHERE character_id = ?"
+        ]
+        
+        // 执行所有删除语句
+        for statement in deleteStatements {
+            let result = executeQuery(statement, parameters: [characterId])
+            switch result {
+            case .success:
+                Logger.debug("成功执行删除语句: \(statement)")
+            case let .error(error):
+                Logger.error("执行删除语句失败: \(statement), 错误: \(error)")
+            }
+        }
+        
+        Logger.info("角色 \(characterId) 的数据库数据清理完成")
     }
 }

@@ -152,12 +152,7 @@ class ServerStatusViewModel: ObservableObject {
             }
         }
 
-        // 立即开始第一次刷新
-        Task {
-            await refreshServerStatus()
-        }
-
-        // 设置状态更新计时器
+        // 设置状态更新计时器（这会自动触发第一次刷新）
         resetStatusTimer()
     }
 
@@ -194,11 +189,6 @@ class ServerStatusViewModel: ObservableObject {
         timer = nil
         statusTimer?.invalidate()
         statusTimer = nil
-    }
-
-    // 强制刷新方法，供下拉刷新使用
-    func forceRefresh() async {
-        await refreshServerStatus(forceRefresh: true)
     }
 
     private func refreshServerStatus(forceRefresh: Bool = false) async {
@@ -259,18 +249,18 @@ struct ServerStatusView: View {
                     from: NSNumber(value: status.players),
                     number: .decimal
                 )
-                return Text("Online")
+                return Text(NSLocalizedString("Server_Status_Online", comment: ""))
                     .font(.caption.bold())
                     .foregroundColor(.green)
-                    + Text(" (\(formattedPlayers) players)")
+                    + Text(String(format: NSLocalizedString("Server_Status_Players", comment: ""), formattedPlayers))
                     .font(.caption)
             } else {
-                return Text("Offline")
+                return Text(NSLocalizedString("Server_Status_Offline", comment: ""))
                     .font(.caption.bold())
                     .foregroundColor(.red)
             }
         } else {
-            return Text("Checking Status...")
+            return Text(NSLocalizedString("Server_Status_Checking", comment: ""))
                 .font(.caption)
         }
     }
@@ -283,11 +273,7 @@ struct LoginButtonView: View {
     let selectedCharacter: EVECharacterInfo?
     let characterPortrait: UIImage?
     let isRefreshing: Bool
-    @State private var corporationInfo: CorporationInfo?
-    @State private var corporationLogo: UIImage?
-    @State private var allianceInfo: AllianceInfo?
-    @State private var allianceLogo: UIImage?
-    @State private var tokenExpired = false
+    @State private var isRefreshTokenExpired = false
     @ObservedObject var mainViewModel: MainViewModel
 
     var body: some View {
@@ -306,23 +292,9 @@ struct LoginButtonView: View {
 
                         ProgressView()
                             .scaleEffect(0.8)
-                    } else if tokenExpired {
-                        // Token过期的灰色蒙版和感叹号
-                        Circle()
-                            .fill(Color.black.opacity(0.4))
-                            .frame(width: 64, height: 64)
-
-                        ZStack {
-                            // 红色边框三角形
-                            Image(systemName: "triangle")
-                                .font(.system(size: 32))
-                                .foregroundColor(.red)
-
-                            // 红色感叹号
-                            Image(systemName: "exclamationmark")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.red)
-                        }
+                    } else if isRefreshTokenExpired {
+                        // 使用TokenExpiredOverlay组件
+                        TokenExpiredOverlay()
                     }
                 }
                 .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 3))
@@ -352,7 +324,7 @@ struct LoginButtonView: View {
 
                     // 显示联盟信息
                     HStack(spacing: 4) {
-                        if let alliance = allianceInfo, let logo = allianceLogo {
+                        if let alliance = mainViewModel.allianceInfo, let logo = mainViewModel.allianceLogo {
                             Image(uiImage: logo)
                                 .resizable()
                                 .frame(width: 16, height: 16)
@@ -374,7 +346,7 @@ struct LoginButtonView: View {
 
                     // 显示军团信息
                     HStack(spacing: 4) {
-                        if let corporation = corporationInfo, let logo = corporationLogo {
+                        if let corporation = mainViewModel.corporationInfo, let logo = mainViewModel.corporationLogo {
                             Image(uiImage: logo)
                                 .resizable()
                                 .frame(width: 16, height: 16)
@@ -414,111 +386,21 @@ struct LoginButtonView: View {
             // 检查token状态
             if let character = selectedCharacter {
                 if let auth = EVELogin.shared.getCharacterByID(character.CharacterID) {
-                    tokenExpired = auth.character.tokenExpired
-                    await loadCharacterInfo()
+                    Logger.info("检查Token状态...")
+                    isRefreshTokenExpired = auth.character.refreshTokenExpired
+                    if isRefreshTokenExpired {
+                        Logger.warning("角色 \(character.CharacterName) (\(character.CharacterID)) 的 Refresh Token 已过期，需要重新登录")
+                    } else {
+                        Logger.info("角色 \(character.CharacterName) (\(character.CharacterID)) 的 Refresh Token 状态正常")
+                    }
                 } else {
+                    Logger.error("找不到角色 \(character.CharacterName) (\(character.CharacterID)) 的认证信息")
                     // 如果找不到认证信息，通知 ContentView 执行登出操作
                     NotificationCenter.default.post(
                         name: NSNotification.Name("CharacterLoggedOut"), object: nil
                     )
                 }
             }
-        }
-        .onChange(of: selectedCharacter) { _, newValue in
-            // 清除旧的图标和信息
-            corporationInfo = nil
-            corporationLogo = nil
-            allianceInfo = nil
-            allianceLogo = nil
-
-            // 如果有新的角色,加载新的图标
-            if let character = newValue {
-                Task {
-                    do {
-                        // 加载军团信息和图标
-                        async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(
-                            corporationId: character.corporationId ?? 0)
-                        async let corporationLogoTask = CorporationAPI.shared.fetchCorporationLogo(
-                            corporationId: character.corporationId ?? 0)
-
-                        let (corpInfo, corpLogo) = try await (
-                            corporationInfoTask, corporationLogoTask
-                        )
-
-                        await MainActor.run {
-                            corporationInfo = corpInfo
-                            corporationLogo = corpLogo
-                        }
-
-                        // 如果有联盟,加载联盟信息和图标
-                        if let allianceId = character.allianceId {
-                            async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(
-                                allianceId: allianceId)
-                            async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(
-                                allianceID: allianceId)
-
-                            let (alliInfo, alliLogo) = try await (
-                                allianceInfoTask, allianceLogoTask
-                            )
-
-                            await MainActor.run {
-                                allianceInfo = alliInfo
-                                allianceLogo = alliLogo
-                            }
-                        }
-                    } catch {
-                        Logger.error("加载角色信息失败: \(error)")
-                    }
-                }
-            }
-        }
-    }
-
-    private func loadCharacterInfo() async {
-        guard let character = selectedCharacter else { return }
-
-        do {
-            // 获取角色公开信息
-            let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(
-                characterId: character.CharacterID)
-
-            // 获取联盟信息
-            if let allianceId = publicInfo.alliance_id {
-                async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(
-                    allianceId: allianceId)
-                async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(
-                    allianceID: allianceId)
-
-                do {
-                    let (info, logo) = try await (allianceInfoTask, allianceLogoTask)
-                    await MainActor.run {
-                        self.allianceInfo = info
-                        self.allianceLogo = logo
-                    }
-                } catch {
-                    Logger.error("获取联盟信息失败: \(error)")
-                }
-            }
-
-            // 获取军团信息
-            let corporationId = publicInfo.corporation_id
-            async let corpInfoTask = CorporationAPI.shared.fetchCorporationInfo(
-                corporationId: corporationId)
-            async let corpLogoTask = CorporationAPI.shared.fetchCorporationLogo(
-                corporationId: corporationId)
-
-            do {
-                let (info, logo) = try await (corpInfoTask, corpLogoTask)
-                await MainActor.run {
-                    self.corporationInfo = info
-                    self.corporationLogo = logo
-                }
-            } catch {
-                Logger.error("获取军团信息失败: \(error)")
-            }
-
-        } catch {
-            Logger.error("获取角色信息失败: \(error)")
         }
     }
 }
@@ -724,6 +606,8 @@ struct ContentView: View {
                             if let character = viewModel.selectedCharacter {
                                 CorpMemberListView(characterId: character.CharacterID)
                             }
+                        case "jump_navigation":
+                            JumpNavigationView(databaseManager: databaseManager)
                         default:
                             Text(NSLocalizedString("Select_Item", comment: ""))
                                 .foregroundColor(.gray)
@@ -1004,6 +888,13 @@ struct ContentView: View {
                 RowView(
                     title: NSLocalizedString("Main_Language_Map", comment: ""),
                     icon: "browser"
+                )
+            }
+
+            NavigationLink(value: "jump_navigation") {
+                RowView(
+                    title: NSLocalizedString("Main_Jump_Navigation", comment: ""),
+                    icon: "capitalnavigation"
                 )
             }
         } header: {

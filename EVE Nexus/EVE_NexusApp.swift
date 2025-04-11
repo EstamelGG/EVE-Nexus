@@ -1,25 +1,26 @@
 import CommonCrypto
-import SQLite3
 import SwiftUI
 import Zip
+import Foundation
 
 @main
 struct EVE_NexusApp: App {
     @AppStorage("selectedLanguage") private var selectedLanguage: String?
     @StateObject private var databaseManager = DatabaseManager()
-    @State private var loadingState: LoadingState = .unzipping
+    @State private var loadingState: LoadingState = .processing
     @State private var isInitialized = false
     @State private var unzipProgress: Double = 0
     @State private var needsUnzip = false
 
     init() {
+        Logger.info("App start at \(Date())")
         // 打印 UserDefaults 中的所有键值
         let defaults = UserDefaults.standard
 
         // 检查并设置useEnglishSystemNames的默认值
         if defaults.object(forKey: "useEnglishSystemNames") == nil {
-            Logger.debug("正在初始化 useEnglishSystemNames 为 true")
-            defaults.set(true, forKey: "useEnglishSystemNames")
+            Logger.debug("正在初始化 useEnglishSystemNames 为 false")
+            defaults.set(false, forKey: "useEnglishSystemNames")
         }
 
         let dictionary = defaults.dictionaryRepresentation()
@@ -64,9 +65,12 @@ struct EVE_NexusApp: App {
 
         // 初始化数据库
         _ = CharacterDatabaseManager.shared  // 确保角色数据库被初始化
-
+        
+        // 加载本地化账单信息的文本数据
+        LocalizationManager.shared.loadAccountingEntryTypes()
+        
         configureLanguage()
-        validateTokens()
+        validateRefreshTokens()
     }
 
     private func configureLanguage() {
@@ -82,10 +86,10 @@ struct EVE_NexusApp: App {
         }
     }
 
-    private func validateTokens() {
+    private func validateRefreshTokens() {
         // 获取所有有效的 token
-        let validCharacterIds = SecureStorage.shared.listValidTokens()
-        Logger.info("App初始化: 找到 \(validCharacterIds.count) 个有效的 refresh token")
+        let characterIdsWithValidRefreshToken = SecureStorage.shared.listValidRefreshTokens()
+        Logger.info("App初始化: 找到 \(characterIdsWithValidRefreshToken.count) 个有效的 refresh token")
 
         // 获取当前保存的所有角色
         let characters = EVELogin.shared.loadCharacters()
@@ -94,17 +98,22 @@ struct EVE_NexusApp: App {
         // 打印详细信息
         for character in characters {
             let characterId = character.character.CharacterID
-            let hasValidToken = validCharacterIds.contains(characterId)
+            let hasValidRefreshToken = characterIdsWithValidRefreshToken.contains(characterId)
             Logger.info(
-                "App初始化: 角色 \(character.character.CharacterName) (\(characterId)) - \(hasValidToken ? "有效token" : "无效token")"
+                "App初始化: 角色 \(character.character.CharacterName) (\(characterId)) - \(hasValidRefreshToken ? "有效 refresh token" : "无效 refresh token")"
             )
 
-            // 如果没有有效的 token，移除该角色
-            if !hasValidToken {
+            // 如果没有有效的 token，标记为过期
+            if !hasValidRefreshToken {
                 Logger.info(
-                    "App初始化: 移除无效 token 的角色 - \(character.character.CharacterName) (\(characterId))"
+                    "App初始化: 标记角色token过期 - \(character.character.CharacterName) (\(characterId))"
                 )
-                EVELogin.shared.removeCharacter(characterId: characterId)
+                let characterToUpdate = character.character
+                Task {
+                    var updatedCharacter = characterToUpdate
+                    updatedCharacter.refreshTokenExpired = true
+                    try? await EVELogin.shared.saveCharacterInfo(updatedCharacter)
+                }
             }
         }
     }
@@ -192,25 +201,10 @@ struct EVE_NexusApp: App {
         return digest.reduce("") { $0 + String(format: "%02x", $1) }
     }
 
-    private func initializeDatabases() {
-        // 初始化静态数据库
-        databaseManager.loadDatabase()
-        // 初始化角色数据库
-        CharacterDatabaseManager.shared.loadDatabase()
-    }
-
     private func initializeApp() async {
         do {
             // 在图标解压完成后加载主权数据
-            _ = try await SovereigntyDataAPI.shared.fetchSovereigntyData()
-            await MainActor.run {
-                databaseManager.loadDatabase()
-                CharacterDatabaseManager.shared.loadDatabase()
-                isInitialized = true
-            }
-        } catch {
-            Logger.error("初始化主权数据失败: \(error)")
-            // 即使主权数据加载失败，也继续初始化应用
+            // _ = try await SovereigntyDataAPI.shared.fetchSovereigntyData()
             await MainActor.run {
                 databaseManager.loadDatabase()
                 CharacterDatabaseManager.shared.loadDatabase()

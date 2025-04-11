@@ -160,17 +160,44 @@ enum RichTextProcessor {
                 let textEnd = linkText.range(of: "</a>")?.lowerBound
             {
                 let displayText = String(linkText[textStart..<textEnd])
+                let startIndex = attributedString.range(of: linkText)?.lowerBound
+                let endIndex = attributedString.range(of: linkText)?.upperBound
 
-                // 处理showinfo链接
-                if linkText.contains("href=showinfo:"),
-                    let idStart = linkText.range(of: "showinfo:")?.upperBound,
-                    let idEnd = linkText.range(of: ">")?.lowerBound,
-                    let itemID = Int(linkText[idStart..<idEnd])
-                {
-                    let startIndex = attributedString.range(of: linkText)?.lowerBound
-                    let endIndex = attributedString.range(of: linkText)?.upperBound
+                if let start = startIndex, let end = endIndex {
+                    // 处理showinfo链接
+                    if linkText.contains("href=showinfo:"),
+                        let idStart = linkText.range(of: "showinfo:")?.upperBound,
+                        let idEnd = linkText.range(of: ">")?.lowerBound
+                    {
+                        let idString = String(linkText[idStart..<idEnd])
+                        if let itemID = Int(idString), idString.range(of: "^\\d+$", options: .regularExpression) != nil {
+                            // 有效的showinfo链接，设置为可点击
+                            attributedString.replaceSubrange(
+                                start..<end, with: AttributedString(displayText)
+                            )
+                            attributedString[
+                                start..<attributedString.index(
+                                    start, offsetByCharacters: displayText.count
+                                )
+                            ].foregroundColor = .blue
+                            attributedString[
+                                start..<attributedString.index(
+                                    start, offsetByCharacters: displayText.count
+                                )
+                            ].link = URL(string: "showinfo://\(itemID)")
 
-                    if let start = startIndex, let end = endIndex {
+                            Logger.debug(
+                                "Processed showinfo link - ID: \(itemID), Text: \(displayText)")
+                        } else {
+                            // 无效的showinfo链接，只保留文本内容
+                            attributedString.replaceSubrange(
+                                start..<end, with: AttributedString(displayText)
+                            )
+                            Logger.debug(
+                                "Invalid showinfo link format - Text: \(displayText)")
+                        }
+                    } else {
+                        // 处理普通链接
                         attributedString.replaceSubrange(
                             start..<end, with: AttributedString(displayText)
                         )
@@ -179,14 +206,16 @@ enum RichTextProcessor {
                                 start, offsetByCharacters: displayText.count
                             )
                         ].foregroundColor = .blue
-                        attributedString[
-                            start..<attributedString.index(
-                                start, offsetByCharacters: displayText.count
-                            )
-                        ].link = URL(string: "showinfo://\(itemID)")
-
-                        Logger.debug(
-                            "Processed showinfo link - ID: \(itemID), Text: \(displayText)")
+                        if let hrefStart = linkText.range(of: "href=")?.upperBound,
+                            let hrefEnd = linkText.range(of: ">")?.lowerBound,
+                            let url = URL(string: String(linkText[hrefStart..<hrefEnd]))
+                        {
+                            attributedString[
+                                start..<attributedString.index(
+                                    start, offsetByCharacters: displayText.count
+                                )
+                            ].link = url
+                        }
                     }
                 }
             }
@@ -218,21 +247,55 @@ enum RichTextProcessor {
                 let endIndex = attributedString.range(of: urlText)?.upperBound
 
                 if let start = startIndex, let end = endIndex {
-                    attributedString.replaceSubrange(
-                        start..<end, with: AttributedString(displayText)
-                    )
-                    attributedString[
-                        start..<attributedString.index(start, offsetByCharacters: displayText.count)
-                    ].foregroundColor = .blue
-                    // 使用自定义scheme来处理外部URL
-                    if let encodedUrl = url.addingPercentEncoding(
-                        withAllowedCharacters: .urlHostAllowed)
-                    {
+                    // 处理showinfo链接
+                    if url.contains("showinfo:") {
+                        let idString = url.replacingOccurrences(of: "showinfo:", with: "")
+                        if let itemID = Int(idString), idString.range(of: "^\\d+$", options: .regularExpression) != nil {
+                            // 有效的showinfo链接，设置为可点击
+                            attributedString.replaceSubrange(
+                                start..<end, with: AttributedString(displayText)
+                            )
+                            attributedString[
+                                start..<attributedString.index(
+                                    start, offsetByCharacters: displayText.count
+                                )
+                            ].foregroundColor = .blue
+                            attributedString[
+                                start..<attributedString.index(
+                                    start, offsetByCharacters: displayText.count
+                                )
+                            ].link = URL(string: "showinfo://\(itemID)")
+
+                            Logger.debug(
+                                "Processed showinfo URL - ID: \(itemID), Text: \(displayText)")
+                        } else {
+                            // 无效的showinfo链接，只保留文本内容
+                            attributedString.replaceSubrange(
+                                start..<end, with: AttributedString(displayText)
+                            )
+                            Logger.debug(
+                                "Invalid showinfo URL format - Text: \(displayText)")
+                        }
+                    } else {
+                        // 处理普通URL
+                        attributedString.replaceSubrange(
+                            start..<end, with: AttributedString(displayText)
+                        )
                         attributedString[
                             start..<attributedString.index(
                                 start, offsetByCharacters: displayText.count
                             )
-                        ].link = URL(string: "externalurl://\(encodedUrl)")
+                        ].foregroundColor = .blue
+                        // 使用自定义scheme来处理外部URL
+                        if let encodedUrl = url.addingPercentEncoding(
+                            withAllowedCharacters: .urlHostAllowed)
+                        {
+                            attributedString[
+                                start..<attributedString.index(
+                                    start, offsetByCharacters: displayText.count
+                                )
+                            ].link = URL(string: "externalurl://\(encodedUrl)")
+                        }
                     }
                 }
             }
@@ -296,20 +359,5 @@ enum RichTextProcessor {
 
         // 9. 创建文本视图
         return Text(attributedString)
-    }
-}
-
-// 扩展 String 以支持查找所有匹配项
-extension String {
-    func ranges(of searchString: String) -> [Range<String.Index>] {
-        var ranges: [Range<String.Index>] = []
-        var searchRange = startIndex..<endIndex
-
-        while let range = range(of: searchString, range: searchRange) {
-            ranges.append(range)
-            searchRange = range.upperBound..<endIndex
-        }
-
-        return ranges
     }
 }

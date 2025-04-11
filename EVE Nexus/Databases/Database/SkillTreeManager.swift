@@ -163,12 +163,6 @@ class SkillTreeManager {
         return allSkills[skillID]
     }
 
-    /// 清理缓存数据
-    func clearCache() {
-        allSkills.removeAll()
-        directRequirements.removeAll()
-    }
-
     /// 获取物品的所有技能要求（包括直接和间接技能）并去重
     func getDeduplicatedSkillRequirements(for typeID: Int, databaseManager: DatabaseManager) -> [(
         skillID: Int, level: Int, timeMultiplier: Double?
@@ -240,10 +234,5 @@ class SkillTreeManager {
         }
 
         return multipliers
-    }
-
-    /// 获取技能的训练时间倍增系数（单个技能版本，建议使用批量版本）
-    func getTrainingTimeMultiplier(for skillID: Int, databaseManager: DatabaseManager) -> Double? {
-        return getTrainingTimeMultipliers(for: [skillID], databaseManager: databaseManager)[skillID]
     }
 }

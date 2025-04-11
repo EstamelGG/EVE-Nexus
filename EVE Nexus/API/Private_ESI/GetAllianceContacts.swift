@@ -90,11 +90,4 @@ class GetAllianceContacts {
 
         return contacts
     }
-
-    // 清除缓存
-    func clearCache(for allianceId: Int) {
-        let cacheFile = getCacheFilePath(allianceId: allianceId)
-        try? FileManager.default.removeItem(at: cacheFile)
-        Logger.debug("清除联盟联系人缓存 - 联盟ID: \(allianceId)")
-    }
 }

@@ -187,8 +187,8 @@ class CharacterMiningAPI {
         return convertedEntries
     }
 
-    // 获取挖矿记录（公开方法）
-    public func getMiningLedger(characterId: Int, forceRefresh: Bool = false) async throws
+    // 获取挖矿记录
+    func getMiningLedger(characterId: Int, forceRefresh: Bool = false) async throws
         -> [MiningLedgerEntry]
     {
         // 检查是否需要刷新数据
@@ -211,18 +211,5 @@ class CharacterMiningAPI {
         updateLastQueryTime(characterId: characterId)
 
         return getMiningLedgerFromDB(characterId: characterId) ?? []
-    }
-
-    // 清除缓存
-    func clearCache() {
-        // 只清除 UserDefaults 中的查询时间记录
-        let defaults = UserDefaults.standard
-        for key in defaults.dictionaryRepresentation().keys {
-            if key.hasPrefix(lastMiningQueryKey) {
-                defaults.removeObject(forKey: key)
-            }
-        }
-
-        Logger.debug("清除挖矿记录查询时间记录")
     }
 }

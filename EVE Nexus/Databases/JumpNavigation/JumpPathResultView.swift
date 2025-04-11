@@ -1,0 +1,394 @@
+import SwiftUI
+import Kingfisher
+
+struct JumpPathResultView: View {
+    let pathResult: PathResult
+    let systemIdToName: [Int: String]
+    let systemIdToSecurity: [Int: Double]
+    let shipEnName: String
+    let jdcLevel: Int
+    let systemIdToEnName: [Int: String]
+    let startPointId: Int?
+    let waypointIds: [Int]
+    let avoidSystemIds: [Int]
+    
+    // ViewModel 用于处理数据加载和缓存
+    @StateObject private var viewModel = JumpResultViewModel()
+    
+    var body: some View {
+        List { 
+            // 总距离信息
+            Section {
+                HStack {
+                    Text(NSLocalizedString("Jump_Navigation_Total_Distance", comment: ""))
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Text("\(String(format: "%.2f", pathResult.totalDistance)) ly")
+                        .foregroundColor(.secondary)
+                }
+                HStack {
+                    Text(NSLocalizedString("Jump_Navigation_Total_Jumps", comment: ""))
+                        .foregroundColor(.primary)
+                    Spacer()
+                    Text("\(pathResult.segments.count)")
+                        .foregroundColor(.secondary)
+                }
+                
+                // 添加DOTLAN URL
+                if let dotlanUrl = generateDotlanUrl() {
+                    Link(destination: URL(string: dotlanUrl)!) {
+                        HStack {
+                            Text(NSLocalizedString("Jump_Navigation_DOTLAN_Route", comment: ""))
+                                .foregroundColor(.blue)
+                            Spacer()
+                            Image(systemName: "arrow.up.right.square")
+                                .foregroundColor(.blue)
+                        }
+                    }
+                }
+            }
+
+            // 显示每一跳的信息
+            ForEach(Array(pathResult.segments.enumerated()), id: \.element.src) { index, segment in
+                Section(header: Text(String(format: NSLocalizedString("Jump_Navigation_Jump_Format", comment: ""), index + 1, String(format: "%.2f", segment.range)))) {
+                    // 起点星系
+                    SystemJumpRow(
+                        systemId: segment.src, 
+                        systemName: systemIdToName[segment.src] ?? "Unknown System(\(segment.src))",
+                        security: systemIdToSecurity[segment.src] ?? 0.0,
+                        isSource: true,
+                        viewModel: viewModel
+                    )
+                    
+                    // 终点星系
+                    SystemJumpRow(
+                        systemId: segment.dst, 
+                        systemName: systemIdToName[segment.dst] ?? "Unknown System(\(segment.dst))",
+                        security: systemIdToSecurity[segment.dst] ?? 0.0,
+                        isSource: false,
+                        viewModel: viewModel
+                    )
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle(NSLocalizedString("Jump_Navigation_Calculate", comment: ""))
+        .onAppear {
+            // 收集所有路径中涉及的系统ID
+            let systemIds = getAllSystemIds()
+            viewModel.loadSovereigntyData(forSystemIds: systemIds)
+        }
+    }
+    
+    // 收集所有路径中涉及的系统ID
+    private func getAllSystemIds() -> [Int] {
+        var systemIds: [Int] = []
+        
+        // 添加所有跳跃段的起点和终点
+        for segment in pathResult.segments {
+            systemIds.append(segment.src)
+            systemIds.append(segment.dst)
+        }
+        
+        // 去重
+        return Array(Set(systemIds))
+    }
+
+    // 生成DOTLAN URL
+    private func generateDotlanUrl() -> String? {
+        // 获取所有路径点的英文名称
+        var waypointNames: [String] = []
+        
+        // 添加起点
+        if let startId = startPointId {
+            if let name = systemIdToEnName[startId] {
+                waypointNames.append(name.replacingOccurrences(of: " ", with: "_"))
+            }
+        }
+        
+        // 添加用户选择的路径点
+        for waypointId in waypointIds {
+            if let name = systemIdToEnName[waypointId] {
+                waypointNames.append(name.replacingOccurrences(of: " ", with: "_"))
+            }
+        }
+        
+        // 如果没有路径点，返回nil
+        if waypointNames.isEmpty {
+            return nil
+        }
+        
+        // 添加规避星系
+        var avoidNames: [String] = []
+        for avoidId in avoidSystemIds {
+            if let name = systemIdToEnName[avoidId] {
+                avoidNames.append("-\(name.replacingOccurrences(of: " ", with: "_"))")
+            }
+        }
+        
+        // 构造URL
+        let waypointsString = waypointNames.joined(separator: ":")
+        let avoidString = avoidNames.joined(separator: ":")
+        
+        // 如果有规避星系，添加到URL中
+        if !avoidString.isEmpty {
+            return "https://evemaps.dotlan.net/jump/\(shipEnName),\(jdcLevel)44,\(avoidString)/\(waypointsString)"
+        } else {
+            return "https://evemaps.dotlan.net/jump/\(shipEnName),\(jdcLevel)44/\(waypointsString)"
+        }
+    }
+}
+
+// 管理跳跃结果所需数据的ViewModel
+class JumpResultViewModel: ObservableObject {
+    @Published var sovereigntyData: [SovereigntyData] = []
+    @Published var isLoadingSovereignty: Bool = false
+    
+    // 图标和名称缓存
+    @Published var allianceIcons: [Int: Image] = [:]
+    @Published var factionIcons: [Int: Image] = [:]
+    @Published var allianceNames: [Int: String] = [:]
+    @Published var factionNames: [Int: String] = [:]
+    
+    // 跟踪正在加载的系统
+    @Published var loadingSystemIcons: Set<Int> = []
+    
+    // 主权映射
+    private var allianceToSystems: [Int: [Int]] = [:]
+    private var factionToSystems: [Int: [Int]] = [:]
+    
+    // 加载任务管理
+    private var loadingTasks: [Int: Task<Void, Never>] = [:]
+    
+    func loadSovereigntyData(forSystemIds systemIds: [Int]) {
+        Task { @MainActor in
+            isLoadingSovereignty = true
+            
+            do {
+                // 获取主权数据
+                let data = try await SovereigntyDataAPI.shared.fetchSovereigntyData(forceRefresh: false)
+                
+                // 确保在主线程更新UI
+                sovereigntyData = data
+                
+                // 建立主权映射关系
+                setupSovereigntyMapping(systemIds: systemIds)
+                
+                // 加载图标和名称
+                await loadAllIcons()
+                
+                isLoadingSovereignty = false
+            } catch {
+                Logger.error("无法获取主权数据: \(error)")
+                isLoadingSovereignty = false
+            }
+        }
+    }
+    
+    @MainActor
+    func setupSovereigntyMapping(systemIds: [Int]) {
+        // 清除现有映射
+        allianceToSystems.removeAll()
+        factionToSystems.removeAll()
+        
+        // 为每个系统ID查找主权信息并建立映射
+        for systemId in systemIds {
+            if let systemData = sovereigntyData.first(where: { $0.systemId == systemId }) {
+                // 标记系统正在加载图标
+                loadingSystemIcons.insert(systemId)
+                
+                // 建立联盟到系统的映射
+                if let allianceId = systemData.allianceId {
+                    allianceToSystems[allianceId, default: []].append(systemId)
+                }
+                // 建立派系到系统的映射
+                else if let factionId = systemData.factionId {
+                    factionToSystems[factionId, default: []].append(systemId)
+                } else {
+                    // 如果既没有联盟也没有派系，移除加载状态
+                    loadingSystemIcons.remove(systemId)
+                }
+            }
+        }
+    }
+    
+    func loadAllIcons() async {
+        // 加载联盟图标和名称
+        for (allianceId, systems) in allianceToSystems {
+            let task = Task {
+                do {
+                    Logger.debug("开始加载联盟图标: \(allianceId)，影响 \(systems.count) 个星系")
+                    
+                    // 加载联盟名称
+                    if let allianceInfo = try? await AllianceAPI.shared.fetchAllianceInfo(allianceId: allianceId) {
+                        await MainActor.run {
+                            allianceNames[allianceId] = allianceInfo.name
+                        }
+                        Logger.debug("联盟名称加载成功: \(allianceId)")
+                    }
+                    
+                    // 加载联盟图标
+                    do {
+                        let uiImage = try await AllianceAPI.shared.fetchAllianceLogo(
+                            allianceID: allianceId,
+                            size: 64
+                        )
+                        
+                        // 在主线程处理结果和更新UI
+                        await MainActor.run {
+                            // 保存图标到缓存
+                            self.allianceIcons[allianceId] = Image(uiImage: uiImage)
+                            
+                            // 更新所有使用这个联盟图标的系统的加载状态
+                            for systemId in systems {
+                                self.loadingSystemIcons.remove(systemId)
+                            }
+                            Logger.debug("联盟图标加载成功: \(allianceId)")
+                        }
+                    } catch {
+                        Logger.error("加载联盟图标失败: \(allianceId), error: \(error)")
+                        // 更新加载状态
+                        await MainActor.run {
+                            for systemId in systems {
+                                self.loadingSystemIcons.remove(systemId)
+                            }
+                        }
+                    }
+                }
+            }
+            loadingTasks[allianceId] = task
+        }
+        
+        // 加载派系图标和名称
+        for (factionId, systems) in factionToSystems {
+            let task = Task {
+                Logger.debug("开始加载派系图标: \(factionId)，影响 \(systems.count) 个星系")
+                
+                let query = "SELECT iconName, name FROM factions WHERE id = ?"
+                if case let .success(rows) = DatabaseManager.shared.executeQuery(query, parameters: [factionId]),
+                   let row = rows.first,
+                   let iconName = row["iconName"] as? String {
+                    
+                    let icon = IconManager.shared.loadImage(for: iconName)
+                    let factionName = row["name"] as? String
+                    
+                    // 保存到缓存 - 确保在主线程更新UI
+                    await MainActor.run {
+                        factionIcons[factionId] = icon
+                        if let name = factionName {
+                            factionNames[factionId] = name
+                        }
+                        
+                        // 更新所有使用这个派系图标的系统的加载状态
+                        for systemId in systems {
+                            loadingSystemIcons.remove(systemId)
+                        }
+                    }
+                    Logger.debug("派系图标和名称加载成功: \(factionId)")
+                } else {
+                    Logger.error("派系图标加载失败: \(factionId)")
+                    
+                    // 更新加载状态
+                    await MainActor.run {
+                        for systemId in systems {
+                            loadingSystemIcons.remove(systemId)
+                        }
+                    }
+                }
+            }
+            loadingTasks[factionId] = task
+        }
+        
+        // 等待所有任务完成
+        for task in loadingTasks.values {
+            _ = await task.value
+        }
+    }
+    
+    // 获取系统的主权信息
+    func getSovereigntyForSystem(_ systemId: Int) -> SovereigntyData? {
+        return sovereigntyData.first(where: { $0.systemId == systemId })
+    }
+    
+    // 检查系统是否正在加载图标
+    func isLoadingIconForSystem(_ systemId: Int) -> Bool {
+        return loadingSystemIcons.contains(systemId)
+    }
+    
+    // 获取系统的图标
+    func getIconForSystem(_ systemId: Int) -> Image? {
+        if let sovereignty = getSovereigntyForSystem(systemId) {
+            if let allianceId = sovereignty.allianceId {
+                return allianceIcons[allianceId]
+            } else if let factionId = sovereignty.factionId {
+                return factionIcons[factionId]
+            }
+        }
+        return nil
+    }
+    
+    // 获取系统的拥有者名称
+    func getOwnerNameForSystem(_ systemId: Int) -> String? {
+        if let sovereignty = getSovereigntyForSystem(systemId) {
+            if let allianceId = sovereignty.allianceId {
+                return allianceNames[allianceId]
+            } else if let factionId = sovereignty.factionId {
+                return factionNames[factionId]
+            }
+        }
+        return nil
+    }
+    
+    deinit {
+        // 取消所有加载任务
+        loadingTasks.values.forEach { $0.cancel() }
+    }
+}
+
+// 自定义星系跳跃行视图组件
+struct SystemJumpRow: View {
+    let systemId: Int
+    let systemName: String
+    let security: Double
+    let isSource: Bool
+    
+    @ObservedObject var viewModel: JumpResultViewModel
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // 左侧图标 - 只在加载中或有图标时显示
+            if viewModel.isLoadingIconForSystem(systemId) {
+                ProgressView()
+                    .frame(width: 36, height: 36)
+            } else if let icon = viewModel.getIconForSystem(systemId) {
+                icon
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 36, height: 36)
+                    .cornerRadius(6)
+            }
+            
+            // 右侧文本区域
+            VStack(alignment: .leading, spacing: 4) {
+                // 第一行：安全等级和星系名称
+                HStack(spacing: 8) {
+                    Text(formatSystemSecurity(security))
+                        .foregroundColor(getSecurityColor(security))
+                        .font(.system(.body, design: .monospaced))
+                    
+                    Text(systemName)
+                        .fontWeight(.medium)
+                }
+                
+                // 第二行：只在有联盟/派系名称时显示
+                if let ownerName = viewModel.getOwnerNameForSystem(systemId) {
+                    Text(ownerName)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+        .padding(.vertical, 2)
+    }
+}

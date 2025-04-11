@@ -115,7 +115,7 @@ class MarketOrdersAPI {
             return nil
         }
 
-        Logger.info("使用缓存的市场订单数据")
+        Logger.info("使用 \(typeID) 缓存的市场订单数据: \(cacheFile)")
         return cached.data
     }
 

@@ -70,7 +70,7 @@ class CorpMemberListViewModel: ObservableObject {
     @Published var totalPages = 0
     @Published var searchText: String = ""
     @AppStorage("MemberSortOption") private var sortOptionRaw: String = "name"
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = true
+    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
 
     var sortOption: MemberSortOption {
         get {
@@ -174,13 +174,6 @@ class CorpMemberListViewModel: ObservableObject {
         }
     }
 
-    // 获取特别关注的成员列表
-    @MainActor
-    func getPinnedMembers() -> [MemberDetailInfo] {
-        let ids = pinnedMemberIds
-        return allMembers.filter { ids.contains($0.id) }
-    }
-
     private var filteredMembers: [MemberDetailInfo] {
         if searchText.isEmpty {
             return allMembers
@@ -232,14 +225,6 @@ class CorpMemberListViewModel: ObservableObject {
     func previousPage() {
         if currentPage > 0 {
             currentPage -= 1
-            updatePage()
-        }
-    }
-
-    @MainActor
-    func goToPage(_ page: Int) {
-        if page >= 0 && page < totalPages {
-            currentPage = page
             updatePage()
         }
     }
@@ -733,29 +718,6 @@ class CorpMemberListViewModel: ObservableObject {
             member.characterName.lowercased().contains(searchQuery)
                 || (member.shipInfo?.name.lowercased().contains(searchQuery) ?? false)
         }
-    }
-
-    // 修改 refreshMemberDetails 方法
-    @MainActor
-    func refreshMemberDetails(for memberId: Int) {
-        // 在所有可能的数组中查找并重置成员信息
-        if let memberIndex = members.firstIndex(where: { $0.id == memberId }) {
-            members[memberIndex].characterInfo = nil
-            members[memberIndex].portrait = nil
-        }
-
-        if let allMemberIndex = allMembers.firstIndex(where: { $0.id == memberId }) {
-            allMembers[allMemberIndex].characterInfo = nil
-            allMembers[allMemberIndex].portrait = nil
-        }
-
-        if let pinnedIndex = pinnedMembers.firstIndex(where: { $0.id == memberId }) {
-            pinnedMembers[pinnedIndex].characterInfo = nil
-            pinnedMembers[pinnedIndex].portrait = nil
-        }
-
-        // 重新加载成员信息
-        loadMemberDetails(for: memberId)
     }
 
     @MainActor

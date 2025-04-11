@@ -182,11 +182,6 @@ struct AttributeCompareView: View {
     @State private var newCompareName = ""
     @State private var searchText = ""
 
-    // 简化的创建方法
-    static func createWithDataManager(databaseManager: DatabaseManager) -> some View {
-        return AttributeCompareView(databaseManager: databaseManager)
-    }
-
     private var filteredCompares: [AttributeCompare] {
         if searchText.isEmpty {
             return compares
@@ -732,23 +727,23 @@ extension AttributeCompareUtil {
 
         // 查询SQL - 获取属性值和单位信息
         let query = """
-                SELECT 
-                    ta.type_id, 
-                    ta.attribute_id, 
+                SELECT
+                    ta.type_id,
+                    ta.attribute_id,
                     a.display_name,
                     a.name,
-                    ta.value, 
+                    ta.value,
                     COALESCE(ta.unitID, a.unitID) as unitID,
                     a.unitName,
                     a.iconID,
                     COALESCE(i.iconFile_new, '') as icon_filename
-                FROM 
+                FROM
                     typeAttributes ta
-                LEFT JOIN 
+                LEFT JOIN
                     dogmaAttributes a ON ta.attribute_id = a.attribute_id
-                LEFT JOIN 
+                LEFT JOIN
                     iconIDs i ON a.iconID = i.icon_id
-                WHERE 
+                WHERE
                     ta.type_id IN (\(typeIDsString))
                 ORDER BY 
                     ta.attribute_id

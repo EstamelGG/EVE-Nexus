@@ -92,7 +92,7 @@ class CharacterMarketAPI {
         return jsonString
     }
 
-    public func getMarketOrders(
+    func getMarketOrders(
         characterId: Int64,
         forceRefresh: Bool = false,
         progressCallback: ((Bool) -> Void)? = nil

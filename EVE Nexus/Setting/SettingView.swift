@@ -87,6 +87,10 @@ class CacheManager {
         "AssetCache",  // 资产缓存
         "StaticDataSet",  // 临时静态数据
         "ContactsCache",  // 声望
+        "kb", // 战斗日志
+        "BRKillmails",// 战斗日志细节
+        "MarketCache", // 市场价格细节
+        "Planetary", // 行星开发
     ]
 
     // 获取缓存目录列表
@@ -129,7 +133,7 @@ class CacheManager {
                         includingPropertiesForKeys: [.isRegularFileKey],
                         options: [.skipsHiddenFiles]
                     ) {
-                        for case let fileURL as URL in enumerator {
+                        while let fileURL = enumerator.nextObject() as? URL {
                             do {
                                 let resourceValues = try fileURL.resourceValues(forKeys: [
                                     .isRegularFileKey
@@ -160,152 +164,6 @@ class CacheManager {
         }
 
         Logger.info("目录缓存清理完成，共删除 \(totalFilesRemoved) 个文件")
-    }
-
-    // 获取所有缓存统计信息
-    func getAllCacheStats() async -> [String: CacheStats] {
-        var stats: [String: CacheStats] = [:]
-
-        // 2. NSCache统计
-        stats["Memory"] = getNSCacheStats()
-
-        // 3. UserDefaults统计
-        stats["UserDefaults"] = getUserDefaultsStats()
-
-        // 4. 临时文件统计
-        stats["Temp"] = await getTempFileStats()
-
-        // 5. 静态资源统计
-        stats["StaticDataSet"] = await getStaticDataStats()
-
-        // 6. 添加目录缓存统计
-        let dirStats = await getDirectoryCacheStats()
-        stats.merge(dirStats) { _, new in new }
-
-        return stats
-    }
-
-    // 获取目录缓存统计
-    private func getDirectoryCacheStats() async -> [String: CacheStats] {
-        var stats: [String: CacheStats] = [:]
-        let documentPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-
-        for dirName in cacheDirs {
-            let dirPath = documentPath.appendingPathComponent(dirName)
-            var totalSize: Int64 = 0
-            var fileCount = 0
-
-            if fileManager.fileExists(atPath: dirPath.path),
-                let enumerator = fileManager.enumerator(
-                    at: dirPath,
-                    includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey],
-                    options: [.skipsHiddenFiles]
-                )
-            {
-                for case let fileURL as URL in enumerator {
-                    do {
-                        let resourceValues = try fileURL.resourceValues(forKeys: [.isRegularFileKey]
-                        )
-                        // 只统计文件，跳过目录
-                        if resourceValues.isRegularFile == true {
-                            let attributes = try fileManager.attributesOfItem(
-                                atPath: fileURL.path)
-                            if let fileSize = attributes[.size] as? Int64 {
-                                totalSize += fileSize
-                                Logger.info(
-                                    "Calculating file size for \(fileURL.path): \(fileSize) bytes")
-                                fileCount += 1
-                            }
-                        }
-                    } catch {
-                        Logger.error("计算文件大小失败 - \(fileURL.path): \(error)")
-                    }
-                }
-            }
-
-            stats[dirName] = CacheStats(size: totalSize, count: fileCount)
-        }
-
-        return stats
-    }
-
-    // 获取NSCache统计（如果您的应用使用了自定义的NSCache实例，需要在这里添加）
-    private func getNSCacheStats() -> CacheStats {
-        let totalCount = 0
-
-        // 如果您有自定义的NSCache实例，在这里添加统计代码
-        // 例如：totalCount += yourNSCache.totalCostLimit
-
-        return CacheStats(
-            size: 0,  // NSCache不提供大小信息
-            count: totalCount
-        )
-    }
-
-    // 获取UserDefaults统计
-    private func getUserDefaultsStats() -> CacheStats {
-        let defaults = UserDefaults.standard
-        let dictionary = defaults.dictionaryRepresentation()
-
-        var totalSize: Int64 = 0
-        let count = dictionary.count
-
-        // 估算UserDefaults大小
-        for (_, value) in dictionary {
-            if let data = try? NSKeyedArchiver.archivedData(
-                withRootObject: value, requiringSecureCoding: false
-            ) {
-                totalSize += Int64(data.count)
-            }
-        }
-
-        return CacheStats(size: totalSize, count: count)
-    }
-
-    // 获取临时文件统计
-    private func getTempFileStats() async -> CacheStats {
-        let tempPath = NSTemporaryDirectory()
-        var totalSize: Int64 = 0
-        var fileCount = 0
-
-        if let tempEnumerator = fileManager.enumerator(atPath: tempPath) {
-            for case let fileName as String in tempEnumerator {
-                let filePath = (tempPath as NSString).appendingPathComponent(fileName)
-                do {
-                    let attributes = try fileManager.attributesOfItem(atPath: filePath)
-                    totalSize += Int64(attributes[.size] as? UInt64 ?? 0)
-                    fileCount += 1
-                } catch {
-                    Logger.error("Error calculating temp file size: \(error)")
-                }
-            }
-        }
-
-        return CacheStats(size: totalSize, count: fileCount)
-    }
-
-    // 获取静态资源统计
-    private func getStaticDataStats() async -> CacheStats {
-        let staticDataSetPath = StaticResourceManager.shared.getStaticDataSetPath()
-        var totalSize: Int64 = 0
-        var fileCount = 0
-
-        if fileManager.fileExists(atPath: staticDataSetPath.path),
-            let enumerator = fileManager.enumerator(atPath: staticDataSetPath.path)
-        {
-            for case let fileName as String in enumerator {
-                let filePath = (staticDataSetPath.path as NSString).appendingPathComponent(fileName)
-                do {
-                    let attributes = try fileManager.attributesOfItem(atPath: filePath)
-                    totalSize += Int64(attributes[.size] as? UInt64 ?? 0)
-                    fileCount += 1
-                } catch {
-                    Logger.error("Error calculating static data size: \(error)")
-                }
-            }
-        }
-
-        return CacheStats(size: totalSize, count: fileCount)
     }
 
     // 清理所有缓存
@@ -408,7 +266,7 @@ struct SettingView: View {
 
     @AppStorage("selectedTheme") private var selectedTheme: String = "system"
     @AppStorage("showCorporationAffairs") private var showCorporationAffairs: Bool = false
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = true
+    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
     @State private var showingCleanCacheAlert = false
     @State private var showingDeleteIconsAlert = false
     @State private var showingLanguageView = false
@@ -418,7 +276,7 @@ struct SettingView: View {
     @State private var isCleaningCache = false
     @State private var isReextractingIcons = false
     @State private var unzipProgress: Double = 0
-    @State private var loadingState: LoadingState = .unzipping
+    @State private var loadingState: LoadingState = .processing
     @State private var showingLoadingView = false
     @State private var settingGroups: [SettingGroup] = []
     @State private var resourceInfoCache: [String: String] = [:]
@@ -427,24 +285,6 @@ struct SettingView: View {
     @State private var showResetDatabaseAlert = false
     @State private var showResetDatabaseSuccessAlert = false
     @State private var showingESIStatusView = false
-
-    // MARK: - 时间处理工具
-
-    private func getRelativeTimeString(from date: Date) -> String {
-        let calendar = Calendar.current
-        let now = Date()
-        let components = calendar.dateComponents([.day, .hour, .minute], from: date, to: now)
-
-        if let days = components.day, days > 0 {
-            return String(format: NSLocalizedString("Time_Days_Ago", comment: ""), days)
-        } else if let hours = components.hour, hours > 0 {
-            return String(format: NSLocalizedString("Time_Hours_Ago", comment: ""), hours)
-        } else if let minutes = components.minute, minutes > 0 {
-            return String(format: NSLocalizedString("Time_Minutes_Ago", comment: ""), minutes)
-        } else {
-            return NSLocalizedString("Time_Just_Now", comment: "")
-        }
-    }
 
     // MARK: - 数据更新函数
 
@@ -460,7 +300,7 @@ struct SettingView: View {
                     includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey],
                     options: [.skipsHiddenFiles]
                 ) {
-                    for case let fileURL as URL in enumerator {
+                    while let fileURL = enumerator.nextObject() as? URL {
                         do {
                             let resourceValues = try fileURL.resourceValues(forKeys: [
                                 .isRegularFileKey
@@ -501,7 +341,7 @@ struct SettingView: View {
                         options: [.skipsHiddenFiles]
                     )
                 {
-                    for case let fileURL as URL in enumerator {
+                    while let fileURL = enumerator.nextObject() as? URL {
                         do {
                             let resourceValues = try fileURL.resourceValues(forKeys: [
                                 .isRegularFileKey
@@ -848,13 +688,6 @@ struct SettingView: View {
 
     // MARK: - 缓存管理
 
-    private func formatFileSize(_ size: Int64) -> String {
-        let byteCountFormatter = ByteCountFormatter()
-        byteCountFormatter.allowedUnits = [.useBytes, .useKB, .useMB, .useGB]
-        byteCountFormatter.countStyle = .file
-        return byteCountFormatter.string(fromByteCount: size)
-    }
-
     private func cleanCache() {
         Task {
             isCleaningCache = true
@@ -880,7 +713,7 @@ struct SettingView: View {
         Task {
             isReextractingIcons = true
             showingLoadingView = true
-            loadingState = .unzipping
+            loadingState = .processing
 
             let fileManager = FileManager.default
             let documentPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]

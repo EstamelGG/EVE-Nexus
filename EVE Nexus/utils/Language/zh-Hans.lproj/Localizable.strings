@@ -463,6 +463,7 @@
 "Character_Security_Status" = "安全等级";
 "Character_Current_Ship" = "当前飞船";
 "Character_Current_Location" = "当前位置";
+"Timer" = "计时器";
 
 // 跳跃疲劳相关
 "Character_Jump_Fatigue" = "跳跃疲劳";
@@ -492,7 +493,7 @@
 "Character_Clone_Details" = "克隆体详情";
 "Character_Clone_Implants" = "植入体";
 "Character_No_Implants" = "无植入体";
-"Character_Clone_ID" = "克隆体 #%d";
+"Character_Clone_ID" = "克隆体 ID: %d";
 "Main_Jump_Clones" = "克隆体状态";
 "Main_Jump_Clones_Available" = "可用克隆体";
 "Main_Jump_Clones_Ready" = "下次跳跃：现在";
@@ -546,8 +547,8 @@
 "Main_Skills_No_Skills" = "暂无技能";
 
 "Main_Skills_Required_Injectors" = "完成队列所需注入器";
-"Main_Skills_Total_Required_SP" = "总计所需技能点数：%@";
-"Main_Skills_Total_Injector_Cost" = "预计注入器总价值：%@ ISK";
+"Main_Skills_Total_Required_SP" = "总计所需技能点：%@";
+"Main_Skills_Total_Injector_Cost" = "预估注入器价值：%@ ISK";
 
 // 财富视图
 "Wealth_Total" = "总资产";
@@ -673,7 +674,7 @@
 "Main_Corporation_Wallet_Division7" = "军团钱包 7";
 "Main_Corporation_Hangar_Default" = "军团机库 %d";
 "Main_Corporation_Wallet_Default" = "部门钱包 %d";
-"Balance: %@ ISK" = "余额: %@ ISK";
+"Balance" = "余额: %@ ISK";
 
 // Wallet Journal
 "Summary" = "摘要(30天)";
@@ -1330,4 +1331,61 @@
 "Main_Database_Mutation_Source" = "突变来源";
 "Main_Database_Mutation_Results" = "突变产出";
 "Main_Database_Required_Mutaplasmids" = "所需突变质体";
+
+// 跳跃导航
+"Main_Jump_Navigation" = "跳跃导航";
+"Jump_Navigation_Ship_Selection" = "飞船";
+"Jump_Navigation_JDC_Skill" = "跳跃引擎校准理论(JDC)";
+"Jump_Navigation_Start_Point" = "起点";
+"Jump_Navigation_Add_Waypoint" = "添加路径点";
+"Jump_Navigation_Waypoint" = "路径点%d";
+"Jump_Navigation_Add_Avoid" = "添加规避星系";
+"Jump_Navigation_Avoid" = "规避";
+"Jump_Navigation_Calculate" = "计算最佳路线";
+"Jump_Navigation_Select_Ship" = "选择飞船";
+"Jump_Navigation_Select_Start" = "选择起点";
+"Jump_Navigation_Loading_Systems" =  "加载星系中...";
+"Jump_Navigation_Save_Jump_Map" = "保存跳跃数据";
+"Jump_Navigation_Calculating_Jump_Distance" = "计算距离...";
+"Jump_Navigation_Max_Jump_Range" = "跳跃距离";
+"Jump_Navigation_DOTLAN_Route" = "在 Dotlan 上查看";
+
+// 跳跃导航分区
+"Jump_Navigation_Ship_And_Skills" = "飞船与技能";
+"Jump_Navigation_Route_Planning" = "路径规划";
+"Jump_Navigation_Safety_Avoidance" = "安全规避";
+
+// 跳跃导航结果
+"Jump_Navigation_Total_Distance" = "总距离";
+"Jump_Navigation_Total_Jumps" = "总跳数";
+"Jump_Navigation_Jump_Format" = "第%d跳 (%@ 光年)";
+
+// 跳跃导航确认
+"Jump_Navigation_Recalculate_Title" = "重新计算确认";
+"Jump_Navigation_Recalculate_Message" = "确定要重新计算跳跃地图数据吗？这可能需要一些时间。";
+"Jump_Navigation_Recalculate_Cancel" = "取消";
+"Jump_Navigation_Recalculate_Confirm" = "确定";
+
+// 跳跃导航状态
+"Jump_Navigation_Calculating" = "正在计算最佳路线...";
+"Jump_Navigation_Preparing_Data" = "正在准备跳跃数据...";
+"Jump_Navigation_Processing" = "处理中...";
+
+// 跳跃导航错误
+"Jump_Navigation_Error_No_Ship" = "请选择飞船";
+"Jump_Navigation_Error_No_Start" = "请选择起点";
+"Jump_Navigation_Error_No_Waypoints" = "请至少添加一个路径点";
+"Jump_Navigation_Error_Invalid_Route" = "无法找到有效路线";
+"Jump_Navigation_Error_Path_Not_Found" = "无法找到从%@到%@的路径";
+
+"Server_Status_Online" = "服务器在线";
+"Server_Status_Offline" = "离线";
+"Server_Status_Checking" = "检查状态中...";
+"Server_Status_Players" = " (%@名玩家)";
+
+"Character_Clone_Count" = "%d 个克隆体";
+"Character_Implants_Count" = "%d 个植入体";
+"Character_Clone_And_Implants_Count" = "%d 个克隆体 · %d 个植入体";
+
+"Character_Clone_ID" = "克隆体 ID: %d";
 

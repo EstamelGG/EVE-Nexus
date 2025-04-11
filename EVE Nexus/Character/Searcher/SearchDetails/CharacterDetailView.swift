@@ -255,26 +255,6 @@ struct CharacterDetailView: View {
         Logger.info("角色详细信息加载完成")
     }
 
-    private func formatDuration(since dateString: String) -> String {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ssZ"
-
-        guard let startDate = dateFormatter.date(from: dateString) else {
-            return "Unknown duration"
-        }
-
-        let calendar = Calendar.current
-        let components = calendar.dateComponents([.year, .month], from: startDate, to: Date())
-
-        if let years = components.year, years > 0 {
-            return "\(years) year\(years > 1 ? "s" : "")"
-        } else if let months = components.month, months > 0 {
-            return "\(months) month\(months > 1 ? "s" : "")"
-        } else {
-            return "Less than a month"
-        }
-    }
-
     private func loadStandings() async {
         // 加载我的军团信息
         if let corpId = character.corporationId {

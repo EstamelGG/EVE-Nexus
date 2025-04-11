@@ -1,5 +1,4 @@
 import Foundation
-import SQLite3
 import SwiftUI
 
 class DatabaseManager: ObservableObject {
@@ -35,19 +34,9 @@ class DatabaseManager: ObservableObject {
         return NSLocalizedString("DatabaseName", comment: "数据库文件名基于语言")
     }
 
-    // 当应用结束时关闭数据库
-    func closeDatabase() {
-        sqliteManager.closeDatabase()
-    }
-
     // 清除查询缓存
     func clearCache() {
         sqliteManager.clearCache()
-    }
-
-    // 获取查询日志
-    func getQueryLogs() -> [(query: String, parameters: [Any], timestamp: Date)] {
-        return sqliteManager.getQueryLogs()
     }
 
     // 执行查询
@@ -271,10 +260,11 @@ class DatabaseManager: ObservableObject {
         return (published, unpublished, metaGroupNames)
     }
 
-    // 搜索物品
+    // 搜索物品 限制200个结果
     func searchItems(searchText: String, categoryID: Int? = nil, groupID: Int? = nil) -> (
         [DatabaseListItem], [Int: String], [Int: String]
     ) {
+        Logger.info("Search: \(searchText)")
         var query = """
                 SELECT t.type_id as id, t.name, t.published, t.icon_filename as iconFileName,
                        t.categoryID, t.groupID, t.metaGroupID, t.marketGroupID,
@@ -299,7 +289,7 @@ class DatabaseManager: ObservableObject {
             parameters.append(groupID)
         }
 
-        query += " ORDER BY t.groupID, t.metaGroupID"
+        query += " ORDER BY t.groupID, t.metaGroupID LIMIT 200"
 
         let result = executeQuery(query, parameters: parameters)
         var items: [DatabaseListItem] = []
@@ -527,25 +517,6 @@ class DatabaseManager: ObservableObject {
         }
 
         return units
-    }
-
-    // 获取物品的组ID和组名
-    func getGroupInfo(for typeID: Int) -> (groupID: Int, groupName: String)? {
-        let query = """
-                SELECT groupid, groupname
-                FROM typeSkillRequirement
-                WHERE typeid = ?
-                LIMIT 1
-            """
-
-        if case let .success(rows) = executeQuery(query, parameters: [typeID]),
-            let row = rows.first,
-            let groupID = row["groupid"] as? Int,
-            let groupName = row["groupname"] as? String
-        {
-            return (groupID: groupID, groupName: groupName)
-        }
-        return nil
     }
 
     // 获取组名称（从 groups 表获取，用于其他场景）
@@ -1084,30 +1055,6 @@ class DatabaseManager: ObservableObject {
         return nil
     }
 
-    // 获取蓝图的图标文件名
-    func getBlueprintIconFileName(_ blueprintID: Int) -> String? {
-        let query = """
-                SELECT icon_filename
-                FROM types
-                WHERE type_id = ?
-            """
-
-        let result = executeQuery(query, parameters: [blueprintID])
-
-        switch result {
-        case let .success(rows):
-            if let row = rows.first,
-                let iconFileName = row["icon_filename"] as? String
-            {
-                return iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
-            }
-        case let .error(error):
-            Logger.error("Error getting blueprint icon: \(error)")
-        }
-
-        return nil
-    }
-
     // 获取蓝图源头
     func getBlueprintSource(for blueprintID: Int) -> [(
         typeID: Int, typeName: String, typeIcon: String
@@ -1400,24 +1347,6 @@ class DatabaseManager: ObservableObject {
         return itemsByLevel
     }
 
-    // 获取分类名称
-    func getCategoryName(for categoryID: Int) -> String? {
-        let query = """
-                SELECT DISTINCT categoryname
-                FROM typeSkillRequirement
-                WHERE categoryid = ?
-                LIMIT 1
-            """
-
-        if case let .success(rows) = executeQuery(query, parameters: [categoryID]),
-            let row = rows.first,
-            let categoryName = row["categoryname"] as? String
-        {
-            return categoryName
-        }
-        return nil
-    }
-
     // 加载市场物品的通用查询
     func loadMarketItems(whereClause: String, parameters: [Any]) -> [DatabaseListItem] {
         let query = """
@@ -1602,54 +1531,6 @@ class DatabaseManager: ObservableObject {
     }
 
     private var stationInfoCache: [Int64: StationInfo] = [:]
-
-    func getStationInfo(stationID: Int64) -> StationInfo? {
-        // 检查缓存
-        if let cachedInfo = stationInfoCache[stationID] {
-            return cachedInfo
-        }
-
-        // 从数据库加载
-        let query = """
-                SELECT s.stationName, s.stationTypeID, s.security, s.solarSystemID, 
-                       ss.solarSystemName, ss.solarSystemName_en
-                FROM stations s
-                JOIN solarsystems ss ON s.solarSystemID = ss.solarSystemID
-                WHERE s.stationID = ?
-            """
-
-        let result = executeQuery(query, parameters: [String(stationID)])
-
-        switch result {
-        case let .success(rows):
-            if let row = rows.first,
-                let stationName = row["stationName"] as? String,
-                let stationTypeID = row["stationTypeID"] as? Int,
-                let security = row["security"] as? Double,
-                let systemNameLocal = row["solarSystemName"] as? String,
-                let systemNameEn = row["solarSystemName_en"] as? String
-            {
-                let systemName = useEnglishSystemNames ? systemNameEn : systemNameLocal
-                let info = StationInfo(
-                    stationName: stationName,  // 空间站名称保持原样，不需要语言切换
-                    stationTypeID: stationTypeID,
-                    security: security,
-                    solarSystemName: systemName
-                )
-                // 更新缓存
-                stationInfoCache[stationID] = info
-                return info
-            }
-        case let .error(error):
-            Logger.error("获取空间站信息失败: \(error)")
-        }
-
-        return nil
-    }
-
-    func clearStationInfoCache() {
-        stationInfoCache.removeAll()
-    }
 
     // 在 DatabaseManager 类中添加
     func getItemDamages(for itemID: Int) -> (em: Double, therm: Double, kin: Double, exp: Double)? {

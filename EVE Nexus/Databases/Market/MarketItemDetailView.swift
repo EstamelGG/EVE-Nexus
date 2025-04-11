@@ -43,7 +43,7 @@ struct RegionPickerView: View {
     @Binding var selectedRegionID: Int
     @Binding var selectedRegionName: String
     let databaseManager: DatabaseManager
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = true
+    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
 
     @State private var isEditMode = false
     @State private var allRegions: [Region] = []
@@ -63,7 +63,6 @@ struct RegionPickerView: View {
                 SELECT r.regionID, r.regionName, r.regionName_en
                 FROM regions r
                 WHERE r.regionID < 11000000
-                ORDER BY r.regionName
             """
 
         if case let .success(rows) = databaseManager.executeQuery(query) {
@@ -77,6 +76,9 @@ struct RegionPickerView: View {
                 let name = useEnglishSystemNames ? nameEn : nameLocal
                 return Region(id: id, name: name)
             }
+
+            // 对星域名称进行排序
+            allRegions.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
 
             // 从 UserDefaults 加载置顶的星域，保持用户设置的顺序
             let pinnedRegionIDs = UserDefaultsManager.shared.pinnedRegionIDs
@@ -271,13 +273,9 @@ struct MarketItemDetailView: View {
     @State private var isFromParent: Bool = true
     @State private var showRegionPicker = false
     @State private var selectedRegionID: Int = 0
-    @State private var regions: [Region] = []
-    @State private var groupedRegionsCache: [(key: String, regions: [Region])] = []
     @State private var selectedRegionName: String = ""
-    @State private var searchText = ""
-    @State private var isSearching = false
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = true
+    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
     private var chartHeight: CGFloat {
         // 根据设备类型和方向调整高度
         if horizontalSizeClass == .regular {
@@ -286,39 +284,6 @@ struct MarketItemDetailView: View {
         } else {
             // iPhone 或小屏设备
             return UIScreen.main.bounds.height * 0.25  // 使用屏幕高度的 25%
-        }
-    }
-
-    // 计算分组的星域列表
-    private func calculateGroupedRegions() {
-        let grouped = Dictionary(grouping: regions) { region in
-            String(region.name.prefix(1)).uppercased()
-        }
-        groupedRegionsCache = grouped.map { (key: $0.key, regions: $0.value) }
-            .sorted { $0.key < $1.key }
-    }
-
-    // 格式化价格显示
-    private func formatPrice(_ price: Double) -> String {
-        let billion = 1_000_000_000.0
-        let million = 1_000_000.0
-
-        let numberFormatter = NumberFormatter()
-        numberFormatter.numberStyle = .decimal
-        numberFormatter.maximumFractionDigits = 2
-        numberFormatter.minimumFractionDigits = 2
-
-        let formattedFullPrice =
-            numberFormatter.string(from: NSNumber(value: price)) ?? String(format: "%.2f", price)
-
-        if price >= billion {
-            let value = price / billion
-            return String(format: "%.2fB (%@ ISK)", value, formattedFullPrice)
-        } else if price >= million {
-            let value = price / million
-            return String(format: "%.2fM (%@ ISK)", value, formattedFullPrice)
-        } else {
-            return "\(formattedFullPrice) ISK"
         }
     }
 
@@ -473,11 +438,6 @@ struct MarketItemDetailView: View {
             }
 
             itemDetails = databaseManager.getItemDetails(for: itemID)
-            loadRegions()
-
-            if let region = regions.first(where: { $0.id == selectedRegionID }) {
-                selectedRegionName = region.name
-            }
 
             if isFromParent {
                 Task {
@@ -542,27 +502,27 @@ struct MarketItemDetailView: View {
         }
     }
 
-    private func loadRegions() {
-        let useEnglishSystemNames = UserDefaults.standard.bool(forKey: "useEnglishSystemNames")
+    // 格式化价格显示
+    private func formatPrice(_ price: Double) -> String {
+        let billion = 1_000_000_000.0
+        let million = 1_000_000.0
 
-        let query = """
-                SELECT r.regionID, r.regionName, r.regionName_en
-                FROM regions r
-                WHERE r.regionID < 11000000
-                ORDER BY r.regionName
-            """
+        let numberFormatter = NumberFormatter()
+        numberFormatter.numberStyle = .decimal
+        numberFormatter.maximumFractionDigits = 2
+        numberFormatter.minimumFractionDigits = 2
 
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            for row in rows {
-                if let regionId = row["regionID"] as? Int,
-                    let regionNameLocal = row["regionName"] as? String,
-                    let regionNameEn = row["regionName_en"] as? String
-                {
-                    let regionName = useEnglishSystemNames ? regionNameEn : regionNameLocal
-                    regions.append(Region(id: regionId, name: regionName))
-                }
-            }
-            calculateGroupedRegions()
+        let formattedFullPrice =
+            numberFormatter.string(from: NSNumber(value: price)) ?? String(format: "%.2f", price)
+
+        if price >= billion {
+            let value = price / billion
+            return String(format: "%.2fB (%@ ISK)", value, formattedFullPrice)
+        } else if price >= million {
+            let value = price / million
+            return String(format: "%.2fM (%@ ISK)", value, formattedFullPrice)
+        } else {
+            return "\(formattedFullPrice) ISK"
         }
     }
 

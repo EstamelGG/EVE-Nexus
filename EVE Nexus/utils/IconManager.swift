@@ -83,47 +83,6 @@ class IconManager {
         return Int(idString)
     }
 
-    // 从在线API获取图标
-    func loadTypeIconFromAPI(typeID: Int, size: Int = 64) async -> UIImage? {
-        let iconName = "icon_\(typeID)_\(size).png"
-
-        // 检查缓存目录中是否已存在
-        if let image = loadTypeIconFromDisk(iconName: iconName) {
-            return image
-        }
-
-        // 构建API URL
-        let urlString = "https://images.evetech.net/types/\(typeID)/icon?size=\(size)"
-        guard let url = URL(string: urlString) else {
-            Logger.error("Invalid URL: \(urlString)")
-            return nil
-        }
-
-        // 使用Kingfisher下载图像
-        let destination = typeIconsDirectory?.appendingPathComponent(iconName)
-        guard let destination = destination else {
-            Logger.error("Type icons directory is not set")
-            return nil
-        }
-
-        do {
-            // 创建下载任务
-            let resource = KF.ImageResource(downloadURL: url, cacheKey: iconName)
-            let result = try await KingfisherManager.shared.retrieveImage(with: resource)
-
-            // 保存到磁盘
-            if let data = result.image.pngData() {
-                try data.write(to: destination)
-                Logger.info("Saved type icon to disk: \(iconName)")
-            }
-
-            return result.image
-        } catch {
-            Logger.error("Failed to download type icon: \(error.localizedDescription)")
-            return nil
-        }
-    }
-
     // 从磁盘加载类型图标
     private func loadTypeIconFromDisk(iconName: String) -> UIImage? {
         guard let typeIconsDirectory = typeIconsDirectory else {
@@ -267,33 +226,6 @@ class IconManager {
         return UIImage(named: "not_found") ?? UIImage()
     }
 
-    // 异步加载图标，支持在线获取
-    func loadUIImageAsync(for iconName: String) async -> UIImage {
-        // 如果缓存中有，直接返回
-        let cacheKey = NSString(string: iconName)
-        if let cachedImage = imageCache.object(forKey: cacheKey) {
-            return cachedImage
-        }
-
-        // 检查是否是类型图标（以"icon_"开头）
-        if let typeID = extractTypeID(from: iconName) {
-            // 先尝试从磁盘加载
-            if let typeIcon = loadTypeIconFromDisk(iconName: iconName) {
-                imageCache.setObject(typeIcon, forKey: cacheKey)
-                return typeIcon
-            }
-
-            // 如果磁盘没有，从API加载
-            if let downloadedImage = await loadTypeIconFromAPI(typeID: typeID) {
-                imageCache.setObject(downloadedImage, forKey: cacheKey)
-                return downloadedImage
-            }
-        }
-
-        // 如果不是类型图标或无法从API获取，使用同步方法加载
-        return loadUIImage(for: iconName)
-    }
-
     func loadImage(for iconName: String) -> Image {
         // 先尝试从 Assets 加载
         if let uiImage = UIImage(named: iconName.replacingOccurrences(of: ".png", with: "")) {
@@ -304,40 +236,11 @@ class IconManager {
         return Image(uiImage: loadUIImage(for: iconName))
     }
 
-    // 异步加载SwiftUI Image
-    func loadImageAsync(for iconName: String) async -> Image {
-        // 先尝试从 Assets 加载
-        if let uiImage = UIImage(named: iconName.replacingOccurrences(of: ".png", with: "")) {
-            return Image(uiImage: uiImage)
-        }
-
-        // 如果 Assets 中找不到，异步加载
-        let uiImage = await loadUIImageAsync(for: iconName)
-        return Image(uiImage: uiImage)
-    }
-
     func preloadCommonIcons(icons: [String]) {
         DispatchQueue.global(qos: .userInitiated).async {
             for iconName in icons {
                 _ = self.loadUIImage(for: iconName)
             }
-        }
-    }
-
-    func clearCache() throws {
-        imageCache.removeAllObjects()
-        if let iconsDirectory = iconsDirectory {
-            try fileManager.removeItem(at: iconsDirectory)
-            setupIconsDirectory()
-            // 重置解压状态
-            isExtractionComplete = false
-        }
-    }
-
-    func clearTypeIconsCache() throws {
-        if let typeIconsDirectory = typeIconsDirectory {
-            try fileManager.removeItem(at: typeIconsDirectory)
-            setupTypeIconsDirectory()
         }
     }
 

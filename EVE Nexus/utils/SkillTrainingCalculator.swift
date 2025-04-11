@@ -65,11 +65,6 @@ enum SkillTrainingCalculator {
     /// 添加缓存
     private static var skillAttributesCache: [Int: (primary: Int, secondary: Int)] = [:]
 
-    /// 清除缓存
-    public static func clearCache() {
-        skillAttributesCache.removeAll()
-    }
-
     /// 批量加载技能属性到缓存
     public static func preloadSkillAttributes(skillIds: [Int], databaseManager: DatabaseManager) {
         let attributesQuery = """
@@ -284,7 +279,7 @@ enum SkillTrainingCalculator {
     ///   - currentAttributes: 当前角色属性
     ///   - characterId: 角色ID
     /// - Returns: 最优属性分配结果
-    public static func calculateOptimalAttributes(
+    static func calculateOptimalAttributes(
         skillQueue: [(skillId: Int, remainingSP: Int, startDate: Date?, finishDate: Date?)],
         databaseManager: DatabaseManager,
         currentAttributes: CharacterAttributes,

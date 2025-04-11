@@ -75,7 +75,6 @@ struct AccountsView: View {
 
                             // UI 更新已经在 MainActor 上下文中
                             viewModel.characterInfo = character
-                            viewModel.isLoggedIn = true
                             viewModel.loadCharacters()
 
                             // 加载新角色的头像
@@ -127,7 +126,7 @@ struct AccountsView: View {
                             if error.localizedDescription.lowercased().contains("invalid_scope") {
                                 Logger.info("检测到无效权限，尝试重新获取最新的 scopes")
                                 // 强制刷新获取最新的 scopes
-                                let scopes = await ScopeManager.shared.getScopes(forceRefresh: true)
+                                let scopes = await ScopeManager.shared.getLatestScopes(forceRefresh: true)
 
                                 do {
                                     // 使用新的 scopes 重试登录
@@ -151,7 +150,6 @@ struct AccountsView: View {
 
                                     // UI 更新已经在 MainActor 上下文中
                                     viewModel.characterInfo = character
-                                    viewModel.isLoggedIn = true
                                     viewModel.loadCharacters()
 
                                     // 加载新角色的头像
@@ -208,7 +206,7 @@ struct AccountsView: View {
                                 }
                             } else {
                                 viewModel.errorMessage = error.localizedDescription
-                                viewModel.showingError = true
+                                viewModel.showingError = false
                                 Logger.error("登录失败: \(error)")
                             }
                         }
@@ -251,7 +249,7 @@ struct AccountsView: View {
                         Task {
                             // 强制刷新 scopes
                             Logger.info("手动强制刷新 scopes")
-                            let _ = await ScopeManager.shared.getScopes(forceRefresh: true)
+                            let _ = await ScopeManager.shared.getLatestScopes(forceRefresh: true)
 
                             // 更新 EVELogin 中的 scopes 配置
                             let scopes = await EVELogin.shared.getScopes()
@@ -303,7 +301,7 @@ struct AccountsView: View {
                                     isRefreshing: refreshingCharacters.contains(
                                         character.CharacterID),
                                     isEditing: isEditing,
-                                    tokenExpired: expiredTokenCharacters.contains(
+                                    refreshTokenhasExpired: expiredTokenCharacters.contains(
                                         character.CharacterID),
                                     formatISK: FormatUtil.formatISK,
                                     formatSkillPoints: formatSkillPoints,
@@ -352,7 +350,7 @@ struct AccountsView: View {
                                     isRefreshing: refreshingCharacters.contains(
                                         character.CharacterID),
                                     isEditing: isEditing,
-                                    tokenExpired: expiredTokenCharacters.contains(
+                                    refreshTokenhasExpired: expiredTokenCharacters.contains(
                                         character.CharacterID),
                                     formatISK: FormatUtil.formatISK,
                                     formatSkillPoints: formatSkillPoints,
@@ -428,6 +426,10 @@ struct AccountsView: View {
                         object: nil,
                         userInfo: ["characterId": character.CharacterID]
                     )
+                    // 清除该角色的 RefreshTokenExpired 状态
+                    EVELogin.shared.resetRefreshTokenExpired(characterId: character.CharacterID)
+                    // 从过期token集合中移除该角色
+                    expiredTokenCharacters.remove(character.CharacterID)
                     characterToRemove = nil
                 }
             }
@@ -444,7 +446,7 @@ struct AccountsView: View {
             // 从缓存更新所有角色的数据
             Task { @MainActor in
                 for auth in characterAuths {
-                    if auth.character.tokenExpired {
+                    if auth.character.refreshTokenExpired {
                         expiredTokenCharacters.insert(auth.character.CharacterID)
                     }
 
@@ -547,7 +549,7 @@ struct AccountsView: View {
                 // 如果登录成功，清除该角色的token过期状态
                 if let character = viewModel.characterInfo {
                     expiredTokenCharacters.remove(character.CharacterID)
-                    EVELogin.shared.resetTokenExpired(characterId: character.CharacterID)
+                    EVELogin.shared.resetRefreshTokenExpired(characterId: character.CharacterID)
                 }
             }
         }
@@ -594,7 +596,7 @@ struct AccountsView: View {
 
         // 初始化过期状态
         for auth in characterAuths {
-            if auth.character.tokenExpired {
+            if auth.character.refreshTokenExpired {
                 expiredTokenCharacters.insert(auth.character.CharacterID)
             }
         }
@@ -697,15 +699,11 @@ struct AccountsView: View {
                             }
 
                         } catch {
-                            if case NetworkError.tokenExpired = error {
+                            if case NetworkError.refreshTokenExpired = error {
                                 await updateUI {
                                     expiredTokenCharacters.insert(
-                                        characterAuth.character.CharacterID)
-                                    // 清除过期的 token
-                                    Task {
-                                        await AuthTokenManager.shared.clearTokens(
-                                            for: characterAuth.character.CharacterID)
-                                    }
+                                        characterAuth.character.CharacterID
+                                    )
                                 }
                             }
                             Logger.error("刷新角色信息失败: \(error)")
@@ -726,18 +724,8 @@ struct AccountsView: View {
         // 更新登录状态
         await updateUI {
             self.isRefreshing = false
-            self.viewModel.isLoggedIn = !self.viewModel.characters.isEmpty
+            // self.viewModel.isLoggedIn = !self.viewModel.characters.isEmpty
         }
-    }
-
-    @MainActor
-    private func updateRefreshingStatus(for characterId: Int) {
-        refreshingCharacters.remove(characterId)
-    }
-
-    @MainActor
-    private func updatePortrait(characterId: Int, portrait: UIImage) {
-        viewModel.characterPortraits[characterId] = portrait
     }
 
     // 格式化技能点显示
@@ -997,42 +985,10 @@ struct AccountsView: View {
 
     // 在AccountsView结构体内添加一个检查scopes更新时间的函数
     private func checkAndUpdateScopesIfNeeded() async {
-        // 获取文档目录路径
-        let documentsDirectory = FileManager.default.urls(
-            for: .documentDirectory, in: .userDomainMask)[0]
-        let latestScopesPath = documentsDirectory.appendingPathComponent("latest_scopes.json")
-
-        // 检查文件是否存在
-        if FileManager.default.fileExists(atPath: latestScopesPath.path) {
-            do {
-                // 获取文件属性
-                let attributes = try FileManager.default.attributesOfItem(
-                    atPath: latestScopesPath.path)
-                if let modificationDate = attributes[.modificationDate] as? Date {
-                    // 计算文件最后修改时间与当前时间的差值
-                    let timeInterval = Date().timeIntervalSince(modificationDate)
-                    // 如果超过8小时（28800秒），则更新
-                    if timeInterval > 28800 {
-                        Logger.info("latest_scopes.json 文件已超过8小时未更新，正在自动刷新...")
-                        // 强制刷新 scopes
-                        let _ = await ScopeManager.shared.getScopes(forceRefresh: true)
-                        // 更新 EVELogin 中的 scopes 配置
-                        let scopes = await EVELogin.shared.getScopes()
-                        Logger.info("成功自动刷新 scopes，获取到 \(scopes.count) 个权限")
-                    } else {
-                        Logger.info("latest_scopes.json 文件在8小时内已更新，无需刷新")
-                    }
-                }
-            } catch {
-                Logger.error("检查 latest_scopes.json 文件属性失败: \(error)")
-                // 如果检查失败，尝试刷新
-                let _ = await ScopeManager.shared.getScopes(forceRefresh: true)
-            }
-        } else {
-            Logger.info("latest_scopes.json 文件不存在，正在创建...")
-            // 文件不存在，强制刷新
-            let _ = await ScopeManager.shared.getScopes(forceRefresh: true)
-        }
+        Logger.info("检查并更新 scopes...")
+        // 只调用一次 getScopes，它会内部调用 getLatestScopes
+        let scopes = await EVELogin.shared.getScopes()
+        Logger.info("完成 scopes 检查，当前共有 \(scopes.count) 个权限")
     }
 }
 
@@ -1042,7 +998,7 @@ struct CharacterRowView: View {
     let portrait: UIImage?
     let isRefreshing: Bool
     let isEditing: Bool
-    let tokenExpired: Bool
+    let refreshTokenhasExpired: Bool
     let formatISK: (Double) -> String
     let formatSkillPoints: (Int) -> String
     let formatRemainingTime: (TimeInterval) -> String
@@ -1065,23 +1021,9 @@ struct CharacterRowView: View {
 
                         ProgressView()
                             .scaleEffect(0.8)
-                    } else if tokenExpired {
-                        // Token过期的灰色蒙版和感叹号
-                        Circle()
-                            .fill(Color.black.opacity(0.4))
-                            .frame(width: 64, height: 64)
-
-                        ZStack {
-                            // 红色边框三角形
-                            Image(systemName: "triangle")
-                                .font(.system(size: 32))
-                                .foregroundColor(.red)
-
-                            // 红色感叹号
-                            Image(systemName: "exclamationmark")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.red)
-                        }
+                    } else if refreshTokenhasExpired {
+                        // 使用TokenExpiredOverlay组件
+                        TokenExpiredOverlay()
                     }
                 }
                 .overlay(
@@ -1108,23 +1050,9 @@ struct CharacterRowView: View {
 
                         ProgressView()
                             .scaleEffect(0.8)
-                    } else if tokenExpired {
-                        // Token过期的灰色蒙版和感叹号
-                        Circle()
-                            .fill(Color.black.opacity(0.4))
-                            .frame(width: 64, height: 64)
-
-                        ZStack {
-                            // 红色边框三角形
-                            Image(systemName: "triangle")
-                                .font(.system(size: 32))
-                                .foregroundColor(.red)
-
-                            // 红色感叹号
-                            Image(systemName: "exclamationmark")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.red)
-                        }
+                    } else if refreshTokenhasExpired {
+                        // 使用TokenExpiredOverlay组件
+                        TokenExpiredOverlay()
                     }
                 }
                 .overlay(

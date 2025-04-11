@@ -64,60 +64,11 @@ class KbEvetoolAPI {
         // 解析JSON数据
         guard let jsonData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw NSError(
-                domain: "KbEvetoolAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "解析JSON失败"]
+                domain: "KbEvetoolAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "解析JSON失败: \(data)"]
             )
         }
 
         return jsonData
-    }
-
-    // 获取最近的战斗记录
-    public func fetchRecentKillMails(characterId: Int, limit: Int = 5) async throws -> [[String:
-        Any]]
-    {
-        let response = try await fetchCharacterKillMails(characterId: characterId, page: 1)
-        guard let records = response["data"] as? [[String: Any]] else {
-            return []
-        }
-        return Array(records.prefix(limit))
-    }
-
-    // 获取指定类型的战斗记录（击杀/损失）
-    public func fetchKillMailsByType(characterId: Int, page: Int = 1, isKill: Bool) async throws
-        -> [[String: Any]]
-    {
-        let response = try await fetchCharacterKillMails(characterId: characterId, page: page)
-        guard let records = response["data"] as? [[String: Any]] else {
-            return []
-        }
-
-        return records.filter { record in
-            if let victim = record["vict"] as? [String: Any],
-                let char = victim["char"] as? [String: Any],
-                let victimId = char["id"] as? Int
-            {
-                // 如果受害者是当前角色，则是损失记录；否则是击杀记录
-                let isLoss = victimId == characterId
-                return isKill ? !isLoss : isLoss
-            }
-            return false
-        }
-    }
-
-    // 辅助方法：从记录中获取特定信息
-    public func getCharacterInfo(_ record: [String: Any], path: String...) -> (
-        id: Int?, name: String?
-    ) {
-        var current: Any? = record
-        for key in path {
-            current = (current as? [String: Any])?[key]
-        }
-
-        guard let charInfo = current as? [String: Any] else {
-            return (nil, nil)
-        }
-
-        return (charInfo["id"] as? Int, charInfo["name"] as? String)
     }
 
     public func getShipInfo(_ record: [String: Any], path: String...) -> (id: Int?, name: String?) {
@@ -178,9 +129,11 @@ class KbEvetoolAPI {
         let query = """
                 SELECT type_id, name, icon_filename
                 FROM types
-                WHERE name LIKE ?1
-                AND categoryID IN (6, 65, 87)
-                LIMIT 50
+                WHERE (name LIKE ?1 OR en_name like ?1)
+                AND published = 1
+                AND categoryID IN (6, 65, 87) -- evetools只支持这几个分类
+                order by categoryID
+                LIMIT 20
             """
 
         if case let .success(rows) = DatabaseManager.shared.executeQuery(
@@ -228,7 +181,7 @@ class KbEvetoolAPI {
         // 解析 JSON 响应
         guard let zkbResults = try? JSONDecoder().decode([ZKBSearchResult].self, from: data) else {
             throw NSError(
-                domain: "KbEvetoolAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "解析JSON失败"]
+                domain: "KbEvetoolAPI", code: -2, userInfo: [NSLocalizedDescriptionKey: "解析JSON失败: \(data)"]
             )
         }
 
@@ -325,7 +278,7 @@ class KbEvetoolAPI {
         // 解析JSON数据
         guard let jsonData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw NSError(
-                domain: "KbEvetoolAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "解析JSON失败"]
+                domain: "KbEvetoolAPI", code: -3, userInfo: [NSLocalizedDescriptionKey: "解析JSON失败: \(data)"]
             )
         }
 
@@ -379,7 +332,7 @@ class KbEvetoolAPI {
         // 解析JSON数据
         guard let jsonData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw NSError(
-                domain: "KbEvetoolAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "解析JSON失败"]
+                domain: "KbEvetoolAPI", code: -4, userInfo: [NSLocalizedDescriptionKey: "解析JSON失败: \(data)"]
             )
         }
 

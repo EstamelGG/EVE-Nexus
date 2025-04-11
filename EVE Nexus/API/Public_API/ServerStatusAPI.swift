@@ -112,21 +112,22 @@ class ServerStatusAPI {
             return cachedStatus
         }
 
-        let baseURL = "https://esi.evetech.net/latest/status/"
-        var components = URLComponents(string: baseURL)
-        components?.queryItems = [
-            URLQueryItem(name: "datasource", value: "tranquility"),
-            URLQueryItem(name: "t", value: "\(Date().timeIntervalSince1970)"),
-        ]
-
+        let baseURL = "https://esi.evetech.net/latest/status/?datasource=tranquility"
+        let components = URLComponents(string: baseURL)
         guard let url = components?.url else {
             throw ServerStatusAPIError.invalidURL
         }
 
         do {
-            let data = try await NetworkManager.shared.fetchData(from: url)
+            // 使用NetworkManager的fetchData方法，设置1,2,5,5,10秒的超时重试
+            Logger.info("尝试获取服务器状态...")
+            let data = try await NetworkManager.shared.fetchData(
+                from: url,
+                forceRefresh: forceRefresh,
+                timeouts: [1, 2, 5, 5, 10]
+            )
             let status = try JSONDecoder().decode(ServerStatus.self, from: data)
-
+            Logger.info("服务器状态: \(status)")
             // 如果响应中包含 error 字段，返回离线状态
             if status.error != nil {
                 let offlineStatus = ServerStatus(

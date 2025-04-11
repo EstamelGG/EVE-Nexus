@@ -429,38 +429,6 @@ struct SkillPlanView: View {
         }
     }
 
-    private func formatTimeInterval(_ interval: TimeInterval) -> String {
-        // 先转换为分钟
-        let totalMinutes = Int(ceil(interval / 60))
-        let days = totalMinutes / (24 * 60)
-        let remainingMinutes = totalMinutes % (24 * 60)
-        let hours = remainingMinutes / 60
-        let minutes = remainingMinutes % 60
-
-        if days > 0 {
-            // 如果有剩余分钟，小时数要加1
-            let adjustedHours = (remainingMinutes % 60 > 0) ? hours + 1 : hours
-            if adjustedHours > 0 {
-                return String(
-                    format: NSLocalizedString("Time_Days_Hours", comment: ""),
-                    days, adjustedHours
-                )
-            }
-            return String(format: NSLocalizedString("Time_Days", comment: ""), days)
-        } else if hours > 0 {
-            // 如果有剩余分钟，分钟数要向上取整
-            if minutes > 0 {
-                return String(
-                    format: NSLocalizedString("Time_Hours_Minutes", comment: ""),
-                    hours, minutes
-                )
-            }
-            return String(format: NSLocalizedString("Time_Hours", comment: ""), hours)
-        }
-        // 分钟数已经在一开始就向上取整了
-        return String(format: NSLocalizedString("Time_Minutes", comment: ""), minutes)
-    }
-
     // 添加加载已学习技能的方法
     private func loadLearnedSkills() async {
         // 从character_skills表获取技能数据

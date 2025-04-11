@@ -467,6 +467,7 @@
 "Main_Setting_Reset_Database_Success_Title" = "Reset Complete";
 "Main_Setting_Reset_Database_Success_Message" = "Database has been successfully reset.";
 "Common_info" = "Basic info";
+"Timer" = "Timer";
 
 "Character_Security_Status" = "Security Status";
 "Character_Current_Ship" = "Current Ship";
@@ -496,7 +497,7 @@
 "Character_Clone_Details" = "Clone Details";
 "Character_Clone_Implants" = "Implants";
 "Character_No_Implants" = "No Implants";
-"Character_Clone_ID" = "Clone #%d";
+"Character_Clone_ID" = "Clone ID: %d";
 "Main_Jump_Clones" = "Clone Status";
 "Main_Jump_Clones_Available" = "Available Clones";
 "Main_Jump_Clones_Ready" = "Next Jump: Now";
@@ -677,7 +678,6 @@
 "Main_Corporation_Wallet_Division7" = "Corp Wallet 7";
 "Main_Corporation_Hangar_Default" = "Corp Hangar %d";
 "Main_Corporation_Wallet_Default" = "Wallet Division %d";
-"Balance: %@ ISK" = "Balance: %@ ISK";
 
 // Wallet Journal
 "Summary" = "Summary(30d)";
@@ -689,6 +689,7 @@
 "Common_Error" = "Error";
 "Net Balance" = "Net Balance";
 "Load More" = "Load More";
+"Balance" = "Balance: %@ ISK";
 
 // Optimal Attributes
 "Main_Skills_Optimal_Attributes" = "Optimal Attributes";
@@ -1300,3 +1301,56 @@
 "Main_Database_Mutation_Results" = "Mutation Output";
 "Main_Database_Required_Mutaplasmids" = "Required Mutaplasmids";
 
+// Jump Navigation
+"Main_Jump_Navigation" = "Jump Navigation";
+"Jump_Navigation_Ship_Selection" = "Ship";
+"Jump_Navigation_JDC_Skill" = "Jump Drive Calibration";
+"Jump_Navigation_Start_Point" = "Start Point";
+"Jump_Navigation_Add_Waypoint" = "Add Waypoint";
+"Jump_Navigation_Waypoint" = "Waypoint %d";
+"Jump_Navigation_Add_Avoid" = "Add Avoid System";
+"Jump_Navigation_Avoid" = "Avoid";
+"Jump_Navigation_Calculate" = "Calculate Best Route";
+"Jump_Navigation_Select_Ship" = "Select Ship";
+"Jump_Navigation_Select_Start" = "Select Start Point";
+"Jump_Navigation_Loading_Systems" =  "Loading Systems...";
+"Jump_Navigation_Save_Jump_Map" = "Save Jump Map";
+"Jump_Navigation_Calculating_Jump_Distance" = "Calculating...";
+"Jump_Navigation_Max_Jump_Range" = "Max";
+"Jump_Navigation_DOTLAN_Route" = "View on Dotlan";
+
+// Jump Navigation Sections
+"Jump_Navigation_Ship_And_Skills" = "Ship & Skills";
+"Jump_Navigation_Route_Planning" = "Route Planning";
+"Jump_Navigation_Safety_Avoidance" = "Safety Avoidance";
+
+// Jump Navigation Results
+"Jump_Navigation_Total_Distance" = "Total Distance";
+"Jump_Navigation_Total_Jumps" = "Total Jumps";
+"Jump_Navigation_Jump_Format" = "Jump %d (%@ ly)";
+
+// Jump Navigation Confirmations
+"Jump_Navigation_Recalculate_Title" = "Recalculate Confirmation";
+"Jump_Navigation_Recalculate_Message" = "Are you sure you want to recalculate the jump map data? This may take some time.";
+"Jump_Navigation_Recalculate_Cancel" = "Cancel";
+"Jump_Navigation_Recalculate_Confirm" = "Confirm";
+
+// Jump Navigation Status
+"Jump_Navigation_Calculating" = "Calculating best route...";
+"Jump_Navigation_Preparing_Data" = "Preparing jump data...";
+"Jump_Navigation_Processing" = "Processing...";
+
+// Jump Navigation Errors
+"Jump_Navigation_Error_No_Ship" = "Please select a ship";
+"Jump_Navigation_Error_No_Start" = "Please select start point";
+"Jump_Navigation_Error_No_Waypoints" = "Please add at least one waypoint";
+"Jump_Navigation_Error_Invalid_Route" = "Cannot find valid route";
+"Jump_Navigation_Error_Path_Not_Found" = "Cannot find path from %@ to %@";
+
+"Server_Status_Online" = "Server Online";
+"Server_Status_Offline" = "Offline";
+"Server_Status_Checking" = "Checking Status...";
+"Server_Status_Players" = " (%@ players)";
+
+"Character_Implants_Count" = "%d Implant(s)";
+"Character_Clone_And_Implants_Count" = "%d Clone(s) · %d Implant(s)";

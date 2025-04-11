@@ -31,6 +31,8 @@ struct CharacterSkillsView: View {
         [(name: String, icon: String, current: Int, optimal: Int, diff: Int)] = []
     @State private var currentRefreshTask: Task<Void, Never>?
     @State private var isDataReady = false  // 新增：用于控制整体内容的显示
+    @State private var hasInitialized = false // 追踪是否已执行初始化
+    @State private var currentLoadTask: Task<Void, Never>? // 追踪当前加载任务
 
     private func updateAttributeComparisons() {
         guard let attrs = characterAttributes,
@@ -190,22 +192,19 @@ struct CharacterSkillsView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Skills", comment: ""))
         .refreshable {
-            currentRefreshTask?.cancel()
+            currentLoadTask?.cancel()
             let task = Task {
                 guard !isRefreshing else { return }
                 await refreshSkillQueue()
             }
-            currentRefreshTask = task
+            currentLoadTask = task
             await task.value
         }
-        .task {
-            if !hasLoadedData {
-                await loadSkillQueue()
-                hasLoadedData = true
-            }
+        .onAppear {
+            loadInitialDataIfNeeded()
         }
         .onDisappear {
-            currentRefreshTask?.cancel()
+            currentLoadTask?.cancel()
         }
     }
 
@@ -556,35 +555,66 @@ struct CharacterSkillsView: View {
         }
     }
 
+    private func loadInitialDataIfNeeded() {
+        guard !hasInitialized else { return }
+        
+        hasInitialized = true
+        
+        Task {
+            await loadSkillQueue()
+        }
+    }
+
     private func loadSkillQueue(forceRefresh: Bool = false) async {
         isLoading = true
         isDataReady = false  // 开始加载时重置数据准备状态
 
         do {
-            // 使用 async let 并发加载所有数据
-            async let attributesResult = CharacterSkillsAPI.shared.fetchAttributes(
-                characterId: characterId)
-            async let implantResult = SkillTrainingCalculator.getImplantBonuses(
-                characterId: characterId)
-            async let queueResult = CharacterSkillsAPI.shared.fetchSkillQueue(
-                characterId: characterId, forceRefresh: forceRefresh
-            )
-
-            // 等待所有基础数据加载完成
-            let (attributes, implants, queue) = try await (
-                attributesResult, implantResult, queueResult
-            )
-
+            // 声明变量来存储任务组的结果
+            var loadedAttributes: CharacterAttributes?
+            var loadedImplants: ImplantAttributes?
+            var loadedQueue: [SkillQueueItem] = []
+            
+            // 使用任务组来管理并发加载
+            try await withThrowingTaskGroup(of: Void.self) { group in
+                // 加载属性
+                group.addTask {
+                    loadedAttributes = try await CharacterSkillsAPI.shared.fetchAttributes(
+                        characterId: characterId)
+                }
+                
+                // 加载植入体信息
+                group.addTask {
+                    loadedImplants = await SkillTrainingCalculator.getImplantBonuses(
+                        characterId: characterId)
+                }
+                
+                // 加载技能队列
+                group.addTask {
+                    loadedQueue = try await CharacterSkillsAPI.shared.fetchSkillQueue(
+                        characterId: characterId, forceRefresh: forceRefresh)
+                }
+                
+                // 等待所有任务完成
+                try await group.waitForAll()
+            }
+            
+            // 确保所有必要的数据都已加载
+            guard let attributes = loadedAttributes,
+                  let implants = loadedImplants else {
+                throw NSError(domain: "CharacterSkillsView", code: -1, userInfo: [NSLocalizedDescriptionKey: "加载数据失败"])
+            }
+            
             // 收集所有技能ID
-            let skillIds = queue.map { $0.skill_id }
-
+            let skillIds = loadedQueue.map { $0.skill_id }
+            
             // 批量加载技能名称
             let nameQuery = """
                     SELECT type_id, name
                     FROM types
                     WHERE type_id IN (\(skillIds.sorted().map { String($0) }.joined(separator: ",")))
                 """
-
+            
             var names: [Int: String] = [:]
             if case let .success(rows) = databaseManager.executeQuery(nameQuery) {
                 for row in rows {
@@ -595,7 +625,7 @@ struct CharacterSkillsView: View {
                     }
                 }
             }
-
+            
             // 预加载所有技能属性到缓存
             SkillTrainingCalculator.preloadSkillAttributes(
                 skillIds: skillIds, databaseManager: databaseManager
@@ -619,7 +649,7 @@ struct CharacterSkillsView: View {
 
             // 计算最优属性分配
             var optimal: OptimalAttributeAllocation?
-            let queueInfo = queue.compactMap {
+            let queueInfo = loadedQueue.compactMap {
                 item -> (skillId: Int, remainingSP: Int, startDate: Date?, finishDate: Date?)? in
                 guard let levelEndSp = item.level_end_sp,
                     let trainingStartSp = item.training_start_sp
@@ -655,7 +685,7 @@ struct CharacterSkillsView: View {
             await MainActor.run {
                 self.characterAttributes = attributes
                 self.implantBonuses = implants
-                self.skillQueue = queue
+                self.skillQueue = loadedQueue
                 self.skillNames = names
                 self.trainingRates = rates
                 self.optimalAttributes = optimal
@@ -672,10 +702,10 @@ struct CharacterSkillsView: View {
             }
 
         } catch {
-            Logger.error("加载技能队列失败: \(error)")
+            Logger.error("加载技能数据失败: \(error)")
             await MainActor.run {
                 self.isLoading = false
-                self.isDataReady = true  // 即使加载失败也显示页面
+                self.isDataReady = true
             }
         }
     }
