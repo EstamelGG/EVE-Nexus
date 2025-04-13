@@ -97,7 +97,7 @@ struct WealthDetailView: View {
                     Spacer()
                 }
             } else {
-                // 有市场价格的物品
+                // 有市场估价的物品
                 if !valuedItems.isEmpty {
                     Section(header: Text(NSLocalizedString("Wealth_Detail_HasPrice", comment: "")))
                     {

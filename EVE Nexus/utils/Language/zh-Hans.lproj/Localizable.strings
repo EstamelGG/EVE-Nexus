@@ -568,8 +568,8 @@
 "Wealth_Detail_MarketPrice" = "市场价格";
 "Wealth_Detail_Quantity" = "数量";
 "Wealth_Detail_TotalValue" = "总价值";
-"Wealth_Detail_HasPrice" = "有市场价格的物品 (前20名)";
-"Wealth_Detail_NoPrice" = "无市场价格的物品 (前20名)";
+"Wealth_Detail_HasPrice" = "有市场估价的物品 (前20名)";
+"Wealth_Detail_NoPrice" = "无市场估价的物品 (前20名)";
 "Wealth_Detail_Unit_Price" = "单价";
 
 "Wealth_Distribution" = "资产分布";
@@ -1229,7 +1229,7 @@
 "Security_NullSec" = "零安";
 
 // Agent Tags
-"Agent_Locator" = "定位";
+"Agent_Locator" = "寻人";
 "Agent_Space" = "空代";
 "Agent_Level" = "L%d";
 
@@ -1244,7 +1244,7 @@
 "Agent_Search_Security" = "星系";
 "Agent_Search_Faction" = "势力";
 "Agent_Search_Corporation" = "军团";
-"Agent_Search_Locator_Only" = "仅显示定位代理人";
+"Agent_Search_Locator_Only" = "仅显示寻人代理人";
 "Agent_Search_Space_Only" = "仅显示空间代理人";
 "Agent_Search_All_Divisions" = "任意";
 "Agent_Search_All_Levels" = "任意";

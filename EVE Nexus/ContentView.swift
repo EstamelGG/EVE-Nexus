@@ -859,7 +859,7 @@ struct ContentView: View {
             NavigationLink(value: "agents") {
                 RowView(
                     title: NSLocalizedString("Main_Agents", comment: ""),
-                    icon: "agent"
+                    icon: "agentfinder"
                 )
             }
 

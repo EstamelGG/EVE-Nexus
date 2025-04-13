@@ -300,7 +300,7 @@ struct AgentSearchView: View {
                             VStack(alignment: .leading) {
                                 Text(
                                     NSLocalizedString(
-                                        "Agent_Search_Locator_Only", comment: "仅显示定位代理人")
+                                        "Agent_Search_Locator_Only", comment: "仅显示寻人代理人")
                                 )
                                 .font(.system(size: 16))
                                 .foregroundColor(.primary)
@@ -1534,7 +1534,7 @@ struct AgentCellView: View {
 
                     // 定位代理人标签
                     if agent.isLocator {
-                        Text(NSLocalizedString("Agent_Locator", comment: "定位代理人"))
+                        Text(NSLocalizedString("Agent_Locator", comment: "寻人代理人"))
                             .font(.caption)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
