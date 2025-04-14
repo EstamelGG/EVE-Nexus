@@ -43,11 +43,14 @@ struct RegionPickerView: View {
     @Binding var selectedRegionID: Int
     @Binding var selectedRegionName: String
     let databaseManager: DatabaseManager
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
 
     @State private var isEditMode = false
     @State private var allRegions: [Region] = []
     @State private var pinnedRegions: [Region] = []
+    @State private var searchText = ""
+    @State private var isSearchActive = false
+    @State private var sectionedRegions: [String: [Region]] = [:]
+    @State private var sectionTitles: [String] = []
 
     private var unpinnedRegions: [Region] {
         allRegions.filter { region in
@@ -57,10 +60,8 @@ struct RegionPickerView: View {
 
     // 加载星域数据
     private func loadRegions() {
-        let useEnglishSystemNames = UserDefaults.standard.bool(forKey: "useEnglishSystemNames")
-
         let query = """
-                SELECT r.regionID, r.regionName, r.regionName_en
+                SELECT r.regionID, r.regionName
                 FROM regions r
                 WHERE r.regionID < 11000000
             """
@@ -68,12 +69,11 @@ struct RegionPickerView: View {
         if case let .success(rows) = databaseManager.executeQuery(query) {
             allRegions = rows.compactMap { row in
                 guard let id = row["regionID"] as? Int,
-                    let nameLocal = row["regionName"] as? String,
-                    let nameEn = row["regionName_en"] as? String
+                    let nameLocal = row["regionName"] as? String
                 else {
                     return nil
                 }
-                let name = useEnglishSystemNames ? nameEn : nameLocal
+                let name = nameLocal
                 return Region(id: id, name: name)
             }
 
@@ -96,7 +96,65 @@ struct RegionPickerView: View {
                     }
                 }
             }
+            
+            // 更新分组数据
+            updateSections()
         }
+    }
+    
+    // 更新分组数据
+    private func updateSections() {
+        var filteredData = unpinnedRegions
+        
+        // 如果有搜索文本，过滤数据
+        if !searchText.isEmpty {
+            filteredData = unpinnedRegions.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+        }
+        
+        // 按首字母分组
+        let grouped = Dictionary(grouping: filteredData) { region -> String in
+            // 获取首字母（包括处理中文拼音）
+            let name = region.name
+            if let firstChar = name.first {
+                let firstLetter = getFirstLetter(of: String(firstChar))
+                return firstLetter
+            }
+            return "#"
+        }
+        
+        sectionedRegions = grouped
+        sectionTitles = grouped.keys.sorted()
+        
+        // 对每个组内的数据进行排序
+        for (key, _) in sectionedRegions {
+            sectionedRegions[key]?.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+        }
+    }
+    
+    // 获取字符的首字母（包括中文拼音）
+    private func getFirstLetter(of char: String) -> String {
+        // 转换为大写
+        let uppercaseChar = char.uppercased()
+        
+        // 判断是否为英文字母
+        if uppercaseChar >= "A" && uppercaseChar <= "Z" {
+            return uppercaseChar
+        }
+        
+        // 中文字符转拼音
+        let pinyin = NSMutableString(string: char) as CFMutableString
+        CFStringTransform(pinyin, nil, kCFStringTransformToLatin, false)
+        CFStringTransform(pinyin, nil, kCFStringTransformStripDiacritics, false)
+        
+        if let firstPinyinChar = String(pinyin as String).first {
+            let letter = String(firstPinyinChar).uppercased()
+            if letter >= "A" && letter <= "Z" {
+                return letter
+            }
+        }
+        
+        // 其他字符
+        return "#"
     }
 
     private func savePinnedRegions() {
@@ -129,6 +187,7 @@ struct RegionPickerView: View {
                                     withAnimation {
                                         pinnedRegions.removeAll { $0.id == region.id }
                                         savePinnedRegions()
+                                        updateSections()
                                     }
                                 }
                             )
@@ -154,39 +213,52 @@ struct RegionPickerView: View {
                         }
                     }
                 }
-
-                // 所有星域 Section
-                Section(
-                    header: Text(
-                        isEditMode
-                            ? NSLocalizedString("Main_Market_Available_Regions", comment: "")
-                            : NSLocalizedString("Main_Market_All_Regions", comment: ""))
-                ) {
-                    ForEach(unpinnedRegions) { region in
-                        RegionRow(
-                            region: region,
-                            isSelected: region.id == selectedRegionID,
-                            isEditMode: isEditMode,
-                            onSelect: {
-                                selectedRegionID = region.id
-                                selectedRegionName = region.name
-                                let defaults = UserDefaultsManager.shared
-                                defaults.selectedRegionID = region.id
-                                if !isEditMode {
-                                    dismiss()
-                                }
-                            },
-                            onPin: {
-                                withAnimation {
-                                    pinnedRegions.append(region)
-                                    savePinnedRegions()
-                                }
+                
+                // 按首字母分组显示星域列表 - 直接作为List中的Section
+                ForEach(sectionTitles, id: \.self) { sectionTitle in
+                    if let regionsInSection = sectionedRegions[sectionTitle], !regionsInSection.isEmpty {
+                        Section(header: Text(sectionTitle)) {
+                            ForEach(regionsInSection) { region in
+                                RegionRow(
+                                    region: region,
+                                    isSelected: region.id == selectedRegionID,
+                                    isEditMode: isEditMode,
+                                    onSelect: {
+                                        selectedRegionID = region.id
+                                        selectedRegionName = region.name
+                                        let defaults = UserDefaultsManager.shared
+                                        defaults.selectedRegionID = region.id
+                                        if !isEditMode {
+                                            dismiss()
+                                        }
+                                    },
+                                    onPin: isEditMode ? {
+                                        withAnimation {
+                                            pinnedRegions.append(region)
+                                            savePinnedRegions()
+                                            updateSections()
+                                        }
+                                    } : nil
+                                )
                             }
-                        )
+                        }
                     }
                 }
             }
             .listStyle(.insetGrouped)
+            .searchable(
+                text: $searchText,
+                isPresented: $isSearchActive,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: NSLocalizedString("Region_Search_Placeholder", comment: "搜索星域...")
+            )
+            .onChange(of: searchText) { _, _ in
+                updateSections()
+            }
+            .onChange(of: isSearchActive) { _, _ in
+                // 当搜索状态改变时，也需要更新分组
+                updateSections()
+            }
             .navigationTitle(NSLocalizedString("Main_Market_Select_Region", comment: ""))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -275,7 +347,6 @@ struct MarketItemDetailView: View {
     @State private var selectedRegionID: Int = 0
     @State private var selectedRegionName: String = ""
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
     private var chartHeight: CGFloat {
         // 根据设备类型和方向调整高度
         if horizontalSizeClass == .regular {
@@ -434,7 +505,7 @@ struct MarketItemDetailView: View {
             let defaults = UserDefaultsManager.shared
             if selectedRegionID == 0 {
                 selectedRegionID = defaults.selectedRegionID
-                selectedRegionName = defaults.defaultRegionName
+                selectedRegionName = getRegionName(for: defaults.selectedRegionID)
             }
 
             itemDetails = databaseManager.getItemDetails(for: itemID)
@@ -534,5 +605,25 @@ struct MarketItemDetailView: View {
 
         // 等待两个任务都完成
         await _ = (marketDataTask, historyDataTask)
+    }
+
+    // 根据区域ID获取区域名称的方法
+    private func getRegionName(for regionID: Int) -> String {
+        // 查询数据库获取区域名称
+        let query = """
+            SELECT regionName
+            FROM regions
+            WHERE regionID = ?
+        """
+        
+        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [regionID]) {
+            if let row = rows.first {
+                let nameLocal = row["regionName"] as? String ?? ""
+                return nameLocal
+            }
+        }
+        
+        // 如果查询失败或未找到，返回一个默认值
+        return "Unknown Region"
     }
 }

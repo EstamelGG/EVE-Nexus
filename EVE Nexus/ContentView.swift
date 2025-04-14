@@ -448,8 +448,8 @@ struct ContentView: View {
                     databaseSection
 
                     // 商业部分(登录后显示)
+                    businessSection
                     if currentCharacterId != 0 {
-                        businessSection
                         KillBoardSection
                     }
 
@@ -584,6 +584,8 @@ struct ContentView: View {
                         case "planetary":
                             if let character = viewModel.selectedCharacter {
                                 CharacterPlanetaryView(characterId: character.CharacterID)
+                            } else {
+                                CharacterPlanetaryView(characterId: nil)
                             }
                         case "corporation_wallet":
                             if let character = viewModel.selectedCharacter {
@@ -629,9 +631,6 @@ struct ContentView: View {
                     viewModel.resetCharacterInfo()
                 }
             }
-        }
-        .onChange(of: selectedTheme) { _, _ in
-            // 主题变更时的处理
         }
         .onReceive(
             NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))
@@ -913,49 +912,49 @@ struct ContentView: View {
                     title: NSLocalizedString("Main_Assets", comment: ""),
                     icon: "assets"
                 )
-            }
+            }.isHidden(currentCharacterId == 0)
 
             NavigationLink(value: "market_orders") {
                 RowView(
                     title: NSLocalizedString("Main_Market_Orders", comment: ""),
                     icon: "marketdeliveries"
                 )
-            }
+            }.isHidden(currentCharacterId == 0)
 
             NavigationLink(value: "contracts") {
                 RowView(
                     title: NSLocalizedString("Main_Contracts", comment: ""),
                     icon: "contracts"
                 )
-            }
+            }.isHidden(currentCharacterId == 0)
 
             NavigationLink(value: "market_transactions") {
                 RowView(
                     title: NSLocalizedString("Main_Market_Transactions", comment: ""),
                     icon: "journal"
                 )
-            }
+            }.isHidden(currentCharacterId == 0)
 
             NavigationLink(value: "wallet_journal") {
                 RowView(
                     title: NSLocalizedString("Main_Wallet_Journal", comment: ""),
                     icon: "wallet"
                 )
-            }
+            }.isHidden(currentCharacterId == 0)
 
             NavigationLink(value: "industry_jobs") {
                 RowView(
                     title: NSLocalizedString("Main_Industry_Jobs", comment: ""),
                     icon: "industry"
                 )
-            }
+            }.isHidden(currentCharacterId == 0)
 
             NavigationLink(value: "mining_ledger") {
                 RowView(
                     title: NSLocalizedString("Main_Mining_Ledger", comment: ""),
                     icon: "miningledger"
                 )
-            }
+            }.isHidden(currentCharacterId == 0)
 
             NavigationLink(value: "planetary") {
                 RowView(

@@ -57,7 +57,6 @@ private struct LocationRowView: View {
 // 位置名称视图
 private struct LocationNameView: View {
     let location: AssetTreeNode
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames = false
     @State private var solarSystemName: String?
     @Environment(\.databaseManager) private var databaseManager
     @EnvironmentObject private var viewModel: CharacterAssetsViewModel

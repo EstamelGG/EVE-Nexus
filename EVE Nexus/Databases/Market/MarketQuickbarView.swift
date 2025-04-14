@@ -674,7 +674,6 @@ struct MarketQuickbarView: View {
     @State private var isShowingAddAlert = false
     @State private var newQuickbarName = ""
     @State private var searchText = ""
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
 
     private var filteredQuickbars: [MarketQuickbar] {
         if searchText.isEmpty {
@@ -1379,10 +1378,8 @@ struct MarketQuickbarDetailView: View {
     }
 
     private func loadRegions() {
-        let useEnglishSystemNames = UserDefaults.standard.bool(forKey: "useEnglishSystemNames")
-
         let query = """
-                SELECT r.regionID, r.regionName, r.regionName_en
+                SELECT r.regionID, r.regionName
                 FROM regions r
                 WHERE r.regionID < 11000000
                 ORDER BY r.regionName
@@ -1391,10 +1388,9 @@ struct MarketQuickbarDetailView: View {
         if case let .success(rows) = databaseManager.executeQuery(query) {
             for row in rows {
                 if let regionId = row["regionID"] as? Int,
-                    let regionNameLocal = row["regionName"] as? String,
-                    let regionNameEn = row["regionName_en"] as? String
+                    let regionNameLocal = row["regionName"] as? String
                 {
-                    let regionName = useEnglishSystemNames ? regionNameEn : regionNameLocal
+                    let regionName = regionNameLocal
                     regions.append((id: regionId, name: regionName))
                 }
             }

@@ -6,7 +6,6 @@ class UserDefaultsManager {
 
     // The Forge 的 regionID 是 10000002
     private let defaultRegionID = 10_000_002
-    let defaultRegionName = "The Forge"
 
     // 键名常量
     private enum Keys {

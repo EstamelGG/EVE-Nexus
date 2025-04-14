@@ -70,7 +70,6 @@ class CorpMemberListViewModel: ObservableObject {
     @Published var totalPages = 0
     @Published var searchText: String = ""
     @AppStorage("MemberSortOption") private var sortOptionRaw: String = "name"
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
 
     var sortOption: MemberSortOption {
         get {
@@ -267,7 +266,7 @@ class CorpMemberListViewModel: ObservableObject {
             Logger.debug("加载星系信息 - 数量: \(solarSystemIds.count)")
             let query = """
                     SELECT u.solarsystem_id, u.system_security,
-                           s.solarSystemName, s.solarSystemName_en
+                           s.solarSystemName
                     FROM universe u
                     JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
                     WHERE u.solarsystem_id IN (\(solarSystemIds.sorted().map { String($0) }.joined(separator: ",")))
@@ -280,7 +279,6 @@ class CorpMemberListViewModel: ObservableObject {
                     // 先获取原始值
                     let rawSystemId = row["solarsystem_id"]
                     let rawSystemNameLocal = row["solarSystemName"]
-                    let rawSystemNameEn = row["solarSystemName_en"]
                     let rawSecurity = row["system_security"]
 
                     // Logger.debug("原始数据类型 - systemId: \(type(of: rawSystemId)), systemName: \(type(of: rawSystemNameLocal)), security: \(type(of: rawSecurity))")
@@ -305,14 +303,6 @@ class CorpMemberListViewModel: ObservableObject {
                         continue
                     }
 
-                    let systemNameEn: String
-                    if let name = rawSystemNameEn as? String {
-                        systemNameEn = name
-                    } else {
-                        Logger.error("systemNameEn 类型转换失败: \(String(describing: rawSystemNameEn))")
-                        continue
-                    }
-
                     let security: Double
                     if let sec = rawSecurity as? Double {
                         security = sec
@@ -323,7 +313,7 @@ class CorpMemberListViewModel: ObservableObject {
                         continue
                     }
 
-                    let systemName = useEnglishSystemNames ? systemNameEn : systemNameLocal
+                    let systemName = systemNameLocal
 
                     let info = LocationCacheInfo(
                         systemName: systemName,
@@ -343,7 +333,7 @@ class CorpMemberListViewModel: ObservableObject {
             Logger.debug("加载空间站信息 - 数量: \(stationIds.count)")
             let query = """
                     SELECT s.stationID, s.stationName,
-                           ss.solarSystemName, ss.solarSystemName_en, u.system_security
+                           ss.solarSystemName, u.system_security
                     FROM stations s
                     JOIN solarsystems ss ON s.solarSystemID = ss.solarSystemID
                     JOIN universe u ON u.solarsystem_id = ss.solarSystemID
@@ -358,7 +348,6 @@ class CorpMemberListViewModel: ObservableObject {
                     let rawStationId = row["stationID"]
                     let stationName = row["stationName"] as? String ?? "Unknown"
                     let rawSystemNameLocal = row["solarSystemName"]
-                    let rawSystemNameEn = row["solarSystemName_en"]
                     let rawSecurity = row["system_security"]
 
                     // 尝试不同的类型转换
@@ -381,15 +370,7 @@ class CorpMemberListViewModel: ObservableObject {
                         continue
                     }
 
-                    let systemNameEn: String
-                    if let name = rawSystemNameEn as? String {
-                        systemNameEn = name
-                    } else {
-                        Logger.error("systemNameEn 类型转换失败: \(String(describing: rawSystemNameEn))")
-                        continue
-                    }
-
-                    let systemName = useEnglishSystemNames ? systemNameEn : systemNameLocal
+                    let systemName = systemNameLocal
 
                     let security: Double
                     if let sec = rawSecurity as? Double {
@@ -436,7 +417,7 @@ class CorpMemberListViewModel: ObservableObject {
             )
 
             let query = """
-                    SELECT s.solarSystemName, s.solarSystemName_en, u.system_security
+                    SELECT s.solarSystemName, u.system_security
                     FROM solarsystems s
                     JOIN universe u ON u.solarsystem_id = s.solarSystemID
                     WHERE s.solarSystemID = ?
@@ -447,10 +428,9 @@ class CorpMemberListViewModel: ObservableObject {
             ),
                 let row = rows.first,
                 let systemNameLocal = row["solarSystemName"] as? String,
-                let systemNameEn = row["solarSystemName_en"] as? String,
                 let security = row["system_security"] as? Double
             {
-                let systemName = useEnglishSystemNames ? systemNameEn : systemNameLocal
+                let systemName = systemNameLocal
 
                 let locationInfo = LocationCacheInfo(
                     systemName: systemName,

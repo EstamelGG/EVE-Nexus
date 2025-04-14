@@ -111,6 +111,7 @@
 "Misc_number_types" = " Items";
 "Misc_per" = "per";
 "Misc_unit" = "unit(s)";
+"Misc_No_Data" = "No data";
 
 // Blueprint Details
 "Blueprint_Product" = "Product";
@@ -520,6 +521,9 @@
 "Main_Skills_Categories" = "Skill Categories";
 "Main_Skills_Not_Injected" = "Not Injected";
 "Main_Skills_Completed" = "Completed";
+"Main_Skills_Paused" = "Paused";
+"Main_Skills_Running" = "Running";
+"Main_Skills_Empty" = "No Skill in Queue";
 
 // Time Format
 "Time_Days_Hours_Minutes" = "%dd %dh %dm";
@@ -1020,6 +1024,8 @@
 "Main_Planetary_Error" = "Loading Failed";
 "Planet_Detail_Last_Update" = "Planetary layout submit at";
 "Main_Planetary_Total_Count" = "Total %d planets";
+"Main_Planetary_location_calc" = "Find System for Colony";
+"Main_Planetary_of_Mine" = "My Planetary";
 
 // Extractor Related
 "Total_Yield" = "Total Yield:";
@@ -1354,3 +1360,80 @@
 
 "Character_Implants_Count" = "%d Implant(s)";
 "Character_Clone_And_Implants_Count" = "%d Clone(s) · %d Implant(s)";
+
+"Main_Planetary_Filter_Conditions" = "Filter Conditions";
+"Main_Planetary_Select_Product" = "Select Product";
+"Main_Planetary_Select_Region" = "Select Region";
+"Main_Planetary_Select_Sovereignty" = "Select Sovereignty";
+"Main_Planetary_Not_Selected" = "Not Selected";
+"Main_Planetary_calc" = "Planetary Calc";
+"Main_Planetary_Output" = "Show Output of Zone";
+
+// Sovereignty Selection
+"Loading_Sovereignty" = "Loading sovereignty data...";
+"Sovereignty_All" = "All Sovereignty";
+"Sovereignty_Search_Title" = "Select Sovereignty";
+"Sovereignty_Search_Placeholder" = "Search sovereignty...";
+"Sovereignty_Systems" = " systems";
+"Sovereignty_Loading" = "Loading...";
+"Sovereignty_No_Data" = "No sovereignty data";
+"Sovereignty_Error" = "Loading failed";
+"Sovereignty_Retry" = "Retry";
+
+// Planetary Site Calculation
+"Main_Planetary_Calculate" = "Calculate";
+"Main_Planetary_Calculating" = "Calculating...";
+
+"Main_Planetary_Jump_Range" = "Jump Range";
+"Main_Planetary_Jumps" = "jumps";
+"Main_Planetary_Search_Results" = "Search Result";
+
+// New strings for PlanetarySearchResultView
+"Planetary_Search_Tip_1" = "1. Please consider customs tax and transportation in your selection.";
+"Planetary_Search_Tip_2" = "2. This feature recommends systems based on planet count and types, The systems following have all the P0 resource required for your selection. For reference only.";
+"Planetary_Local_Resources" = "Local Resources:";
+"Planetary_Nearby_Resources" = "Nearby Resources:";
+"Planetary_Resource_Planet_Count" = "%@ planets";
+"Planetary_Resource_Jump_Count" = "%d jumps required";
+"Planetary_Coverage" = "Resource Coverage: %.1f%%";
+"Planetary_Resource_System_Format" = "%@ (%d jumps)";
+"Planetary_Search_No_Results" = "No systems found that can produce the required resources";
+"Planetary_Search_No_Results_Tips" = "Please consider the following adjustments:\n• Increase jump range\n• Select a different region or sovereignty\n• Choose a different product that may be easier to produce";
+
+// Planetary site finder descriptions
+"Planetary_Product_Description" = "What product";
+"Planetary_Region_Description" = "In which region";
+"Planetary_Sovereignty_Description" = "Which Faction";
+"Planetary_Jump_Description" = "Max distance";
+
+"Main_Setting_Static_Resource_Faction_Icons" = "Faction Icons";
+
+// Planetary Output Calculator
+"PI_Output_Filter_Conditions" = "Filter Conditions";
+"PI_Output_Select_Solar_System" = "Select Solar System";
+"PI_Output_Not_Selected" = "Not Selected";
+"PI_Output_Max_Jumps" = "Max Jumps";
+"PI_Output_Search_Solar_System" = "Search Solar System";
+"PI_Output_No_Results" = "No Results Found";
+"PI_Output_Loading_Systems" = "Loading Systems...";
+"Common_Cancel" = "Cancel";
+"Planetary_System_Description" = "Select system as production center";
+
+"PI_Output_Calculating" = "Calc...";
+"PI_Output_View_Systems" = "Show Systems";
+"PI_Output_Systems_List" = "Available Systems";
+"PI_Output_Start_System" = "Base System";
+"Types" = "types";
+"PI_Output_Resources" = "Available resource and production";
+"PI_Output_View_Planets" = "View Planets";
+"PI_Output_Planet_Distribution" = "Available Planets";
+"PI_Production_Plan_BasicInfo" = "Basic Info";
+"PI_Production_name" = "Production";
+"PI_Production_solar" = "Base System";
+"PI_Production_Plan_JumpRange" = "Range";
+"PI_Production_Plan_Systems" = "Jump(s)";
+"PI_Production_Sov" = "Sovereignty";
+"PI_Production_Plan_Title" = "Production Plan";
+"PI_Resource_Chain_Error" = "Error";
+"PI_Production_Plan_P0Requirements" = "Requirements";
+"PI_Available_production" = "Available Production";

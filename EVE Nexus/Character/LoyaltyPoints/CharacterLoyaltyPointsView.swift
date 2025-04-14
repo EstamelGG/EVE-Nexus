@@ -115,7 +115,7 @@ struct CharacterLoyaltyPointsView: View {
                 }
             }
 
-            Section {
+            Section(NSLocalizedString("Main_LP_Store", comment: "")) {
                 NavigationLink(destination: CharacterLoyaltyPointsStoreView()) {
                     HStack {
                         Image("lpstore")

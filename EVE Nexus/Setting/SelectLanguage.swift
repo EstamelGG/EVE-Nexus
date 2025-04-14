@@ -20,23 +20,6 @@ struct LanguageOptionView: View {
     }
 }
 
-// 系统名称语言设置视图组件
-private struct SystemNamesLanguageToggle: View {
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
-    @AppStorage("selectedLanguage") private var storedLanguage: String?
-
-    var body: some View {
-        if storedLanguage != "en" {
-            HStack {
-                Toggle(isOn: $useEnglishSystemNames) {
-                    Text(NSLocalizedString("Main_Setting_Use_English_System_Names", comment: ""))
-                }
-                .tint(.green)
-            }
-        }
-    }
-}
-
 struct SelectLanguageView: View {
     // 语言名称与代号映射
     let languages: [String: String] = [
@@ -68,10 +51,6 @@ struct SelectLanguageView: View {
                 Text(NSLocalizedString("Main_Setting_Language", comment: ""))
                     .font(.headline)
                     .foregroundColor(.primary)
-            }
-
-            Section {
-                SystemNamesLanguageToggle()
             }
         }
         .navigationTitle(NSLocalizedString("Main_Setting_Select_Language", comment: ""))
@@ -111,9 +90,6 @@ struct SelectLanguageView: View {
 
         // 1. 保存新的语言设置
         storedLanguage = languageCode
-
-        // 如果切换到英文，自动设置系统名称为英文，否则保持本地化
-        UserDefaults.standard.set(languageCode == "en", forKey: "useEnglishSystemNames")
 
         // 2. 更新语言设置
         UserDefaults.standard.set([languageCode], forKey: "AppleLanguages")

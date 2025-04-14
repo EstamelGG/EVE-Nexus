@@ -12,8 +12,8 @@ class Logger {
     private let ifWriteToFile = false  // 是否输出日志到文件？基本是debug用的，用户不需要这个功能
     
     // 日志长度限制
-    private static var maxDebugLogLength = 500  // debug日志最大长度
-    private static var maxInfoLogLength = 300   // info日志最大长度
+    private static var maxDebugLogLength = 2000  // debug日志最大长度
+    private static var maxInfoLogLength = 2000   // info日志最大长度
     
     private init() {
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"

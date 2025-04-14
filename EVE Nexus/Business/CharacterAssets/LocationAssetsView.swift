@@ -89,7 +89,6 @@ private func formatLocationFlag(_ flag: String) -> String {
 struct LocationAssetsView: View {
     let location: AssetTreeNode
     @StateObject private var viewModel: LocationAssetsViewModel
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames = false
 
     init(location: AssetTreeNode, preloadedItemInfo: [Int: ItemInfo]? = nil) {
         self.location = location
@@ -162,7 +161,6 @@ struct AssetItemView: View {
     let itemInfo: ItemInfo?
     let showItemCount: Bool
     let showCustomName: Bool
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames = false
 
     init(
         node: AssetTreeNode, itemInfo: ItemInfo?, showItemCount: Bool = true,
@@ -227,7 +225,6 @@ struct AssetItemView: View {
 struct SubLocationAssetsView: View {
     let parentNode: AssetTreeNode
     @StateObject private var viewModel: LocationAssetsViewModel
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames = false
 
     init(parentNode: AssetTreeNode, preloadedItemInfo: [Int: ItemInfo]? = nil) {
         self.parentNode = parentNode

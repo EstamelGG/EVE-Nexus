@@ -25,7 +25,7 @@ struct CorpMoonMiningView: View {
             } else if viewModel.moonExtractions.isEmpty {
                 HStack {
                     Spacer()
-                    Text("暂无月矿数据")
+                    Text(NSLocalizedString("Misc_No_Data", comment: "Misc_No_Data"))
                         .foregroundColor(.secondary)
                     Spacer()
                 }

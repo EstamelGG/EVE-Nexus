@@ -73,14 +73,11 @@ func getSecurityColor(_ trueSec: Double) -> Color {
 func getSolarSystemInfo(solarSystemId: Int, databaseManager: DatabaseManager) async
     -> SolarSystemInfo?
 {
-    let useEnglishSystemNames = UserDefaults.standard.bool(forKey: "useEnglishSystemNames")
 
     // 执行查询
     let universeQuery = """
             SELECT u.region_id, u.constellation_id, u.system_security,
-                   s.solarSystemName, s.solarSystemName_en,
-                   c.constellationName, c.constellationName_en,
-                   r.regionName, r.regionName_en
+                   s.solarSystemName, c.constellationName, r.regionName
             FROM universe u
             JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
             JOIN constellations c ON c.constellationID = u.constellation_id
@@ -95,20 +92,17 @@ func getSolarSystemInfo(solarSystemId: Int, databaseManager: DatabaseManager) as
         let row = rows.first,
         let security = row["system_security"] as? Double,
         let systemNameLocal = row["solarSystemName"] as? String,
-        let systemNameEn = row["solarSystemName_en"] as? String,
         let constellationId = row["constellation_id"] as? Int,
         let constellationNameLocal = row["constellationName"] as? String,
-        let constellationNameEn = row["constellationName_en"] as? String,
         let regionId = row["region_id"] as? Int,
-        let regionNameLocal = row["regionName"] as? String,
-        let regionNameEn = row["regionName_en"] as? String
+        let regionNameLocal = row["regionName"] as? String
     else {
         return nil
     }
 
-    let systemName = useEnglishSystemNames ? systemNameEn : systemNameLocal
-    let constellationName = useEnglishSystemNames ? constellationNameEn : constellationNameLocal
-    let regionName = useEnglishSystemNames ? regionNameEn : regionNameLocal
+    let systemName = systemNameLocal
+    let constellationName = constellationNameLocal
+    let regionName = regionNameLocal
 
     let solarSystemInfo = SolarSystemInfo(
         systemId: solarSystemId,
@@ -135,17 +129,15 @@ func getBatchSolarSystemInfo(solarSystemIds: [Int], databaseManager: DatabaseMan
     // 去重并排序
     let uniqueSortedIds = Array(Set(solarSystemIds)).sorted()
 
-    let useEnglishSystemNames = UserDefaults.standard.bool(forKey: "useEnglishSystemNames")
-
     // 构建IN查询的参数字符串
     let placeholders = String(repeating: "?,", count: uniqueSortedIds.count).dropLast()
 
     // 执行批量查询
     let universeQuery = """
             SELECT u.solarsystem_id, u.region_id, u.constellation_id, u.system_security,
-                   s.solarSystemName, s.solarSystemName_en,
-                   c.constellationName, c.constellationName_en,
-                   r.regionName, r.regionName_en
+                   s.solarSystemName,
+                   c.constellationName,
+                   r.regionName
             FROM universe u
             JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
             JOIN constellations c ON c.constellationID = u.constellation_id
@@ -173,20 +165,17 @@ func getBatchSolarSystemInfo(solarSystemIds: [Int], databaseManager: DatabaseMan
             let systemId = row["solarsystem_id"] as? Int,
             let security = row["system_security"] as? Double,
             let systemNameLocal = row["solarSystemName"] as? String,
-            let systemNameEn = row["solarSystemName_en"] as? String,
             let constellationId = row["constellation_id"] as? Int,
             let constellationNameLocal = row["constellationName"] as? String,
-            let constellationNameEn = row["constellationName_en"] as? String,
             let regionId = row["region_id"] as? Int,
-            let regionNameLocal = row["regionName"] as? String,
-            let regionNameEn = row["regionName_en"] as? String
+            let regionNameLocal = row["regionName"] as? String
         else {
             continue
         }
 
-        let systemName = useEnglishSystemNames ? systemNameEn : systemNameLocal
-        let constellationName = useEnglishSystemNames ? constellationNameEn : constellationNameLocal
-        let regionName = useEnglishSystemNames ? regionNameEn : regionNameLocal
+        let systemName = systemNameLocal
+        let constellationName = constellationNameLocal
+        let regionName = regionNameLocal
 
         let solarSystemInfo = SolarSystemInfo(
             systemId: systemId,

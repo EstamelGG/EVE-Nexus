@@ -42,7 +42,6 @@ class CharacterAssetsViewModel: ObservableObject {
     @Published var searchResults: [AssetSearchResult] = []  // 添加搜索结果属性
     @Published var regionNames: [Int: String] = [:]  // (本地化名称, 英文名称)
     @Published var systemInfoCache: [Int: SolarSystemInfo] = [:]  // 添加星系信息缓存
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames = false
 
     // 添加一个标志来跟踪是否正在加载
     private var isCurrentlyLoading = false

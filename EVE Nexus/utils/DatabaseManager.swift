@@ -5,7 +5,6 @@ class DatabaseManager: ObservableObject {
     static let shared = DatabaseManager()
     @Published var databaseUpdated = false
     private let sqliteManager = SQLiteManager.shared
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = true
 
     // 加载数据库
     func loadDatabase() {

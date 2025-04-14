@@ -1205,7 +1205,7 @@ struct CharacterRowView: View {
                                             .foregroundColor(.gray)
                                             .lineLimit(1)
                                     } else {
-                                        Text("Paused")
+                                        Text("\(NSLocalizedString("Main_Skills_Paused", comment: ""))")
                                             .font(.caption)
                                             .foregroundColor(.gray)
                                             .lineLimit(1)
@@ -1222,10 +1222,16 @@ struct CharacterRowView: View {
                                 }
                             }
                             .frame(height: 4)
-
-                            Text("-")
-                                .font(.caption)
-                                .foregroundColor(.gray)
+                            HStack{
+                                Text("-")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                Spacer()
+                                Text("\(NSLocalizedString("Main_Skills_Empty", comment: ""))")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                    .lineLimit(1)
+                            }
                         }
                     }
                 }

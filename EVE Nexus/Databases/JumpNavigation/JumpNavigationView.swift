@@ -5,7 +5,6 @@ import Foundation
 struct JumpSystemData {
     let id: Int
     let name: String
-    let enName: String
     let security: Double
     let x: Double
     let y: Double
@@ -34,7 +33,6 @@ struct JumpSystemData {
             for row in rows {
                 if let id = row["solarsystem_id"] as? Int,
                    let name = row["solarSystemName"] as? String,
-                   let enName = row["solarSystemName_en"] as? String,
                    let security = row["system_security"] as? Double,
                    let x = row["x"] as? Double,
                    let y = row["y"] as? Double,
@@ -48,7 +46,6 @@ struct JumpSystemData {
                         systems.append(JumpSystemData(
                             id: id,
                             name: name,
-                            enName: enName,
                             security: displaySec,
                             x: x,
                             y: y,
@@ -98,15 +95,6 @@ class JumpSystemsCache {
         var result: [Int: String] = [:]
         for system in allJumpSystems {
             result[system.id] = system.name
-        }
-        return result
-    }
-    
-    // 获取所有系统ID到英文名称的映射
-    var systemIdToEnName: [Int: String] {
-        var result: [Int: String] = [:]
-        for system in allJumpSystems {
-            result[system.id] = system.enName
         }
         return result
     }
@@ -182,7 +170,6 @@ struct JumpNavigationView: View {
         
         // 使用缓存的星系数据
         _systemIdToName = State(initialValue: JumpSystemsCache.shared.systemIdToName)
-        _systemIdToEnName = State(initialValue: JumpSystemsCache.shared.systemIdToEnName)
         _systemIdToSecurity = State(initialValue: JumpSystemsCache.shared.systemIdToSecurity)
         _hasLoadedSystemNames = State(initialValue: !JumpSystemsCache.shared.systemIdToName.isEmpty)
         

@@ -17,12 +17,6 @@ struct EVE_NexusApp: App {
         // 打印 UserDefaults 中的所有键值
         let defaults = UserDefaults.standard
 
-        // 检查并设置useEnglishSystemNames的默认值
-        if defaults.object(forKey: "useEnglishSystemNames") == nil {
-            Logger.debug("正在初始化 useEnglishSystemNames 为 false")
-            defaults.set(false, forKey: "useEnglishSystemNames")
-        }
-
         let dictionary = defaults.dictionaryRepresentation()
         // Logger.info("UserDefaults 内容:")
 
@@ -52,9 +46,17 @@ struct EVE_NexusApp: App {
         )
 
         // 检查总大小是否接近限制（4MB）
-        if totalSize > 3_000_000 {
-            Logger.error("警告：UserDefaults 总大小接近系统限制(4MB)，请检查是否有过大的数据存储")
+        if totalSize > 3_500_000 {
+            Logger.error(
+                "警告：UserDefaults 总大小(\(ByteCountFormatter.string(fromByteCount: Int64(totalSize), countStyle: .file)))接近限制(4MB)"
+            )
         }
+
+        // 预加载资源信息
+        Logger.info("开始预加载行星资源信息...")
+        PIResourceCache.shared.preloadResourceInfo()
+        Logger.info("行星资源信息预加载完成")
+
         // 按大小排序并打印
         sizeMap.sort { $0.size > $1.size }
         for item in sizeMap {
