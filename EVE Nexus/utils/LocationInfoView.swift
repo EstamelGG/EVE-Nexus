@@ -54,8 +54,9 @@ struct LocationInfoView: View {
             (Text(security != nil ? "\(formatSystemSecurity(security!)) " : "0.0 ")
                 .foregroundColor(security != nil ? getSecurityColor(security!) : .red)
                 + Text("\(solarSystemName)").fontWeight(.bold)
-                + (inSpaceNote != nil ? Text(" (\(inSpaceNote!))") : Text(""))  + Text(
-                    " (\(NSLocalizedString("Character_in_space", comment: "")))") )
+                + (inSpaceNote != nil ? Text(" (\(inSpaceNote!))") : Text(""))
+                + Text(
+                    " (\(NSLocalizedString("Character_in_space", comment: "")))"))
                 .font(font)
                 .foregroundColor(textColor)
         } else if let locationId = locationId {

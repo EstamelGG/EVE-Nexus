@@ -7,22 +7,6 @@ public struct MoonExtractionInfo: Codable {
     public let moon_id: Int64
     public let natural_decay_time: String
     public let structure_id: Int64
-
-    public init(
-        chunk_arrival_time: String, extraction_start_time: String, moon_id: Int64,
-        natural_decay_time: String, structure_id: Int64
-    ) {
-        self.chunk_arrival_time = chunk_arrival_time
-        self.extraction_start_time = extraction_start_time
-        self.moon_id = moon_id
-        self.natural_decay_time = natural_decay_time
-        self.structure_id = structure_id
-    }
-}
-
-// ESI错误响应
-private struct ESIErrorResponse: Codable {
-    let error: String
 }
 
 // 缓存数据结构
@@ -44,8 +28,6 @@ private struct MoonExtractionCacheData: Codable {
 @CorpMoonExtractionActor
 public class CorpMoonExtractionAPI {
     public static let shared = CorpMoonExtractionAPI()
-    private let itemsPerPage = 50  // ESI API 通常每页返回50条数据
-
     private init() {}
 
     // MARK: - Public Methods

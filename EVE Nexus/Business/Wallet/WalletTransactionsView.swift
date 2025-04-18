@@ -21,16 +21,6 @@ struct WalletTransactionGroup: Identifiable {
     let id = UUID()
     let date: Date
     var entries: [WalletTransactionEntry]
-
-    // 计算该组的总买入金额
-    var totalBuyAmount: Double {
-        entries.filter { $0.is_buy }.reduce(0) { $0 + $1.unit_price * Double($1.quantity) }
-    }
-
-    // 计算该组的总卖出金额
-    var totalSellAmount: Double {
-        entries.filter { !$0.is_buy }.reduce(0) { $0 + $1.unit_price * Double($1.quantity) }
-    }
 }
 
 // 交易记录物品信息模型

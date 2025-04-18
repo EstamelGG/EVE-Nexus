@@ -6,22 +6,25 @@ struct PISolarSystemSelectorSheet: View {
     let onSelect: (Int, String) -> Void  // 接收星系ID和名称
     let onCancel: () -> Void
     let currentSelection: Int?
-    
+
     @State private var searchText: String = ""
     @State private var systems: [(id: Int, name: String, security: Double, region: String)] = []
     @State private var selectedSystemId: Int?
     @State private var isLoading = true
-    
+
     private let databaseManager = DatabaseManager.shared
-    
-    init(title: String, currentSelection: Int? = nil, onSelect: @escaping (Int, String) -> Void, onCancel: @escaping () -> Void) {
+
+    init(
+        title: String, currentSelection: Int? = nil, onSelect: @escaping (Int, String) -> Void,
+        onCancel: @escaping () -> Void
+    ) {
         self.title = title
         self.onSelect = onSelect
         self.onCancel = onCancel
         self.currentSelection = currentSelection
         _selectedSystemId = State(initialValue: currentSelection)
     }
-    
+
     var body: some View {
         NavigationView {
             VStack {
@@ -44,14 +47,14 @@ struct PISolarSystemSelectorSheet: View {
                                         .foregroundColor(getSecurityColor(system.security))
                                         .font(.system(.body, design: .monospaced))
                                         .padding(.trailing, 4)
-                                    
+
                                     Text("\(system.name) / ")
-                                        .foregroundColor(.primary) +
-                                    Text(system.region)
+                                        .foregroundColor(.primary)
+                                        + Text(system.region)
                                         .foregroundColor(.secondary)
-                                    
+
                                     Spacer()
-                                    
+
                                     // 选中状态
                                     if selectedSystemId == system.id {
                                         Image(systemName: "checkmark")
@@ -72,9 +75,11 @@ struct PISolarSystemSelectorSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(NSLocalizedString("Common_Cancel", comment: ""), action: {
-                        onCancel()
-                    })
+                    Button(
+                        NSLocalizedString("Common_Cancel", comment: ""),
+                        action: {
+                            onCancel()
+                        })
                 }
             }
             .onAppear {
@@ -82,7 +87,7 @@ struct PISolarSystemSelectorSheet: View {
             }
         }
     }
-    
+
     // 过滤后的星系列表
     private var filteredSystems: [(id: Int, name: String, security: Double, region: String)] {
         if searchText.isEmpty {
@@ -92,34 +97,39 @@ struct PISolarSystemSelectorSheet: View {
                 .sorted { $0.name < $1.name }
         }
     }
-    
+
     // 加载星系数据
     private func loadSystems() {
         isLoading = true
-        
+
         DispatchQueue.global(qos: .userInitiated).async {
             var loadedSystems: [(id: Int, name: String, security: Double, region: String)] = []
-            
+
             // 查询所有星系
             let query = """
-                SELECT s.solarSystemID, s.solarSystemName, u.system_security, r.regionName 
-                FROM solarsystems s
-                JOIN universe u ON s.solarSystemID = u.solarsystem_id
-                JOIN regions r ON r.regionID = u.region_id
-                ORDER BY s.solarSystemName
-            """
-            
+                    SELECT s.solarSystemID, s.solarSystemName, u.system_security, r.regionName 
+                    FROM solarsystems s
+                    JOIN universe u ON s.solarSystemID = u.solarsystem_id
+                    JOIN regions r ON r.regionID = u.region_id
+                    ORDER BY s.solarSystemName
+                """
+
             if case let .success(rows) = databaseManager.executeQuery(query) {
                 for row in rows {
                     if let solarSystemID = row["solarSystemID"] as? Int,
-                       let solarSystemName = row["solarSystemName"] as? String,
-                       let security = row["system_security"] as? Double,
-                       let regionName = row["regionName"] as? String {
-                        loadedSystems.append((id: solarSystemID, name: solarSystemName, security: security, region: regionName))
+                        let solarSystemName = row["solarSystemName"] as? String,
+                        let security = row["system_security"] as? Double,
+                        let regionName = row["regionName"] as? String
+                    {
+                        loadedSystems.append(
+                            (
+                                id: solarSystemID, name: solarSystemName, security: security,
+                                region: regionName
+                            ))
                     }
                 }
             }
-            
+
             // 在主线程更新UI
             DispatchQueue.main.async {
                 systems = loadedSystems
@@ -127,4 +137,4 @@ struct PISolarSystemSelectorSheet: View {
             }
         }
     }
-} 
+}

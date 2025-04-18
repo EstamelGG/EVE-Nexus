@@ -8,7 +8,7 @@ private struct MergedCloneLocation: Identifiable {
     let clones: [JumpClone]
 
     var cloneCount: Int { clones.count }
-    
+
     // 计算该位置所有克隆体的植入体总数
     var totalImplantsCount: Int {
         clones.reduce(0) { $0 + $1.implants.count }
@@ -75,7 +75,7 @@ struct CharacterClonesView: View {
     @State private var locationTypeId: Int?
     @State private var implantDetails: [ImplantInfo] = []  // 修改类型
     @State private var mergedCloneLocations: [MergedCloneLocation] = []
-    @State private var hasInitialized = false // 追踪是否已执行初始化
+    @State private var hasInitialized = false  // 追踪是否已执行初始化
 
     private let dateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
@@ -91,13 +91,13 @@ struct CharacterClonesView: View {
                 databaseManager: databaseManager, characterId: Int64(character.CharacterID)
             ))
     }
-    
+
     // 加载克隆体数据，但只在首次调用时执行
     private func loadCloneDataIfNeeded() {
         guard !hasInitialized else { return }
-        
+
         hasInitialized = true
-        
+
         Task {
             await loadCloneData()
         }
@@ -106,10 +106,12 @@ struct CharacterClonesView: View {
     var body: some View {
         List {
             if isLoading {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
+                Section(NSLocalizedString("Character_Home_Station", comment: "")) {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                        Spacer()
+                    }
                 }
             } else {
                 // 基地空间站信息
@@ -381,7 +383,8 @@ struct CloneLocationRow: View {
 
     init(
         locationId: Int, locationType: String, databaseManager: DatabaseManager,
-        locationLoader: LocationInfoLoader?, characterId: Int, cloneCount: Int = 1, totalImplantsCount: Int = 0
+        locationLoader: LocationInfoLoader?, characterId: Int, cloneCount: Int = 1,
+        totalImplantsCount: Int = 0
     ) {
         self.locationId = locationId
         self.locationType = locationType
@@ -422,7 +425,8 @@ struct CloneLocationRow: View {
 
                     Text(
                         String(
-                            format: NSLocalizedString("Character_Clone_And_Implants_Count", comment: ""),
+                            format: NSLocalizedString(
+                                "Character_Clone_And_Implants_Count", comment: ""),
                             cloneCount,
                             totalImplantsCount
                         )

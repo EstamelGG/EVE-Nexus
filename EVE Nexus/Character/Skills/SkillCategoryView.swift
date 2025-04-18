@@ -21,13 +21,6 @@ struct SkillInfo {
     let trained_skill_level: Int
 }
 
-// 扩展技能信息模型
-struct DetailedSkillInfo {
-    let name: String
-    let timeMultiplier: Int
-    let maxSkillPoints: Int  // 256000 * timeMultiplier
-}
-
 // 技能目录视图模型
 @MainActor
 class SkillCategoryViewModel: ObservableObject {
@@ -274,7 +267,7 @@ struct SkillCellView: View {
                 if let currentLevel = skill.currentLevel {
                     Text(
                         String(
-                            format: NSLocalizedString("Main_Skills_Level", comment: ""),
+                            format: NSLocalizedString("Misc_Level_Short", comment: ""),
                             currentLevel
                         )
                     )

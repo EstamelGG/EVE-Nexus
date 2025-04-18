@@ -2,34 +2,6 @@ import Foundation
 import Kingfisher
 import SwiftUI
 
-// MARK: - 错误类型
-
-enum ItemRenderAPIError: LocalizedError {
-    case invalidURL
-    case networkError(Error)
-    case invalidResponse
-    case decodingError(Error)
-    case httpError(Int)
-    case rateLimitExceeded
-
-    var errorDescription: String? {
-        switch self {
-        case .invalidURL:
-            return "无效的URL"
-        case let .networkError(error):
-            return "网络错误: \(error.localizedDescription)"
-        case .invalidResponse:
-            return "无效的响应"
-        case let .decodingError(error):
-            return "数据解码错误: \(error.localizedDescription)"
-        case let .httpError(code):
-            return "HTTP错误: \(code)"
-        case .rateLimitExceeded:
-            return "超出请求限制"
-        }
-    }
-}
-
 // MARK: - 物品渲染API
 
 @globalActor actor ItemRenderAPIActor {

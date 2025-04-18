@@ -106,7 +106,7 @@ struct CharacterLoyaltyPointsView: View {
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             } else if viewModel.isLoading {
-                Section {
+                Section(NSLocalizedString("Main_LP_Basic_Info", comment: "")) {
                     HStack {
                         Spacer()
                         ProgressView()

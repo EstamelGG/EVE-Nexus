@@ -25,14 +25,14 @@ enum AttributeDisplayConfig {
                 case 2: return "Medium"
                 case 3: return "Large"
                 case 4: return "X-large"
-                default: return "Unknown"
+                default: return NSLocalizedString("Unknown", comment: "")
                 }
             case .gender:
                 switch Int(value) {
                 case 1: return "Male"
                 case 2: return "Unisex"
                 case 3: return "Female"
-                default: return "Unknown"
+                default: return NSLocalizedString("Unknown", comment: "")
                 }
             }
         }

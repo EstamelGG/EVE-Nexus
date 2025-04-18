@@ -4,14 +4,6 @@ enum KillMailFilter: String {
     case all
     case kill
     case loss
-
-    var title: String {
-        switch self {
-        case .all: return NSLocalizedString("KillMail_All_Records", comment: "")
-        case .kill: return NSLocalizedString("KillMail_Kill_Records", comment: "")
-        case .loss: return NSLocalizedString("KillMail_Loss_Records", comment: "")
-        }
-    }
 }
 
 struct KillMailEntry: Identifiable {
@@ -59,14 +51,16 @@ class KillMailViewModel: ObservableObject {
         return cacheDirectory.appendingPathComponent("\(type)_\(characterId).json")
     }
 
-    private func saveToCache(_ data: [String: Any], for type: String, filter: KillMailFilter = .all) {
+    private func saveToCache(_ data: [String: Any], for type: String, filter: KillMailFilter = .all)
+    {
         let cacheKey = "\(type)_\(filter.rawValue)"
         let filePath = getCacheFilePath(for: cacheKey)
         var cacheData = data
         cacheData["update_time"] = Date().timeIntervalSince1970
-        
+
         do {
-            let jsonData = try JSONSerialization.data(withJSONObject: cacheData, options: .prettyPrinted)
+            let jsonData = try JSONSerialization.data(
+                withJSONObject: cacheData, options: .prettyPrinted)
             try jsonData.write(to: filePath)
             Logger.info("保存到缓存文件: \(filePath)")
         } catch {
@@ -77,13 +71,14 @@ class KillMailViewModel: ObservableObject {
     private func loadFromCache(for type: String, filter: KillMailFilter = .all) -> [String: Any]? {
         let cacheKey = "\(type)_\(filter.rawValue)"
         let filePath = getCacheFilePath(for: cacheKey)
-        
+
         guard let data = try? Data(contentsOf: filePath),
-              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let updateTime = dict["update_time"] as? TimeInterval else {
+            let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let updateTime = dict["update_time"] as? TimeInterval
+        else {
             return nil
         }
-        
+
         // 检查缓存是否过期（1小时）
         let cacheAge = Date().timeIntervalSince1970 - updateTime
         if cacheAge > 3600 {
@@ -121,7 +116,8 @@ class KillMailViewModel: ObservableObject {
         guard characterId > 0 else {
             await MainActor.run {
                 errorMessage = String(
-                    format: NSLocalizedString("KillMail_Invalid_Character_ID", comment: ""), characterId
+                    format: NSLocalizedString("KillMail_Invalid_Character_ID", comment: ""),
+                    characterId
                 )
                 isLoading = false
             }
@@ -134,7 +130,7 @@ class KillMailViewModel: ObservableObject {
 
         do {
             let response: [String: Any]
-            
+
             // 如果不是强制刷新，尝试从缓存加载
             if !forceRefresh, let cachedData = loadFromCache(for: "km", filter: filter) {
                 response = cachedData
@@ -152,7 +148,7 @@ class KillMailViewModel: ObservableObject {
                         characterId: characterId, filter: .loss
                     )
                 }
-                
+
                 // 保存到缓存
                 saveToCache(response, for: "km", filter: filter)
             }
@@ -202,10 +198,10 @@ class KillMailViewModel: ObservableObject {
 
     func refreshData(for filter: KillMailFilter) async {
         // 不要立即设置isLoading=true，这会导致UI显示加载状态并清空列表
-        
+
         do {
             let response: [String: Any]
-            
+
             // 从API加载
             switch filter {
             case .all:
@@ -219,7 +215,7 @@ class KillMailViewModel: ObservableObject {
                     characterId: characterId, filter: .loss
                 )
             }
-            
+
             // 保存到缓存
             saveToCache(response, for: "km", filter: filter)
 
@@ -306,7 +302,8 @@ class KillMailViewModel: ObservableObject {
             case "alliance":
                 return try await AllianceAPI.shared.fetchAllianceLogo(allianceID: id, size: 64)
             case "corporation":
-                return try await CorporationAPI.shared.fetchCorporationLogo(corporationId: id, size: 64)
+                return try await CorporationAPI.shared.fetchCorporationLogo(
+                    corporationId: id, size: 64)
             default:
                 return nil
             }
@@ -354,7 +351,9 @@ class KillMailViewModel: ObservableObject {
 
         // 如果不是强制刷新，尝试从缓存加载
         if !forceRefresh, let cachedData = loadFromCache(for: "stats"),
-           let stats = try? JSONDecoder().decode(CharBattleIsk.self, from: try JSONSerialization.data(withJSONObject: cachedData)) {
+            let stats = try? JSONDecoder().decode(
+                CharBattleIsk.self, from: try JSONSerialization.data(withJSONObject: cachedData))
+        {
             await MainActor.run {
                 self.characterStats = stats
                 if self.killMails.isEmpty {
@@ -368,10 +367,11 @@ class KillMailViewModel: ObservableObject {
             let stats = try await ZKillMailsAPI.shared.fetchCharacterStats(characterId: characterId)
             // 保存到缓存
             if let jsonData = try? JSONEncoder().encode(stats),
-               let dict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                let dict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
+            {
                 saveToCache(dict, for: "stats")
             }
-            
+
             await MainActor.run {
                 self.characterStats = stats
                 if self.killMails.isEmpty {
@@ -400,7 +400,7 @@ class KillMailViewModel: ObservableObject {
         do {
             let nextPage = currentPage + 1
             let response: [String: Any]
-            
+
             // 根据filter类型调用不同的API
             switch filter {
             case .all:
@@ -451,7 +451,7 @@ class KillMailViewModel: ObservableObject {
     // 预加载所有过滤器的数据
     func preloadAllFilterData() async {
         await MainActor.run { isLoading = true }
-        
+
         // 使用任务组并行加载所有过滤器数据
         await withTaskGroup(of: Void.self) { group in
             for filter in [KillMailFilter.all, KillMailFilter.kill, KillMailFilter.loss] {
@@ -462,7 +462,7 @@ class KillMailViewModel: ObservableObject {
                 }
             }
         }
-        
+
         // 加载完成后，如果当前选择的过滤器有缓存数据，就显示它
         if let cached = cachedData[.all] {
             await MainActor.run {
@@ -477,15 +477,16 @@ class KillMailViewModel: ObservableObject {
 
     func refreshStats() async {
         // 不要立即设置isLoading=true，保持现有UI状态
-        
+
         do {
             let stats = try await ZKillMailsAPI.shared.fetchCharacterStats(characterId: characterId)
             // 保存到缓存
             if let jsonData = try? JSONEncoder().encode(stats),
-               let dict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
+                let dict = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any]
+            {
                 saveToCache(dict, for: "stats")
             }
-            
+
             await MainActor.run {
                 self.characterStats = stats
             }
@@ -510,26 +511,26 @@ struct BRKillMailView: View {
         self.characterId = characterId
         _viewModel = StateObject(wrappedValue: KillMailViewModel(characterId: characterId))
     }
-    
+
     // 执行初始数据加载，但只在第一次调用时执行
     private func loadInitialDataIfNeeded() {
         guard !hasInitialized && !isLoading else { return }
-        
+
         hasInitialized = true
         isLoading = true
-        
+
         Task {
             // 创建一个任务组，同时加载战斗统计信息和所有过滤器的战斗记录
             await withTaskGroup(of: Void.self) { group in
                 group.addTask {
                     await viewModel.loadStats()
                 }
-                
+
                 group.addTask {
                     await viewModel.preloadAllFilterData()
                 }
             }
-            
+
             // 所有任务完成后重置isLoading
             isLoading = false
         }
@@ -616,7 +617,10 @@ struct BRKillMailView: View {
                                 killmail: entry.data,
                                 kbAPI: viewModel.kbAPI,
                                 shipInfo: viewModel.shipInfoMap[shipId] ?? (
-                                    name: NSLocalizedString("KillMail_Unknown_Item", comment: ""),
+                                    name: String(
+                                        format: NSLocalizedString(
+                                            "KillMail_Unknown_Item", comment: ""
+                                        ), shipId),
                                     iconFileName: DatabaseConfig.defaultItemIcon
                                 ),
                                 allianceIcon: allyId.flatMap { viewModel.allianceIconMap[$0] },
@@ -745,11 +749,11 @@ struct BRKillMailCell: View {
             .foregroundColor(getSecurityColor(Double(sysInfo.security ?? "0.0") ?? 0.0))
             .font(.system(size: 12, weight: .medium))
 
-        let systemName = Text(" \(sysInfo.name ?? "Unknown")")
+        let systemName = Text(" \(sysInfo.name ?? NSLocalizedString("Unknown", comment: ""))")
             .font(.system(size: 12, weight: .bold))
             .foregroundColor(.secondary)
 
-        let regionText = Text(" / \(sysInfo.region ?? "Unknown")")
+        let regionText = Text(" / \(sysInfo.region ?? NSLocalizedString("Unknown", comment: ""))")
             .font(.system(size: 12))
             .foregroundColor(.secondary)
 
@@ -782,7 +786,7 @@ struct BRKillMailCell: View {
             return corpName
         }
 
-        return "Unknown"
+        return NSLocalizedString("Unknown", comment: "")
     }
 
     var body: some View {

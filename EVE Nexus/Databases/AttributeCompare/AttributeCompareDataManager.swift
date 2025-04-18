@@ -34,10 +34,4 @@ enum AttributeCompareUtil {
             case attributeIcons = "attribute_icons"
         }
     }
-
-    // 属性详细信息结构
-    struct AttributeDetail {
-        let displayName: String?
-        let name: String?
-    }
 }

@@ -232,11 +232,8 @@ struct SkillPlanView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var skillPlans: [SkillPlan] = []
     @State private var isShowingAddAlert = false
-    @State private var isShowingDeleteAlert = false
-    @State private var selectedPlan: SkillPlan?
     @State private var newPlanName = ""
     @State private var searchText = ""
-    @State private var isPublicPlan = false
     @State private var learnedSkills: [Int: CharacterSkill] = [:]  // 添加已学习技能的状态变量
 
     // 添加过滤后的计划列表计算属性
@@ -455,52 +452,6 @@ struct SkillPlanView: View {
             Logger.debug("成功加载角色技能数量: \(learnedSkills.count)")
         } catch {
             Logger.error("解析技能数据失败: \(error)")
-        }
-    }
-}
-
-struct AddSkillPlanView: View {
-    let characterId: Int
-    @ObservedObject var databaseManager: DatabaseManager
-    let onAdd: (SkillPlan) -> Void
-
-    @State private var planName = ""
-    @State private var isPublic = false  // 添加isPublic状态
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        Form {
-            Section {
-                TextField(NSLocalizedString("Main_Skills_Plan_Name", comment: ""), text: $planName)
-                Toggle(
-                    NSLocalizedString("Main_Skills_Plan_Set_Public", comment: ""), isOn: $isPublic
-                )
-            }
-        }
-        .navigationTitle(NSLocalizedString("Main_Skills_Plan_Add", comment: ""))
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarLeading) {
-                Button(NSLocalizedString("Main_EVE_Mail_Cancel", comment: "")) {
-                    dismiss()
-                }
-            }
-
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(NSLocalizedString("Main_EVE_Mail_Done", comment: "")) {
-                    let newPlan = SkillPlan(
-                        id: UUID(),
-                        name: planName,
-                        skills: [],
-                        totalTrainingTime: 0,
-                        totalSkillPoints: 0,
-                        lastUpdated: Date(),
-                        isPublic: isPublic
-                    )
-                    onAdd(newPlan)
-                }
-                .disabled(planName.isEmpty)
-            }
         }
     }
 }

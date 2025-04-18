@@ -1,4 +1,3 @@
-import Kingfisher
 import SwiftUI
 
 // 移除HTML标签的扩展
@@ -46,7 +45,7 @@ struct LocationCacheInfo {
     let stationName: String?
 
     static let unknown = LocationCacheInfo(
-        systemName: "Unknown",
+        systemName: NSLocalizedString("Unknown", comment: ""),
         security: 0.0,
         stationName: nil
     )
@@ -346,7 +345,8 @@ class CorpMemberListViewModel: ObservableObject {
                     // Logger.debug("处理空间站数据行: \(row)")
                     // 先获取原始值
                     let rawStationId = row["stationID"]
-                    let stationName = row["stationName"] as? String ?? "Unknown"
+                    let stationName =
+                        row["stationName"] as? String ?? NSLocalizedString("Unknown", comment: "")
                     let rawSystemNameLocal = row["solarSystemName"]
                     let rawSecurity = row["system_security"]
 
@@ -741,7 +741,7 @@ struct LocationView: View {
                     .font(.caption)
             }
         } else {
-            Text("Loading...")
+            Text(NSLocalizedString("Main_Loading", comment: ""))
                 .font(.caption)
                 .foregroundColor(.gray)
                 .onAppear {
@@ -768,21 +768,31 @@ struct MemberRowView: View {
     let member: MemberDetailInfo
     @ObservedObject var viewModel: CorpMemberListViewModel
     @State private var loadingTask: Task<Void, Never>?
+    @State private var isLoadingPortrait: Bool = false
+    @State private var hasAttemptedPortraitLoad: Bool = false
 
     var body: some View {
         HStack(spacing: 12) {
             // 头像
-            if let portrait = member.portrait {
+            if isLoadingPortrait {
+                ProgressView()
+                    .frame(width: 48, height: 48)
+                    .background(Color(.systemGray6))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else if let portrait = member.portrait {
                 Image(uiImage: portrait)
                     .resizable()
                     .frame(width: 48, height: 48)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             } else {
-                Image(systemName: "person.crop.circle")
-                    .resizable()
-                    .frame(width: 48, height: 48)
-                    .foregroundColor(.gray)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                UniversePortrait(
+                    id: member.id,
+                    type: .character,
+                    size: 64,
+                    displaySize: 48
+                )
+                .frame(width: 48, height: 48)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
             }
 
             // 成员信息
@@ -833,20 +843,37 @@ struct MemberRowView: View {
         }
         .padding(.vertical, 4)
         .onAppear {
-            // 取消之前的任务
-            loadingTask?.cancel()
-
-            // 创建新的延迟加载任务
-            loadingTask = Task {
-                try? await Task.sleep(nanoseconds: 100_000_000)  // 0.1秒延迟
-                if !Task.isCancelled {
-                    viewModel.loadMemberDetails(for: member.id)
-                }
-            }
+            scheduleLoad()
         }
         .onDisappear {
             loadingTask?.cancel()
             loadingTask = nil
+        }
+    }
+
+    private func scheduleLoad() {
+        loadingTask?.cancel()
+        loadingTask = Task {
+            if !Task.isCancelled && !hasAttemptedPortraitLoad {
+                await loadPortrait()
+            }
+        }
+    }
+
+    private func loadPortrait() async {
+        guard !isLoadingPortrait && !hasAttemptedPortraitLoad else { return }
+
+        isLoadingPortrait = true
+        hasAttemptedPortraitLoad = true
+
+        do {
+            viewModel.loadMemberDetails(for: member.id)
+        }
+
+        if !Task.isCancelled {
+            await MainActor.run {
+                isLoadingPortrait = false
+            }
         }
     }
 }

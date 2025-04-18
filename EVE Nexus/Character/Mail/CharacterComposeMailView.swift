@@ -56,7 +56,8 @@ struct CharacterComposeMailView: View {
                 ForEach(recipients) { recipient in
                     HStack {
                         if recipient.type != .mailingList {
-                            UniversePortrait(id: recipient.id, type: recipient.type, size: 64, displaySize: 32)
+                            UniversePortrait(
+                                id: recipient.id, type: recipient.type, size: 64, displaySize: 32)
                         }
                         VStack(alignment: .leading) {
                             Text(recipient.name)

@@ -103,8 +103,8 @@ class SQLiteManager {
             // 准备语句
             if sqlite3_prepare_v2(db, query, -1, &statement, nil) != SQLITE_OK {
                 let errorMessage = String(cString: sqlite3_errmsg(db))
-                Logger.error("准备语句失败: \(errorMessage)")
-                return .error("准备语句失败: \(errorMessage)")
+                Logger.error("[StaticDB] 准备语句失败: \(errorMessage)")
+                return .error("[StaticDB] 准备语句失败: \(errorMessage)")
             }
 
             // 绑定参数 - 使用原始参数顺序，而不是排序后的参数

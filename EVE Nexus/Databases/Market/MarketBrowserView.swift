@@ -9,7 +9,6 @@ struct MarketBaseView<Content: View>: View {
     let searchParameters: (String) -> [Any]  // SQL参数生成器
 
     @State private var items: [DatabaseListItem] = []
-    @State private var marketGroupNames: [Int: String] = [:]
     @State private var metaGroupNames: [Int: String] = [:]  // 添加科技等级名称字典
     @State private var searchText = ""
     @State private var isSearchActive = false
@@ -22,7 +21,8 @@ struct MarketBaseView<Content: View>: View {
         guard !items.isEmpty else { return [] }
 
         // 按categoryID和groupID组织数据
-        var groupedByCategory: [Int: [(groupID: Int, name: String, items: [DatabaseListItem])]] = [:]
+        var groupedByCategory: [Int: [(groupID: Int, name: String, items: [DatabaseListItem])]] =
+            [:]
 
         // 首先按categoryID和groupID分组
         for item in items {
@@ -35,10 +35,13 @@ struct MarketBaseView<Content: View>: View {
             }
 
             // 在当前分类中查找或创建groupID组
-            if let index = groupedByCategory[categoryID]?.firstIndex(where: { $0.groupID == groupID }) {
+            if let index = groupedByCategory[categoryID]?.firstIndex(where: {
+                $0.groupID == groupID
+            }) {
                 groupedByCategory[categoryID]?[index].items.append(item)
             } else {
-                groupedByCategory[categoryID]?.append((groupID: groupID, name: groupName, items: [item]))
+                groupedByCategory[categoryID]?.append(
+                    (groupID: groupID, name: groupName, items: [item]))
             }
         }
 
@@ -71,9 +74,10 @@ struct MarketBaseView<Content: View>: View {
                             return (item1.metaGroupID ?? -1) < (item2.metaGroupID ?? -1)
                         }
                         // 科技等级相同时按名称排序
-                        return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+                        return item1.name.localizedCaseInsensitiveCompare(item2.name)
+                            == .orderedAscending
                     }
-                    
+
                     result.append((id: group.groupID, name: group.name, items: sortedItems))
                 }
             }
@@ -280,7 +284,9 @@ struct MarketItemListView: View {
         // 添加已发布物品组
         for (techLevel, items) in techLevelGroups.sorted(by: { ($0.key ?? -1) < ($1.key ?? -1) }) {
             if let techLevel = techLevel {
-                let name = metaGroupNames[techLevel] ?? NSLocalizedString("Main_Database_base", comment: "基础物品")
+                let name =
+                    metaGroupNames[techLevel]
+                    ?? NSLocalizedString("Main_Database_base", comment: "基础物品")
                 // 对每个科技等级组内的物品按名称排序
                 let sortedItems = items.sorted { item1, item2 in
                     item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending

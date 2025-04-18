@@ -309,7 +309,7 @@ struct ShowBluePrintInfo: View {
                                             Text(
                                                 String(
                                                     format: NSLocalizedString(
-                                                        "Blueprint_Level", comment: ""
+                                                        "Misc_Level", comment: ""
                                                     ), skill.level
                                                 )
                                             )
@@ -428,7 +428,7 @@ struct ShowBluePrintInfo: View {
                                             Text(
                                                 String(
                                                     format: NSLocalizedString(
-                                                        "Blueprint_Level", comment: ""
+                                                        "Misc_Level", comment: ""
                                                     ), skill.level
                                                 )
                                             )
@@ -459,7 +459,10 @@ struct ShowBluePrintInfo: View {
                         content: {
                             ForEach(1...10, id: \.self) { level in
                                 HStack {
-                                    Text(String("Level \(level)"))
+                                    Text(
+                                        String(
+                                            format: NSLocalizedString(
+                                                "Misc_Level", comment: "lv%d"), level))
                                     Spacer()
                                     Text(
                                         formatTime(
@@ -566,7 +569,7 @@ struct ShowBluePrintInfo: View {
                                             Text(
                                                 String(
                                                     format: NSLocalizedString(
-                                                        "Blueprint_Level", comment: ""
+                                                        "Misc_Level", comment: ""
                                                     ), skill.level
                                                 )
                                             )
@@ -597,7 +600,10 @@ struct ShowBluePrintInfo: View {
                         content: {
                             ForEach(1...10, id: \.self) { level in
                                 HStack {
-                                    Text(String("Level \(2 * level)"))
+                                    Text(
+                                        String(
+                                            format: NSLocalizedString(
+                                                "Misc_Level", comment: "lv%d"), 2 * level))
                                     Spacer()
                                     Text(
                                         formatTime(
@@ -704,7 +710,7 @@ struct ShowBluePrintInfo: View {
                                             Text(
                                                 String(
                                                     format: NSLocalizedString(
-                                                        "Blueprint_Level", comment: ""
+                                                        "Misc_Level", comment: ""
                                                     ), skill.level
                                                 )
                                             )
@@ -832,7 +838,7 @@ struct ShowBluePrintInfo: View {
                                             Text(
                                                 String(
                                                     format: NSLocalizedString(
-                                                        "Blueprint_Level", comment: ""
+                                                        "Misc_Level", comment: ""
                                                     ), skill.level
                                                 )
                                             )

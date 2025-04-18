@@ -125,18 +125,20 @@ struct StructureSearchView {
     // 从本地数据库搜索空间站
     private func searchLocalStations(searchText: String) throws -> [Int] {
         let sql = """
-            SELECT stationID 
-            FROM stations 
-            WHERE stationName LIKE ?
-            LIMIT 500
-        """
-        
-        guard case let .success(rows) = DatabaseManager.shared.executeQuery(
-            sql, parameters: ["%\(searchText)%"]
-        ) else {
+                SELECT stationID 
+                FROM stations 
+                WHERE stationName LIKE ?
+                LIMIT 500
+            """
+
+        guard
+            case let .success(rows) = DatabaseManager.shared.executeQuery(
+                sql, parameters: ["%\(searchText)%"]
+            )
+        else {
             throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "本地数据库搜索失败"])
         }
-        
+
         return rows.compactMap { $0["stationID"] as? Int }
     }
 
@@ -156,7 +158,7 @@ struct StructureSearchView {
         // 收集所有找到的空间站ID
         var allStationIds = Set<Int>()
         var structureIds: [Int] = []
-        
+
         // 1. 从本地数据库搜索
         do {
             let localStationIds = try searchLocalStations(searchText: searchText)

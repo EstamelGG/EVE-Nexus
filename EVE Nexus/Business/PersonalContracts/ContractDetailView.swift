@@ -247,7 +247,6 @@ struct ContractDetailView: View {
     @StateObject private var viewModel: ContractDetailViewModel
     @State private var isRefreshing = false
     @State private var hasLoadedInitialData = false
-    @Environment(\.dismiss) private var dismiss
 
     init(
         characterId: Int, contract: ContractInfo, databaseManager: DatabaseManager,
@@ -343,7 +342,9 @@ struct ContractDetailView: View {
                             Text(NSLocalizedString("Contract_Issuer", comment: ""))
                             HStack(spacing: 4) {
                                 Text(
-                                    viewModel.issuerName.isEmpty ? "Unknown" : viewModel.issuerName)
+                                    viewModel.issuerName.isEmpty
+                                        ? NSLocalizedString("Unknown", comment: "")
+                                        : viewModel.issuerName)
                                 if !viewModel.issuerCorpName.isEmpty {
                                     Text("[\(viewModel.issuerCorpName)]")
                                 }

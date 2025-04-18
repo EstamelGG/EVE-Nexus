@@ -14,16 +14,6 @@ struct CharBattleIsk: Codable {
 
 class ZKillMailsAPI {
     static let shared = ZKillMailsAPI()
-
-    // 通知名称常量
-    static let killmailsUpdatedNotification = "KillmailsUpdatedNotification"
-    static let killmailsUpdatedIdKey = "UpdatedId"
-    static let killmailsUpdatedTypeKey = "UpdatedType"
-
-    private let lastKillmailsQueryKey = "LastKillmailsQuery_"
-    private let cacheTimeout: TimeInterval = 8 * 3600  // 8小时缓存有效期
-    private let maxPages = 20  // zKillboard最大页数限制
-
     private init() {}
 
     // 获取角色战斗统计信息

@@ -8,18 +8,6 @@ public struct MemberTrackingInfo: Codable {
     public let logon_date: String?
     public let ship_type_id: Int?
     public let start_date: String?
-
-    public init(
-        character_id: Int, location_id: Int?, logoff_date: String?, logon_date: String?,
-        ship_type_id: Int?, start_date: String?
-    ) {
-        self.character_id = character_id
-        self.location_id = location_id
-        self.logoff_date = logoff_date
-        self.logon_date = logon_date
-        self.ship_type_id = ship_type_id
-        self.start_date = start_date
-    }
 }
 
 // 缓存数据结构

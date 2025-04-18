@@ -5,14 +5,15 @@ enum AppConfiguration {
     enum Version {
         static var fullVersion: String {
             Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
-                ?? "Unknown"
+                ?? NSLocalizedString("Unknown", comment: "")
         }
     }
 
     // 数据库版本信息
     enum Database {
         static var version: String {
-            Bundle.main.object(forInfoDictionaryKey: "EVEDatabaseVersion") as? String ?? "Unknown"
+            Bundle.main.object(forInfoDictionaryKey: "EVEDatabaseVersion") as? String
+                ?? NSLocalizedString("Unknown", comment: "")
         }
     }
 }

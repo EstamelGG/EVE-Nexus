@@ -1,13 +1,5 @@
 import SwiftUI
 
-// 挖矿记录条目模型
-struct MiningLedgerEntry: Codable {
-    let date: String
-    let quantity: Int
-    let solar_system_id: Int
-    let type_id: Int
-}
-
 // 按月份分组的挖矿记录
 struct MiningMonthGroup: Identifiable {
     let id = UUID()

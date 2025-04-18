@@ -38,60 +38,6 @@ struct PreparedIncursion: Identifiable, Codable {
     }
 }
 
-// MARK: - Cache
-
-@propertyWrapper
-struct Cache<Value: Codable> {
-    private let key: String
-    private let validityDuration: TimeInterval
-    private let storage: UserDefaults
-
-    init(key: String, validityDuration: TimeInterval, storage: UserDefaults = .standard) {
-        self.key = key
-        self.validityDuration = validityDuration
-        self.storage = storage
-    }
-
-    var wrappedValue: Value? {
-        get {
-            Logger.debug("正在从 UserDefaults 读取键: \(key)")
-            guard let data = storage.data(forKey: key),
-                let cache = try? JSONDecoder().decode(CacheContainer.self, from: data),
-                !cache.isExpired(validityDuration: validityDuration)
-            else {
-                return nil
-            }
-            return cache.value
-        }
-        set {
-            guard let value = newValue else {
-                Logger.debug("正在从 UserDefaults 删除键: \(key)")
-                storage.removeObject(forKey: key)
-                return
-            }
-            let cache = CacheContainer(value: value)
-            if let data = try? JSONEncoder().encode(cache) {
-                Logger.debug("正在写入 UserDefaults，键: \(key), 数据大小: \(data.count) bytes")
-                storage.set(data, forKey: key)
-            }
-        }
-    }
-
-    private struct CacheContainer: Codable {
-        let value: Value
-        let timestamp: Date
-
-        init(value: Value) {
-            self.value = value
-            timestamp = Date()
-        }
-
-        func isExpired(validityDuration: TimeInterval) -> Bool {
-            Date().timeIntervalSince(timestamp) >= validityDuration
-        }
-    }
-}
-
 // MARK: - ViewModel
 
 @MainActor
@@ -257,14 +203,14 @@ struct IncursionCell: View {
                     Circle()
                         .stroke(Color.cyan.opacity(0.3), lineWidth: 4)
                         .frame(width: 56, height: 56)
-                    
+
                     // 进度圆环
                     Circle()
                         .trim(from: 0, to: CGFloat(incursion.incursion.influence))
                         .stroke(Color.red, lineWidth: 4)
                         .frame(width: 56, height: 56)
                         .rotationEffect(.degrees(-90))
-                    
+
                     // 派系图标
                     IconManager.shared.loadImage(for: incursion.faction.iconName)
                         .resizable()

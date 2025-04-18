@@ -163,7 +163,7 @@ struct SkillPlanDetailView: View {
                 Spacer()
                 Text(
                     String(
-                        format: NSLocalizedString("Main_Skills_Level", comment: ""),
+                        format: NSLocalizedString("Misc_Level_Short", comment: ""),
                         skill.targetLevel
                     )
                 )

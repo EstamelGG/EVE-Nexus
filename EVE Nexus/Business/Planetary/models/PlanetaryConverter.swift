@@ -2,25 +2,6 @@ import Foundation
 
 /// 行星数据转换器
 class PlanetaryConverter {
-    /// 提取器状态
-    struct ExtractorStatus {
-        let isActive: Bool
-        let expiryTime: Date?
-        let productType: Type?
-        let cycleTime: TimeInterval?
-        let headCount: Int
-        let qtyPerCycle: Int?
-    }
-
-    /// 工厂状态
-    struct FactoryStatus {
-        let isActive: Bool
-        let schematic: Schematic?
-        let hasReceivedInputs: Bool
-        let receivedInputsLastCycle: Bool
-        let lastCycleStartTime: Date?
-    }
-
     /// 将PlanetaryDetail转换为Colony模型
     /// - Parameters:
     ///   - detail: 行星详情

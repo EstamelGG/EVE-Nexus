@@ -466,7 +466,7 @@ struct AttributeCompareDetailView: View {
                             Spacer()
                         }
                     } header: {
-                        Text("Calc...")
+                        Text(NSLocalizedString("Misc_Calculating", comment: ""))
                     }
                 }
 

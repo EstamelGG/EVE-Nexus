@@ -91,9 +91,15 @@ struct SkillPointForLevelView: View {
                         .foregroundColor(.secondary)
                     }
                     Spacer()
-                    Text("Lv0 → Lv\(level)")
-                        .font(.body)
-                        .foregroundColor(.secondary)
+                    Text(
+                        String(format: NSLocalizedString("Misc_Level_Short", comment: "lv%d"), 0)
+                            + " → "
+                            + String(
+                                format: NSLocalizedString("Misc_Level_Short", comment: "lv%d"),
+                                level)
+                    )
+                    .font(.body)
+                    .foregroundColor(.secondary)
                 }
             }
             .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))

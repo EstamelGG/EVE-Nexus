@@ -7,25 +7,32 @@ struct PIResourcesListView: View {
     let systemIds: [Int]
     let resourceLevel: Int
     let maxJumps: Int
-    
+    let centerSystemId: Int?  // 添加中心星系ID参数
+
     var body: some View {
         List {
             Section(header: Text(NSLocalizedString("PI_Available_production", comment: ""))) {
                 ForEach(0..<resources.count, id: \.self) { index in
                     let resource = resources[index]
-                    NavigationLink(destination: PIResourceChainView(
-                        resourceId: getResourceId(from: resource),
-                        resourceName: getResourceName(from: resource),
-                        systemIds: systemIds,
-                        maxJumps: maxJumps
-                    )) {
+                    NavigationLink(
+                        destination: PIResourceChainView(
+                            resourceId: getResourceId(from: resource),
+                            resourceName: getResourceName(from: resource),
+                            systemIds: systemIds,
+                            maxJumps: maxJumps,
+                            centerSystemId: centerSystemId  // 传递中心星系ID
+                        )
+                    ) {
                         HStack {
-                            Image(uiImage: IconManager.shared.loadUIImage(for: getResourceIcon(from: resource)))
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 32, height: 32)
-                                .cornerRadius(4)
-                            
+                            Image(
+                                uiImage: IconManager.shared.loadUIImage(
+                                    for: getResourceIcon(from: resource))
+                            )
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 32, height: 32)
+                            .cornerRadius(4)
+
                             Text(getResourceName(from: resource))
                                 .font(.body)
                         }
@@ -35,7 +42,7 @@ struct PIResourcesListView: View {
         }
         .navigationTitle(title)
     }
-    
+
     // 辅助函数来获取资源信息
     private func getResourceId(from resource: Any) -> Int {
         switch resource {
@@ -47,7 +54,7 @@ struct PIResourcesListView: View {
         default: return 0
         }
     }
-    
+
     private func getResourceName(from resource: Any) -> String {
         switch resource {
         case let p0 as P0ResourceInfo: return p0.resourceName
@@ -58,7 +65,7 @@ struct PIResourcesListView: View {
         default: return ""
         }
     }
-    
+
     private func getResourceIcon(from resource: Any) -> String {
         switch resource {
         case let p0 as P0ResourceInfo: return p0.iconFileName
@@ -69,4 +76,4 @@ struct PIResourcesListView: View {
         default: return "not_found"
         }
     }
-} 
+}

@@ -39,10 +39,6 @@ struct CharacterEmploymentHistory: Codable {
 
 final class CharacterAPI: @unchecked Sendable {
     static let shared = CharacterAPI()
-
-    // 缓存超时时间
-    private let publicInfoCacheTimeout: TimeInterval = 3600  // 1小时
-
     private init() {
         // 配置 Kingfisher 的全局设置
         let cache = ImageCache.default
@@ -179,7 +175,8 @@ final class CharacterAPI: @unchecked Sendable {
 
         // 获取最新的联盟和公司信息
         do {
-            let affiliations = try await CharacterAffiliationAPI.shared.fetchAffiliations(characterIds: [characterId])
+            let affiliations = try await CharacterAffiliationAPI.shared.fetchAffiliations(
+                characterIds: [characterId])
             if let affiliation = affiliations.first {
                 // 更新联盟和公司信息
                 info = CharacterPublicInfo(

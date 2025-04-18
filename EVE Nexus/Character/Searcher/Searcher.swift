@@ -1,17 +1,14 @@
-import SwiftUI
 import Combine
+import SwiftUI
 
-let minSearchLength = 3 // 最少要输入3个搜索关键词
+let minSearchLength = 3  // 最少要输入3个搜索关键词
 
 struct SearcherView: View {
     let character: EVECharacterInfo
-    
+
     @StateObject private var viewModel = SearcherViewModel()
     @State private var searchText = ""
     @State private var selectedSearchType = SearchType.character
-    @State private var isLoadingContacts = true
-    @State private var loadingError: Error?
-    @State private var hasLoadedContacts = false
     @State private var isSearchActive = false
 
     // 过滤条件
@@ -195,8 +192,11 @@ struct SearcherView: View {
                                     Text(NSLocalizedString("Main_Search_No_Results", comment: ""))
                                         .foregroundColor(.secondary)
                                 } else {
-                                    Text(NSLocalizedString("Main_Search_No_Filtered_Results", comment: ""))
-                                        .foregroundColor(.secondary)
+                                    Text(
+                                        NSLocalizedString(
+                                            "Main_Search_No_Filtered_Results", comment: "")
+                                    )
+                                    .foregroundColor(.secondary)
                                 }
                             } else {
                                 ForEach(viewModel.filteredResults) { result in
@@ -205,9 +205,11 @@ struct SearcherView: View {
                                             SearchResultRow(result: result, character: character)
                                                 .environmentObject(viewModel)
                                         } else {
-                                            Text(NSLocalizedString("Main_Search_No_Results", comment: ""))
+                                            Text(
+                                                NSLocalizedString(
+                                                    "Main_Search_No_Results", comment: ""))
                                         }
-                                            
+
                                     } else {
                                         NavigationLink(destination: {
                                             switch result.type {
@@ -224,8 +226,10 @@ struct SearcherView: View {
                                                     allianceId: result.id, character: character
                                                 )
                                             default:
-                                                SearchResultRow(result: result, character: character)
-                                                    .environmentObject(viewModel)
+                                                SearchResultRow(
+                                                    result: result, character: character
+                                                )
+                                                .environmentObject(viewModel)
                                             }
                                         }) {
                                             SearchResultRow(result: result, character: character)
@@ -234,12 +238,14 @@ struct SearcherView: View {
                                         .buttonStyle(.plain)
                                     }
                                 }
-                                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                                .listRowInsets(
+                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                             }
                         } else if searchText.count < minSearchLength {
                             Text(
                                 String(
-                                    format: NSLocalizedString("Main_Search_Min_Length", comment: ""),
+                                    format: NSLocalizedString(
+                                        "Main_Search_Min_Length", comment: ""),
                                     minSearchLength
                                 )
                             ).foregroundColor(.secondary)
@@ -462,9 +468,11 @@ struct SearchResultRow: View {
                     .frame(width: 38, height: 38)
                     .cornerRadius(6)
             } else {
-                UniversePortrait(id: result.id, type: result.type.recipientType, size: 64, displaySize: 32)
-                    .frame(width: 38, height: 38)
-                    .cornerRadius(6)
+                UniversePortrait(
+                    id: result.id, type: result.type.recipientType, size: 64, displaySize: 32
+                )
+                .frame(width: 38, height: 38)
+                .cornerRadius(6)
             }
 
             // 信息
@@ -481,7 +489,7 @@ struct SearchResultRow: View {
                             .foregroundColor(.secondary)
                             .font(.caption)
                     } else {
-                        Text("[No Corp]")
+                        Text("[\(NSLocalizedString("Main_No_Corp", comment: ""))]")
                             .foregroundColor(.secondary)
                             .font(.caption)
                     }
@@ -490,7 +498,7 @@ struct SearchResultRow: View {
                             .foregroundColor(.secondary)
                             .font(.caption)
                     } else {
-                        Text("[No Alliance]")
+                        Text("[\(NSLocalizedString("Main_No_Alliance", comment: ""))]")
                             .foregroundColor(.secondary)
                             .font(.caption)
                     }
@@ -648,12 +656,9 @@ class SearcherViewModel: ObservableObject {
     var corporationContacts: [ContactInfo] = []
     var allianceContacts: [ContactInfo] = []
 
-    private var searchTask: Task<Void, Never>?
     private var currentCorpFilter = ""
     private var currentAllianceFilter = ""
     private var currentStructureType: SearcherView.StructureType = .all
-    private var corporationNames: [Int: String] = [:]
-    private var allianceNames: [Int: String] = [:]
 
     private let searchController = SearchController()
     private var cancellables = Set<AnyCancellable>()
@@ -671,7 +676,8 @@ class SearcherViewModel: ObservableObject {
             .receive(on: DispatchQueue.main)
             .sink { [weak self] query in
                 guard let self = self,
-                      let character = self.currentCharacter else { return }
+                    let character = self.currentCharacter
+                else { return }
                 Task {
                     await self.search(
                         characterId: character.CharacterID,
@@ -688,7 +694,10 @@ class SearcherViewModel: ObservableObject {
 
     // 添加计算URL编码长度的方法
     func getUrlEncodedLength(_ string: String) -> Int {
-        guard let encodedString = string.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) else {
+        guard
+            let encodedString = string.addingPercentEncoding(
+                withAllowedCharacters: .urlQueryAllowed)
+        else {
             return string.count
         }
         return encodedString.count

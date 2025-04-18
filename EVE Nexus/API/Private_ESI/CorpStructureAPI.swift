@@ -14,36 +14,12 @@ public struct StructureInfo: Codable {
     public let state_timer_end: String?
     public let unanchors_at: String?
     public let services: [StructureService]?
-
-    public init(
-        structure_id: Int64, type_id: Int, corporation_id: Int, system_id: Int, profile_id: Int,
-        name: String?, fuel_expires: String?, state: String, state_timer_start: String?,
-        state_timer_end: String?, unanchors_at: String?, services: [StructureService]?
-    ) {
-        self.structure_id = structure_id
-        self.type_id = type_id
-        self.corporation_id = corporation_id
-        self.system_id = system_id
-        self.profile_id = profile_id
-        self.name = name
-        self.fuel_expires = fuel_expires
-        self.state = state
-        self.state_timer_start = state_timer_start
-        self.state_timer_end = state_timer_end
-        self.unanchors_at = unanchors_at
-        self.services = services
-    }
 }
 
 // 建筑物服务信息
 public struct StructureService: Codable {
     public let name: String
     public let state: String
-
-    public init(name: String, state: String) {
-        self.name = name
-        self.state = state
-    }
 }
 
 // 缓存数据结构

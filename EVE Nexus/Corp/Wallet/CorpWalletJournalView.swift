@@ -399,9 +399,10 @@ struct CorpWalletJournalEntryRow: View {
     private func formatRefType(_ refType: String) -> String {
         let lowercaseRefType = refType.lowercased()
         let language = selectedLanguage == "zh-Hans" ? "zh" : "en"
-        
+
         // 使用新的处理方法获取本地化名称
-        return LocalizationManager.shared.processEntryTypeName(for: lowercaseRefType, esiText: refType, language: language)
+        return LocalizationManager.shared.processEntryTypeName(
+            for: lowercaseRefType, esiText: refType, language: language)
     }
 
     var body: some View {
@@ -418,11 +419,13 @@ struct CorpWalletJournalEntryRow: View {
             }
 
             // 交易细节
-            Text(LocalizationManager.shared.processJournalMessage(
-                for: entry.ref_type.lowercased(),
-                esiText: entry.description,
-                language: selectedLanguage == "zh-Hans" ? "zh" : "en"
-            ))
+            Text(
+                LocalizationManager.shared.processJournalMessage(
+                    for: entry.ref_type.lowercased(),
+                    esiText: entry.description,
+                    language: selectedLanguage == "zh-Hans" ? "zh" : "en"
+                )
+            )
             .font(.caption)
             .foregroundColor(.secondary)
 

@@ -31,17 +31,12 @@ struct MarketItemBasicInfoView: View {
     }
 }
 
-// 简单的选项模型
-struct Option: Identifiable, Equatable {
-    let id: Int
-    let name: String
-}
-
 // 星域选择器视图
-struct RegionPickerView: View {
+struct MarketRegionPickerView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var selectedRegionID: Int
     @Binding var selectedRegionName: String
+    @Binding var saveSelection: Bool
     let databaseManager: DatabaseManager
 
     @State private var isEditMode = false
@@ -51,6 +46,24 @@ struct RegionPickerView: View {
     @State private var isSearchActive = false
     @State private var sectionedRegions: [String: [Region]] = [:]
     @State private var sectionTitles: [String] = []
+    @State private var commonSystems: [CommonSystem] = []
+
+    // 常见星系映射表
+    private let commonSystemMap: [String: String] = [
+        "Jita": "30000142",
+        "Amarr": "30002187",
+        "Rens": "30002510",
+        "Hek": "30002053",
+    ]
+
+    // 常见星系数据模型
+    struct CommonSystem: Identifiable {
+        let id: String
+        let name: String
+        var regionID: Int?
+        var regionName: String?
+        var systemName: String?  // 添加星系名称字段
+    }
 
     private var unpinnedRegions: [Region] {
         allRegions.filter { region in
@@ -96,21 +109,72 @@ struct RegionPickerView: View {
                     }
                 }
             }
-            
+
+            // 加载常见星系数据
+            loadCommonSystems()
+
             // 更新分组数据
             updateSections()
         }
     }
-    
+
+    // 加载常见星系数据
+    private func loadCommonSystems() {
+        var systems: [CommonSystem] = []
+
+        // 从映射表创建常见星系对象
+        for (name, id) in commonSystemMap {
+            systems.append(CommonSystem(id: id, name: name))
+        }
+
+        // 获取星系对应的星域ID和星系名称
+        for i in 0..<systems.count {
+            if let regionInfo = getRegionForSystem(systemID: Int(systems[i].id) ?? 0) {
+                systems[i].regionID = regionInfo.regionID
+                systems[i].regionName = regionInfo.regionName
+                systems[i].systemName = regionInfo.systemName
+            }
+        }
+
+        commonSystems = systems
+    }
+
+    // 根据星系ID获取对应的星域信息和星系名称
+    private func getRegionForSystem(systemID: Int) -> (
+        regionID: Int, regionName: String, systemName: String
+    )? {
+        let query = """
+                SELECT r.regionID, r.regionName, s.solarSystemName
+                FROM universe u
+                JOIN regions r ON u.region_id = r.regionID
+                JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
+                WHERE u.solarsystem_id = ?
+            """
+
+        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [systemID]) {
+            if let row = rows.first,
+                let regionID = row["regionID"] as? Int,
+                let regionName = row["regionName"] as? String,
+                let systemName = row["solarSystemName"] as? String
+            {
+                return (regionID, regionName, systemName)
+            }
+        }
+
+        return nil
+    }
+
     // 更新分组数据
     private func updateSections() {
         var filteredData = unpinnedRegions
-        
+
         // 如果有搜索文本，过滤数据
         if !searchText.isEmpty {
-            filteredData = unpinnedRegions.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+            filteredData = unpinnedRegions.filter {
+                $0.name.localizedCaseInsensitiveContains(searchText)
+            }
         }
-        
+
         // 按首字母分组
         let grouped = Dictionary(grouping: filteredData) { region -> String in
             // 获取首字母（包括处理中文拼音）
@@ -121,45 +185,53 @@ struct RegionPickerView: View {
             }
             return "#"
         }
-        
+
         sectionedRegions = grouped
         sectionTitles = grouped.keys.sorted()
-        
+
         // 对每个组内的数据进行排序
         for (key, _) in sectionedRegions {
-            sectionedRegions[key]?.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            sectionedRegions[key]?.sort {
+                $0.name.localizedStandardCompare($1.name) == .orderedAscending
+            }
         }
     }
-    
+
     // 获取字符的首字母（包括中文拼音）
     private func getFirstLetter(of char: String) -> String {
         // 转换为大写
         let uppercaseChar = char.uppercased()
-        
+
         // 判断是否为英文字母
         if uppercaseChar >= "A" && uppercaseChar <= "Z" {
             return uppercaseChar
         }
-        
+
         // 中文字符转拼音
         let pinyin = NSMutableString(string: char) as CFMutableString
         CFStringTransform(pinyin, nil, kCFStringTransformToLatin, false)
         CFStringTransform(pinyin, nil, kCFStringTransformStripDiacritics, false)
-        
+
         if let firstPinyinChar = String(pinyin as String).first {
             let letter = String(firstPinyinChar).uppercased()
             if letter >= "A" && letter <= "Z" {
                 return letter
             }
         }
-        
+
         // 其他字符
         return "#"
     }
 
     private func savePinnedRegions() {
+        guard saveSelection else { return }
         let pinnedIDs = pinnedRegions.map { $0.id }
         UserDefaultsManager.shared.pinnedRegionIDs = pinnedIDs
+    }
+
+    // 获取星域对应的常见星系名称
+    private func getCommonSystemName(for regionID: Int) -> String? {
+        return commonSystems.first { $0.regionID == regionID }?.systemName
     }
 
     var body: some View {
@@ -177,8 +249,10 @@ struct RegionPickerView: View {
                                 onSelect: {
                                     selectedRegionID = region.id
                                     selectedRegionName = region.name
-                                    let defaults = UserDefaultsManager.shared
-                                    defaults.selectedRegionID = region.id
+                                    if saveSelection {
+                                        let defaults = UserDefaultsManager.shared
+                                        defaults.selectedRegionID = region.id
+                                    }
                                     if !isEditMode {
                                         dismiss()
                                     }
@@ -189,7 +263,8 @@ struct RegionPickerView: View {
                                         savePinnedRegions()
                                         updateSections()
                                     }
-                                }
+                                },
+                                commonSystemName: getCommonSystemName(for: region.id)
                             )
                         }
                         .onMove { from, to in
@@ -213,10 +288,12 @@ struct RegionPickerView: View {
                         }
                     }
                 }
-                
-                // 按首字母分组显示星域列表 - 直接作为List中的Section
+
+                // 按首字母分组显示星域列表
                 ForEach(sectionTitles, id: \.self) { sectionTitle in
-                    if let regionsInSection = sectionedRegions[sectionTitle], !regionsInSection.isEmpty {
+                    if let regionsInSection = sectionedRegions[sectionTitle],
+                        !regionsInSection.isEmpty
+                    {
                         Section(header: Text(sectionTitle)) {
                             ForEach(regionsInSection) { region in
                                 RegionRow(
@@ -226,19 +303,23 @@ struct RegionPickerView: View {
                                     onSelect: {
                                         selectedRegionID = region.id
                                         selectedRegionName = region.name
-                                        let defaults = UserDefaultsManager.shared
-                                        defaults.selectedRegionID = region.id
+                                        if saveSelection {
+                                            let defaults = UserDefaultsManager.shared
+                                            defaults.selectedRegionID = region.id
+                                        }
                                         if !isEditMode {
                                             dismiss()
                                         }
                                     },
-                                    onPin: isEditMode ? {
-                                        withAnimation {
-                                            pinnedRegions.append(region)
-                                            savePinnedRegions()
-                                            updateSections()
-                                        }
-                                    } : nil
+                                    onPin: isEditMode
+                                        ? {
+                                            withAnimation {
+                                                pinnedRegions.append(region)
+                                                savePinnedRegions()
+                                                updateSections()
+                                            }
+                                        } : nil,
+                                    commonSystemName: getCommonSystemName(for: region.id)
                                 )
                             }
                         }
@@ -288,11 +369,18 @@ struct RegionRow: View {
     let onSelect: () -> Void
     var onPin: (() -> Void)?
     var onUnpin: (() -> Void)?
+    var commonSystemName: String?
 
     var body: some View {
         HStack {
-            Text(region.name)
-                .foregroundColor(isSelected ? .blue : .primary)
+            HStack {
+                Text(region.name)
+                    .foregroundColor(isSelected ? .blue : .primary)
+                if let systemName = commonSystemName {
+                    Text("(\(systemName))")
+                        .foregroundColor(.secondary)
+                }
+            }
 
             Spacer()
 
@@ -344,8 +432,9 @@ struct MarketItemDetailView: View {
     @State private var isLoadingHistory: Bool = false
     @State private var isFromParent: Bool = true
     @State private var showRegionPicker = false
-    @State private var selectedRegionID: Int = 0
+    @State private var selectedRegionID: Int
     @State private var selectedRegionName: String = ""
+    @State private var saveSelection: Bool = true
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
     private var chartHeight: CGFloat {
         // 根据设备类型和方向调整高度
@@ -356,6 +445,12 @@ struct MarketItemDetailView: View {
             // iPhone 或小屏设备
             return UIScreen.main.bounds.height * 0.25  // 使用屏幕高度的 25%
         }
+    }
+
+    init(databaseManager: DatabaseManager, itemID: Int, selectedRegionID: Int = 0) {
+        self.databaseManager = databaseManager
+        self.itemID = itemID
+        _selectedRegionID = State(initialValue: selectedRegionID)
     }
 
     var body: some View {
@@ -491,8 +586,9 @@ struct MarketItemDetailView: View {
             }
         }
         .sheet(isPresented: $showRegionPicker) {
-            RegionPickerView(
+            MarketRegionPickerView(
                 selectedRegionID: $selectedRegionID, selectedRegionName: $selectedRegionName,
+                saveSelection: $saveSelection,
                 databaseManager: databaseManager
             )
         }
@@ -506,6 +602,8 @@ struct MarketItemDetailView: View {
             if selectedRegionID == 0 {
                 selectedRegionID = defaults.selectedRegionID
                 selectedRegionName = getRegionName(for: defaults.selectedRegionID)
+            } else {
+                selectedRegionName = getRegionName(for: selectedRegionID)
             }
 
             itemDetails = databaseManager.getItemDetails(for: itemID)
@@ -611,18 +709,18 @@ struct MarketItemDetailView: View {
     private func getRegionName(for regionID: Int) -> String {
         // 查询数据库获取区域名称
         let query = """
-            SELECT regionName
-            FROM regions
-            WHERE regionID = ?
-        """
-        
+                SELECT regionName
+                FROM regions
+                WHERE regionID = ?
+            """
+
         if case let .success(rows) = databaseManager.executeQuery(query, parameters: [regionID]) {
             if let row = rows.first {
                 let nameLocal = row["regionName"] as? String ?? ""
                 return nameLocal
             }
         }
-        
+
         // 如果查询失败或未找到，返回一个默认值
         return "Unknown Region"
     }

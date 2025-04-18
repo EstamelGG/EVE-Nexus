@@ -11,13 +11,6 @@ struct TableRowNode: Identifiable, Equatable {
     let note: String?
     let destination: AnyView?
 
-    init(title: String, iconName: String, note: String? = nil, destination: AnyView? = nil) {
-        self.title = title
-        self.iconName = iconName
-        self.note = note
-        self.destination = destination
-    }
-
     static func == (lhs: TableRowNode, rhs: TableRowNode) -> Bool {
         lhs.id == rhs.id && lhs.title == rhs.title && lhs.iconName == rhs.iconName
             && lhs.note == rhs.note
@@ -29,61 +22,8 @@ struct TableNode: Identifiable, Equatable {
     let title: String
     var rows: [TableRowNode]
 
-    init(title: String, rows: [TableRowNode]) {
-        self.title = title
-        self.rows = rows
-    }
-
     static func == (lhs: TableNode, rhs: TableNode) -> Bool {
         lhs.id == rhs.id && lhs.title == rhs.title && lhs.rows == rhs.rows
-    }
-}
-
-// 优化 UTCTimeView
-class UTCTimeViewModel: ObservableObject {
-    @Published var currentTime = Date()
-    private var timer: Timer?
-
-    func startTimer() {
-        // 停止现有的计时器（如果存在）
-        stopTimer()
-
-        // 创建新的计时器
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.currentTime = Date()
-        }
-    }
-
-    func stopTimer() {
-        timer?.invalidate()
-        timer = nil
-    }
-
-    deinit {
-        stopTimer()
-    }
-}
-
-struct UTCTimeView: View {
-    @StateObject private var viewModel = UTCTimeViewModel()
-
-    var body: some View {
-        Text(formattedUTCTime)
-            .font(.monospacedDigit(.caption)())
-            .onAppear {
-                viewModel.startTimer()
-            }
-            .onDisappear {
-                viewModel.stopTimer()
-            }
-    }
-
-    private var formattedUTCTime: String {
-        let formatter = DateFormatter()
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        formatter.dateStyle = .none
-        formatter.timeStyle = .medium
-        return formatter.string(from: viewModel.currentTime)
     }
 }
 
@@ -252,7 +192,11 @@ struct ServerStatusView: View {
                 return Text(NSLocalizedString("Server_Status_Online", comment: ""))
                     .font(.caption.bold())
                     .foregroundColor(.green)
-                    + Text(String(format: NSLocalizedString("Server_Status_Players", comment: ""), formattedPlayers))
+                    + Text(
+                        String(
+                            format: NSLocalizedString("Server_Status_Players", comment: ""),
+                            formattedPlayers)
+                    )
                     .font(.caption)
             } else {
                 return Text(NSLocalizedString("Server_Status_Offline", comment: ""))
@@ -303,11 +247,10 @@ struct LoginButtonView: View {
                 .padding(4)
             } else {
                 ZStack {
-                    Image(systemName: "person.crop.circle")
+                    Image("aura")
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 64, height: 64)
-                        .foregroundColor(Color.primary.opacity(0.5))  // 降低不透明度使其更柔和
                         .clipShape(Circle())
                 }
                 .overlay(Circle().stroke(Color.primary.opacity(0.2), lineWidth: 3))
@@ -324,7 +267,9 @@ struct LoginButtonView: View {
 
                     // 显示联盟信息
                     HStack(spacing: 4) {
-                        if let alliance = mainViewModel.allianceInfo, let logo = mainViewModel.allianceLogo {
+                        if let alliance = mainViewModel.allianceInfo,
+                            let logo = mainViewModel.allianceLogo
+                        {
                             Image(uiImage: logo)
                                 .resizable()
                                 .frame(width: 16, height: 16)
@@ -346,7 +291,9 @@ struct LoginButtonView: View {
 
                     // 显示军团信息
                     HStack(spacing: 4) {
-                        if let corporation = mainViewModel.corporationInfo, let logo = mainViewModel.corporationLogo {
+                        if let corporation = mainViewModel.corporationInfo,
+                            let logo = mainViewModel.corporationLogo
+                        {
                             Image(uiImage: logo)
                                 .resizable()
                                 .frame(width: 16, height: 16)
@@ -374,7 +321,6 @@ struct LoginButtonView: View {
                         .font(.headline)
                         .lineLimit(1)
                 }
-                ServerStatusView(mainViewModel: mainViewModel)
             }
             .frame(height: 72)
             Spacer()
@@ -389,12 +335,17 @@ struct LoginButtonView: View {
                     Logger.info("检查Token状态...")
                     isRefreshTokenExpired = auth.character.refreshTokenExpired
                     if isRefreshTokenExpired {
-                        Logger.warning("角色 \(character.CharacterName) (\(character.CharacterID)) 的 Refresh Token 已过期，需要重新登录")
+                        Logger.warning(
+                            "角色 \(character.CharacterName) (\(character.CharacterID)) 的 Refresh Token 已过期，需要重新登录"
+                        )
                     } else {
-                        Logger.info("角色 \(character.CharacterName) (\(character.CharacterID)) 的 Refresh Token 状态正常")
+                        Logger.info(
+                            "角色 \(character.CharacterName) (\(character.CharacterID)) 的 Refresh Token 状态正常"
+                        )
                     }
                 } else {
-                    Logger.error("找不到角色 \(character.CharacterName) (\(character.CharacterID)) 的认证信息")
+                    Logger.error(
+                        "找不到角色 \(character.CharacterName) (\(character.CharacterID)) 的认证信息")
                     // 如果找不到认证信息，通知 ContentView 执行登出操作
                     NotificationCenter.default.post(
                         name: NSNotification.Name("CharacterLoggedOut"), object: nil
@@ -460,7 +411,7 @@ struct ContentView: View {
                 .refreshable {
                     await viewModel.refreshAllData(forceRefresh: true)
                 }
-                .navigationTitle("Home")
+                .navigationTitle(NSLocalizedString("Main_Home", comment: ""))
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         logoutButton
@@ -678,6 +629,8 @@ struct ContentView: View {
                     }
                 }
             }
+        } footer: {
+            ServerStatusView(mainViewModel: viewModel)
         }
     }
 

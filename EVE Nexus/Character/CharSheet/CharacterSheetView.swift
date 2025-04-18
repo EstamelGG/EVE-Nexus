@@ -23,18 +23,18 @@ struct CharacterSheetView: View {
     @State private var birthday: String?
     @State private var medals: [CharacterMedal]?
     @State private var isLoadingMedals = true
-    @State private var hasInitialized = false // 追踪是否已初始化
-    
+    @State private var hasInitialized = false  // 追踪是否已初始化
+
     // UserDefaults 键名常量
     private let lastShipTypeIdKey: String
     private let lastLocationKey: String
-    
+
     private let dateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
         return formatter
     }()
-    
+
     // 位置信息缓存结构体
     private struct LocationCache: Codable {
         let solarSystemId: Int
@@ -43,7 +43,7 @@ struct CharacterSheetView: View {
         let locationStatus: String
         let typeId: Int?
     }
-    
+
     init(
         character: EVECharacterInfo, characterPortrait: UIImage?,
         databaseManager: DatabaseManager = DatabaseManager()
@@ -58,15 +58,15 @@ struct CharacterSheetView: View {
         // 为每个角色创建唯一的 UserDefaults 键
         lastShipTypeIdKey = "LastShipTypeId_\(character.CharacterID)"
         lastLocationKey = "LastLocation_\(character.CharacterID)"
-        
+
         // 从 UserDefaults 加载上次的飞船信息
         if let lastShipTypeId = UserDefaults.standard.object(forKey: lastShipTypeIdKey) as? Int {
             let query = "SELECT name FROM types WHERE type_id = ?"
             if case let .success(rows) = databaseManager.executeQuery(
                 query, parameters: [lastShipTypeId]
             ),
-               let row = rows.first,
-               let typeName = row["name"] as? String
+                let row = rows.first,
+                let typeName = row["name"] as? String
             {
                 // 使用上次的飞船类型创建一个临时的 CharacterShipInfo
                 let lastShip = CharacterShipInfo(
@@ -77,62 +77,62 @@ struct CharacterSheetView: View {
             }
         }
     }
-    
+
     // 初始化数据加载，确保只加载一次
     private func loadInitialDataIfNeeded() {
         guard !hasInitialized else { return }
-        
+
         hasInitialized = true
-        
+
         Task {
             // 1. 首先加载本地数据库中的数据
             loadLocalData()
-            
+
             // 2. 从缓存加载位置信息
             if let data = UserDefaults.standard.data(forKey: lastLocationKey),
-               let locationCache = try? JSONDecoder().decode(LocationCache.self, from: data)
+                let locationCache = try? JSONDecoder().decode(LocationCache.self, from: data)
             {
                 await loadLocationFromCache(locationCache)
             }
-            
+
             // 3. 并行加载所有网络数据
             await withTaskGroup(of: Void.self) { group in
                 // 加载在线状态
                 group.addTask {
                     await loadOnlineStatus()
                 }
-                
+
                 // 加载位置信息（强制刷新）
                 group.addTask {
                     await loadLocationInfo(forceRefresh: true)
                 }
-                
+
                 // 加载飞船信息
                 group.addTask {
                     await loadShipInfo()
                 }
-                
+
                 // 加载跳跃疲劳
                 group.addTask {
                     await loadFatigueInfo()
                 }
-                
+
                 // 加载军团和联盟信息
                 group.addTask {
                     await loadCorporationAndAllianceInfo()
                 }
-                
+
                 // 加载奖章信息
                 group.addTask {
                     await loadMedalsInfo()
                 }
-                
+
                 // 等待所有任务完成
                 await group.waitForAll()
             }
         }
     }
-    
+
     // 从缓存加载位置信息
     private func loadLocationFromCache(_ cache: LocationCache) async {
         if let structureId = cache.structureId {
@@ -186,7 +186,7 @@ struct CharacterSheetView: View {
             }
         }
     }
-    
+
     // 保存位置信息到缓存
     private func saveLocationToCache(location: CharacterLocation, typeId: Int? = nil) {
         let cache = LocationCache(
@@ -196,25 +196,25 @@ struct CharacterSheetView: View {
             locationStatus: location.locationStatus.rawValue,
             typeId: typeId
         )
-        
+
         if let data = try? JSONEncoder().encode(cache) {
             UserDefaults.standard.set(data, forKey: lastLocationKey)
         }
     }
-    
+
     // 比较位置是否相同
     private func isSameLocation(location: CharacterLocation, cache: LocationCache) -> Bool {
         // 检查基本信息是否相同
         guard location.solar_system_id == cache.solarSystemId,
-              location.station_id == cache.stationId,
-              location.structure_id == cache.structureId,
-              location.locationStatus.rawValue == cache.locationStatus
+            location.station_id == cache.stationId,
+            location.structure_id == cache.structureId,
+            location.locationStatus.rawValue == cache.locationStatus
         else {
             return false
         }
         return true
     }
-    
+
     // 加载位置信息
     private func loadLocationInfo(forceRefresh: Bool = false) async {
         do {
@@ -222,16 +222,16 @@ struct CharacterSheetView: View {
                 characterId: character.CharacterID,
                 forceRefresh: forceRefresh
             )
-            
+
             // 检查是否与缓存位置相同
             if let data = UserDefaults.standard.data(forKey: lastLocationKey),
-               let locationCache = try? JSONDecoder().decode(LocationCache.self, from: data),
-               isSameLocation(location: location, cache: locationCache)
+                let locationCache = try? JSONDecoder().decode(LocationCache.self, from: data),
+                isSameLocation(location: location, cache: locationCache)
             {
                 // 位置相同，不需要更新UI
                 return
             }
-            
+
             // 位置不同，更新UI和缓存
             if let structureId = location.structure_id {
                 let structureInfo = try? await UniverseStructureAPI.shared.fetchStructureInfo(
@@ -255,11 +255,11 @@ struct CharacterSheetView: View {
                 if case let .success(rows) = databaseManager.executeQuery(
                     query, parameters: [Int(stationId)]
                 ),
-                   let row = rows.first
+                    let row = rows.first
                 {
                     typeId = row["stationTypeID"] as? Int
                 }
-                
+
                 if let info = await locationLoader?.loadLocationInfo(locationIds: [Int64(stationId)]
                 ).first?.value {
                     await MainActor.run {
@@ -283,7 +283,7 @@ struct CharacterSheetView: View {
                     saveLocationToCache(location: location)
                 }
             }
-            
+
             // 保存状态到数据库
             if let ship = currentShip {
                 await saveCharacterState(location: location, ship: ship)
@@ -292,7 +292,7 @@ struct CharacterSheetView: View {
             Logger.error("获取位置信息失败: \(error)")
         }
     }
-    
+
     var body: some View {
         List {
             Section {
@@ -316,7 +316,7 @@ struct CharacterSheetView: View {
                             .shadow(color: Color.primary.opacity(0.1), radius: 4, x: 0, y: 2)
                             .padding(4)
                     } else {
-                        Image(systemName: "person.crop.square")
+                        Image("default_char")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 72, height: 72)
@@ -333,7 +333,7 @@ struct CharacterSheetView: View {
                             .shadow(color: Color.primary.opacity(0.1), radius: 4, x: 0, y: 2)
                             .padding(4)
                     }
-                    
+
                     VStack(alignment: .leading, spacing: 4) {
                         // 角色名称和在线状态
                         HStack(spacing: 4) {
@@ -363,12 +363,13 @@ struct CharacterSheetView: View {
                                 }
                             }
                             .frame(width: 18, alignment: .center)
-                            
+
                             Text(character.CharacterName)
                                 .font(.headline)
+                                .textSelection(.enabled)
                                 .lineLimit(1)
                         }
-                        
+
                         // 联盟信息
                         HStack(spacing: 4) {
                             if let alliance = allianceInfo, let logo = allianceLogo {
@@ -390,7 +391,7 @@ struct CharacterSheetView: View {
                                     .lineLimit(1)
                             }
                         }
-                        
+
                         // 军团信息
                         HStack(spacing: 4) {
                             if let corporation = corporationInfo, let logo = corporationLogo {
@@ -415,7 +416,7 @@ struct CharacterSheetView: View {
                     }
                     .padding(.leading, 2)
                 }
-                
+
                 // 出生日期信息
                 if let birthday = birthday {
                     HStack {
@@ -424,7 +425,7 @@ struct CharacterSheetView: View {
                             .resizable()
                             .frame(width: 36, height: 36)
                             .cornerRadius(6)
-                        
+
                         VStack(alignment: .leading, spacing: 2) {
                             Text(NSLocalizedString("Character_Birthday", comment: ""))
                                 .font(.body)
@@ -437,7 +438,7 @@ struct CharacterSheetView: View {
                         }
                     }
                 }
-                
+
                 // 安全等级信息
                 if let security = securityStatus {
                     HStack {
@@ -446,7 +447,7 @@ struct CharacterSheetView: View {
                             .resizable()
                             .frame(width: 36, height: 36)
                             .cornerRadius(6)
-                        
+
                         VStack(alignment: .leading, spacing: 2) {
                             Text(NSLocalizedString("Character_Security_Status", comment: ""))
                                 .font(.body)
@@ -457,15 +458,15 @@ struct CharacterSheetView: View {
                         }
                     }
                 }
-                
+
                 // 位置信息
                 HStack {
                     // 位置图标
                     if locationDetail != nil {
                         if let typeId = locationTypeId,
-                           let iconFileName = getTypeIcon(
-                            typeId: typeId, databaseManager: databaseManager
-                           )
+                            let iconFileName = getTypeIcon(
+                                typeId: typeId, databaseManager: databaseManager
+                            )
                         {
                             // 显示空间站或建筑物的图标
                             IconManager.shared.loadImage(for: iconFileName)
@@ -482,9 +483,9 @@ struct CharacterSheetView: View {
                     } else if currentLocation != nil {
                         // 在星系中时显示默认图标
                         if let location = currentLocation,
-                           let iconFileName = getSystemIcon(
-                            solarSystemId: location.systemId, databaseManager: databaseManager
-                           )
+                            let iconFileName = getSystemIcon(
+                                solarSystemId: location.systemId, databaseManager: databaseManager
+                            )
                         {
                             IconManager.shared.loadImage(for: iconFileName)
                                 .resizable()
@@ -502,7 +503,7 @@ struct CharacterSheetView: View {
                             .frame(width: 36, height: 36)
                             .cornerRadius(6)
                     }
-                    
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text(NSLocalizedString("Character_Current_Location", comment: ""))
                         if let locationDetail = locationDetail {
@@ -538,12 +539,14 @@ struct CharacterSheetView: View {
                         }
                     }
                 }
-                
+
                 // 当前飞船信息
                 HStack {
                     // 飞船图标
                     if let ship = currentShip,
-                       let ship_icon = getTypeIcon(typeId: ship.ship_type_id, databaseManager: databaseManager) {
+                        let ship_icon = getTypeIcon(
+                            typeId: ship.ship_type_id, databaseManager: databaseManager)
+                    {
                         IconManager.shared.loadImage(for: ship_icon)
                             .resizable()
                             .frame(width: 36, height: 36)
@@ -554,7 +557,7 @@ struct CharacterSheetView: View {
                             .frame(width: 36, height: 36)
                             .cornerRadius(6)
                     }
-                    
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text(NSLocalizedString("Character_Current_Ship", comment: ""))
                             .font(.body)
@@ -574,11 +577,11 @@ struct CharacterSheetView: View {
                 Text(NSLocalizedString("Common_info", comment: ""))
             }
             .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-            
+
             // 跳跃疲劳信息 Section
             if let fatigue = fatigue,
-               let jumpFatigueExpireDate = fatigue.jump_fatigue_expire_date,
-               let lastJumpDate = fatigue.last_jump_date
+                let jumpFatigueExpireDate = fatigue.jump_fatigue_expire_date,
+                let lastJumpDate = fatigue.last_jump_date
             {
                 Section {
                     HStack {
@@ -587,13 +590,13 @@ struct CharacterSheetView: View {
                             .resizable()
                             .frame(width: 36, height: 36)
                             .cornerRadius(6)
-                        
+
                         VStack(alignment: .leading, spacing: 2) {
                             HStack {
                                 Text(NSLocalizedString("Character_Jump_Fatigue", comment: ""))
                                     .font(.body)
                                     .foregroundColor(.primary)
-                                
+
                                 if let expireDate = dateFormatter.date(from: jumpFatigueExpireDate)
                                 {
                                     let remainingTime = expireDate.timeIntervalSince(Date())
@@ -612,7 +615,7 @@ struct CharacterSheetView: View {
                                     }
                                 }
                             }
-                            
+
                             if let jumpDate = dateFormatter.date(from: lastJumpDate) {
                                 Text(
                                     String(
@@ -632,7 +635,7 @@ struct CharacterSheetView: View {
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
-            
+
             // 奖章信息 Section
             if let medals = medals, !medals.isEmpty {
                 Section {
@@ -643,23 +646,23 @@ struct CharacterSheetView: View {
                                     .resizable()
                                     .frame(width: 36, height: 36)
                                     .cornerRadius(6)
-                                
+
                                 VStack(alignment: .leading, spacing: 2) {
                                     if let date = dateFormatter.date(from: medal.date) {
                                         Text(formatMedalDate(date))
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                     }
-                                    
+
                                     Text(medal.title)
                                         .font(.body)
                                         .foregroundColor(.primary)
-                                    
+
                                     Text(medal.description)
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                         .fixedSize(horizontal: false, vertical: true)
-                                    
+
                                     if let reason = medal.reason {
                                         Text(reason)
                                             .font(.caption)
@@ -686,7 +689,7 @@ struct CharacterSheetView: View {
             await refreshAllData()
         }
     }
-    
+
     // 加载在线状态
     private func loadOnlineStatus() async {
         if let status = try? await CharacterLocationAPI.shared.fetchCharacterOnlineStatus(
@@ -702,20 +705,20 @@ struct CharacterSheetView: View {
             }
         }
     }
-    
+
     // 加载飞船信息
     private func loadShipInfo() async {
         do {
             let shipInfo = try await CharacterLocationAPI.shared.fetchCharacterShip(
                 characterId: character.CharacterID
             )
-            
+
             let query = "SELECT name FROM types WHERE type_id = ?"
             if case let .success(rows) = databaseManager.executeQuery(
                 query, parameters: [shipInfo.ship_type_id]
             ),
-               let row = rows.first,
-               let typeName = row["name"] as? String
+                let row = rows.first,
+                let typeName = row["name"] as? String
             {
                 await MainActor.run {
                     self.currentShip = shipInfo
@@ -728,7 +731,7 @@ struct CharacterSheetView: View {
             Logger.error("获取飞船信息失败: \(error)")
         }
     }
-    
+
     // 加载跳跃疲劳信息
     private func loadFatigueInfo() async {
         if let fatigue = try? await CharacterFatigueAPI.shared.fetchCharacterFatigue(
@@ -744,7 +747,7 @@ struct CharacterSheetView: View {
             }
         }
     }
-    
+
     // 加载军团和联盟信息
     private func loadCorporationAndAllianceInfo() async {
         if let publicInfo = try? await CharacterAPI.shared.fetchCharacterPublicInfo(
@@ -757,21 +760,21 @@ struct CharacterSheetView: View {
             async let corpLogoTask = CorporationAPI.shared.fetchCorporationLogo(
                 corporationId: publicInfo.corporation_id
             )
-            
+
             if let (info, logo) = try? await (corpInfoTask, corpLogoTask) {
                 await MainActor.run {
                     self.corporationInfo = info
                     self.corporationLogo = logo
                 }
             }
-            
+
             // 获取联盟信息（如果有）
             if let allianceId = publicInfo.alliance_id {
                 async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(
                     allianceId: allianceId)
                 async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(
                     allianceID: allianceId)
-                
+
                 if let (info, logo) = try? await (allianceInfoTask, allianceLogoTask) {
                     await MainActor.run {
                         self.allianceInfo = info
@@ -779,14 +782,14 @@ struct CharacterSheetView: View {
                     }
                 }
             }
-            
+
             // 更新安全等级
             await MainActor.run {
                 self.securityStatus = publicInfo.security_status
             }
         }
     }
-    
+
     // 加载奖章信息
     private func loadMedalsInfo() async {
         if let medals = try? await CharacterMedalsAPI.shared.fetchCharacterMedals(
@@ -802,7 +805,7 @@ struct CharacterSheetView: View {
             }
         }
     }
-    
+
     // 加载本地数据（数据库中的数据）
     private func loadLocalData() {
         // 获取角色出生日期
@@ -810,35 +813,35 @@ struct CharacterSheetView: View {
         if case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
             birthdayQuery, parameters: [character.CharacterID]
         ),
-           let row = rows.first,
-           let birthdayStr = row["birthday"] as? String
+            let row = rows.first,
+            let birthdayStr = row["birthday"] as? String
         {
             birthday = birthdayStr
         }
-        
+
         // 获取安全等级
         let securityQuery = "SELECT security_status FROM character_info WHERE character_id = ?"
         if case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
             securityQuery, parameters: [character.CharacterID]
         ),
-           let row = rows.first,
-           let security = row["security_status"] as? Double
+            let row = rows.first,
+            let security = row["security_status"] as? Double
         {
             securityStatus = security
         }
     }
-    
+
     private func getTypeIcon(typeId: Int, databaseManager: DatabaseManager) -> String? {
         let query = "SELECT icon_filename FROM types WHERE type_id = ?"
         if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]),
-           let row = rows.first,
-           let iconFile = row["icon_filename"] as? String
+            let row = rows.first,
+            let iconFile = row["icon_filename"] as? String
         {
             return iconFile.isEmpty ? DatabaseConfig.defaultItemIcon : iconFile
         }
         return DatabaseConfig.defaultItemIcon
     }
-    
+
     private func saveCharacterState(location: CharacterLocation, ship: CharacterShipInfo?) async {
         let query = """
                 INSERT OR REPLACE INTO character_current_state (
@@ -847,7 +850,7 @@ struct CharacterSheetView: View {
                     last_update
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
-        
+
         let parameters: [Any] = [
             Int64(character.CharacterID),
             Int64(location.solar_system_id),
@@ -859,14 +862,14 @@ struct CharacterSheetView: View {
             ship?.ship_name ?? NSNull(),
             Int64(Date().timeIntervalSince1970),
         ]
-        
+
         if case let .error(error) = CharacterDatabaseManager.shared.executeQuery(
             query, parameters: parameters
         ) {
             Logger.error("保存角色状态失败: \(error)")
         }
     }
-    
+
     private func getSecurityStatusColor(_ security: Double) -> Color {
         if security <= 0 {
             return .red
@@ -876,12 +879,12 @@ struct CharacterSheetView: View {
             return .blue
         }
     }
-    
+
     private func formatRemainingTime(_ seconds: TimeInterval) -> String {
         let days = Int(seconds) / 86400
         let hours = (Int(seconds) % 86400) / 3600
         let minutes = (Int(seconds) % 3600) / 60
-        
+
         if days > 0 {
             return String(
                 format: NSLocalizedString("Time_Days_Hours_Minutes", comment: ""), days, hours,
@@ -895,7 +898,7 @@ struct CharacterSheetView: View {
             return String(format: NSLocalizedString("Time_Minutes", comment: ""), minutes)
         }
     }
-    
+
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
@@ -903,7 +906,7 @@ struct CharacterSheetView: View {
         formatter.timeZone = TimeZone(identifier: "UTC")
         return formatter.string(from: date)
     }
-    
+
     private func formatBirthday(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .long
@@ -911,17 +914,17 @@ struct CharacterSheetView: View {
         formatter.timeZone = TimeZone(identifier: "UTC")
         return formatter.string(from: date)
     }
-    
+
     private func calculateAge(from birthday: Date) -> String {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!
-        
+
         let now = Date()
         let components = calendar.dateComponents([.year, .month, .day], from: birthday, to: now)
-        
+
         if let years = components.year,
-           let months = components.month,
-           let days = components.day
+            let months = components.month,
+            let days = components.day
         {
             return String(
                 format: NSLocalizedString("Character_Age", comment: ""), years, months, days
@@ -929,11 +932,11 @@ struct CharacterSheetView: View {
         }
         return ""
     }
-    
+
     // 下拉刷新时重新获取所有网络数据
     private func refreshAllData() async {
         Logger.info("开始刷新所有数据")
-        
+
         // 并行执行所有网络请求
         async let locationTask = CharacterLocationAPI.shared.fetchCharacterLocation(
             characterId: character.CharacterID, forceRefresh: true
@@ -950,12 +953,12 @@ struct CharacterSheetView: View {
         )
         async let medalsTask = CharacterMedalsAPI.shared.fetchCharacterMedals(
             characterId: character.CharacterID)
-        
+
         do {
             // 等待位置和飞船信息
             let (location, shipInfo) = try await (locationTask, shipTask)
             Logger.info("成功获取位置信息: \(location)")
-            
+
             // 先清除旧的位置信息
             await MainActor.run {
                 self.locationDetail = nil
@@ -963,7 +966,7 @@ struct CharacterSheetView: View {
                 self.locationStatus = nil
                 self.locationTypeId = nil
             }
-            
+
             // 处理位置信息
             if let structureId = location.structure_id {
                 // 建筑物
@@ -991,8 +994,8 @@ struct CharacterSheetView: View {
                 if case let .success(rows) = databaseManager.executeQuery(
                     query, parameters: [stationId]
                 ),
-                   let row = rows.first,
-                   let typeId = row["stationTypeID"] as? Int
+                    let row = rows.first,
+                    let typeId = row["stationTypeID"] as? Int
                 {
                     if let info = await locationLoader?.loadLocationInfo(locationIds: [
                         Int64(stationId)
@@ -1019,27 +1022,27 @@ struct CharacterSheetView: View {
                     }
                 }
             }
-            
+
             // 处理飞船信息
             let query = "SELECT name FROM types WHERE type_id = ?"
             if case let .success(rows) = databaseManager.executeQuery(
                 query, parameters: [shipInfo.ship_type_id]
             ),
-               let row = rows.first,
-               let typeName = row["name"] as? String
+                let row = rows.first,
+                let typeName = row["name"] as? String
             {
                 await MainActor.run {
                     self.currentShip = shipInfo
                     self.shipTypeName = typeName
                 }
             }
-            
+
             // 保存状态到数据库
             await saveCharacterState(location: location, ship: shipInfo)
         } catch {
             Logger.error("刷新位置和飞船信息失败: \(error)")
         }
-        
+
         // 处理其他并行请求的结果
         if let fatigue = try? await fatigueTask {
             await MainActor.run {
@@ -1047,14 +1050,14 @@ struct CharacterSheetView: View {
                 self.isLoadingFatigue = false
             }
         }
-        
+
         if let status = try? await onlineTask {
             await MainActor.run {
                 self.onlineStatus = status
                 self.isLoadingOnlineStatus = false
             }
         }
-        
+
         if let publicInfo = try? await publicInfoTask {
             // 获取军团信息
             async let corpInfoTask = CorporationAPI.shared.fetchCorporationInfo(
@@ -1063,21 +1066,21 @@ struct CharacterSheetView: View {
             async let corpLogoTask = CorporationAPI.shared.fetchCorporationLogo(
                 corporationId: publicInfo.corporation_id
             )
-            
+
             if let (info, logo) = try? await (corpInfoTask, corpLogoTask) {
                 await MainActor.run {
                     self.corporationInfo = info
                     self.corporationLogo = logo
                 }
             }
-            
+
             // 获取联盟信息（如果有）
             if let allianceId = publicInfo.alliance_id {
                 async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(
                     allianceId: allianceId)
                 async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(
                     allianceID: allianceId)
-                
+
                 if let (info, logo) = try? await (allianceInfoTask, allianceLogoTask) {
                     await MainActor.run {
                         self.allianceInfo = info
@@ -1085,13 +1088,13 @@ struct CharacterSheetView: View {
                     }
                 }
             }
-            
+
             // 更新安全等级
             await MainActor.run {
                 self.securityStatus = publicInfo.security_status
             }
         }
-        
+
         // 处理奖章信息
         if let medals = try? await medalsTask {
             await MainActor.run {
@@ -1099,10 +1102,10 @@ struct CharacterSheetView: View {
                 self.isLoadingMedals = false
             }
         }
-        
+
         Logger.info("所有数据刷新完成")
     }
-    
+
     private func formatMedalDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .long
@@ -1110,7 +1113,7 @@ struct CharacterSheetView: View {
         formatter.timeZone = TimeZone(identifier: "UTC")
         return formatter.string(from: date)
     }
-    
+
     private func getSystemIcon(solarSystemId: Int, databaseManager: DatabaseManager) -> String? {
         // 使用 JOIN 联合查询 universe 和 types 表
         let query = """
@@ -1119,7 +1122,7 @@ struct CharacterSheetView: View {
                 JOIN types t ON u.system_type = t.type_id 
                 WHERE u.solarsystem_id = ?
             """
-        
+
         guard
             case let .success(rows) = databaseManager.executeQuery(
                 query, parameters: [solarSystemId]
@@ -1129,7 +1132,7 @@ struct CharacterSheetView: View {
         else {
             return nil
         }
-        
+
         return iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
     }
 }

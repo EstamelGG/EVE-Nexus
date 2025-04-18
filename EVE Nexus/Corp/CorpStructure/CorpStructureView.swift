@@ -271,7 +271,7 @@ struct StructureCell: View {
                         .frame(width: 40, height: 40)
                         .clipShape(Circle())
                 } else {
-                    Image(systemName: "building.2")
+                    Image("default_char")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 40, height: 40)
@@ -440,7 +440,7 @@ class CorpStructureViewModel: ObservableObject {
     var regionSecs: [Int: Double] = [:]
     private let characterId: Int
     private var currentMonitorDays: Int
-    
+
     init(characterId: Int) {
         self.characterId = characterId
         // 从 UserDefaults 获取保存的监控时间
@@ -495,8 +495,8 @@ class CorpStructureViewModel: ObservableObject {
         var groups: [String: [[String: Any]]] = [:]
         for structure in structures {
             if let systemId = structure["system_id"] as? Int {
-                let systemName = systemNames[systemId] ?? "Unknown"
-                let regionName = regionNames[systemId] ?? "Unknown"
+                let systemName = systemNames[systemId] ?? NSLocalizedString("Unknown", comment: "")
+                let regionName = regionNames[systemId] ?? NSLocalizedString("Unknown", comment: "")
                 let locationKey = "\(regionName) - \(systemName)"
 
                 if groups[locationKey] == nil {
@@ -536,7 +536,7 @@ class CorpStructureViewModel: ObservableObject {
                 "type_id": structure.type_id,
                 "system_id": structure.system_id,
                 "state": structure.state,
-                "name": structure.name ?? "Unknown",
+                "name": structure.name ?? NSLocalizedString("Unknown", comment: ""),
             ]
 
             if let fuelExpires = structure.fuel_expires {

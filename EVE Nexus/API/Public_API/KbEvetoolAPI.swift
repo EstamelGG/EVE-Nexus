@@ -64,7 +64,8 @@ class KbEvetoolAPI {
         // 解析JSON数据
         guard let jsonData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw NSError(
-                domain: "KbEvetoolAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "解析JSON失败: \(data)"]
+                domain: "KbEvetoolAPI", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "解析JSON失败: \(data)"]
             )
         }
 
@@ -181,7 +182,8 @@ class KbEvetoolAPI {
         // 解析 JSON 响应
         guard let zkbResults = try? JSONDecoder().decode([ZKBSearchResult].self, from: data) else {
             throw NSError(
-                domain: "KbEvetoolAPI", code: -2, userInfo: [NSLocalizedDescriptionKey: "解析JSON失败: \(data)"]
+                domain: "KbEvetoolAPI", code: -2,
+                userInfo: [NSLocalizedDescriptionKey: "解析JSON失败: \(data)"]
             )
         }
 
@@ -278,7 +280,8 @@ class KbEvetoolAPI {
         // 解析JSON数据
         guard let jsonData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw NSError(
-                domain: "KbEvetoolAPI", code: -3, userInfo: [NSLocalizedDescriptionKey: "解析JSON失败: \(data)"]
+                domain: "KbEvetoolAPI", code: -3,
+                userInfo: [NSLocalizedDescriptionKey: "解析JSON失败: \(data)"]
             )
         }
 
@@ -332,7 +335,8 @@ class KbEvetoolAPI {
         // 解析JSON数据
         guard let jsonData = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw NSError(
-                domain: "KbEvetoolAPI", code: -4, userInfo: [NSLocalizedDescriptionKey: "解析JSON失败: \(data)"]
+                domain: "KbEvetoolAPI", code: -4,
+                userInfo: [NSLocalizedDescriptionKey: "解析JSON失败: \(data)"]
             )
         }
 

@@ -6,6 +6,8 @@
   
 */
 
+"App_Language" = "zh";
+"Main_Home" = "首页";
 "Main_Character" = "人物";
 "Main_Character_Sheet" = "人物表单";
 "Main_Jump_Clones" = "克隆体";
@@ -53,7 +55,7 @@
 "Main_Market_WH_Leadsto" = "通往";
 "Main_Market_WH_Size" = "尺寸类型";
 "Select_Item" = "选择项目";
-"Main_Market" = "市场";
+"Main_Market" = "星域市场";
 "Main_Market_Watch_List" = "市场关注列表";
 "Main_Agents" = "代理人";
 "Main_WH" = "虫洞";
@@ -67,6 +69,7 @@
 "Main_Wallet_Journal" = "钱包日志";
 "Main_Industry_Jobs" = "工业任务";
 "Main_Other" = "其他";
+"Main_Unzipping_Icons" = "释放图片资源...";
 
 "Main_Setting" = "设置";
 "Main_Setting_Title" = "设置";
@@ -86,7 +89,7 @@
 "Main_Setting_Reset_Icons" = "重置图标缓存";
 "Main_Setting_Reset_Icons_Detail" = "删除图标缓存并重新释放(只有缺失图标时使用)";
 "Main_Setting_Reset_Icons_Title" = "重置图标缓存";
-"Main_Setting_Reset_Icons_Message" = "这将删除所有已下载的图标缓存并重新解压。是否确认？";
+"Main_Setting_Reset_Icons_Message" = "这将重新释放图片资源。是否确认？";
 "Main_Setting_Cancel" = "取消";
 "Main_Setting_Clean" = "清理";
 "Main_Setting_Reset" = "重置";
@@ -126,12 +129,14 @@
 "Misc_number_types" = "种";
 "Misc_per" = "每";
 "Misc_unit" = "单位";
+"Misc_Calculating" = "计算中...";
+"Misc_Level" = "等级 %d";
+"Misc_Level_Short" = "%d级";
 
 // 蓝图详情
 "Blueprint_Product" = "产品";
 "Blueprint_Invention_Product" = "发明产出";
 "Blueprint_Success_Rate" = "成功率: %d%%";
-"Blueprint_Level" = "等级 %d";
 "Time_Year" = "年";
 "Time_Month" = "月";
 "Time_Day" = "日";
@@ -169,8 +174,11 @@
 "Item_Basic_Info" = "基础信息";
 "Container_Basic_Info" = "容器";
 "Item_Volume" = "体积";
+"Item_RepackagesVolume" = "体积(打包后)";
 "Item_Capacity" = "容量";
 "Item_Mass" = "质量";
+"Item_load_error" = "无法加载物品信息.";
+"Item_details_notfound" = "未找到物品详情";
 
 // 静态资源
 "Main_Setting_Static_Resources" = "静态资源";
@@ -329,7 +337,7 @@
 
 // Assets Loading Status
 "Assets_Loading_Page" = "正在获取第%d页";
-"Assets_Loading_Calculating" = "正在计算";
+"Assets_Loading_Calculating" = "正在计算...";
 "Assets_Loading_Fetching_Names" = "正在获取名称";
 "Assets_Unknown_Location" = "未知位置";
 "Assets_Unknown_Region" = "未知星域";
@@ -369,9 +377,14 @@
 "Industry_Expired" = "已完成";
 "Industry_Remaining_Days_Hours" = "%d天%d小时后完成";
 "Industry_Remaining_Days" = "%d天后完成";
-"Industry_Remaining_Hours_Minutes" = "%d小时%d分后完成";
+"Industry_Remaining_Hours_Minutes" = "%d小时%d分钟后完成";
 "Industry_Remaining_Hours" = "%d小时后完成";
-"Industry_Remaining_Minutes" = "%d分后完成";
+"Industry_Remaining_Minutes" = "%d分钟后完成";
+"Finished_on" = "将完成于";
+"Industry_runs" = "流程";
+"Industry_copies" = "拷贝";
+"Industry_Runs_Format" = "%d流程 ×";
+"Industry_Runs_With_Copies_Format" = "%d流程 × %d拷贝";
 
 // Contract Types
 "Contract_Type_item_exchange" = "物品交换";
@@ -419,7 +432,7 @@
 "Industry_Status_delivered" = "已交付";
 "Industry_Status_completed" = "已完成";
 "Industry_Status_paused" = "已暂停";
-"Industry_Status_ready" = "已就绪";
+"Industry_Status_ready" = "可交付";
 "Industry_Status_reverted" = "已撤销";
 
 // 工业活动状态
@@ -508,7 +521,6 @@
 "Main_Skills_Queue_Count" = "技能队列 (%d)";
 "Main_Skills_Queue_Count_Time" = "技能队列 (%d) - 剩余%@";
 "Main_Skills_Queue_Count_Paused" = "技能队列 (%d) - 已暂停";
-"Main_Skills_Level" = "Lv %d";
 "Main_Skills_Points_Progress" = "%@ / %@ SP";
 "Main_Skills_Time_Remaining" = "剩余: %@";
 "Main_Skills_Time_Required" = "需要: %@";
@@ -685,7 +697,6 @@
 "Total Expense" = "总支出";
 "Transaction Dates" = "交易日期";
 "transactions" = "笔交易";
-"Transactions" = "交易记录";
 "Common_Error" = "错误";
 "Net Balance" = "净收入";
 "Orders_No_Data" = "暂无数据";
@@ -738,6 +749,9 @@
 "Main_Search_Type_Corporation" = "军团";
 "Main_Search_Type_Alliance" = "联盟";
 "Main_Search_Type_Structure" = "建筑";
+"Main_No_Corp" = "无军团";
+"Main_No_Alliance" = "无联盟";
+"Main_No_Title" = "无头衔";
 
 // 搜索过滤
 "Main_Search_Filter_Title" = "过滤条件(可留空)";
@@ -886,8 +900,8 @@
 "KillMail_Filter_All" = "全部";
 "KillMail_Filter_Kills" = "击杀";
 "KillMail_Filter_Losses" = "损失";
-"KillMail_Unknown_Item" = "未知物品";
-"KillMail_Unknown_Location" = "未知";
+"KillMail_Unknown_Item" = "未知物品(TypeID:%d)";
+"KillMail_Unknown_Location" = "未知地点";
 "KillMail_Load_More" = "获取更多";
 "KillMail_Stats_Failed" = "获取战斗统计信息失败: %@";
 
@@ -929,7 +943,6 @@
 "Main_KM_Subsystem_Slots" = "子系统";
 "Main_KM_Fighter_Tubes" = "战斗机发射管";
 "Main_KM_Cargo" = "货舱";
-"KillMail_Unknown_Item" = "未知物品";
 
 "Main_KM_Drone_Bay" = "无人机舱";
 "Main_KM_Fighter_Bay" = "战斗机舱";
@@ -1137,6 +1150,8 @@
 "Main_Language_Map_Settings" = "语言设置";
 "Misc_Done" = "完成";
 "Misc_No_Data" = "暂无数据";
+"Misc_Loading" = "加载中...";
+"Misc_Not_Found" = "未找到";
 
 "Main_Language_Map_Exact_Match" = "完全匹配";
 "Main_Language_Map_Prefix_Match" = "前缀匹配";
@@ -1237,7 +1252,7 @@
 // Agent Tags
 "Agent_Locator" = "寻人";
 "Agent_Space" = "空代";
-"Agent_Level" = "L%d";
+"Agent_Level" = "%d级";
 
 // Agent Search
 "Agent_Search_Title" = "代理人搜索";
@@ -1319,6 +1334,7 @@
 "System_Search_Placeholder" = "搜索星系...";
 "Loading_Regions" = "加载星域中...";
 "Loading_Systems" = "加载星系中...";
+"Main_Founded" = "成立时间";
 
 // Attribute Compare Tool
 "Main_Attribute_Compare" = "对比工具";
@@ -1355,6 +1371,8 @@
 "Jump_Navigation_Calculating_Jump_Distance" = "计算距离...";
 "Jump_Navigation_Max_Jump_Range" = "跳跃距离";
 "Jump_Navigation_DOTLAN_Route" = "在 Dotlan 上查看";
+"Jump_Navigation_Safety_Settings" = "安全设置";
+"Jump_Navigation_Avoid_Incursion" = "规避入侵星系";
 
 // 跳跃导航分区
 "Jump_Navigation_Ship_And_Skills" = "飞船与技能";
@@ -1385,7 +1403,7 @@
 "Jump_Navigation_Error_Path_Not_Found" = "无法找到从%@到%@的路径";
 
 "Server_Status_Online" = "服务器在线";
-"Server_Status_Offline" = "离线";
+"Server_Status_Offline" = "服务器离线";
 "Server_Status_Checking" = "检查状态中...";
 "Server_Status_Players" = " (%@名玩家)";
 
@@ -1469,3 +1487,9 @@
 "PI_Resource_Chain_Error" = "无法加载资源链信息";
 "PI_Production_Plan_P0Requirements" = "资源需求";
 "PI_Available_production" = "可选产品";
+
+// Recipient Types Text
+"Recipient_Type_Character" = "角色";
+"Recipient_Type_Corporation" = "军团";
+"Recipient_Type_Alliance" = "联盟";
+"Recipient_Type_Mailing_List" = "邮件列表";

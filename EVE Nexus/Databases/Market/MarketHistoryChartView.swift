@@ -72,11 +72,6 @@ struct MarketHistoryChartView: View {
         return dateFormatter.string(from: date).uppercased()
     }
 
-    // 获取当前总交易量
-    private var totalVolume: Int {
-        orders.filter { !$0.isBuyOrder }.reduce(0) { $0 + $1.volumeTotal }
-    }
-
     // 静态方法计算所有月份的第一个数据点
     private static func calculateFirstDaysOfMonth(in dates: [String]) -> Set<String> {
         let dateFormatter = DateFormatter()

@@ -1,16 +1,18 @@
+# EVE Nexus
+
+[中文](Readme.md) | [English](Readme.en.md)
+
 # Xcode
 
-Open Project with Xcode Version 16.2.
+使用 Xcode Version 16.2 编译
 
-# 3rd
-
-Third party plugin from:
+# 第三方依赖
 
 - **AppAuth-IOS**: https://github.com/openid/AppAuth-iOS
 - **Kingfisher**: https://github.com/onevcat/Kingfisher
 - **Zip**: https://github.com/marmelroy/Zip
 
-# format
+# 格式化
 
 ```bash
 cd "EVE Nexus" && $(xcrun --find swift-format) -r . -i --configuration .swift-format.json

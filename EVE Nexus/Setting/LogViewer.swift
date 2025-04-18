@@ -2,9 +2,7 @@ import SwiftUI
 
 struct LogViewer: View {
     @State private var logFiles: [URL] = []
-    @State private var selectedLogFile: URL?
     @State private var showingDeleteAlert = false
-    @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         List {
@@ -107,10 +105,8 @@ struct LogContentView: View {
     @State private var isLoading = true
     @State private var currentPage = 0
     @State private var searchText = ""
-    @State private var isSearching = false
     @State private var searchResults: [(lineNumber: Int, line: String)] = []
     @State private var selectedSearchResult: Int?
-    private let linesPerPage = 1000
 
     var filteredLines: [String] {
         if searchText.isEmpty {

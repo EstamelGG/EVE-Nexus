@@ -153,11 +153,6 @@ class SkillTreeManager {
         return result
     }
 
-    /// 检查是否已初始化
-    var isInitialized: Bool {
-        return !allSkills.isEmpty
-    }
-
     /// 获取技能名称
     func getSkillName(for skillID: Int) -> String? {
         return allSkills[skillID]

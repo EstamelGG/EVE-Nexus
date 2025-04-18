@@ -983,7 +983,7 @@ class DatabaseManager: ObservableObject {
     func getItemDetails(for typeID: Int) -> ItemDetails? {
         let query = """
                 SELECT name, description, icon_filename, groupID,
-                       volume, capacity, mass, marketGroupID,
+                       volume, repackaged_volume, capacity, mass, marketGroupID,
                        group_name, category_name, categoryID
                 FROM types
                 WHERE type_id = ?
@@ -1002,6 +1002,7 @@ class DatabaseManager: ObservableObject {
         {
             let groupID = row["groupID"] as? Int
             let volume = row["volume"] as? Double
+            let repackaged_volume = row["repackaged_volume"] as? Double
             let capacity = row["capacity"] as? Double
             let mass = row["mass"] as? Double
             let marketGroupID = row["marketGroupID"] as? Int
@@ -1018,6 +1019,7 @@ class DatabaseManager: ObservableObject {
                 typeId: typeID,
                 groupID: groupID,
                 volume: volume,
+                repackagedVolume: repackaged_volume,
                 capacity: capacity,
                 mass: mass,
                 marketGroupID: marketGroupID
@@ -1519,17 +1521,6 @@ class DatabaseManager: ObservableObject {
         }
         return DatabaseConfig.defaultItemIcon
     }
-
-    // MARK: - Station Info
-
-    struct StationInfo: Hashable {
-        let stationName: String
-        let stationTypeID: Int
-        let security: Double
-        let solarSystemName: String
-    }
-
-    private var stationInfoCache: [Int64: StationInfo] = [:]
 
     // 在 DatabaseManager 类中添加
     func getItemDamages(for itemID: Int) -> (em: Double, therm: Double, kin: Double, exp: Double)? {

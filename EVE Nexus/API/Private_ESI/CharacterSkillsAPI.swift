@@ -6,27 +6,12 @@ public struct CharacterSkill: Codable {
     public let skill_id: Int
     public let skillpoints_in_skill: Int
     public let trained_skill_level: Int
-
-    public init(
-        active_skill_level: Int, skill_id: Int, skillpoints_in_skill: Int, trained_skill_level: Int
-    ) {
-        self.active_skill_level = active_skill_level
-        self.skill_id = skill_id
-        self.skillpoints_in_skill = skillpoints_in_skill
-        self.trained_skill_level = trained_skill_level
-    }
 }
 
 public struct CharacterSkillsResponse: Codable {
     public let skills: [CharacterSkill]
     public let total_sp: Int
     public let unallocated_sp: Int
-
-    public init(skills: [CharacterSkill], total_sp: Int, unallocated_sp: Int) {
-        self.skills = skills
-        self.total_sp = total_sp
-        self.unallocated_sp = unallocated_sp
-    }
 }
 
 // 技能队列项目
@@ -41,11 +26,6 @@ public struct SkillQueueItem: Codable, Identifiable {
     public let finish_date: Date?
 
     public var id: Int { queue_position }
-
-    // 训练开始等级（当前等级）
-    public var training_start_level: Int {
-        finished_level - 1
-    }
 
     public var isCurrentlyTraining: Bool {
         guard let startDate = start_date,
@@ -126,10 +106,6 @@ struct CharacterAttributes: Codable {
 
 public class CharacterSkillsAPI {
     public static let shared = CharacterSkillsAPI()
-
-    // 缓存超时时间
-    private let skillQueueCacheTimeout: TimeInterval = 60 * 60  // 60 分钟缓存
-
     private init() {}
 
     // 保存技能数据到数据库

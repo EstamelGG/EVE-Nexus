@@ -11,36 +11,30 @@ struct CharacterMailDetailView: View {
     let characterId: Int
     let mail: EVEMail
     @StateObject private var viewModel = CharacterMailDetailViewModel()
-    @Environment(\.dismiss) private var dismiss
     @State private var showingComposeView = false
     @State private var composeType: ComposeType?
     @ObservedObject var databaseManager = DatabaseManager.shared
-    @State private var hasInitialized = false // 追踪是否已执行初始化
+    @State private var hasInitialized = false  // 追踪是否已执行初始化
 
     enum ComposeType {
         case reply, replyAll, forward
-
-        var title: String {
-            switch self {
-            case .reply:
-                return NSLocalizedString("Main_EVE_Mail_Reply", comment: "")
-            case .replyAll:
-                return NSLocalizedString("Main_EVE_Mail_Reply_All", comment: "")
-            case .forward:
-                return NSLocalizedString("Main_EVE_Mail_Forward", comment: "")
-            }
-        }
     }
 
     // 初始化数据加载方法
     private func loadInitialDataIfNeeded() {
         guard !hasInitialized else { return }
-        
+
         hasInitialized = true
-        
+
         Task {
             await viewModel.loadMailContent(characterId: characterId, mailId: mail.mail_id)
         }
+    }
+
+    // 添加新的方法来处理按钮点击
+    private func handleComposeButton(type: ComposeType) {
+        composeType = type
+        showingComposeView = true
     }
 
     var body: some View {
@@ -112,8 +106,7 @@ struct CharacterMailDetailView: View {
             ToolbarItemGroup(placement: .bottomBar) {
                 Spacer()
                 Button {
-                    composeType = .reply
-                    showingComposeView = true
+                    handleComposeButton(type: .reply)
                 } label: {
                     VStack {
                         Image(systemName: "arrowshape.turn.up.left.fill")
@@ -125,8 +118,7 @@ struct CharacterMailDetailView: View {
 
                 Spacer()
                 Button {
-                    composeType = .replyAll
-                    showingComposeView = true
+                    handleComposeButton(type: .replyAll)
                 } label: {
                     VStack {
                         Image(systemName: "arrowshape.turn.up.left.2.fill")
@@ -138,8 +130,7 @@ struct CharacterMailDetailView: View {
 
                 Spacer()
                 Button {
-                    composeType = .forward
-                    showingComposeView = true
+                    handleComposeButton(type: .forward)
                 } label: {
                     VStack {
                         Image(systemName: "arrowshape.turn.up.forward.fill")
@@ -168,6 +159,11 @@ struct CharacterMailDetailView: View {
         .onAppear {
             loadInitialDataIfNeeded()
         }
+        .onChange(of: showingComposeView) { _, newValue in
+            if !newValue {
+                composeType = nil
+            }
+        }
     }
 
     private func getInitialRecipients(type: ComposeType, detail: MailDetailData) -> [MailRecipient]
@@ -187,7 +183,8 @@ struct CharacterMailDetailView: View {
                 contentsOf: detail.content.recipients.map { recipient in
                     MailRecipient(
                         id: recipient.recipient_id,
-                        name: detail.recipientNames[recipient.recipient_id] ?? "未知收件人",
+                        name: detail.recipientNames[recipient.recipient_id]
+                            ?? NSLocalizedString("Unknown", comment: ""),
                         type: getRecipientType(from: recipient.recipient_type)
                     )
                 })
@@ -291,7 +288,7 @@ class CharacterMailDetailViewModel: ObservableObject {
             )
 
             // 2. 获取发件人名称
-            var senderName = "未知发件人"
+            var senderName = NSLocalizedString("Unknown", comment: "")
             if let nameInfo = try await UniverseAPI.shared.getNamesWithFallback(ids: [content.from]
             )[content.from] {
                 senderName = nameInfo.name
@@ -308,7 +305,8 @@ class CharacterMailDetailViewModel: ObservableObject {
                     .first(where: { $0.mailing_list_id == recipient.recipient_id })?.name {
                         recipientNames[recipient.recipient_id] = "[\(listName)]"
                     } else {
-                        recipientNames[recipient.recipient_id] = "[邮件列表#\(recipient.recipient_id)]"
+                        recipientNames[recipient.recipient_id] =
+                            "[\(NSLocalizedString("Main_EVE_Mail_List", comment: ""))#\(recipient.recipient_id)]"
                     }
                 case "character", "corporation", "alliance":
                     if let nameInfo = try await UniverseAPI.shared.getNamesWithFallback(ids: [
@@ -317,10 +315,11 @@ class CharacterMailDetailViewModel: ObservableObject {
                         recipientNames[recipient.recipient_id] = nameInfo.name
                     } else {
                         recipientNames[recipient.recipient_id] =
-                            "未知\(getRecipientTypeText(recipient.recipient_type))"
+                            "\(NSLocalizedString("Unknown", comment: "")) \(getRecipientTypeText(recipient.recipient_type))"
                     }
                 default:
-                    recipientNames[recipient.recipient_id] = "未知收件人"
+                    recipientNames[recipient.recipient_id] = NSLocalizedString(
+                        "Unknown", comment: "")
                 }
             }
 
@@ -344,11 +343,11 @@ class CharacterMailDetailViewModel: ObservableObject {
 
     private func getRecipientTypeText(_ type: String) -> String {
         switch type {
-        case "character": return "角色"
-        case "corporation": return "军团"
-        case "alliance": return "联盟"
-        case "mailing_list": return "邮件列表"
-        default: return "收件人"
+        case "character": return NSLocalizedString("Recipient_Type_Character", comment: "")
+        case "corporation": return NSLocalizedString("Recipient_Type_Corporation", comment: "")
+        case "alliance": return NSLocalizedString("Recipient_Type_Alliance", comment: "")
+        case "mailing_list": return NSLocalizedString("Recipient_Type_Mailing_List", comment: "")
+        default: return NSLocalizedString("Unknown", comment: "")
         }
     }
 }

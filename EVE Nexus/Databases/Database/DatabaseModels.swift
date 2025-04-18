@@ -128,6 +128,7 @@ public struct ItemDetails {
     public let typeId: Int
     public let groupID: Int?
     public let volume: Double?
+    public let repackagedVolume: Double?
     public let capacity: Double?
     public let mass: Double?
     public let marketGroupID: Int?
@@ -136,7 +137,8 @@ public struct ItemDetails {
         name: String, description: String, iconFileName: String, groupName: String,
         categoryID: Int? = nil,
         categoryName: String, roleBonuses: [Trait]? = [], typeBonuses: [Trait]? = [],
-        typeId: Int, groupID: Int?, volume: Double? = nil, capacity: Double? = nil,
+        typeId: Int, groupID: Int?, volume: Double? = nil, repackagedVolume: Double? = nil,
+        capacity: Double? = nil,
         mass: Double? = nil,
         marketGroupID: Int? = nil
     ) {
@@ -151,6 +153,7 @@ public struct ItemDetails {
         self.typeId = typeId
         self.groupID = groupID
         self.volume = volume
+        self.repackagedVolume = repackagedVolume
         self.capacity = capacity
         self.mass = mass
         self.marketGroupID = marketGroupID

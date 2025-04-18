@@ -213,7 +213,11 @@ struct NPCBrowserView: View {
             switch level {
             case .scene:
                 return AnyView(
-                    ForEach(databaseManager.getNPCScenes().sorted(by: { $0.localizedStandardCompare($1) == .orderedAscending }), id: \.self) { scene in
+                    ForEach(
+                        databaseManager.getNPCScenes().sorted(by: {
+                            $0.localizedStandardCompare($1) == .orderedAscending
+                        }), id: \.self
+                    ) { scene in
                         NavigationLink(
                             destination: NPCBrowserView(
                                 databaseManager: databaseManager, level: .faction, scene: scene
@@ -232,7 +236,11 @@ struct NPCBrowserView: View {
             case .faction:
                 if let scene = scene {
                     return AnyView(
-                        ForEach(databaseManager.getNPCFactions(for: scene).sorted(by: { $0.localizedStandardCompare($1) == .orderedAscending }), id: \.self) { faction in
+                        ForEach(
+                            databaseManager.getNPCFactions(for: scene).sorted(by: {
+                                $0.localizedStandardCompare($1) == .orderedAscending
+                            }), id: \.self
+                        ) { faction in
                             NavigationLink(
                                 destination: NPCBrowserView(
                                     databaseManager: databaseManager, level: .type, scene: scene,
@@ -260,7 +268,9 @@ struct NPCBrowserView: View {
                 if let scene = scene, let faction = faction {
                     return AnyView(
                         ForEach(
-                            databaseManager.getNPCTypes(for: scene, faction: faction).sorted(by: { $0.localizedStandardCompare($1) == .orderedAscending }), id: \.self
+                            databaseManager.getNPCTypes(for: scene, faction: faction).sorted(by: {
+                                $0.localizedStandardCompare($1) == .orderedAscending
+                            }), id: \.self
                         ) { type in
                             NavigationLink(
                                 destination: NPCBrowserView(
@@ -285,7 +295,10 @@ struct NPCBrowserView: View {
                 if let scene = scene, let faction = faction, let type = type {
                     return AnyView(
                         ForEach(
-                            databaseManager.getNPCItems(for: scene, faction: faction, type: type).sorted(by: { $0.name.localizedStandardCompare($1.name) == .orderedAscending }),
+                            databaseManager.getNPCItems(for: scene, faction: faction, type: type)
+                                .sorted(by: {
+                                    $0.name.localizedStandardCompare($1.name) == .orderedAscending
+                                }),
                             id: \.typeID
                         ) { item in
                             NavigationLink {

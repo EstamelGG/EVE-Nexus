@@ -195,7 +195,7 @@ actor AuthTokenManager: NSObject {
     /// 刷新 access token（使用 refresh token 获取新的 access token）
     private func refreshAccessToken(for characterId: Int) async throws -> String {
         Logger.info("开始刷新 access token 流程 - 角色ID: \(characterId)")
-        
+
         // 如果已经有正在进行的刷新任务，等待其完成
         if let existingTask = tokenRefreshTasks[characterId] {
             Logger.info("等待现有的token刷新任务完成 - 角色ID: \(characterId)")
@@ -288,7 +288,11 @@ actor AuthTokenManager: NSObject {
     }
 
     private func setCurrentAuthorizationFlow(_ flow: OIDExternalUserAgentSession?) {
+        // 比较前后状态来确定流程的变化
         currentAuthorizationFlow = flow
+        if currentAuthorizationFlow != nil {
+            Logger.info("currentAuthorizationFlow != nil")
+        }
     }
 
     /// 保存认证状态（包括 access token 和 refresh token）
@@ -305,11 +309,15 @@ actor AuthTokenManager: NSObject {
     func getAccessToken(for characterId: Int) async throws -> String {
         Logger.info("开始获取 access token - 角色ID: \(characterId)")
         let authState = try await getOrCreateAuthState(for: characterId)
-        Logger.info("获取到 authState: \(authState), 过期时间: \(String(describing: authState.lastTokenResponse?.accessTokenExpirationDate))")
-        
+        Logger.info(
+            "获取到 authState: \(authState), 过期时间: \(String(describing: authState.lastTokenResponse?.accessTokenExpirationDate))"
+        )
+
         // 检查状态是否有效，如果无效则强制刷新
         if !accessTokenNotExpired(authState) {
-            Logger.info("检测到token即将过期，当前过期时间: \(String(describing: authState.lastTokenResponse?.accessTokenExpirationDate))")
+            Logger.info(
+                "检测到token即将过期，当前过期时间: \(String(describing: authState.lastTokenResponse?.accessTokenExpirationDate))"
+            )
             Logger.info("开始主动刷新 token - 角色ID: \(characterId)")
             return try await refreshAccessToken(for: characterId)
         }
@@ -351,13 +359,14 @@ actor AuthTokenManager: NSObject {
         try? SecureStorage.shared.deleteRefreshToken(for: characterId)
         Logger.info("AuthTokenManager: 已删除过期的refresh token - 角色ID: \(characterId)")
         // 更新角色的 refreshTokenExpired 状态
-        EVELogin.shared.updateCharacterRefreshTokenExpiredStatus(characterId: characterId, expired: true)
+        EVELogin.shared.updateCharacterRefreshTokenExpiredStatus(
+            characterId: characterId, expired: true)
     }
 
     /// 获取或创建认证状态（使用 refresh token 恢复认证状态）
     private func getOrCreateAuthState(for characterId: Int) async throws -> OIDAuthState {
         Logger.info("开始获取或创建认证状态 - 角色ID: \(characterId)")
-        
+
         if let existingState = authStates[characterId] {
             Logger.info("找到现有的认证状态 - 角色ID: \(characterId)")
             return existingState
@@ -389,16 +398,19 @@ actor AuthTokenManager: NSObject {
 
         do {
             Logger.info("开始执行 token 刷新请求 - 角色ID: \(characterId)")
-            let response: OIDTokenResponse = try await withCheckedThrowingContinuation { continuation in
+            let response: OIDTokenResponse = try await withCheckedThrowingContinuation {
+                continuation in
                 OIDAuthorizationService.perform(request) { response, error in
                     if let error = error {
                         Logger.error("Token 刷新请求失败: \(error) - 角色ID: \(characterId)")
                         // 检查是否是invalid_grant错误
                         if let oauthError = error as NSError?,
-                           oauthError.domain == "org.openid.appauth.oauth_token",
-                           oauthError.code == -10,
-                           let errorResponse = oauthError.userInfo["OIDOAuthErrorResponseErrorKey"] as? [String: Any],
-                           errorResponse["error"] as? String == "invalid_grant" {
+                            oauthError.domain == "org.openid.appauth.oauth_token",
+                            oauthError.code == -10,
+                            let errorResponse = oauthError.userInfo["OIDOAuthErrorResponseErrorKey"]
+                                as? [String: Any],
+                            errorResponse["error"] as? String == "invalid_grant"
+                        {
                             Logger.error("检测到 invalid_grant 错误，需要重新登录 - 角色ID: \(characterId)")
                             // 处理 invalid_grant 错误
                             self.handleInvalidGrantError(characterId: characterId)
@@ -432,7 +444,8 @@ actor AuthTokenManager: NSObject {
                 ]
             )
 
-            let authState = OIDAuthState(authorizationResponse: authResponse, tokenResponse: response)
+            let authState = OIDAuthState(
+                authorizationResponse: authResponse, tokenResponse: response)
             authState.stateChangeDelegate = self
 
             authStates[characterId] = authState
@@ -442,10 +455,12 @@ actor AuthTokenManager: NSObject {
             Logger.error("创建认证状态失败: \(error) - 角色ID: \(characterId)")
             // 如果是invalid_grant错误，确保token被删除
             if let oauthError = error as NSError?,
-               oauthError.domain == "org.openid.appauth.oauth_token",
-               oauthError.code == -10,
-               let errorResponse = oauthError.userInfo["OIDOAuthErrorResponseErrorKey"] as? [String: Any],
-               errorResponse["error"] as? String == "invalid_grant" {
+                oauthError.domain == "org.openid.appauth.oauth_token",
+                oauthError.code == -10,
+                let errorResponse = oauthError.userInfo["OIDOAuthErrorResponseErrorKey"]
+                    as? [String: Any],
+                errorResponse["error"] as? String == "invalid_grant"
+            {
                 Logger.error("检测到 invalid_grant 错误，需要重新登录 - 角色ID: \(characterId)")
                 // 处理 invalid_grant 错误
                 handleInvalidGrantError(characterId: characterId)

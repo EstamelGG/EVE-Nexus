@@ -8,10 +8,6 @@ struct WealthPieSlice: Identifiable {
     let startAngle: Double
     let endAngle: Double
     let color: Color
-
-    var midAngle: Double {
-        (startAngle + endAngle) / 2
-    }
 }
 
 struct WealthPieChart: View {

@@ -75,7 +75,8 @@ struct EVECharacterInfo: Codable {
             CharacterLocation.LocationStatus.self, forKey: .locationStatus
         )
         currentSkill = try container.decodeIfPresent(CurrentSkillInfo.self, forKey: .currentSkill)
-        refreshTokenExpired = try container.decodeIfPresent(Bool.self, forKey: .refreshTokenExpired) ?? false
+        refreshTokenExpired =
+            try container.decodeIfPresent(Bool.self, forKey: .refreshTokenExpired) ?? false
         corporationId = try container.decodeIfPresent(Int.self, forKey: .corporationId)
         allianceId = try container.decodeIfPresent(Int.self, forKey: .allianceId)
         skillQueueLength = try container.decodeIfPresent(Int.self, forKey: .skillQueueLength)
@@ -415,7 +416,9 @@ class EVELogin {
     }
 
     // 获取角色信息
-    private func getCharacterInfo(token: String, forceRefresh: Bool) async throws -> EVECharacterInfo {
+    private func getCharacterInfo(token: String, forceRefresh: Bool) async throws
+        -> EVECharacterInfo
+    {
         guard let config = config,
             let verifyURL = URL(string: config.urls.verify)
         else {
@@ -499,7 +502,8 @@ class EVELogin {
         // 4. 清理 CharacterDatabase 中的相关数据
         Task {
             do {
-                try await CharacterDatabaseManager.shared.deleteCharacterData(characterId: characterId)
+                try await CharacterDatabaseManager.shared.deleteCharacterData(
+                    characterId: characterId)
                 Logger.info("已清理角色 \(characterId) 在数据库中的所有数据")
             } catch {
                 Logger.error("清理角色 \(characterId) 的数据库数据失败: \(error)")
@@ -592,15 +596,19 @@ class EVELogin {
         if let index = characters.firstIndex(where: { $0.character.CharacterID == characterId }) {
             var updatedCharacter = characters[index].character
             if updatedCharacter.refreshTokenExpired != expired {
-                Logger.info("将人物 \(characterId) 的 refresh token 过期状态从 \(updatedCharacter.refreshTokenExpired) 改为 \(expired)")
+                Logger.info(
+                    "将人物 \(characterId) 的 refresh token 过期状态从 \(updatedCharacter.refreshTokenExpired) 改为 \(expired)"
+                )
                 updatedCharacter.refreshTokenExpired = expired
-                characters[index] = CharacterAuth(character: updatedCharacter, addedDate: characters[index].addedDate, lastTokenUpdateTime: Date())
-                
+                characters[index] = CharacterAuth(
+                    character: updatedCharacter, addedDate: characters[index].addedDate,
+                    lastTokenUpdateTime: Date())
+
                 // 保存更新后的角色信息
                 if let encodedData = try? JSONEncoder().encode(characters) {
                     UserDefaults.standard.set(encodedData, forKey: charactersKey)
                 }
-                
+
                 // 发送通知以更新UI
                 NotificationCenter.default.post(
                     name: Notification.Name("CharacterDetailsUpdated"),
@@ -608,7 +616,9 @@ class EVELogin {
                     userInfo: ["character": updatedCharacter]
                 )
             } else {
-                Logger.info("人物 \(characterId) 的 refresh token 过期状态为 \(updatedCharacter.refreshTokenExpired), 无需更改")
+                Logger.info(
+                    "人物 \(characterId) 的 refresh token 过期状态为 \(updatedCharacter.refreshTokenExpired), 无需更改"
+                )
             }
         }
     }
@@ -629,7 +639,7 @@ class EVELogin {
             tokenType: token.token_type,
             characterId: character.CharacterID
         )
-        
+
         // 3. 重置refreshTokenExpired状态
         updateCharacterRefreshTokenExpiredStatus(characterId: character.CharacterID, expired: false)
 
@@ -738,21 +748,23 @@ class ScopeManager {
     func getLatestScopes(forceRefresh: Bool = false) async -> [String] {
         // 检查是否需要刷新
         var shouldRefresh = forceRefresh
-        
+
         if !shouldRefresh && FileManager.default.fileExists(atPath: latestScopesPath.path) {
             do {
-                let attributes = try FileManager.default.attributesOfItem(atPath: latestScopesPath.path)
+                let attributes = try FileManager.default.attributesOfItem(
+                    atPath: latestScopesPath.path)
                 if let modificationDate = attributes[.modificationDate] as? Date {
                     let timeInterval = Date().timeIntervalSince(modificationDate)
                     let days = Int(timeInterval) / (24 * 3600)
                     let remainingDays = 7 - days
                     shouldRefresh = timeInterval >= 7 * 24 * 3600
-                    
+
                     let dateFormatter = DateFormatter()
                     dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
                     let lastUpdateStr = dateFormatter.string(from: modificationDate)
-                    
-                    Logger.info("""
+
+                    Logger.info(
+                        """
                         Scopes 文件状态:
                         - 最后更新时间: \(lastUpdateStr)
                         - 已过去天数: \(days) 天

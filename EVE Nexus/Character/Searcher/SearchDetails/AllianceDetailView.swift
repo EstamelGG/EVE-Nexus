@@ -308,7 +308,7 @@ struct AllianceDetailView: View {
                     // 成立时间
                     if let date = ISO8601DateFormatter().date(from: allianceInfo.date_founded) {
                         HStack {
-                            Text("\(NSLocalizedString("Founded", comment: ""))")
+                            Text("\(NSLocalizedString("Main_Founded", comment: ""))")
                             Spacer()
                             Text(date, style: .date)
                                 .foregroundColor(.secondary)
