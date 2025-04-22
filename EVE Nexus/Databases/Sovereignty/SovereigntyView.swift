@@ -259,6 +259,19 @@ struct SovereigntyView: View {
 
     var body: some View {
         List {
+            Section(
+                header: Text(NSLocalizedString("Sovereignty_All", comment: "主权势力列表"))
+                            .fontWeight(.bold)
+                            .font(.system(size: 18))
+                            .foregroundColor(.primary)
+                            .textCase(.none)
+                ) {
+                NavigationLink(destination: SovereigntyListView(databaseManager: DatabaseManager.shared)) {
+                    Text(NSLocalizedString("Sovereignty_List", comment: "主权势力列表"))
+                            .foregroundColor(.primary)
+                }
+            }
+            
             if viewModel.isLoading {
                 ProgressView()
                     .frame(maxWidth: .infinity)

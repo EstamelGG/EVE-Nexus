@@ -848,6 +848,8 @@ struct MarketQuickbarDetailView: View {
                         Text(NSLocalizedString("Main_Market_Location", comment: ""))
                         Spacer()
                         Button {
+                            // 在打开选择器之前，确保 selectedRegionID 与当前 quickbar.regionID 一致
+                            selectedRegionID = quickbar.regionID
                             showRegionPicker = true
                         } label: {
                             HStack {
@@ -863,18 +865,25 @@ struct MarketQuickbarDetailView: View {
                             .cornerRadius(8)
                         }
                     }
-                    .onChange(of: selectedRegionID) { _, newValue in
-                        // 更新市场位置
-                        if let region = regions.first(where: { $0.id == newValue }) {
-                            quickbar.regionID = region.id
-                            selectedRegion = region.name
-                            // 更改市场位置时立即保存
-                            Logger.info("市场位置更改，进行保存")
-                            MarketQuickbarManager.shared.saveQuickbar(quickbar)
-                            Task {
-                                // 强制刷新市场订单
-                                await loadAllMarketOrders(forceRefresh: true)
+                    .onChange(of: quickbar.regionID) { oldValue, newValue in
+                        if oldValue != newValue {
+                            // 更新显示
+                            if let region = regions.first(where: { $0.id == newValue }) {
+                                selectedRegion = region.name
+                                selectedRegionName = region.name
                             }
+                            // 保存更改
+                            MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                            // 强制刷新市场订单
+                            Task {
+                                await loadAllMarketOrders()
+                            }
+                        }
+                    }
+                    .onChange(of: selectedRegionID) { oldValue, newValue in
+                        if oldValue != newValue {
+                            // 更新 quickbar 的 regionID
+                            quickbar.regionID = newValue
                         }
                     }
 
@@ -930,7 +939,7 @@ struct MarketQuickbarDetailView: View {
                         // 删除物品后自动加载市场订单
                         Task {
                             // 强制刷新市场订单
-                            await loadAllMarketOrders(forceRefresh: true)
+                            await loadAllMarketOrders()
                         }
                     }
                 } header: {
@@ -997,7 +1006,7 @@ struct MarketQuickbarDetailView: View {
                         MarketQuickbarManager.shared.saveQuickbar(quickbar)
                         // 添加物品后自动加载市场订单
                         Task {
-                            await loadAllMarketOrders(forceRefresh: true)
+                            await loadAllMarketOrders()
                         }
                     }
                 },
@@ -1048,7 +1057,7 @@ struct MarketQuickbarDetailView: View {
 
         // 计算并发数
         let concurrency = max(1, min(10, items.count))
-
+        Logger.info("强制刷新: \(forceRefresh)")
         // 创建任务组
         await withTaskGroup(of: (Int, [MarketOrder])?.self) { group in
             var pendingItems = items

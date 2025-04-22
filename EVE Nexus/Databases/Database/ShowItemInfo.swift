@@ -22,7 +22,7 @@ struct ShowItemInfo: View {
 
         // Role Bonuses
         if !roleBonuses.isEmpty {
-            text += "<b>\(NSLocalizedString("Main_Database_Role_Bonuses", comment: ""))</b>\n"
+            text += "- <b>\(NSLocalizedString("Main_Database_Role_Bonuses", comment: ""))</b>\n"
             text +=
                 roleBonuses
                 .map { "• \($0.content)" }
@@ -43,7 +43,7 @@ struct ShowItemInfo: View {
             for skill in sortedSkills {
                 if let skillName = databaseManager.getTypeName(for: skill) {
                     text +=
-                        "<b>\(skillName)</b> \(NSLocalizedString("Main_Database_Bonuses_Per_Level", comment: ""))\n"
+                        "- <a href=showinfo:\(skill)>\(skillName)</a> \(NSLocalizedString("Main_Database_Bonuses_Per_Level", comment: ""))\n"
 
                     let bonuses =
                         groupedBonuses[skill]?.sorted(by: { $0.importance < $1.importance }) ?? []
@@ -92,7 +92,7 @@ struct ShowItemInfo: View {
                             .font(.headline)
                     }
                 }
-
+                
                 // 属性 Sections
                 AttributesView(
                     attributeGroups: attributeGroups,

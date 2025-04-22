@@ -473,9 +473,10 @@ struct AttributeCompareDetailView: View {
                 // 对比结果部分 - 显示每个属性的对比
                 if let result = compareResult, items.count >= 2 {
                     // 合并已发布和未发布的属性
-                    let allAttributes = result.publishedAttributeInfo.merging(
-                        result.unpublishedAttributeInfo
-                    ) { (published, _) in published }
+                    let allAttributes = result.publishedAttributeInfo
+//                     let allAttributes = result.publishedAttributeInfo.merging(
+//                         result.unpublishedAttributeInfo
+//                     ) { (published, _) in published }
 
                     // 获取所有属性ID，并按数字大小排序
                     let sortedAttributeIDs = allAttributes.keys.sorted {
@@ -774,12 +775,13 @@ extension AttributeCompareUtil {
 
             let unitID = row["unitID"] as? Int
             let displayName = row["display_name"] as? String
-            let name = row["name"] as? String
+            // let name = row["name"] as? String
             let iconID = row["iconID"] as? Int
             let iconFileName = (row["icon_filename"] as? String) ?? ""
 
             // 属性名称处理
-            let attributeName = displayName.flatMap { $0.isEmpty ? nil : $0 } ?? name ?? "未知属性"
+            let attributeName = displayName ?? "Unknown Attribute"
+            // let attributeName = displayName.flatMap { $0.isEmpty ? nil : $0 } ?? name ?? "未知属性"
 
             let attributeIDString = String(attributeID)
             let typeIDString = String(typeID)
@@ -842,12 +844,13 @@ extension AttributeCompareUtil {
                     dogmaAttributes
                 WHERE 
                     attribute_id IN (\(attributeIDsString))
+                AND unitID NOT IN (115, 116, 119)  -- typeid类的属性值不看
             """
 
         // 已发布属性信息 (有display_name的)
         var publishedAttributeInfo: [String: String] = [:]
-        // 未发布属性信息 (只有name的)
-        var unpublishedAttributeInfo: [String: String] = [:]
+//         // 未发布属性信息 (只有name的)
+//         var unpublishedAttributeInfo: [String: String] = [:]
 
         if case let .success(attributeRows) = databaseManager.executeQuery(attributeQuery) {
             for row in attributeRows {
@@ -856,16 +859,17 @@ extension AttributeCompareUtil {
                 }
 
                 let displayName = row["display_name"] as? String
-                let name = row["name"] as? String
+//                 let name = row["name"] as? String
                 let attributeIDString = String(attributeID)
 
                 if let displayName = displayName, !displayName.isEmpty {
                     // 有display_name的属性放入已发布列表
                     publishedAttributeInfo[attributeIDString] = displayName
-                } else if let name = name {
-                    // 只有name的属性放入未发布列表
-                    unpublishedAttributeInfo[attributeIDString] = name
                 }
+//                 } else if let name = name {
+//                     // 只有name的属性放入未发布列表
+//                     unpublishedAttributeInfo[attributeIDString] = name
+//                 }
             }
         }
 
@@ -874,7 +878,7 @@ extension AttributeCompareUtil {
             compareResult: attributeValues,
             typeInfo: typeInfo,
             publishedAttributeInfo: publishedAttributeInfo,
-            unpublishedAttributeInfo: unpublishedAttributeInfo,
+            // unpublishedAttributeInfo: unpublishedAttributeInfo,
             attributeIcons: attributeIcons
         )
 

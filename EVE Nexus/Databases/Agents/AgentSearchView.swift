@@ -1901,14 +1901,14 @@ struct SolarSystemSearchView: View {
                             dismiss()
                         }) {
                             HStack {
+                                // 显示安全等级
+                                Text(String(format: "%.1f", security))
+                                    .foregroundColor(getSecurityColor(security))
+                                    .font(.system(.body, design: .monospaced))
                                 Text(systemName)
                                     .foregroundColor(.primary)
 
                                 Spacer()
-
-                                // 显示安全等级
-                                Text(String(format: "%.1f", security))
-                                    .foregroundColor(getSecurityColor(security))
 
                                 if selectedSolarSystemID == systemID {
                                     Image(systemName: "checkmark")

@@ -217,6 +217,16 @@ enum AttributeDisplayConfig {
     static var customGroupOrder: [Int: Int]?
     static var customHiddenGroups: Set<Int>?
     static var customHiddenAttributes: Set<Int>?
+    
+    // 只显示重要属性（有displayName的属性）
+    static var showImportantOnly: Bool {
+        get {
+            return UserDefaults.standard.bool(forKey: "ShowImportantOnly")
+        }
+        set {
+            UserDefaults.standard.set(newValue, forKey: "ShowImportantOnly")
+        }
+    }
 
     // 获取实际使用的配置
     static var activeGroupOrder: [Int: Int] {
@@ -257,6 +267,11 @@ enum AttributeDisplayConfig {
         // 如果属性在隐藏列表中，不显示
         if activeHiddenAttributes.contains(attributeID) {
             return false
+        }
+
+        // 如果开启了仅显示重要属性模式，则只显示有displayName的属性
+        if showImportantOnly {
+            return attribute.displayName != nil && !attribute.name.isEmpty
         }
 
         // 在完整模式下，显示所有有name的属性

@@ -456,7 +456,7 @@ struct SystemJumpRow: View {
                         .font(.system(.body, design: .monospaced))
 
                     Text(systemName)
-                        .fontWeight(.medium)
+                        .foregroundColor(.primary)
                 }
 
                 // 第二行：只在有联盟/派系名称时显示

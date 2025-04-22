@@ -38,11 +38,13 @@
 "Main_Database_Item_info_NonImmune" = "不免疫";
 "Main_Database_Item_info_Reprocess" = "精炼产出";
 "Main_Database_Source" = "精炼来源";
-"Main_Database_Role_Bonuses" = "Role Bonuses";
+"Main_Database_Role_Bonuses" = "特有加成";
 "Main_Database_Bonuses_Per_Level" = "每级技能加成";
 "Main_Database_Required_By" = "技能等级适用于";
 "Main_Database_NPC_Scene" = "NPC";
 "Main_Database_NPC_Ships" = "舰船";
+"Main_Database_Show_Important_Only" = "只展示重要属性";
+"Main_Database_Show_Important_Only_Detail" = "在数据库中只展示物品的重要属性";
 "Main_Market_Current_Price" = "当前售价";
 "Main_Market_Price_History" = "历史价格";
 "Main_Market_Show_market_orders" = "查看市场订单";
@@ -73,7 +75,8 @@
 
 "Main_Setting" = "设置";
 "Main_Setting_Title" = "设置";
-"Main_Setting_Language" = "语言";
+"Main_Setting_Language" = "APP语言";
+"Main_Setting_Database_Language" = "数据库语言";
 "Main_Setting_Select_your_language" = "选择语言";
 "Main_Setting_Appearance" = "外观";
 "Main_Setting_ColorMode" = "颜色模式";
@@ -234,6 +237,7 @@
 "Main_Market_All_Regions" = "所有星域";
 "Main_Market_Edit" = "编辑";
 "Main_Market_Done" = "完成";
+"Main_Market_Detail" = "市场详情";
 "Main_Market_Add_Region" = "管理常用星域";
 
 // Account Management
@@ -1424,6 +1428,7 @@
 // 主权选择相关
 "Loading_Sovereignty" = "加载主权信息中...";
 "Sovereignty_All" = "所有主权";
+"Sovereignty_List" = "主权列表";
 "Sovereignty_Search_Title" = "选择主权";
 "Sovereignty_Search_Placeholder" = "搜索主权势力...";
 "Sovereignty_Systems" = "个星系";
