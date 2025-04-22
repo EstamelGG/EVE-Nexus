@@ -125,7 +125,7 @@ enum RichTextProcessor {
         )
 
         // 5. 删除所有非白名单的HTML标签（除了链接相关的标签）
-        let pattern = "<(?!/?(a|url))[^>]*>"
+        let pattern = "<(?!/?(a|b|url))[^>]*>"
         if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
             let range = NSRange(currentText.startIndex..<currentText.endIndex, in: currentText)
             currentText = regex.stringByReplacingMatches(

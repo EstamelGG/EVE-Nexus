@@ -30,7 +30,16 @@ class DatabaseManager: ObservableObject {
 
     // 获取本地化的数据库名称
     private func getLocalizedDatabaseName() -> String? {
-        return NSLocalizedString("DatabaseName", comment: "数据库文件名基于语言")
+        let dbLanguage = UserDefaults.standard.string(forKey: "selectedDatabaseLanguage") ?? "en"
+        // 根据数据库语言选择相应的数据库文件
+        switch dbLanguage {
+        case "zh-Hans":
+            return "item_db_zh"
+        case "en":
+            return "item_db_en"
+        default:
+            return "item_db_en" // 默认使用英文数据库
+        }
     }
 
     // 清除查询缓存
@@ -273,10 +282,10 @@ class DatabaseManager: ObservableObject {
                        t.rig_slot as rigSlot, t.gun_slot as gunSlot, t.miss_slot as missSlot,
                        t.group_name as groupName
                 FROM types t
-                WHERE t.name LIKE ? OR t.en_name LIKE ? OR t.type_id = ?
+                WHERE t.name LIKE ? OR t.en_name LIKE ? OR t.zh_name LIKE ? OR t.de_name LIKE ? OR t.es_name LIKE ? OR t.fr_name LIKE ? OR t.ja_name LIKE ? OR t.ko_name LIKE ? OR t.ru_name LIKE ? OR t.type_id = ?
             """
 
-        var parameters: [Any] = ["%\(searchText)%", "%\(searchText)%", "\(searchText)"]
+        var parameters: [Any] = ["%\(searchText)%", "%\(searchText)%", "%\(searchText)%", "%\(searchText)%", "%\(searchText)%", "%\(searchText)%", "%\(searchText)%", "%\(searchText)%", "%\(searchText)%", "\(searchText)"]
 
         if let categoryID = categoryID {
             query += " AND t.categoryID = ?"
@@ -289,7 +298,7 @@ class DatabaseManager: ObservableObject {
         }
 
         query += " ORDER BY t.groupID, t.metaGroupID LIMIT 200"
-
+        Logger.info(query)
         let result = executeQuery(query, parameters: parameters)
         var items: [DatabaseListItem] = []
         var groupNames: [Int: String] = [:]

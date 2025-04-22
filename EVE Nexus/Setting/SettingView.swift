@@ -424,6 +424,35 @@ struct SettingView: View {
         }
     }
 
+    private struct ShowImportantAttributesToggle: View {
+        @State private var showImportantOnly: Bool = AttributeDisplayConfig.showImportantOnly
+        
+        var body: some View {
+            HStack {
+                Toggle(isOn: $showImportantOnly) {
+                    VStack(alignment: .leading) {
+                        Text(
+                            NSLocalizedString("Main_Database_Show_Important_Only", comment: "只显示重要属性")
+                        )
+                        .font(.system(size: 16))
+                        .foregroundColor(.primary)
+                        Text(
+                            NSLocalizedString(
+                                "Main_Database_Show_Important_Only_Detail", comment: "只显示有display_name的属性"
+                            )
+                        )
+                        .font(.system(size: 12))
+                        .foregroundColor(.gray)
+                    }
+                }
+                .tint(.green)
+                .onChange(of: showImportantOnly) { _, newValue in
+                    AttributeDisplayConfig.showImportantOnly = newValue
+                }
+            }
+        }
+    }
+
     private func createCorporationAffairsGroup() -> SettingGroup {
         SettingGroup(
             header: NSLocalizedString("Main_Setting_Corporation_Affairs", comment: ""),
@@ -457,6 +486,14 @@ struct SettingView: View {
                     iconColor: .blue,
                     action: { showingESIStatusView = true }
                 ),
+                SettingItem(
+                    title: NSLocalizedString("Main_Database_Attribute_Settings", comment: "属性显示设置"),
+                    detail: nil,
+                    iconColor: .blue,
+                    action: {}
+                ) { _ in
+                    AnyView(ShowImportantAttributesToggle())
+                }
                 //            SettingItem(
                 //                title: NSLocalizedString("Main_Setting_Logs", comment: ""),
                 //                detail: NSLocalizedString("Main_Setting_Logs_Detail", comment: ""),

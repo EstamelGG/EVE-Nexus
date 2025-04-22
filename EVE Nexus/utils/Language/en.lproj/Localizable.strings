@@ -81,7 +81,8 @@
 
 "Main_Setting" = "Setting";
 "Main_Setting_Title" = "Setting";
-"Main_Setting_Language" = "Language";
+"Main_Setting_Language" = "App Language";
+"Main_Setting_Database_Language" = "Database Language";
 "Main_Setting_Select_your_language" = "Select your language";
 "Main_Setting_Appearance" = "Appearance";
 "Main_Setting_ColorMode" = "Appearance Mode";
@@ -94,6 +95,8 @@
 "Main_Setting_Clean_Cache" = "Clean Cache";
 "Main_Database_Role_Bonuses" = "Role Bonuses";
 "Main_Database_Bonuses_Per_Level" = "bonuses per level";
+"Main_Database_Show_Important_Only" = "Important Attributes Only";
+"Main_Database_Show_Important_Only_Detail" = "Only show important attributes in database function.";
 
 "Main_About" = "About";
 "Main_About_Title" = "About";
@@ -255,6 +258,7 @@
 "Main_Market_Edit" = "Edit";
 "Main_Market_Done" = "Done";
 "Main_Market_Add_Region" = "Manage Region";
+"Main_Market_Detail" = "Market Detail";
 "Account_Logout" = "Logout";
 // Account Management
 "Account_Management" = "Character Management";
@@ -1388,6 +1392,7 @@
 // Sovereignty Selection
 "Loading_Sovereignty" = "Loading sovereignty data...";
 "Sovereignty_All" = "All Sovereignty";
+"Sovereignty_List" = "Sovereignty List";
 "Sovereignty_Search_Title" = "Select Sovereignty";
 "Sovereignty_Search_Placeholder" = "Search sovereignty...";
 "Sovereignty_Systems" = " systems";

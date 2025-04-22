@@ -127,41 +127,42 @@ struct MarketRegionPickerView: View {
             systems.append(CommonSystem(id: id, name: name))
         }
 
-        // 获取星系对应的星域ID和星系名称
-        for i in 0..<systems.count {
-            if let regionInfo = getRegionForSystem(systemID: Int(systems[i].id) ?? 0) {
-                systems[i].regionID = regionInfo.regionID
-                systems[i].regionName = regionInfo.regionName
-                systems[i].systemName = regionInfo.systemName
+        // 获取所有星系ID
+        let systemIDs = systems.map { Int($0.id) ?? 0 }
+        
+        // 使用 IN 语句一次性查询所有星系信息
+        let query = """
+                SELECT r.regionID, r.regionName, s.solarSystemName, s.solarSystemID
+                FROM universe u
+                JOIN regions r ON u.region_id = r.regionID
+                JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
+                WHERE s.solarSystemID IN (\(systemIDs.map { String($0) }.joined(separator: ",")))
+            """
+
+        if case let .success(rows) = databaseManager.executeQuery(query) {
+            // 创建星系ID到星系信息的映射
+            let systemInfoMap = Dictionary(uniqueKeysWithValues: rows.compactMap { row -> (Int, (Int, String, String))? in
+                guard let systemID = row["solarSystemID"] as? Int,
+                      let regionID = row["regionID"] as? Int,
+                      let regionName = row["regionName"] as? String,
+                      let systemName = row["solarSystemName"] as? String else {
+                    return nil
+                }
+                return (systemID, (regionID, regionName, systemName))
+            })
+
+            // 更新所有星系信息
+            for i in 0..<systems.count {
+                if let systemID = Int(systems[i].id),
+                   let info = systemInfoMap[systemID] {
+                    systems[i].regionID = info.0
+                    systems[i].regionName = info.1
+                    systems[i].systemName = info.2
+                }
             }
         }
 
         commonSystems = systems
-    }
-
-    // 根据星系ID获取对应的星域信息和星系名称
-    private func getRegionForSystem(systemID: Int) -> (
-        regionID: Int, regionName: String, systemName: String
-    )? {
-        let query = """
-                SELECT r.regionID, r.regionName, s.solarSystemName
-                FROM universe u
-                JOIN regions r ON u.region_id = r.regionID
-                JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
-                WHERE u.solarsystem_id = ?
-            """
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [systemID]) {
-            if let row = rows.first,
-                let regionID = row["regionID"] as? Int,
-                let regionName = row["regionName"] as? String,
-                let systemName = row["solarSystemName"] as? String
-            {
-                return (regionID, regionName, systemName)
-            }
-        }
-
-        return nil
     }
 
     // 更新分组数据
@@ -224,7 +225,6 @@ struct MarketRegionPickerView: View {
     }
 
     private func savePinnedRegions() {
-        guard saveSelection else { return }
         let pinnedIDs = pinnedRegions.map { $0.id }
         UserDefaultsManager.shared.pinnedRegionIDs = pinnedIDs
     }
@@ -574,7 +574,7 @@ struct MarketItemDetailView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle(NSLocalizedString("Main_Market", comment: "市场详情"))
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {

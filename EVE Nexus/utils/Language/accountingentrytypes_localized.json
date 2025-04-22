@@ -1657,6 +1657,14 @@
             "zh": [
                 "击毁权"
             ]
+        },
+        "entryJournalMessage": {
+            "en": [
+                "{buyer} bought kill right on {name} from {seller}"
+            ],
+            "zh": [
+                "{buyer}从{seller}手中买到了对{name}的击毁权"
+            ]
         }
     },
     "security_processing_fee": {

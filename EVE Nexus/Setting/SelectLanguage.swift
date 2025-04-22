@@ -28,11 +28,14 @@ struct SelectLanguageView: View {
     ]
 
     @AppStorage("selectedLanguage") private var selectedLanguage: String = "en"
+    @AppStorage("selectedDatabaseLanguage") private var selectedDatabaseLanguage: String = "en"
     @ObservedObject var databaseManager: DatabaseManager
     @State private var displayLanguage: String = "English"
+    @State private var displayDatabaseLanguage: String = "English"
 
     var body: some View {
         List {
+            // APP语言设置部分
             Section {
                 ForEach(languages.keys.sorted(), id: \.self) { language in
                     LanguageOptionView(
@@ -51,6 +54,26 @@ struct SelectLanguageView: View {
                     .font(.headline)
                     .foregroundColor(.primary)
             }
+            
+            // 数据库语言设置部分
+            Section {
+                ForEach(languages.keys.sorted(), id: \.self) { language in
+                    LanguageOptionView(
+                        language: language,
+                        isSelected: language == displayDatabaseLanguage,
+                        onTap: {
+                            if language != displayDatabaseLanguage {
+                                displayDatabaseLanguage = language
+                                applyDatabaseLanguageChange(language)
+                            }
+                        }
+                    )
+                }
+            } header: {
+                Text(NSLocalizedString("Main_Setting_Database_Language", comment: "数据库语言"))
+                    .font(.headline)
+                    .foregroundColor(.primary)
+            }
         }
         .navigationTitle(NSLocalizedString("Main_Setting_Select_Language", comment: ""))
         .onAppear(perform: setupInitialLanguage)
@@ -64,6 +87,15 @@ struct SelectLanguageView: View {
             // 如果没有匹配的语言，默认使用英语
             displayLanguage = "English"
             selectedLanguage = "en"
+        }
+        
+        // 根据当前 selectedDatabaseLanguage 设置数据库显示语言
+        if let defaultDBLanguage = languages.first(where: { $0.value == selectedDatabaseLanguage })?.key {
+            displayDatabaseLanguage = defaultDBLanguage
+        } else {
+            // 如果没有匹配的语言，默认使用英语
+            displayDatabaseLanguage = "English"
+            selectedDatabaseLanguage = "en"
         }
     }
 
@@ -94,6 +126,27 @@ struct SelectLanguageView: View {
             // 发送通知以重新加载UI
             NotificationCenter.default.post(
                 name: NSNotification.Name("LanguageChanged"), object: nil
+            )
+        }
+    }
+    
+    private func applyDatabaseLanguageChange(_ language: String) {
+        guard let languageCode = languages[language] else { return }
+        
+        // 1. 保存新的数据库语言设置
+        selectedDatabaseLanguage = languageCode
+        
+        // 2. 清除数据库相关缓存
+        DatabaseBrowserView.clearCache()  // 清除导航缓存
+        databaseManager.clearCache()  // 清除 SQL 查询缓存
+        
+        // 3. 重新加载数据库，使用新的语言设置
+        databaseManager.loadDatabase()
+        
+        // 4. 发送通知，更新数据库相关视图
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            NotificationCenter.default.post(
+                name: NSNotification.Name("DatabaseLanguageChanged"), object: nil
             )
         }
     }
