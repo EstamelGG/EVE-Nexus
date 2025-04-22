@@ -56,7 +56,8 @@ struct SkillDependencyListView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(Text("Level \(level)"))
+        .navigationTitle(
+            Text(String(format: NSLocalizedString("Misc_Level", comment: "lv%d"), level)))
     }
 }
 
@@ -94,7 +95,10 @@ struct SkillDependencySection: View {
                                     .frame(width: 32, height: 32)
                                     .cornerRadius(6)
 
-                                Text("Level \(level)")
+                                Text(
+                                    String(
+                                        format: NSLocalizedString("Misc_Level", comment: "lv%d"),
+                                        level))
                             }
                         }
                     }

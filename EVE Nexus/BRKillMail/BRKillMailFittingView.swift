@@ -1,5 +1,4 @@
 import Foundation
-import Kingfisher
 import SwiftUI
 
 // 槽位类型定义
@@ -83,7 +82,6 @@ struct BRKillMailFittingView: View {
 
     // 添加飞船图片状态
     @State private var shipImage: Image?
-    @State private var shipTypeId: Int?
     @State private var equipmentIcons: [Int: Image] = [:]
     @State private var isLoading = true
 
@@ -144,14 +142,16 @@ struct BRKillMailFittingView: View {
     private func loadKillMailData() async {
         // 首先尝试获取飞船ID并加载飞船图片
         if let victInfo = killMailData["vict"] as? [String: Any],
-           let shipId = victInfo["ship"] as? Int {
+            let shipId = victInfo["ship"] as? Int
+        {
             await loadShipImage(typeId: shipId)
         }
-        
+
         // 然后处理装备数据
         if let victInfo = killMailData["vict"] as? [String: Any],
-           let items = victInfo["itms"] as? [[Int]],
-           let shipId = victInfo["ship"] as? Int {
+            let items = victInfo["itms"] as? [[Int]],
+            let shipId = victInfo["ship"] as? Int
+        {
             Logger.debug("装配图标: 开始处理击毁数据，飞船ID: \(shipId)，装备数量: \(items.count)")
 
             // 按槽位ID分组物品，并收集所有不重复的typeId

@@ -20,7 +20,6 @@ class CachedData<T> {
 @NetworkManagerActor
 class NetworkManager: NSObject, @unchecked Sendable {
     static let shared = NetworkManager()
-    var regionID: Int = 10_000_002  // 默认为 The Forge
     private let retrier: RequestRetrier
     private let rateLimiter: RateLimiter
     private let session: URLSession
@@ -32,17 +31,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
     // 图片缓存
     private let imageCache = NSCache<NSString, CachedData<UIImage>>()
     private var imageCacheKeys = Set<String>()  // 跟踪图片缓存的键
-
-    // 同步队列
-    private let cacheQueue = DispatchQueue(
-        label: "com.eve.nexus.network.cache", attributes: .concurrent
-    )
-    private let imageQueue = DispatchQueue(
-        label: "com.eve.nexus.network.image", attributes: .concurrent
-    )
-    private let marketQueue = DispatchQueue(
-        label: "com.eve.nexus.network.market", attributes: .concurrent
-    )
 
     // 添加并发控制信号量
     private let concurrentSemaphore = DispatchSemaphore(value: 8)

@@ -170,7 +170,9 @@ enum RichTextProcessor {
                         let idEnd = linkText.range(of: ">")?.lowerBound
                     {
                         let idString = String(linkText[idStart..<idEnd])
-                        if let itemID = Int(idString), idString.range(of: "^\\d+$", options: .regularExpression) != nil {
+                        if let itemID = Int(idString),
+                            idString.range(of: "^\\d+$", options: .regularExpression) != nil
+                        {
                             // 有效的showinfo链接，设置为可点击
                             attributedString.replaceSubrange(
                                 start..<end, with: AttributedString(displayText)
@@ -250,7 +252,9 @@ enum RichTextProcessor {
                     // 处理showinfo链接
                     if url.contains("showinfo:") {
                         let idString = url.replacingOccurrences(of: "showinfo:", with: "")
-                        if let itemID = Int(idString), idString.range(of: "^\\d+$", options: .regularExpression) != nil {
+                        if let itemID = Int(idString),
+                            idString.range(of: "^\\d+$", options: .regularExpression) != nil
+                        {
                             // 有效的showinfo链接，设置为可点击
                             attributedString.replaceSubrange(
                                 start..<end, with: AttributedString(displayText)

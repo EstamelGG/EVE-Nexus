@@ -45,17 +45,6 @@ struct SettingGroup: Identifiable {
     let items: [SettingItem]
 }
 
-// MARK: - 缓存模型
-
-struct CacheStats {
-    var size: Int64
-    var count: Int
-
-    static func + (lhs: CacheStats, rhs: CacheStats) -> CacheStats {
-        return CacheStats(size: lhs.size + rhs.size, count: lhs.count + rhs.count)
-    }
-}
-
 // MARK: - 缓存管理器
 
 class CacheManager {
@@ -87,10 +76,11 @@ class CacheManager {
         "AssetCache",  // 资产缓存
         "StaticDataSet",  // 临时静态数据
         "ContactsCache",  // 声望
-        "kb", // 战斗日志
-        "BRKillmails",// 战斗日志细节
-        "MarketCache", // 市场价格细节
-        "Planetary", // 行星开发
+        "kb",  // 战斗日志
+        "BRKillmails",  // 战斗日志细节
+        "MarketCache",  // 市场价格细节
+        "Planetary",  // 行星开发
+        "CharacterOrders",  // 人物市场订单
     ]
 
     // 获取缓存目录列表
@@ -265,23 +255,18 @@ struct SettingView: View {
     // MARK: - 属性定义
 
     @AppStorage("selectedTheme") private var selectedTheme: String = "system"
-    @AppStorage("showCorporationAffairs") private var showCorporationAffairs: Bool = false
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
     @State private var showingCleanCacheAlert = false
     @State private var showingDeleteIconsAlert = false
     @State private var showingLanguageView = false
     @State private var cacheSize: String = "Calc..."
     @ObservedObject var databaseManager: DatabaseManager
-    @State private var cacheDetails: [String: CacheStats] = [:]
     @State private var isCleaningCache = false
     @State private var isReextractingIcons = false
     @State private var unzipProgress: Double = 0
     @State private var loadingState: LoadingState = .processing
     @State private var showingLoadingView = false
     @State private var settingGroups: [SettingGroup] = []
-    @State private var resourceInfoCache: [String: String] = [:]
     @State private var showingLogViewer = false
-    @State private var showResetIconsAlert = false
     @State private var showResetDatabaseAlert = false
     @State private var showResetDatabaseSuccessAlert = false
     @State private var showingESIStatusView = false

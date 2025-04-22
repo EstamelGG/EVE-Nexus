@@ -126,7 +126,8 @@ struct AccountsView: View {
                             if error.localizedDescription.lowercased().contains("invalid_scope") {
                                 Logger.info("检测到无效权限，尝试重新获取最新的 scopes")
                                 // 强制刷新获取最新的 scopes
-                                let scopes = await ScopeManager.shared.getLatestScopes(forceRefresh: true)
+                                let scopes = await ScopeManager.shared.getLatestScopes(
+                                    forceRefresh: true)
 
                                 do {
                                     // 使用新的 scopes 重试登录
@@ -621,7 +622,7 @@ struct AccountsView: View {
                             let current_access_token = try await AuthTokenManager.shared
                                 .getAccessToken(for: characterAuth.character.CharacterID)
                             Logger.info(
-                                "获得角色Token \(characterAuth.character.CharacterName)(\(characterAuth.character.CharacterID)) token: \(String(reflecting: current_access_token))"
+                                "获得角色Token \(characterAuth.character.CharacterName)(\(characterAuth.character.CharacterID)) token: \(String(reflecting: current_access_token)), 上次token更新: \(characterAuth.lastTokenUpdateTime)"
                             )
 
                             // 并行获取所有数据
@@ -1002,7 +1003,6 @@ struct CharacterRowView: View {
     let formatISK: (Double) -> String
     let formatSkillPoints: (Int) -> String
     let formatRemainingTime: (TimeInterval) -> String
-    @State private var currentSkillName: String = ""
 
     var body: some View {
         HStack {
@@ -1038,10 +1038,11 @@ struct CharacterRowView: View {
                 .padding(4)
             } else {
                 ZStack {
-                    Image(systemName: "person.crop.circle.fill")
+                    Image("default_char")
                         .resizable()
+                        .aspectRatio(contentMode: .fill)
                         .frame(width: 64, height: 64)
-                        .foregroundColor(.gray)
+                        .clipShape(Circle())
 
                     if isRefreshing {
                         Circle()
@@ -1079,7 +1080,7 @@ struct CharacterRowView: View {
                             Text("0.0")
                                 .foregroundColor(.gray)
                                 .redacted(reason: .placeholder)
-                            Text("Loading...")
+                            Text(NSLocalizedString("Misc_Loading", comment: ""))
                                 .foregroundColor(.gray)
                                 .redacted(reason: .placeholder)
                         }
@@ -1111,7 +1112,7 @@ struct CharacterRowView: View {
                             }
                             .font(.caption)
                         } else {
-                            Text("Unknown Location")
+                            Text(NSLocalizedString("Unknown_Location", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(.gray)
                                 .lineLimit(1)
@@ -1205,10 +1206,12 @@ struct CharacterRowView: View {
                                             .foregroundColor(.gray)
                                             .lineLimit(1)
                                     } else {
-                                        Text("Paused")
-                                            .font(.caption)
-                                            .foregroundColor(.gray)
-                                            .lineLimit(1)
+                                        Text(
+                                            "\(NSLocalizedString("Main_Skills_Paused", comment: ""))"
+                                        )
+                                        .font(.caption)
+                                        .foregroundColor(.gray)
+                                        .lineLimit(1)
                                     }
                                 }
                             }
@@ -1222,10 +1225,16 @@ struct CharacterRowView: View {
                                 }
                             }
                             .frame(height: 4)
-
-                            Text("-")
-                                .font(.caption)
-                                .foregroundColor(.gray)
+                            HStack {
+                                Text("-")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                Spacer()
+                                Text("\(NSLocalizedString("Main_Skills_Empty", comment: ""))")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                    .lineLimit(1)
+                            }
                         }
                     }
                 }
@@ -1244,37 +1253,6 @@ struct CharacterRowView: View {
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
         .padding(.vertical, 4)
-    }
-}
-
-// 添加 AsyncSemaphore 类来控制并发
-actor AsyncSemaphore {
-    private var value: Int
-    private var waiters: [CheckedContinuation<Void, Never>] = []
-
-    init(value: Int) {
-        self.value = value
-    }
-
-    func wait() async {
-        if value > 0 {
-            value -= 1
-            return
-        }
-
-        await withCheckedContinuation { continuation in
-            waiters.append(continuation)
-        }
-    }
-
-    func signal() {
-        if let waiter = waiters.first {
-            waiters.removeFirst()
-            waiter.resume()
-            return
-        }
-
-        value += 1
     }
 }
 

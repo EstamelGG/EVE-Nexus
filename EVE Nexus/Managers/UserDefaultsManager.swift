@@ -6,16 +6,11 @@ class UserDefaultsManager {
 
     // The Forge 的 regionID 是 10000002
     private let defaultRegionID = 10_000_002
-    let defaultRegionName = "The Forge"
 
     // 键名常量
     private enum Keys {
         static let selectedRegionID = "selectedRegionID"
         static let pinnedRegionIDs = "pinnedRegionIDs"
-        static let selectedLanguage = "selectedLanguage"
-        static let lastUpdateCheck = "lastUpdateCheck"
-        static let lastDatabaseUpdate = "lastDatabaseUpdate"
-        static let lastMarketUpdate = "lastMarketUpdate"
     }
 
     private init() {}
@@ -45,54 +40,6 @@ class UserDefaultsManager {
         set {
             // Logger.debug("正在写入 UserDefaults，键: \(Keys.pinnedRegionIDs), 值: \(newValue), 数据大小: \(MemoryLayout<Int>.size * newValue.count) bytes")
             defaults.set(newValue, forKey: Keys.pinnedRegionIDs)
-        }
-    }
-
-    // 选中的语言
-    var selectedLanguage: String {
-        get {
-            // Logger.debug("正在从 UserDefaults 读取键: \(Keys.selectedLanguage)")
-            return defaults.string(forKey: Keys.selectedLanguage) ?? "en"
-        }
-        set {
-            // Logger.debug("正在写入 UserDefaults，键: \(Keys.selectedLanguage), 值: \(newValue), 数据大小: \(newValue.utf8.count) bytes")
-            defaults.set(newValue, forKey: Keys.selectedLanguage)
-        }
-    }
-
-    // 最后检查更新时间
-    var lastUpdateCheck: Date? {
-        get {
-            // Logger.debug("正在从 UserDefaults 读取键: \(Keys.lastUpdateCheck)")
-            return defaults.object(forKey: Keys.lastUpdateCheck) as? Date
-        }
-        set {
-            // Logger.debug("正在写入 UserDefaults，键: \(Keys.lastUpdateCheck), 值: \(String(describing: newValue)), 数据大小: \(MemoryLayout<Date>.size) bytes")
-            defaults.set(newValue, forKey: Keys.lastUpdateCheck)
-        }
-    }
-
-    // 最后数据库更新时间
-    var lastDatabaseUpdate: Date? {
-        get {
-            // Logger.debug("正在从 UserDefaults 读取键: \(Keys.lastDatabaseUpdate)")
-            return defaults.object(forKey: Keys.lastDatabaseUpdate) as? Date
-        }
-        set {
-            // Logger.debug("正在写入 UserDefaults，键: \(Keys.lastDatabaseUpdate), 值: \(String(describing: newValue)), 数据大小: \(MemoryLayout<Date>.size) bytes")
-            defaults.set(newValue, forKey: Keys.lastDatabaseUpdate)
-        }
-    }
-
-    // 最后市场数据更新时间
-    var lastMarketUpdate: Date? {
-        get {
-            // Logger.debug("正在从 UserDefaults 读取键: \(Keys.lastMarketUpdate)")
-            return defaults.object(forKey: Keys.lastMarketUpdate) as? Date
-        }
-        set {
-            // Logger.debug("正在写入 UserDefaults，键: \(Keys.lastMarketUpdate), 值: \(String(describing: newValue)), 数据大小: \(MemoryLayout<Date>.size) bytes")
-            defaults.set(newValue, forKey: Keys.lastMarketUpdate)
         }
     }
 }

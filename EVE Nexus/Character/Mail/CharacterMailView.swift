@@ -10,14 +10,14 @@ struct CharacterMailView: View {
     @State private var isLoading = false
     @State private var error: Error?
     @State private var showingComposeView = false
-    @State private var hasInitialized = false // 追踪是否已执行初始化
+    @State private var hasInitialized = false  // 追踪是否已执行初始化
 
     // 初始化数据加载方法
     private func loadInitialDataIfNeeded() {
         guard !hasInitialized else { return }
-        
+
         hasInitialized = true
-        
+
         Task {
             await loadUnreadCounts()
             await viewModel.fetchMailLabels(characterId: characterId)
@@ -177,43 +177,6 @@ struct CharacterMailView: View {
     }
 }
 
-// 邮件标签详情视图
-struct MailLabelDetailView: View {
-    let characterId: Int
-    let label: CharacterMailViewModel.MailLabel
-    @ObservedObject var viewModel: CharacterMailViewModel
-
-    var body: some View {
-        List {
-            if viewModel.isLoading {
-                Text(NSLocalizedString("Main_EVE_Mail_Loading", comment: ""))
-                    .foregroundColor(.gray)
-            } else if viewModel.error != nil {
-                Text(NSLocalizedString("Main_EVE_Mail_Error", comment: ""))
-                    .foregroundColor(.red)
-            } else if viewModel.selectedLabelMails.isEmpty {
-                Text(NSLocalizedString("Main_EVE_Mail_No_Mail", comment: ""))
-                    .foregroundColor(.gray)
-            } else {
-                ForEach(viewModel.selectedLabelMails) { mail in
-                    NavigationLink {
-                        Text("Mail Details")  // 待实现
-                    } label: {
-                        MailRowView(mail: mail)
-                    }
-                }
-            }
-        }
-        .navigationTitle(label.name)
-        .task {
-            await viewModel.fetchMailsByLabel(characterId: characterId, labelId: label.id)
-        }
-        .refreshable {
-            await viewModel.fetchMailsByLabel(characterId: characterId, labelId: label.id)
-        }
-    }
-}
-
 // 邮箱类型枚举
 enum MailboxType: CaseIterable {
     case inbox
@@ -240,83 +203,5 @@ enum MailboxType: CaseIterable {
         case .alliance: return 8
         // case .spam: return 16
         }
-    }
-}
-
-// 邮件行视图
-struct MailRowView: View {
-    let mail: Mail
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack {
-                Text(mail.subject)
-                    .font(.headline)
-                    .lineLimit(1)
-                Spacer()
-                Text(mail.formattedDate)
-                    .font(.caption)
-                    .foregroundColor(.gray)
-            }
-
-            HStack {
-                Text(mail.from)
-                    .font(.subheadline)
-                    .foregroundColor(.gray)
-                    .lineLimit(1)
-
-                if !mail.isRead {
-                    Circle()
-                        .fill(.blue)
-                        .frame(width: 8, height: 8)
-                }
-            }
-        }
-        .padding(.vertical, 4)
-    }
-}
-
-// 邮件数据模型
-struct Mail: Identifiable {
-    let id: Int
-    let subject: String
-    let from: String
-    let date: Date
-    let isRead: Bool
-
-    var formattedDate: String {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        return formatter.string(from: date)
-    }
-}
-
-// Color扩展，用于解析十六进制颜色
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a: UInt64
-        let r: UInt64
-        let g: UInt64
-        let b: UInt64
-        switch hex.count {
-        case 3:  // RGB (12-bit)
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6:  // RGB (24-bit)
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8:  // ARGB (32-bit)
-            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (255, 0, 0, 0)
-        }
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue: Double(b) / 255,
-            opacity: Double(a) / 255
-        )
     }
 }

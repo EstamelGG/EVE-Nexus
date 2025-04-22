@@ -1,4 +1,3 @@
-import Kingfisher
 import SwiftUI
 
 struct BRKillMailDetailView: View {
@@ -17,7 +16,6 @@ struct BRKillMailDetailView: View {
     @State private var totalValue: Double = 0
     @State private var itemInfoCache: [Int: (name: String, iconFileName: String, categoryID: Int)] =
         [:]
-    @State private var shipImage: Image?
 
     var body: some View {
         List {
@@ -622,7 +620,8 @@ struct BRKillMailDetailView: View {
         {
             Task {
                 do {
-                    let image = try await ItemRenderAPI.shared.fetchItemRender(typeId: shipId, size: 64)
+                    let image = try await ItemRenderAPI.shared.fetchItemRender(
+                        typeId: shipId, size: 64)
                     await MainActor.run {
                         shipIcon = image
                     }
@@ -805,23 +804,6 @@ struct BRKillMailDetailView: View {
     }
 }
 
-// 添加一个辅助视图来处理异步值的加载
-struct AsyncValueView: View {
-    let calculation: () async throws -> String
-    @State private var value: String = "加载中..."
-
-    var body: some View {
-        Text(value)
-            .task {
-                do {
-                    value = try await calculation()
-                } catch {
-                    value = "Error: \(error.localizedDescription)"
-                }
-            }
-    }
-}
-
 // 修改 ItemRow 视图
 struct ItemRow: View {
     let typeId: Int
@@ -863,7 +845,28 @@ struct ItemRow: View {
                 isDropped ? Color.green.opacity(0.2) : nil
             )
         } else {
-            Text(NSLocalizedString("KillMail_Unknown_Item", comment: ""))
+            HStack {
+                Image("not_found")
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(6)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(
+                        String(
+                            format: NSLocalizedString("KillMail_Unknown_Item", comment: ""), typeId
+                        )
+                    )
+                    Text(FormatUtil.formatISK(getItemPrice() * Double(quantity)))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                Spacer()
+                if quantity > 1 {
+                    Text("×\(quantity)")
+                        .foregroundColor(.secondary)
+                }
+            }
+            .padding(.vertical, 2)
         }
     }
 

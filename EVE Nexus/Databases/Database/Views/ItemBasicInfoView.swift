@@ -105,7 +105,9 @@ struct ItemBasicInfoView: View {
         }
 
         // 基础属性 Section
-        if itemDetails.volume != nil || itemDetails.capacity != nil || itemDetails.mass != nil {
+        if itemDetails.volume != nil || itemDetails.capacity != nil || itemDetails.mass != nil
+            || itemDetails.repackagedVolume != nil
+        {
             Section(header: Text(NSLocalizedString("Item_Basic_Info", comment: "")).font(.headline))
             {
                 if let volume = itemDetails.volume {
@@ -117,6 +119,20 @@ struct ItemBasicInfoView: View {
                         Text(NSLocalizedString("Item_Volume", comment: ""))
                         Spacer()
                         Text("\(FormatUtil.format(Double(volume))) m3")
+                            .foregroundColor(.secondary)
+                            .frame(alignment: .trailing)
+                    }
+                }
+
+                if let repackagedVolume = itemDetails.repackagedVolume {
+                    HStack {
+                        Image("packages")
+                            .resizable()
+                            .frame(width: 32, height: 32)
+                            .cornerRadius(6)
+                        Text(NSLocalizedString("Item_RepackagesVolume", comment: ""))
+                        Spacer()
+                        Text("\(FormatUtil.format(Double(repackagedVolume))) m3")
                             .foregroundColor(.secondary)
                             .frame(alignment: .trailing)
                     }

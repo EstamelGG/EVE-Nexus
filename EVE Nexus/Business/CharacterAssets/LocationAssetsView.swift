@@ -85,17 +85,76 @@ private func formatLocationFlag(_ flag: String) -> String {
     }
 }
 
+// 扩展，提供共用的获取位置名称方法
+extension AssetTreeNode {
+    func getLocationName(
+        stationNameCache: [Int64: String]? = nil, solarSystemNameCache: [Int: String]? = nil
+    ) -> String {
+        // 如果有自定义名称，优先使用
+        if let name = self.name {
+            return name
+        }
+
+        // 如果是空间站类型，从缓存中获取
+        if self.location_type == "station", let cache = stationNameCache {
+            if let name = cache[self.location_id] {
+                return name
+            }
+        }
+
+        // 如果有星系ID，尝试显示星系名称
+        if let systemId = self.system_id, let cache = solarSystemNameCache,
+            let name = cache[systemId]
+        {
+            return name
+        }
+
+        // 最后的回退选项
+        return String(self.location_id)
+    }
+}
+
+// 共用的图标视图
+private struct AssetIconView: View {
+    let iconName: String
+    let size: CGFloat
+
+    init(iconName: String, size: CGFloat = 32) {
+        self.iconName = iconName
+        self.size = size
+    }
+
+    var body: some View {
+        IconManager.shared.loadImage(for: iconName)
+            .resizable()
+            .frame(width: size, height: size)
+            .cornerRadius(6)
+    }
+}
+
 // 主资产列表视图
 struct LocationAssetsView: View {
     let location: AssetTreeNode
     @StateObject private var viewModel: LocationAssetsViewModel
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames = false
+    let stationNameCache: [Int64: String]?
+    let solarSystemNameCache: [Int: String]?
 
-    init(location: AssetTreeNode, preloadedItemInfo: [Int: ItemInfo]? = nil) {
+    init(
+        location: AssetTreeNode, preloadedItemInfo: [Int: ItemInfo]? = nil,
+        stationNameCache: [Int64: String]? = nil, solarSystemNameCache: [Int: String]? = nil
+    ) {
         self.location = location
+        self.stationNameCache = stationNameCache
+        self.solarSystemNameCache = solarSystemNameCache
         _viewModel = StateObject(
             wrappedValue: LocationAssetsViewModel(
                 location: location, preloadedItemInfo: preloadedItemInfo))
+    }
+
+    // 获取位置名称
+    private func getLocationName() -> String {
+        return location.getLocationName(
+            stationNameCache: stationNameCache, solarSystemNameCache: solarSystemNameCache)
     }
 
     var body: some View {
@@ -104,6 +163,7 @@ struct LocationAssetsView: View {
                 assetGroupSection(for: group)
             }
         }
+        .navigationTitle(getLocationName())
         .task {
             await viewModel.loadItemInfo()
         }
@@ -140,7 +200,9 @@ struct LocationAssetsView: View {
     // 容器链接
     private func containerLink(for node: AssetTreeNode) -> some View {
         NavigationLink {
-            SubLocationAssetsView(parentNode: node, preloadedItemInfo: viewModel.preloadedItemInfo)
+            SubLocationAssetsView(
+                parentNode: node, preloadedItemInfo: viewModel.preloadedItemInfo,
+                stationNameCache: stationNameCache, solarSystemNameCache: solarSystemNameCache)
         } label: {
             AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
         }
@@ -162,7 +224,6 @@ struct AssetItemView: View {
     let itemInfo: ItemInfo?
     let showItemCount: Bool
     let showCustomName: Bool
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames = false
 
     init(
         node: AssetTreeNode, itemInfo: ItemInfo?, showItemCount: Bool = true,
@@ -178,12 +239,9 @@ struct AssetItemView: View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
                 // 资产图标 - 优先使用节点上的icon_name
-                IconManager.shared.loadImage(
-                    for: node.icon_name ?? itemInfo?.iconFileName ?? DatabaseConfig.defaultItemIcon
-                )
-                .resizable()
-                .frame(width: 32, height: 32)
-                .cornerRadius(6)
+                AssetIconView(
+                    iconName: node.icon_name ?? itemInfo?.iconFileName
+                        ?? DatabaseConfig.defaultItemIcon)
                 VStack(alignment: .leading, spacing: 2) {
                     // 资产名称和自定义名称
                     HStack(spacing: 4) {
@@ -227,10 +285,16 @@ struct AssetItemView: View {
 struct SubLocationAssetsView: View {
     let parentNode: AssetTreeNode
     @StateObject private var viewModel: LocationAssetsViewModel
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames = false
+    let stationNameCache: [Int64: String]?
+    let solarSystemNameCache: [Int: String]?
 
-    init(parentNode: AssetTreeNode, preloadedItemInfo: [Int: ItemInfo]? = nil) {
+    init(
+        parentNode: AssetTreeNode, preloadedItemInfo: [Int: ItemInfo]? = nil,
+        stationNameCache: [Int64: String]? = nil, solarSystemNameCache: [Int: String]? = nil
+    ) {
         self.parentNode = parentNode
+        self.stationNameCache = stationNameCache
+        self.solarSystemNameCache = solarSystemNameCache
         _viewModel = StateObject(
             wrappedValue: LocationAssetsViewModel(
                 location: parentNode, preloadedItemInfo: preloadedItemInfo))
@@ -249,13 +313,16 @@ struct SubLocationAssetsView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(
-            parentNode.name ?? viewModel.itemInfo(for: parentNode.type_id)?.name
-                ?? String(parentNode.type_id)
-        )
+        .navigationTitle(getLocationName())
         .task {
             await viewModel.loadItemInfo()
         }
+    }
+
+    // 获取位置名称
+    private func getLocationName() -> String {
+        return parentNode.getLocationName(
+            stationNameCache: stationNameCache, solarSystemNameCache: solarSystemNameCache)
     }
 
     // 容器信息部分
@@ -306,7 +373,10 @@ struct SubLocationAssetsView: View {
             // 子容器
             NavigationLink {
                 SubLocationAssetsView(
-                    parentNode: node, preloadedItemInfo: viewModel.preloadedItemInfo)
+                    parentNode: node,
+                    preloadedItemInfo: viewModel.preloadedItemInfo,
+                    stationNameCache: stationNameCache,
+                    solarSystemNameCache: solarSystemNameCache)
             } label: {
                 AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
             }

@@ -102,9 +102,10 @@ struct BRKillMailSearchView: View {
                                     killmail: killmail,
                                     kbAPI: viewModel.kbAPI,
                                     shipInfo: shipInfoMap[shipId] ?? (
-                                        name: NSLocalizedString(
-                                            "KillMail_Unknown_Item", comment: ""
-                                        ),
+                                        name: String(
+                                            format: NSLocalizedString(
+                                                "KillMail_Unknown_Item", comment: ""
+                                            ), shipId),
                                         iconFileName: DatabaseConfig.defaultItemIcon
                                     ),
                                     allianceIcon: allianceIconMap[allyId ?? 0],
@@ -255,7 +256,8 @@ struct BRKillMailSearchView: View {
                     // 只有当联盟ID有效且图标未加载时才加载联盟图标
                     if allianceIconMap[allyId] == nil {
                         do {
-                            let icon = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allyId)
+                            let icon = try await AllianceAPI.shared.fetchAllianceLogo(
+                                allianceID: allyId)
                             allianceIconMap[allyId] = icon
                         } catch {
                             Logger.error("加载联盟图标失败 - 联盟ID: \(allyId), 错误: \(error)")
@@ -268,7 +270,8 @@ struct BRKillMailSearchView: View {
                     // 只有在没有有效联盟ID的情况下才加载军团图标
                     if corporationIconMap[corpId] == nil {
                         do {
-                            let icon = try await CorporationAPI.shared.fetchCorporationLogo(corporationId: corpId)
+                            let icon = try await CorporationAPI.shared.fetchCorporationLogo(
+                                corporationId: corpId)
                             corporationIconMap[corpId] = icon
                         } catch {
                             Logger.error("加载军团图标失败 - 军团ID: \(corpId), 错误: \(error)")
@@ -432,12 +435,12 @@ struct KMSearchResultRow: View {
         // 替换图标尺寸
         Logger.debug("Load img from result: \(result.imageURL)")
         let urlString = result.imageURL.replacingOccurrences(of: "size=32", with: "size=64")
-        guard let url = URL(string: urlString) else { 
+        guard let url = URL(string: urlString) else {
             // URL无效时设置默认图标
             await MainActor.run {
                 loadedIcon = UIImage(named: "not_found")
             }
-            return 
+            return
         }
 
         do {
@@ -513,17 +516,17 @@ class BRKillMailSearchViewModel: ObservableObject {
 
     func debounceSearch(characterId: Int, searchText: String) {
         // 检查搜索文本长度
-        guard searchText.count >= 3 else { 
+        guard searchText.count >= 3 else {
             searchResults = [:]
             lastSearchText = ""
-            return 
+            return
         }
-        
+
         // 如果搜索关键词与上次相同，不执行新的搜索
         if searchText == lastSearchText && !searchResults.isEmpty {
             return
         }
-        
+
         // 取消之前的任务
         searchTask?.cancel()
 
@@ -546,7 +549,7 @@ class BRKillMailSearchViewModel: ObservableObject {
             lastSearchText = ""
             return
         }
-        
+
         // 如果搜索关键词与上次相同，不执行新的搜索
         if searchText == lastSearchText && !searchResults.isEmpty {
             return
@@ -569,8 +572,8 @@ class BRKillMailSearchViewModel: ObservableObject {
                 guard let category = SearchResultCategory(rawValue: categoryStr) else { continue }
 
                 var results: [SearchResult] = []
-                var seenIds = Set<Int>() // 用于跟踪已经见过的id
-                
+                var seenIds = Set<Int>()  // 用于跟踪已经见过的id
+
                 for item in items {
                     // 检查id是否已经存在
                     if !seenIds.contains(item.id) {
@@ -594,7 +597,7 @@ class BRKillMailSearchViewModel: ObservableObject {
 
             // 更新上次搜索的关键词
             lastSearchText = searchText
-            
+
             // 开始异步加载图标
             Task {
                 for category in categories {

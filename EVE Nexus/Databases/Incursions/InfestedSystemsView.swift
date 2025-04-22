@@ -1,4 +1,3 @@
-import Kingfisher
 import SwiftUI
 
 class SystemInfo: NSObject, Identifiable, @unchecked Sendable, ObservableObject {
@@ -150,14 +149,14 @@ class InfestedSystemsViewModel: ObservableObject {
                 if systems.first != nil {
                     do {
                         Logger.debug("开始加载联盟图标: \(allianceId)，影响 \(systems.count) 个星系")
-                        
+
                         // 使用AllianceAPI加载图标
                         let allianceImage = try await AllianceAPI.shared.fetchAllianceLogo(
-                            allianceID: allianceId, 
+                            allianceID: allianceId,
                             size: 64,
                             forceRefresh: false
                         )
-                        
+
                         Logger.debug("联盟图标加载成功: \(allianceId)")
                         // 更新所有使用这个联盟图标的系统
                         for system in systems {
@@ -176,7 +175,7 @@ class InfestedSystemsViewModel: ObservableObject {
                     } catch {
                         Logger.error("加载联盟图标失败: \(allianceId), error: \(error)")
                     }
-                    
+
                     // 更新所有相关系统的加载状态
                     for system in systems {
                         system.isLoadingIcon = false

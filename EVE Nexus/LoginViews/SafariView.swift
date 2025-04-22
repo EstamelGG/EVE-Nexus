@@ -1,32 +1,9 @@
 import SafariServices
 import SwiftUI
 
-// 创建一个ObservableObject来管理Safari视图的状态
-final class SafariViewModel: ObservableObject {
-    @Published var characterInfo: EVECharacterInfo?
-    @Published var isLoggedIn: Bool = false
-    @Published var showingError: Bool = false
-    @Published var errorMessage: String = ""
-
-    func handleLoginSuccess(character: EVECharacterInfo) {
-        DispatchQueue.main.async {
-            self.characterInfo = character
-            self.isLoggedIn = true
-        }
-    }
-
-    func handleLoginError(_ error: Error) {
-        DispatchQueue.main.async {
-            self.errorMessage = error.localizedDescription
-            self.showingError = true
-        }
-    }
-}
-
 struct SafariView: UIViewControllerRepresentable {
     let url: URL
     @Environment(\.presentationMode) var presentationMode
-    @StateObject private var viewModel = SafariViewModel()
 
     func makeUIViewController(context: Context) -> SFSafariViewController {
         let config = SFSafariViewController.Configuration()

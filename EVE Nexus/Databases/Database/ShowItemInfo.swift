@@ -3,7 +3,6 @@ import SwiftUI
 // ShowItemInfo view
 struct ShowItemInfo: View {
     @ObservedObject var databaseManager: DatabaseManager
-    @Environment(\.dismiss) private var dismiss
     private let currentCharacterId: Int = {
         guard let id = UserDefaults.standard.object(forKey: "currentCharacterId") as? Int else {
             return 0
@@ -15,8 +14,6 @@ struct ShowItemInfo: View {
 
     @State private var itemDetails: ItemDetails?
     @State private var attributeGroups: [AttributeGroup] = []
-    @State private var roleBonuses: [Trait] = []
-    @State private var typeBonuses: [Trait] = []
 
     private func buildTraitsText(
         roleBonuses: [Trait], typeBonuses: [Trait], databaseManager: DatabaseManager
@@ -230,7 +227,7 @@ struct ShowItemInfo: View {
                     }
                 }
             } else {
-                Text("Details not found / 未找到物品详情")
+                Text(NSLocalizedString("Item_details_notfound", comment: ""))
                     .foregroundColor(.gray)
             }
         }
@@ -269,6 +266,7 @@ struct ShowItemInfo: View {
                     typeId: itemDetail.typeId,
                     groupID: itemDetail.groupID,
                     volume: itemDetail.volume,
+                    repackagedVolume: itemDetail.repackagedVolume,
                     capacity: itemDetail.capacity,
                     mass: itemDetail.mass,
                     marketGroupID: itemDetail.marketGroupID

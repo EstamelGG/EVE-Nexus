@@ -3,7 +3,6 @@ import SwiftUI
 struct ContractAppraisalView: View {
     let contract: ContractInfo
     let items: [ContractItemInfo]
-    @Environment(\.dismiss) private var dismiss
     @State private var isLoadingJanice = false
     @State private var isLoadingESI = false
     @State private var errorMessage: String?

@@ -10,7 +10,6 @@ struct CorporationDetailView: View {
     @State private var ceoPortrait: UIImage?
     @State private var isLoading = true
     @State private var error: Error?
-    @State private var selectedTab = 0
     // 声望相关的状态
     @State private var personalStandings: [Int: Double] = [:]
     @State private var corpStandings: [Int: Double] = [:]
@@ -86,12 +85,12 @@ struct CorporationDetailView: View {
                                             .frame(width: 20, height: 20)
                                             .clipShape(RoundedRectangle(cornerRadius: 4))
                                     }
-                                    Text(
-                                        "\(NSLocalizedString("CEO", comment: "")): \(ceoInfo.name)"
-                                    )
-                                    .font(.system(size: 14))
-                                    .lineLimit(1)
-                                    .textSelection(.enabled)
+                                    Text("\(NSLocalizedString("CEO", comment: "")): ")
+                                        .font(.system(size: 14))
+                                    Text(ceoInfo.name)
+                                        .font(.system(size: 14))
+                                        .lineLimit(1)
+                                        .textSelection(.enabled)
                                 }
                             }
 
@@ -150,7 +149,7 @@ struct CorporationDetailView: View {
                         let dateFounded = ISO8601DateFormatter().date(from: dateFoundedStr)
                     {
                         HStack {
-                            Text("\(NSLocalizedString("Founded", comment: ""))")
+                            Text("\(NSLocalizedString("Main_Founded", comment: ""))")
                             Spacer()
                             Text(dateFounded, style: .date)
                                 .foregroundColor(.secondary)

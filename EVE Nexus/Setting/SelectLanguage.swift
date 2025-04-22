@@ -20,23 +20,6 @@ struct LanguageOptionView: View {
     }
 }
 
-// 系统名称语言设置视图组件
-private struct SystemNamesLanguageToggle: View {
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
-    @AppStorage("selectedLanguage") private var storedLanguage: String?
-
-    var body: some View {
-        if storedLanguage != "en" {
-            HStack {
-                Toggle(isOn: $useEnglishSystemNames) {
-                    Text(NSLocalizedString("Main_Setting_Use_English_System_Names", comment: ""))
-                }
-                .tint(.green)
-            }
-        }
-    }
-}
-
 struct SelectLanguageView: View {
     // 语言名称与代号映射
     let languages: [String: String] = [
@@ -44,10 +27,9 @@ struct SelectLanguageView: View {
         "中文": "zh-Hans",
     ]
 
-    @AppStorage("selectedLanguage") var storedLanguage: String?
-    @State private var selectedLanguage: String?
+    @AppStorage("selectedLanguage") private var selectedLanguage: String = "en"
     @ObservedObject var databaseManager: DatabaseManager
-    @Environment(\.dismiss) private var dismiss
+    @State private var displayLanguage: String = "English"
 
     var body: some View {
         List {
@@ -55,11 +37,11 @@ struct SelectLanguageView: View {
                 ForEach(languages.keys.sorted(), id: \.self) { language in
                     LanguageOptionView(
                         language: language,
-                        isSelected: language == selectedLanguage,
+                        isSelected: language == displayLanguage,
                         onTap: {
-                            if language != selectedLanguage {
-                                selectedLanguage = language
-                                applyLanguageChange()
+                            if language != displayLanguage {
+                                displayLanguage = language
+                                applyLanguageChange(language)
                             }
                         }
                     )
@@ -69,53 +51,29 @@ struct SelectLanguageView: View {
                     .font(.headline)
                     .foregroundColor(.primary)
             }
-
-            Section {
-                SystemNamesLanguageToggle()
-            }
         }
         .navigationTitle(NSLocalizedString("Main_Setting_Select_Language", comment: ""))
         .onAppear(perform: setupInitialLanguage)
     }
 
     private func setupInitialLanguage() {
-        // 首先检查是否有存储的语言设置
-        if let storedLang = storedLanguage,
-            let defaultLanguage = languages.first(where: { $0.value == storedLang })?.key
-        {
-            selectedLanguage = defaultLanguage
+        // 根据当前 selectedLanguage 设置显示语言
+        if let defaultLanguage = languages.first(where: { $0.value == selectedLanguage })?.key {
+            displayLanguage = defaultLanguage
         } else {
-            // 获取系统语言代码
-            let systemLanguage = Locale.preferredLanguages.first ?? "en"
-            // 提取基础语言代码（例如从 "zh-Hans-CN" 提取 "zh-Hans"）
-            let baseLanguage = systemLanguage.components(separatedBy: "-").prefix(2).joined(
-                separator: "-")
-
-            // 查找匹配的语言
-            if let defaultLanguage = languages.first(where: { $0.value == baseLanguage })?.key {
-                selectedLanguage = defaultLanguage
-                // 自动保存检测到的语言设置
-                storedLanguage = languages[defaultLanguage]
-            } else {
-                // 如果没有匹配的语言，默认使用英语
-                selectedLanguage = "en"
-                storedLanguage = "en"
-            }
+            // 如果没有匹配的语言，默认使用英语
+            displayLanguage = "English"
+            selectedLanguage = "en"
         }
     }
 
-    private func applyLanguageChange() {
-        guard let language = selectedLanguage,
-            let languageCode = languages[language]
-        else { return }
+    private func applyLanguageChange(_ language: String) {
+        guard let languageCode = languages[language] else { return }
 
         // 1. 保存新的语言设置
-        storedLanguage = languageCode
+        selectedLanguage = languageCode
 
-        // 如果切换到英文，自动设置系统名称为英文，否则保持本地化
-        UserDefaults.standard.set(languageCode == "en", forKey: "useEnglishSystemNames")
-
-        // 2. 更新语言设置
+        // 2. 更新系统语言设置
         UserDefaults.standard.set([languageCode], forKey: "AppleLanguages")
         UserDefaults.standard.synchronize()
 

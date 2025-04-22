@@ -95,7 +95,7 @@ struct CharacterDetailView: View {
                                     .foregroundColor(.secondary)
                                     .padding(.top, 2)
                             } else {
-                                Text("[No title]")
+                                Text("[\(NSLocalizedString("Main_No_Title", comment: ""))]")
                                     .font(.system(size: 14))
                                     .foregroundColor(.secondary)
                                     .lineLimit(1)
@@ -604,7 +604,7 @@ struct CharacterDetailView: View {
 
         var body: some View {
             if history.isEmpty {
-                Text("Not found")
+                Text(NSLocalizedString("Misc_Not_Found", comment: ""))
                     .foregroundColor(.secondary)
                     .padding()
             } else {
@@ -664,7 +664,7 @@ struct CharacterDetailView: View {
                 // 右侧信息
                 VStack(alignment: .leading, spacing: 2) {
                     // 军团名称
-                    Text(corporationInfo?.name ?? "加载中...")
+                    Text(corporationInfo?.name ?? NSLocalizedString("Misc_Loading", comment: ""))
                         .font(.system(size: 12))
                         .lineLimit(1)
 

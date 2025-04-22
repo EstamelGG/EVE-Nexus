@@ -1,16 +1,18 @@
+# EVE Nexus
+
+[中文](Readme.md) | [English](Readme.en.md)
+
 # Xcode
 
-Open Project with Xcode Version 16.2.
+使用 Xcode Version 16.2 编译
 
-# 3rd
-
-Third party plugin from:
+# 第三方依赖
 
 - **AppAuth-IOS**: https://github.com/openid/AppAuth-iOS
 - **Kingfisher**: https://github.com/onevcat/Kingfisher
 - **Zip**: https://github.com/marmelroy/Zip
 
-# format
+# 格式化
 
 ```bash
 cd "EVE Nexus" && $(xcrun --find swift-format) -r . -i --configuration .swift-format.json
@@ -46,7 +48,7 @@ iOS / iPadOS / macOS: [Tritanium on the App Store](https://apps.apple.com/us/app
 - 入侵：查看当前正进行中的萨沙入侵位置与进度
 - 主权争夺：查看当前正进行中的主权活动位置与进度
 - 语言对照：搜索物品、星系、NPC军团等名称，展示其他语言的文本
-- 跳跃导航：计算从指定起点到一系列路径点的跳跃导航路径
+- 旗舰跳跃导航：计算从指定起点到一系列路径点的跳跃导航路径
 - 个人资产：查看当前人物的资产清单、位置
 - 市场订单：查看当前人物的市场订单信息
 - 合同列表：查看当前人物与所属军团的合同列表，并能够估计合同价格，过滤指定类型的合同，提供快递模式，针对快递类合同按起止地进行合并分组
@@ -55,6 +57,7 @@ iOS / iPadOS / macOS: [Tritanium on the App Store](https://apps.apple.com/us/app
 - 工业任务：展示人物的工业生产记录
 - 采矿记录：按月展示人物的采矿记录
 - 行星开发：查看当前人物的行星开发状态、仓库库存状态、采集器状态、工厂加工状态等
+- 行星开发计算器：根据指定星系、产品、主权，计算最合适的产地。以及根据指定地区，计算可用的产品。
 - 军团账户：查看军团各部门的钱包余额与交易记录、转账记录
 - 军团成员：查看军团成员列表与人物位置
 - 军团月矿作业：查看军团月矿的状态，牵引剩余时间与月矿破碎的剩余时间

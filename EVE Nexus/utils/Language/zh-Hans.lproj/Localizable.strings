@@ -6,6 +6,8 @@
   
 */
 
+"App_Language" = "zh";
+"Main_Home" = "首页";
 "Main_Character" = "人物";
 "Main_Character_Sheet" = "人物表单";
 "Main_Jump_Clones" = "克隆体";
@@ -53,7 +55,7 @@
 "Main_Market_WH_Leadsto" = "通往";
 "Main_Market_WH_Size" = "尺寸类型";
 "Select_Item" = "选择项目";
-"Main_Market" = "市场";
+"Main_Market" = "星域市场";
 "Main_Market_Watch_List" = "市场关注列表";
 "Main_Agents" = "代理人";
 "Main_WH" = "虫洞";
@@ -67,6 +69,7 @@
 "Main_Wallet_Journal" = "钱包日志";
 "Main_Industry_Jobs" = "工业任务";
 "Main_Other" = "其他";
+"Main_Unzipping_Icons" = "释放图片资源...";
 
 "Main_Setting" = "设置";
 "Main_Setting_Title" = "设置";
@@ -86,7 +89,7 @@
 "Main_Setting_Reset_Icons" = "重置图标缓存";
 "Main_Setting_Reset_Icons_Detail" = "删除图标缓存并重新释放(只有缺失图标时使用)";
 "Main_Setting_Reset_Icons_Title" = "重置图标缓存";
-"Main_Setting_Reset_Icons_Message" = "这将删除所有已下载的图标缓存并重新解压。是否确认？";
+"Main_Setting_Reset_Icons_Message" = "这将重新释放图片资源。是否确认？";
 "Main_Setting_Cancel" = "取消";
 "Main_Setting_Clean" = "清理";
 "Main_Setting_Reset" = "重置";
@@ -126,12 +129,14 @@
 "Misc_number_types" = "种";
 "Misc_per" = "每";
 "Misc_unit" = "单位";
+"Misc_Calculating" = "计算中...";
+"Misc_Level" = "等级 %d";
+"Misc_Level_Short" = "%d级";
 
 // 蓝图详情
 "Blueprint_Product" = "产品";
 "Blueprint_Invention_Product" = "发明产出";
 "Blueprint_Success_Rate" = "成功率: %d%%";
-"Blueprint_Level" = "等级 %d";
 "Time_Year" = "年";
 "Time_Month" = "月";
 "Time_Day" = "日";
@@ -169,8 +174,11 @@
 "Item_Basic_Info" = "基础信息";
 "Container_Basic_Info" = "容器";
 "Item_Volume" = "体积";
+"Item_RepackagesVolume" = "体积(打包后)";
 "Item_Capacity" = "容量";
 "Item_Mass" = "质量";
+"Item_load_error" = "无法加载物品信息.";
+"Item_details_notfound" = "未找到物品详情";
 
 // 静态资源
 "Main_Setting_Static_Resources" = "静态资源";
@@ -329,7 +337,7 @@
 
 // Assets Loading Status
 "Assets_Loading_Page" = "正在获取第%d页";
-"Assets_Loading_Calculating" = "正在计算";
+"Assets_Loading_Calculating" = "正在计算...";
 "Assets_Loading_Fetching_Names" = "正在获取名称";
 "Assets_Unknown_Location" = "未知位置";
 "Assets_Unknown_Region" = "未知星域";
@@ -369,9 +377,14 @@
 "Industry_Expired" = "已完成";
 "Industry_Remaining_Days_Hours" = "%d天%d小时后完成";
 "Industry_Remaining_Days" = "%d天后完成";
-"Industry_Remaining_Hours_Minutes" = "%d小时%d分后完成";
+"Industry_Remaining_Hours_Minutes" = "%d小时%d分钟后完成";
 "Industry_Remaining_Hours" = "%d小时后完成";
-"Industry_Remaining_Minutes" = "%d分后完成";
+"Industry_Remaining_Minutes" = "%d分钟后完成";
+"Finished_on" = "将完成于";
+"Industry_runs" = "流程";
+"Industry_copies" = "拷贝";
+"Industry_Runs_Format" = "%d流程 ×";
+"Industry_Runs_With_Copies_Format" = "%d流程 × %d拷贝";
 
 // Contract Types
 "Contract_Type_item_exchange" = "物品交换";
@@ -419,7 +432,7 @@
 "Industry_Status_delivered" = "已交付";
 "Industry_Status_completed" = "已完成";
 "Industry_Status_paused" = "已暂停";
-"Industry_Status_ready" = "已就绪";
+"Industry_Status_ready" = "可交付";
 "Industry_Status_reverted" = "已撤销";
 
 // 工业活动状态
@@ -508,13 +521,15 @@
 "Main_Skills_Queue_Count" = "技能队列 (%d)";
 "Main_Skills_Queue_Count_Time" = "技能队列 (%d) - 剩余%@";
 "Main_Skills_Queue_Count_Paused" = "技能队列 (%d) - 已暂停";
-"Main_Skills_Level" = "Lv %d";
 "Main_Skills_Points_Progress" = "%@ / %@ SP";
 "Main_Skills_Time_Remaining" = "剩余: %@";
 "Main_Skills_Time_Required" = "需要: %@";
 "Main_Skills_Categories" = "技能目录";
 "Main_Skills_Not_Injected" = "未吸收";
 "Main_Skills_Completed" = "已完成";
+"Main_Skills_Paused" = "暂停";
+"Main_Skills_Running" = "进行中";
+"Main_Skills_Empty" = "空队列";
 
 // 时间显示
 "Time_Days_Hours" = "%d天%d小时";
@@ -568,8 +583,8 @@
 "Wealth_Detail_MarketPrice" = "市场价格";
 "Wealth_Detail_Quantity" = "数量";
 "Wealth_Detail_TotalValue" = "总价值";
-"Wealth_Detail_HasPrice" = "有市场价格的物品 (前20名)";
-"Wealth_Detail_NoPrice" = "无市场价格的物品 (前20名)";
+"Wealth_Detail_HasPrice" = "有市场估价的物品 (前20名)";
+"Wealth_Detail_NoPrice" = "无市场估价的物品 (前20名)";
 "Wealth_Detail_Unit_Price" = "单价";
 
 "Wealth_Distribution" = "资产分布";
@@ -682,7 +697,6 @@
 "Total Expense" = "总支出";
 "Transaction Dates" = "交易日期";
 "transactions" = "笔交易";
-"Transactions" = "交易记录";
 "Common_Error" = "错误";
 "Net Balance" = "净收入";
 "Orders_No_Data" = "暂无数据";
@@ -735,6 +749,9 @@
 "Main_Search_Type_Corporation" = "军团";
 "Main_Search_Type_Alliance" = "联盟";
 "Main_Search_Type_Structure" = "建筑";
+"Main_No_Corp" = "无军团";
+"Main_No_Alliance" = "无联盟";
+"Main_No_Title" = "无头衔";
 
 // 搜索过滤
 "Main_Search_Filter_Title" = "过滤条件(可留空)";
@@ -767,7 +784,7 @@
 // 搜索结果
 "Main_Search_Results" = "搜索结果";
 "Main_Search_Failed" = "搜索失败";
-"Main_Search_Min_Length" = "请至少输入3个字符";
+"Main_Search_Min_Length" = "请至少输入%d个字符";
 "Main_Search_No_Results" = "未找到匹配结果";
 "Main_Search_No_Filtered_Results" = "没有符合过滤条件的结果";
 "Main_Search_Load_More" = "加载更多";
@@ -883,8 +900,8 @@
 "KillMail_Filter_All" = "全部";
 "KillMail_Filter_Kills" = "击杀";
 "KillMail_Filter_Losses" = "损失";
-"KillMail_Unknown_Item" = "未知物品";
-"KillMail_Unknown_Location" = "未知";
+"KillMail_Unknown_Item" = "未知物品(TypeID:%d)";
+"KillMail_Unknown_Location" = "未知地点";
 "KillMail_Load_More" = "获取更多";
 "KillMail_Stats_Failed" = "获取战斗统计信息失败: %@";
 
@@ -926,7 +943,6 @@
 "Main_KM_Subsystem_Slots" = "子系统";
 "Main_KM_Fighter_Tubes" = "战斗机发射管";
 "Main_KM_Cargo" = "货舱";
-"KillMail_Unknown_Item" = "未知物品";
 
 "Main_KM_Drone_Bay" = "无人机舱";
 "Main_KM_Fighter_Bay" = "战斗机舱";
@@ -1035,6 +1051,8 @@
 "Main_Planetary_Error" = "加载失败";
 "Planet_Detail_Last_Update" = "行星布局提交于";
 "Main_Planetary_Total_Count" = "共 %d 个行星";
+"Main_Planetary_location_calc" = "行星开发选址";
+"Main_Planetary_of_Mine" = "我的行星";
 
 // 行星类型
 "Main_Planetary_Type_Temperate" = "温和星球";
@@ -1131,6 +1149,9 @@
 "Main_Language_Map_Languages" = "显示语言";
 "Main_Language_Map_Settings" = "语言设置";
 "Misc_Done" = "完成";
+"Misc_No_Data" = "暂无数据";
+"Misc_Loading" = "加载中...";
+"Misc_Not_Found" = "未找到";
 
 "Main_Language_Map_Exact_Match" = "完全匹配";
 "Main_Language_Map_Prefix_Match" = "前缀匹配";
@@ -1229,9 +1250,9 @@
 "Security_NullSec" = "零安";
 
 // Agent Tags
-"Agent_Locator" = "定位";
+"Agent_Locator" = "寻人";
 "Agent_Space" = "空代";
-"Agent_Level" = "L%d";
+"Agent_Level" = "%d级";
 
 // Agent Search
 "Agent_Search_Title" = "代理人搜索";
@@ -1244,7 +1265,7 @@
 "Agent_Search_Security" = "星系";
 "Agent_Search_Faction" = "势力";
 "Agent_Search_Corporation" = "军团";
-"Agent_Search_Locator_Only" = "仅显示定位代理人";
+"Agent_Search_Locator_Only" = "仅显示寻人代理人";
 "Agent_Search_Space_Only" = "仅显示空间代理人";
 "Agent_Search_All_Divisions" = "任意";
 "Agent_Search_All_Levels" = "任意";
@@ -1313,6 +1334,7 @@
 "System_Search_Placeholder" = "搜索星系...";
 "Loading_Regions" = "加载星域中...";
 "Loading_Systems" = "加载星系中...";
+"Main_Founded" = "成立时间";
 
 // Attribute Compare Tool
 "Main_Attribute_Compare" = "对比工具";
@@ -1349,6 +1371,8 @@
 "Jump_Navigation_Calculating_Jump_Distance" = "计算距离...";
 "Jump_Navigation_Max_Jump_Range" = "跳跃距离";
 "Jump_Navigation_DOTLAN_Route" = "在 Dotlan 上查看";
+"Jump_Navigation_Safety_Settings" = "安全设置";
+"Jump_Navigation_Avoid_Incursion" = "规避入侵星系";
 
 // 跳跃导航分区
 "Jump_Navigation_Ship_And_Skills" = "飞船与技能";
@@ -1379,7 +1403,7 @@
 "Jump_Navigation_Error_Path_Not_Found" = "无法找到从%@到%@的路径";
 
 "Server_Status_Online" = "服务器在线";
-"Server_Status_Offline" = "离线";
+"Server_Status_Offline" = "服务器离线";
 "Server_Status_Checking" = "检查状态中...";
 "Server_Status_Players" = " (%@名玩家)";
 
@@ -1389,3 +1413,83 @@
 
 "Character_Clone_ID" = "克隆体 ID: %d";
 
+"Main_Planetary_Filter_Conditions" = "过滤条件";
+"Main_Planetary_Select_Product" = "选择行星产品";
+"Main_Planetary_Select_Region" = "选择星域";
+"Main_Planetary_Select_Sovereignty" = "选择主权";
+"Main_Planetary_Not_Selected" = "未选择";
+"Main_Planetary_calc" = "行星开发计算器";
+"Main_Planetary_Output" = "计算地区产出";
+
+// 主权选择相关
+"Loading_Sovereignty" = "加载主权信息中...";
+"Sovereignty_All" = "所有主权";
+"Sovereignty_Search_Title" = "选择主权";
+"Sovereignty_Search_Placeholder" = "搜索主权势力...";
+"Sovereignty_Systems" = "个星系";
+"Sovereignty_Loading" = "加载中...";
+"Sovereignty_No_Data" = "暂无主权数据";
+"Sovereignty_Error" = "加载失败";
+"Sovereignty_Retry" = "重试";
+
+// 行星选址计算
+"Main_Planetary_Calculate" = "开始计算";
+"Main_Planetary_Calculating" = "计算中...";
+
+"Main_Planetary_Jump_Range" = "星系范围";
+"Main_Planetary_Jumps" = "跳";
+"Main_Planetary_Search_Results" = "搜索结果";
+
+// PlanetarySearchResultView中新增的本地化字符串
+"Planetary_Search_Tip_1" = "1. 请根据各地海关税收、交通运输等因素综合考虑。";
+"Planetary_Search_Tip_2" = "2. 该功能基于行星数量和种类对可选星系进行推荐，以下星系能够满足生产所选产品的 P0 资源需求。数据仅作参考。";
+"Planetary_Local_Resources" = "本地可用资源：";
+"Planetary_Nearby_Resources" = "相邻星系资源：";
+"Planetary_Resource_Planet_Count" = "%@个行星";
+"Planetary_Resource_Jump_Count" = "需要%d跳";
+"Planetary_Coverage" = "资源覆盖情况：%.1f%%";
+"Planetary_Resource_System_Format" = "%@（需要%d跳）";
+"Planetary_Search_No_Results" = "没有找到能够生产所需资源的星系";
+"Planetary_Search_No_Results_Tips" = "请考虑以下调整方案:\n• 增加星系跳数范围\n• 选择其他星域或主权\n• 选择其他可能更容易生产的产品";
+
+// 行星开发选址描述文本
+"Planetary_Product_Description" = "要生产什么产品";
+"Planetary_Region_Description" = "要在哪个星域生产";
+"Planetary_Sovereignty_Description" = "要在哪个主权辖区生产";
+"Planetary_Jump_Description" = "最多允许在几跳范围内收集资源";
+
+// 行星产出计算器
+"PI_Output_Filter_Conditions" = "过滤条件";
+"PI_Output_Select_Solar_System" = "选择星系";
+"PI_Output_Not_Selected" = "未选择";
+"PI_Output_Max_Jumps" = "最大跳数";
+"PI_Output_Search_Solar_System" = "搜索星系";
+"PI_Output_No_Results" = "没有搜索结果";
+"PI_Output_Loading_Systems" = "正在加载星系数据...";
+"Common_Cancel" = "取消";
+"Planetary_System_Description" = "选择作为生产中心的星系";
+
+"PI_Output_Calculating" = "计算中...";
+"PI_Output_View_Systems" = "查看可用星系";
+"PI_Output_Systems_List" = "可用星系列表";
+"PI_Output_Start_System" = "中心星系";
+"Types" = "种";
+"PI_Output_Resources" = "可用资源与产出";
+"PI_Output_View_Planets" = "查看行星总数";
+"PI_Output_Planet_Distribution" = "可用行星";
+"PI_Production_Plan_BasicInfo" = "基本信息";
+"PI_Production_name" = "产品";
+"PI_Production_solar" = "中心星系";
+"PI_Production_Plan_JumpRange" = "范围";
+"PI_Production_Plan_Systems" = "跳";
+"PI_Production_Sov" = "主权";
+"PI_Production_Plan_Title" = "生产方案";
+"PI_Resource_Chain_Error" = "无法加载资源链信息";
+"PI_Production_Plan_P0Requirements" = "资源需求";
+"PI_Available_production" = "可选产品";
+
+// Recipient Types Text
+"Recipient_Type_Character" = "角色";
+"Recipient_Type_Corporation" = "军团";
+"Recipient_Type_Alliance" = "联盟";
+"Recipient_Type_Mailing_List" = "邮件列表";

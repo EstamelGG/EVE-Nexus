@@ -7,7 +7,7 @@ struct WealthDetailView: View {
     @State private var itemInfos: [[String: Any]] = []
     @State private var isLoading = true
     @State private var itemsWithoutPrice: [NoMarketPriceItem] = []
-    @State private var hasInitialized = false // 追踪是否已执行初始化
+    @State private var hasInitialized = false  // 追踪是否已执行初始化
 
     struct NoMarketPriceItem: Identifiable {
         let id: Int
@@ -48,13 +48,13 @@ struct WealthDetailView: View {
         }
         return nil
     }
-    
+
     // 初始化数据加载方法
     private func loadInitialDataIfNeeded() {
         guard !hasInitialized else { return }
-        
+
         hasInitialized = true
-        
+
         Task {
             await loadData()
         }
@@ -97,7 +97,7 @@ struct WealthDetailView: View {
                     Spacer()
                 }
             } else {
-                // 有市场价格的物品
+                // 有市场估价的物品
                 if !valuedItems.isEmpty {
                     Section(header: Text(NSLocalizedString("Wealth_Detail_HasPrice", comment: "")))
                     {

@@ -13,14 +13,13 @@ struct PathNode: Hashable {
     var parent: Int?  // 父节点系统ID
     var g: Double = 0  // 起点到当前点的实际代价
     var h: Double = 0  // 当前点到终点的估计代价
-    var f: Double { g + h }  // 总代价
     var distance: Double = 0  // 从父节点到当前节点的距离
 
     // Hashable 实现
     func hash(into hasher: inout Hasher) {
         hasher.combine(systemId)
     }
-    
+
     // Equatable 实现
     static func == (lhs: PathNode, rhs: PathNode) -> Bool {
         return lhs.systemId == rhs.systemId
@@ -39,15 +38,6 @@ struct PathSegment {
     let src: Int  // 起点ID
     let dst: Int  // 终点ID
     let range: Double  // 距离
-    
-    // 转换为字典格式
-    var toDictionary: [String: Any] {
-        return [
-            "src": src,
-            "dst": dst,
-            "range": range
-        ]
-    }
 }
 
 // 路径结果结构，包含完整路径和详细信息
@@ -55,15 +45,6 @@ struct PathResult {
     let path: [Int]  // 路径上的星系ID序列
     let segments: [PathSegment]  // 路径段信息
     let totalDistance: Double  // 总距离
-    
-    // 转换为字典格式
-    var toDictionary: [String: Any] {
-        return [
-            "path": path,
-            "segments": segments.map { $0.toDictionary },
-            "totalDistance": totalDistance
-        ]
-    }
 }
 
 class JumpPathFinder {
@@ -71,23 +52,27 @@ class JumpPathFinder {
     private var jumpConnections: [Int: [JumpConnection]] = [:]
     // 保存星系ID到名称的映射，用于显示
     private var systemIdToName: [Int: String] = [:]
-    
+    // 添加星系ID到安全等级的映射
+    private var systemIdToSecurity: [Int: Double] = [:]
+
     // 初始化函数，加载跳跃连接数据
     init(databaseManager: DatabaseManager) {
         loadJumpMap()
         loadSystemNames(databaseManager: databaseManager)
+        loadSystemSecurity(databaseManager: databaseManager)
     }
-    
+
     // 从JSON文件加载跳跃地图数据
     private func loadJumpMap() {
         let fileManager = FileManager.default
         let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let jumpMapFile = documentsPath.appendingPathComponent("jump_map/jump_map.json")
-        
+
         if fileManager.fileExists(atPath: jumpMapFile.path) {
             do {
                 let data = try Data(contentsOf: jumpMapFile)
-                if let jsonArray = try JSONSerialization.jsonObject(with: data) as? [[String: Any]] {
+                if let jsonArray = try JSONSerialization.jsonObject(with: data) as? [[String: Any]]
+                {
                     processJumpConnections(jsonArray)
                 }
             } catch {
@@ -97,63 +82,117 @@ class JumpPathFinder {
             Logger.error("跳跃地图文件不存在")
         }
     }
-    
+
     // 处理JSON数据，构建跳跃连接图
     private func processJumpConnections(_ jsonArray: [[String: Any]]) {
         for connection in jsonArray {
             guard let sourceId = connection["s_id"] as? Int,
-                  let destId = connection["d_id"] as? Int,
-                  let distance = connection["ly"] as? Double else {
+                let destId = connection["d_id"] as? Int,
+                let distance = connection["ly"] as? Double
+            else {
                 continue
             }
-            
+
             // 添加双向连接
             addConnection(sourceId: sourceId, destId: destId, distance: distance)
             addConnection(sourceId: destId, destId: sourceId, distance: distance)
         }
-        
+
         Logger.info("已加载跳跃连接: \(jumpConnections.count) 个星系")
     }
-    
+
     // 添加一个连接到图中
     private func addConnection(sourceId: Int, destId: Int, distance: Double) {
         let connection = JumpConnection(sourceId: sourceId, destId: destId, distance: distance)
-        
+
         if jumpConnections[sourceId] == nil {
             jumpConnections[sourceId] = []
         }
         jumpConnections[sourceId]?.append(connection)
     }
-    
+
     // 加载星系名称信息
     private func loadSystemNames(databaseManager: DatabaseManager) {
         // 使用全局缓存的星系数据
         JumpSystemsCache.shared.loadIfNeeded(databaseManager: databaseManager)
         systemIdToName = JumpSystemsCache.shared.systemIdToName
-        
+
         Logger.info("已加载星系名称: \(systemIdToName.count) 个星系")
     }
-    
+
+    // 加载星系安全等级信息
+    private func loadSystemSecurity(databaseManager: DatabaseManager) {
+        // 使用全局缓存的星系数据
+        JumpSystemsCache.shared.loadIfNeeded(databaseManager: databaseManager)
+        systemIdToSecurity = JumpSystemsCache.shared.systemIdToSecurity
+
+        Logger.info("已加载星系安全等级: \(systemIdToSecurity.count) 个星系")
+    }
+
+    // 检查星系是否满足安全等级要求
+    private func isSystemSecurityValid(systemId: Int, isStartPoint: Bool = false) -> Bool {
+        // 如果是起点，允许任何安全等级
+        if isStartPoint {
+            return true
+        }
+
+        // 获取星系安全等级
+        guard let security = systemIdToSecurity[systemId] else {
+            Logger.warning("无法获取星系 \(systemId) 的安全等级信息")
+            return false
+        }
+
+        // 检查安全等级是否小于0.5
+        return security < 0.5
+    }
+
     // 使用A*算法寻找最佳路径
     func findPath(
         from startSystemId: Int,
         to destinationSystemIds: [Int],
         shipTypeId: Int,
         skillLevel: Int,
-        avoidSystems: [Int] = []
+        avoidSystems: [Int] = [],
+        avoidIncursions: Bool,
+        incursionSystems: [Int] = []
     ) -> [PathResult] {
         // 计算飞船的最大跳跃范围
         let maxJumpRange = calculateMaxJumpRange(shipTypeId: shipTypeId, skillLevel: skillLevel)
-        
+
         // 记录最大跳跃范围
         Logger.info("计算路径: 最大跳跃范围 \(maxJumpRange) 光年")
-        
+
+        // 处理需要避开的星系
+        var combinedAvoidSystems = Set(avoidSystems)
+
+        // 如果需要避开入侵星系，将入侵星系添加到避开列表中
+        // 但是不包括起点和目标点
+        if avoidIncursions && !incursionSystems.isEmpty {
+            // 创建一个用户路径点集合，包括起点和所有目标点
+            let userPathPoints = Set([startSystemId] + destinationSystemIds)
+
+            // 过滤入侵星系列表，移除用户选择的路径点
+            let filteredIncursionSystems = incursionSystems.filter { !userPathPoints.contains($0) }
+
+            if filteredIncursionSystems.count < incursionSystems.count {
+                let skippedSystems = incursionSystems.count - filteredIncursionSystems.count
+                Logger.info("用户路径中包含 \(skippedSystems) 个入侵星系，这些星系将不会被规避")
+            }
+
+            Logger.info("添加 \(filteredIncursionSystems.count) 个入侵星系到避开列表")
+            combinedAvoidSystems = combinedAvoidSystems.union(filteredIncursionSystems)
+        }
+
+        if !combinedAvoidSystems.isEmpty {
+            Logger.info("总计需避开 \(combinedAvoidSystems.count) 个星系")
+        }
+
         // 存储所有路径结果
         var allPaths: [PathResult] = []
-        
+
         // 创建集合保存已探索的节点
         var currentSystemId = startSystemId
-        
+
         // 为每个目标点计算路径
         for destinationId in destinationSystemIds {
             // 检查目标是否在图中
@@ -161,20 +200,21 @@ class JumpPathFinder {
                 Logger.error("目标星系 \(destinationId) 不在跳跃图中")
                 continue
             }
-            
+
             // 对每个新目的地，从当前位置开始搜索
             let (path, segments, totalDistance) = aStarSearch(
                 from: currentSystemId,
                 to: destinationId,
                 maxJumpRange: maxJumpRange,
-                avoidSystems: Set(avoidSystems)
+                avoidSystems: combinedAvoidSystems
             )
-            
+
             // 如果找到路径，将当前节点更新为最后到达的节点
             if !path.isEmpty {
-                allPaths.append(PathResult(path: path, segments: segments, totalDistance: totalDistance))
+                allPaths.append(
+                    PathResult(path: path, segments: segments, totalDistance: totalDistance))
                 currentSystemId = destinationId  // 下次从当前终点继续寻路
-                
+
                 // 记录找到的路径
                 let pathNames = path.compactMap { systemIdToName[$0] }.joined(separator: " -> ")
                 Logger.info("找到路径: \(pathNames), 总距离: \(String(format: "%.2f", totalDistance)) 光年")
@@ -182,24 +222,25 @@ class JumpPathFinder {
                 // 如果无法找到路径，记录错误
                 let startName = systemIdToName[currentSystemId] ?? "未知起点"
                 let destName = systemIdToName[destinationId] ?? "未知终点"
-                Logger.error("无法找到从 \(startName)(\(currentSystemId)) 到 \(destName)(\(destinationId)) 的路径")
+                Logger.error(
+                    "无法找到从 \(startName)(\(currentSystemId)) 到 \(destName)(\(destinationId)) 的路径")
             }
         }
-        
+
         return allPaths
     }
-    
+
     // 根据飞船类型和技能等级计算最大跳跃范围
     private func calculateMaxJumpRange(shipTypeId: Int, skillLevel: Int) -> Double {
         // 从数据库查询飞船基础跳跃范围 (attribute_id 867 表示跳跃范围)
         var baseRange: Double = 5.0  // 默认值为5光年
-        
+
         // 尝试从数据库获取实际跳跃范围
         let query = """
-            SELECT value FROM typeAttributes 
-            WHERE type_id = \(shipTypeId) AND attribute_id = 867
-        """
-        
+                SELECT value FROM typeAttributes 
+                WHERE type_id = \(shipTypeId) AND attribute_id = 867
+            """
+
         let databaseManager = DatabaseManager.shared
         if case let .success(rows) = databaseManager.executeQuery(query) {
             if let row = rows.first, let jumpRange = row["value"] as? Double {
@@ -211,13 +252,13 @@ class JumpPathFinder {
         } else {
             Logger.error("查询飞船跳跃范围失败，使用默认值 \(baseRange) 光年")
         }
-        
+
         // 技能等级影响 (每级增加20%)
         let skillMultiplier = 1.0 + Double(skillLevel) * 0.2
-        
+
         return baseRange * skillMultiplier
     }
-    
+
     // A*算法核心实现
     private func aStarSearch(
         from startSystemId: Int,
@@ -229,94 +270,111 @@ class JumpPathFinder {
         if startSystemId == destinationSystemId {
             return ([startSystemId], [], 0.0)
         }
-        
+
         // 检查起点和终点是否在连接图中
         guard jumpConnections.keys.contains(startSystemId),
-              jumpConnections.keys.contains(destinationSystemId) else {
+            jumpConnections.keys.contains(destinationSystemId)
+        else {
             return ([], [], 0.0)
         }
-        
+
+        // 检查终点是否满足安全等级要求
+        guard isSystemSecurityValid(systemId: destinationSystemId) else {
+            Logger.error("目标星系 \(destinationSystemId) 不满足安全等级要求")
+            return ([], [], 0.0)
+        }
+
         // 定义优先队列（使用数组模拟）
         // 元素格式: (估计总跳跃次数, 估计总距离, 节点ID)
         var openQueue: [(jumps: Double, distance: Double, systemId: Int)] = []
         var closedSet = Set<Int>()
-        
+
         // 记录来源节点，用于重建路径
         var cameFrom: [Int: Int] = [:]
-        
+
         // g_score存储从起点到当前节点的实际代价 (跳跃次数, 总距离)
         var gScore: [Int: (jumps: Double, distance: Double)] = [startSystemId: (0, 0)]
-        
+
         // 记录节点间距离
         var nodeDistances: [Int: Double] = [:]
-        
+
         // 初始化优先队列
         openQueue.append((0, 0, startSystemId))
-        
+
         while !openQueue.isEmpty {
             // 获取优先级最高的节点（跳跃次数最少，在跳跃次数相同的情况下总距离最短）
             openQueue.sort { ($0.jumps, $0.distance) < ($1.jumps, $1.distance) }
             let current = openQueue.removeFirst()
             let currentId = current.systemId
-            
+
             // 如果到达目标，重建路径并返回
             if currentId == destinationSystemId {
-                return reconstructPathWithDistances(cameFrom: cameFrom, end: currentId, gScore: gScore, nodeDistances: nodeDistances)
+                return reconstructPathWithDistances(
+                    cameFrom: cameFrom, end: currentId, gScore: gScore, nodeDistances: nodeDistances
+                )
             }
-            
+
             // 将当前节点加入已访问集合
             closedSet.insert(currentId)
-            
+
             // 获取当前节点的所有连接
             guard let connections = jumpConnections[currentId] else {
                 continue
             }
-            
+
             // 遍历所有可能的下一跳
             for connection in connections {
                 let neighborId = connection.destId
-                
+
                 // 跳过已经处理过的节点和需要避开的系统
                 if closedSet.contains(neighborId) || avoidSystems.contains(neighborId) {
                     continue
                 }
-                
+
                 // 检查跳跃范围
                 if connection.distance > maxJumpRange {
                     continue
                 }
-                
+
+                // 检查安全等级要求（除了起点）
+                if !isSystemSecurityValid(
+                    systemId: neighborId, isStartPoint: neighborId == startSystemId)
+                {
+                    continue
+                }
+
                 // 计算从起点经过当前节点到邻居节点的跳跃次数和距离
                 let currentJumps = gScore[currentId]!.jumps
                 let currentDistance = gScore[currentId]!.distance
                 let tentativeJumps = currentJumps + 1  // 每次跳跃加1
                 let tentativeDistance = currentDistance + connection.distance
-                
+
                 // 如果邻居节点尚未被评估或找到了更好的路径
                 let isNewPath = !gScore.keys.contains(neighborId)
-                let isBetterPath = !isNewPath && 
-                                (tentativeJumps < gScore[neighborId]!.jumps || 
-                                (tentativeJumps == gScore[neighborId]!.jumps && 
-                                 tentativeDistance < gScore[neighborId]!.distance))
-                
+                let isBetterPath =
+                    !isNewPath
+                    && (tentativeJumps < gScore[neighborId]!.jumps
+                        || (tentativeJumps == gScore[neighborId]!.jumps
+                            && tentativeDistance < gScore[neighborId]!.distance))
+
                 if isNewPath || isBetterPath {
                     // 更新来源节点
                     cameFrom[neighborId] = currentId
-                    
+
                     // 更新g_score
                     gScore[neighborId] = (tentativeJumps, tentativeDistance)
-                    
+
                     // 记录节点间距离
                     nodeDistances[neighborId] = connection.distance
-                    
+
                     // 估计到终点的代价 - 启发式函数
                     let hJumps = estimateJumps(from: neighborId, to: destinationSystemId)
                     let hDistance = estimateDistance(from: neighborId, to: destinationSystemId)
-                    
+
                     // 计算f_score并添加到优先队列
                     let fJumps = tentativeJumps + hJumps
                     let fDistance = tentativeDistance + hDistance
-                    
+
                     // 如果这是新路径或者是更好的路径，添加到优先队列
                     if isNewPath {
                         openQueue.append((fJumps, fDistance, neighborId))
@@ -328,33 +386,35 @@ class JumpPathFinder {
                 }
             }
         }
-        
+
         // 如果执行到这里，说明没有找到路径
         return ([], [], 0.0)
     }
-    
+
     // 估计从当前节点到目标节点的跳跃次数
     private func estimateJumps(from sourceId: Int, to destId: Int) -> Double {
         // 如果有直接连接，返回1
-        if let connections = jumpConnections[sourceId], 
-           connections.contains(where: { $0.destId == destId }) {
+        if let connections = jumpConnections[sourceId],
+            connections.contains(where: { $0.destId == destId })
+        {
             return 1
         }
         // 否则返回一个合理的估计值，对A*来说必须是乐观的
         return 2  // 假设至少需要2跳
     }
-    
+
     // 估计从当前节点到目标节点的距离
     private func estimateDistance(from sourceId: Int, to destId: Int) -> Double {
         // 如果有直接连接，返回实际距离
-        if let connections = jumpConnections[sourceId], 
-           let connection = connections.first(where: { $0.destId == destId }) {
+        if let connections = jumpConnections[sourceId],
+            let connection = connections.first(where: { $0.destId == destId })
+        {
             return connection.distance
         }
         // 否则返回一个非常乐观的估计值
         return 1.0  // 假设距离很短
     }
-    
+
     // 使用距离信息重建路径
     private func reconstructPathWithDistances(
         cameFrom: [Int: Int],
@@ -365,7 +425,7 @@ class JumpPathFinder {
         var path: [Int] = []
         var segments: [PathSegment] = []
         var current = end
-        
+
         // 从终点回溯到起点
         while let parent = cameFrom[current] {
             path.append(current)
@@ -374,14 +434,14 @@ class JumpPathFinder {
             }
             current = parent
         }
-        
+
         // 添加起点
         path.append(current)
-        
+
         // 反转路径和段以获得从起点到终点的顺序
         path.reverse()
         segments.reverse()
-        
+
         // 返回路径、段和总距离
         return (path, segments, gScore[end]?.distance ?? 0.0)
     }

@@ -1,7 +1,6 @@
 import SwiftUI
 
 struct AboutView: View {
-    @Environment(\.locale) private var locale
 
     private var appIcon: UIImage? {
         if let icons = Bundle.main.infoDictionary?["CFBundleIcons"] as? [String: Any],
@@ -19,11 +18,6 @@ struct AboutView: View {
     }
 
     private let aboutItems: [AboutItem] = [
-        AboutItem(
-            title: NSLocalizedString("Main_About_Version", comment: ""),
-            value: AppConfiguration.Version.fullVersion,
-            icon: "app.badge"
-        ),
         AboutItem(
             title: NSLocalizedString("Main_About_Database_Version", comment: ""),
             value: AppConfiguration.Database.version,
@@ -63,7 +57,7 @@ struct AboutView: View {
             Section {
                 HStack {
                     Spacer()
-                    VStack(spacing: 12) {
+                    VStack(spacing: 6) {
                         if let icon = appIcon {
                             Image(uiImage: icon)
                                 .resizable()
@@ -76,11 +70,13 @@ struct AboutView: View {
                         Text(appName)
                             .font(.title2)
                             .fontWeight(.bold)
+                        Text("v\(AppConfiguration.Version.fullVersion)")
+                            .font(.system(.body, design: .monospaced))
                     }
                     Spacer()
                 }
                 .listRowBackground(Color.clear)
-                .padding(.vertical, 10)
+                .padding(.vertical, 5)
             }
 
             // Information Section
@@ -103,21 +99,8 @@ struct AboutView: View {
                     .foregroundColor(.primary)
                     .padding(.vertical, 8)
             }
-
-            // Copyright Section
-            //            Section {
-            //                HStack {
-            //                    Spacer()
-            //                    Text(NSLocalizedString("Main_About_Copyright", comment: ""))
-            //                        .font(.footnote)
-            //                        .foregroundColor(.gray)
-            //                    Spacer()
-            //                }
-            //                .listRowBackground(Color.clear)
-            //            }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(Text(NSLocalizedString("Main_About", comment: "")))
     }
 }
 

@@ -48,38 +48,12 @@ class MainViewModel: ObservableObject {
         case loadingQueue
         case loadingServerStatus
         case loadingCloneStatus
-
-        var isLoading: Bool {
-            self != .idle
-        }
     }
 
     // MARK: - Error Handling
 
     enum RefreshError: Error {
-        case skillInfoFailed
-        case walletFailed
-        case locationFailed
-        case cloneFailed
         case serverStatusFailed
-        case portraitFailed
-
-        var localizedDescription: String {
-            switch self {
-            case .skillInfoFailed:
-                return NSLocalizedString("Error_Skill_Info_Failed", comment: "")
-            case .walletFailed:
-                return NSLocalizedString("Error_Wallet_Failed", comment: "")
-            case .locationFailed:
-                return NSLocalizedString("Error_Location_Failed", comment: "")
-            case .cloneFailed:
-                return NSLocalizedString("Error_Clone_Failed", comment: "")
-            case .serverStatusFailed:
-                return NSLocalizedString("Error_Server_Status_Failed", comment: "")
-            case .portraitFailed:
-                return NSLocalizedString("Error_Portrait_Failed", comment: "")
-            }
-        }
     }
 
     // MARK: - Published Properties
@@ -94,7 +68,7 @@ class MainViewModel: ObservableObject {
     @Published var isRefreshing = false
     @Published var loadingState: LoadingState = .idle
     @Published var lastError: RefreshError?
-    
+
     // 添加军团和联盟相关的发布属性
     @Published var corporationInfo: CorporationInfo?
     @Published var corporationLogo: UIImage?
@@ -340,7 +314,7 @@ class MainViewModel: ObservableObject {
             }
         }
 
-        Logger.error("操作最终失败: \(operationName) - 错误: \(lastError?.localizedDescription ?? "未知错误")")
+        Logger.error("操作最终失败: \(operationName)")
         throw lastError ?? RefreshError.serverStatusFailed
     }
 
@@ -390,24 +364,24 @@ class MainViewModel: ObservableObject {
                             characterId: character.CharacterID, forceRefresh: forceRefresh
                         )
                     }
-                    
+
                     // 获取军团信息
                     async let corpInfoTask = CorporationAPI.shared.fetchCorporationInfo(
                         corporationId: publicInfo.corporation_id)
                     async let corpLogoTask = CorporationAPI.shared.fetchCorporationLogo(
                         corporationId: publicInfo.corporation_id)
-                    
+
                     let (corpInfo, corpLogo) = try await (corpInfoTask, corpLogoTask)
                     self.corporationInfo = corpInfo
                     self.corporationLogo = corpLogo
-                    
+
                     // 获取联盟信息
                     if let allianceId = publicInfo.alliance_id {
                         async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(
                             allianceId: allianceId)
                         async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(
                             allianceID: allianceId)
-                        
+
                         let (alliInfo, alliLogo) = try await (allianceInfoTask, allianceLogoTask)
                         self.allianceInfo = alliInfo
                         self.allianceLogo = alliLogo
@@ -420,7 +394,7 @@ class MainViewModel: ObservableObject {
                     Logger.error("获取角色公共信息失败: \(error)")
                 }
             }
-            
+
             // 加载技能信息
             Task {
                 do {

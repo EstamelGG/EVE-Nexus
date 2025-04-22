@@ -556,16 +556,6 @@ enum SkillTrainingCalculator {
             currentAttr: 0
         )
 
-        if let best = bestAllocation {
-            Logger.debug("找到最优分配方案:")
-            Logger.debug(
-                "属性点分配 - 感知: +\(best.perception - minAttr), 记忆: +\(best.memory - minAttr), 意志: +\(best.willpower - minAttr), 智力: +\(best.intelligence - minAttr), 魅力: +\(best.charisma - minAttr)"
-            )
-            Logger.debug(
-                "训练时间 - 当前: \(formatTimeInterval(best.currentTrainingTime)), 最优: \(formatTimeInterval(best.totalTrainingTime)), 节省: \(formatTimeInterval(best.currentTrainingTime - best.totalTrainingTime))"
-            )
-        }
-
         // 返回最优属性分配结果，不包含植入体加成
         return bestAllocation
     }
@@ -599,28 +589,5 @@ enum SkillTrainingCalculator {
         let pointsPerMinute = Double(primaryValue) + Double(secondaryValue) / 2.0
         // 转换为每小时
         return Int(pointsPerMinute * 60)
-    }
-
-    /// 格式化时间间隔
-    private static func formatTimeInterval(_ interval: TimeInterval) -> String {
-        let days = Int(interval) / (24 * 3600)
-        let hours = Int(interval) / 3600 % 24
-        let minutes = Int(interval) / 60 % 60
-
-        if days > 0 {
-            if hours > 0 {
-                return "\(days)天\(hours)小时"
-            } else {
-                return "\(days)天"
-            }
-        } else if hours > 0 {
-            if minutes > 0 {
-                return "\(hours)小时\(minutes)分钟"
-            } else {
-                return "\(hours)小时"
-            }
-        } else {
-            return "\(minutes)分钟"
-        }
     }
 }

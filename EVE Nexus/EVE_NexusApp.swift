@@ -1,7 +1,6 @@
 import CommonCrypto
-import SwiftUI
-import Zip
 import Foundation
+import SwiftUI
 
 @main
 struct EVE_NexusApp: App {
@@ -12,16 +11,15 @@ struct EVE_NexusApp: App {
     @State private var unzipProgress: Double = 0
     @State private var needsUnzip = false
 
+    private func getLanguageCode(_ language: String) -> String {
+        return language.hasPrefix("zh-Hans") ? "zh-Hans" : "en"
+    }
+
     init() {
+        configureLanguage()
         Logger.info("App start at \(Date())")
         // 打印 UserDefaults 中的所有键值
         let defaults = UserDefaults.standard
-
-        // 检查并设置useEnglishSystemNames的默认值
-        if defaults.object(forKey: "useEnglishSystemNames") == nil {
-            Logger.debug("正在初始化 useEnglishSystemNames 为 false")
-            defaults.set(false, forKey: "useEnglishSystemNames")
-        }
 
         let dictionary = defaults.dictionaryRepresentation()
         // Logger.info("UserDefaults 内容:")
@@ -52,9 +50,12 @@ struct EVE_NexusApp: App {
         )
 
         // 检查总大小是否接近限制（4MB）
-        if totalSize > 3_000_000 {
-            Logger.error("警告：UserDefaults 总大小接近系统限制(4MB)，请检查是否有过大的数据存储")
+        if totalSize > 3_500_000 {
+            Logger.error(
+                "警告：UserDefaults 总大小(\(ByteCountFormatter.string(fromByteCount: Int64(totalSize), countStyle: .file)))接近限制(4MB)"
+            )
         }
+
         // 按大小排序并打印
         sizeMap.sort { $0.size > $1.size }
         for item in sizeMap {
@@ -65,24 +66,26 @@ struct EVE_NexusApp: App {
 
         // 初始化数据库
         _ = CharacterDatabaseManager.shared  // 确保角色数据库被初始化
-        
+
         // 加载本地化账单信息的文本数据
         LocalizationManager.shared.loadAccountingEntryTypes()
-        
-        configureLanguage()
         validateRefreshTokens()
     }
 
     private func configureLanguage() {
-        if let language = selectedLanguage {
-            Logger.debug("正在写入 UserDefaults，键: AppleLanguages, 值: [\(language)]")
-            UserDefaults.standard.set([language], forKey: "AppleLanguages")
-            UserDefaults.standard.synchronize()
-        } else {
+        // 只在首次启动或语言未设置时配置
+        if selectedLanguage == nil {
             let systemLanguage = Locale.preferredLanguages.first ?? "en"
-            Logger.debug("正在写入 UserDefaults，键: AppleLanguages, 值: [\(systemLanguage)]")
-            UserDefaults.standard.set([systemLanguage], forKey: "AppleLanguages")
+            let languageCode = getLanguageCode(systemLanguage)
+            selectedLanguage = languageCode
+            UserDefaults.standard.set([languageCode], forKey: "AppleLanguages")
             UserDefaults.standard.synchronize()
+            Logger.debug("首次启动，设置为系统语言: \(systemLanguage) -> \(languageCode)")
+        } else {
+            // 使用已保存的语言设置
+            UserDefaults.standard.set([selectedLanguage], forKey: "AppleLanguages")
+            UserDefaults.standard.synchronize()
+            Logger.debug("使用已保存的语言设置: \(String(describing: selectedLanguage))")
         }
     }
 

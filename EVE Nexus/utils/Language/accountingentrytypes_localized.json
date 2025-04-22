@@ -1,2994 +1,2342 @@
 {
     "player_trading": {
         "entryTypeName": {
-            "en": "Player Trading",
-            "ja": "プレイヤーのトレード",
-            "it": "Commercio giocatore",
-            "ru": "Коммерческая деятельность игрока",
-            "zh": "玩家交易",
-            "de": "Spieler-Handel",
-            "ko": "플레이어 거래",
-            "fr": "Commerce entre joueurs",
-            "es": "Comercio entre jugadores"
+            "en": [
+                "Player Trading"
+            ],
+            "zh": [
+                "玩家交易"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Direct trade between {name1} and {name2}",
-            "ja": "{name1} と {name2} との直接取引",
-            "it": "Commercio diretto tra {name1} e {name2}",
-            "ru": "Сеанс торговли между {name1} и {name2}",
-            "zh": "{name1}和{name2}之间的直接交易",
-            "de": " Direkter Handel zwischen {name1} und {name2}",
-            "ko": "{name1}, {name2} 사이의 직접 거래",
-            "fr": "Commerce direct entre {name1} et {name2}",
-            "es": "Comercio directo entre {name1} y {name2}."
+            "en": [
+                "Direct trade between {name1} and {name2}"
+            ],
+            "zh": [
+                "{name1}和{name2}之间的直接交易"
+            ]
         }
     },
     "market_transaction": {
         "entryTypeName": {
-            "en": "Market Transaction",
-            "ja": "マーケットの取引記録",
-            "it": "Transazione di mercato",
-            "ru": "Рыночная сделка",
-            "zh": "市场交易",
-            "de": "Markt-Transaktion",
-            "ko": "거래소 거래기록",
-            "fr": "Transaction au marché",
-            "es": "Transacción del mercado"
+            "en": [
+                "Market Transaction"
+            ],
+            "zh": [
+                "市场交易"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Market: {name1} bought stuff from {name2}",
-            "ja": "マーケット : {name1} が {name2} から購入",
-            "it": "Mercato: {name1} ha comprato roba da {name2}",
-            "ru": "Рынок: сделка купли-продажи между {name1} и {name2}",
-            "zh": "市场：{name1}从{name2}那里购买了物品",
-            "de": "Markt: {name1} hat etwas von {name2} gekauft",
-            "ko": "거래소: {name1} 플레이어는 {name2} 플레이어로부터 물품 구매",
-            "fr": "Marché : {name1} a acheté des marchandises à {name2}",
-            "es": "Mercado: {name1} ha comprado productos a {name2}."
+            "en": [
+                "Market: {name1} bought stuff from {name2}"
+            ],
+            "zh": [
+                "市场：{name1}从{name2}那里购买了物品"
+            ]
         }
     },
     "gm_cash_transfer": {
         "entryTypeName": {
-            "en": "GM Cash Transfer",
-            "ja": "GM現金振替",
-            "it": "Trasferimento denaro contante GM",
-            "ru": "Денежный перевод GM",
-            "zh": "GM现金转帐",
-            "de": "GM Bar-Transfer",
-            "ko": "GM ISK 이체",
-            "fr": "Virement de fonds des maîtres de jeu",
-            "es": "Transferencia de dinero de GM"
+            "en": [
+                "GM Cash Transfer"
+            ],
+            "zh": [
+                "GM现金转帐"
+            ]
         },
         "entryJournalMessage": {
-            "en": "GM [{arg}] issued transaction between {name1} and {name2}",
-            "ja": "GM [{arg}] により {name1} から {name2} へ送金",
-            "it": "GM [{arg}] ha stabilito una transazione tra {name1} e {name2}",
-            "ru": " Гейм-мастер [{arg}] организовал транзакцию между {name1} и {name2}",
-            "zh": "GM[{arg}]实施的{name1}和{name2}之间的交易",
-            "de": "GM [{arg}] beauftragte Transaktion zwischen {name1} und {name2}",
-            "ko": "GM [{arg}]이 {name1}에게서 {name2}에게로 ISK를 이체했습니다.",
-            "fr": "Le MJ a annulé une transaction [{arg}] entre {name1} et {name2}",
-            "es": "El GM [{arg}] ha emitido la transacción entre {name1} y {name2}."
+            "en": [
+                "GM [{arg}] issued transaction between {name1} and {name2}"
+            ],
+            "zh": [
+                "GM[{arg}]实施的{name1}和{name2}之间的交易"
+            ]
         }
     },
     "mission_reward": {
         "entryTypeName": {
-            "en": "Mission Reward",
-            "ja": "ミッションの報酬",
-            "it": "Ricompensa missione",
-            "ru": "Вознаграждение за выполнение задания",
-            "zh": "任务奖励",
-            "de": "Missionsbelohnung",
-            "ko": "미션 보상",
-            "fr": "Récompense de mission",
-            "es": "Retribución de misión"
+            "en": [
+                "Mission Reward"
+            ],
+            "zh": [
+                "任务奖励"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Mission reward",
-            "ja": "ミッションの報酬",
-            "it": "Ricompensa missione",
-            "ru": "Награда за выполнение задания",
-            "zh": "任务报酬",
-            "de": "Missionsbelohnung",
-            "ko": "미션 보상",
-            "fr": "Récompense de mission",
-            "es": "Retribución de misión"
+            "en": [
+                "Mission reward"
+            ],
+            "zh": [
+                "任务报酬"
+            ]
         }
     },
     "clone_activation": {
         "entryTypeName": {
-            "en": "Clone Activation",
-            "ja": "クローンの起動",
-            "it": "Attivazione clone",
-            "ru": "Активация клона",
-            "zh": "克隆激活",
-            "de": "Klonaktivierung",
-            "ko": "클론 활성화",
-            "fr": "Activation de clones",
-            "es": "Activación de clon"
+            "en": [
+                "Clone Activation"
+            ],
+            "zh": [
+                "克隆激活"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Clone activation",
-            "ja": "クローンの起動",
-            "it": "Attivazione clone",
-            "ru": "Активация клона",
-            "zh": "克隆激活",
-            "de": "Klon-Aktivierung",
-            "ko": "클론 활성화 수수료",
-            "fr": "Activation de clones",
-            "es": "Activación de clon"
+            "en": [
+                "Clone activation"
+            ],
+            "zh": [
+                "克隆激活"
+            ]
         }
     },
     "inheritance": {
         "entryTypeName": {
-            "en": "Inheritance",
-            "ja": "継承",
-            "it": "Eredità",
-            "ru": "Премия",
-            "zh": "继承",
-            "de": "Erbe",
-            "ko": "상속",
-            "fr": "Héritage",
-            "es": "Herencia"
+            "en": [
+                "Inheritance"
+            ],
+            "zh": [
+                "继承"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Inheritance from {name}",
-            "ja": "{name} からの贈与財産",
-            "it": "Ereditato da {name}",
-            "ru": "Наследство, полученное от {name}",
-            "zh": "{name}的馈赠继承",
-            "de": "Erbschaft von {name}",
-            "ko": "{name} 청산으로 받은 금액",
-            "fr": " Héritage de {name}",
-            "es": "Herencia de {name}."
+            "en": [
+                "Inheritance from {name}"
+            ],
+            "zh": [
+                "{name}的馈赠继承"
+            ]
         }
     },
     "player_donation": {
         "entryTypeName": {
-            "en": "Player Donation",
-            "ja": "プレイヤーの寄付",
-            "it": "Donazione giocatore",
-            "ru": "Сделанное игроком пожертвование",
-            "zh": "玩家捐助",
-            "de": "Spieler-Spende",
-            "ko": "플레이어 기부",
-            "fr": "Don des joueurs",
-            "es": "Donación de jugador"
+            "en": [
+                "Player Donation"
+            ],
+            "zh": [
+                "玩家捐助"
+            ]
         },
         "entryJournalMessage": {
-            "en": "{name1} deposited cash into {name2}'s account",
-            "ja": "{name1} から {name2} の口座に入金",
-            "it": "{name1} ha depositato denaro contante nell'account di {name2}",
-            "ru": "Пилот {name1} внес средства на счет пилота {name2}",
-            "zh": "{name1}将现金存入{name2}的账户",
-            "de": "{name1} hat Geld auf das Konto von {name2} eingezahlt",
-            "ko": "{name1}이(가) {name2}의 계좌로 ISK 이체",
-            "fr": "{name1} a déposé de l'argent sur le compte de {name2}",
-            "es": "{name1} ha ingresado el dinero en la cuenta de {name2}."
+            "en": [
+                "{name1} deposited cash into {name2}'s account"
+            ],
+            "zh": [
+                "{name1}将现金存入{name2}的账户"
+            ]
         }
     },
     "corporation_payment": {
         "entryTypeName": {
-            "en": "Corporation Payment",
-            "ja": "コーポレーションの支払い",
-            "it": "Pagamento corporazione",
-            "ru": "Корпоративный платеж",
-            "zh": "军团付款",
-            "de": "Corporation - Zahlung",
-            "ko": "코퍼레이션 지불",
-            "fr": "Paiement - Corporation",
-            "es": "Pago corporativo"
+            "en": [
+                "Corporation Payment"
+            ],
+            "zh": [
+                "军团付款"
+            ]
         }
     },
     "docking_fee": {
         "entryTypeName": {
-            "en": "Docking Fee",
-            "ja": "入港料",
-            "it": "Tassa per l'attracco",
-            "ru": "Оплата стоянки в доке",
-            "zh": "停靠费",
-            "de": "Andockgebühr",
-            "ko": "도킹 비용",
-            "fr": "Frais de stationnement",
-            "es": "Tasa de acoplamiento"
+            "en": [
+                "Docking Fee"
+            ],
+            "zh": [
+                "停靠费"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Docking fee between {name1} and {name2}'s account",
-            "ja": "入港料として {name1} から {name2} の口座へ支払い",
-            "it": "Tassa per l'attracco tra gli account di {name1} e {name2}",
-            "ru": "Перечисления {name1} сбора за использование дока {name2}.",
-            "zh": "{name1}和{name2}的账户之间的停靠费",
-            "de": "Transfer von Andockgebühren zwischen den Konten von {name1} und {name2}",
-            "ko": "{name1}, {name2}의 계정 사이에 지급된 도킹 비용",
-            "fr": "Frais de location des docks partagés entre les comptes de {name1} et {name2}",
-            "es": "Tasa de acoplamiento entre la cuenta de {name1} y la cuenta de {name2}."
+            "en": [
+                "Docking fee between {name1} and {name2}'s account"
+            ],
+            "zh": [
+                "{name1}和{name2}的账户之间的停靠费"
+            ]
         }
     },
     "office_rental_fee": {
         "entryTypeName": {
-            "en": "Office Rental Fee",
-            "ja": "オフィスのレンタル料金",
-            "it": "Tassa affitto ufficio",
-            "ru": "Арендная плата за офис",
-            "zh": "办公室租金",
-            "de": "Büro-Mietgebühr",
-            "ko": "사무실 임대료",
-            "fr": "Frais de location de bureaux",
-            "es": "Tasa de alquiler de oficina"
+            "en": [
+                "Office Rental Fee"
+            ],
+            "zh": [
+                "办公室租金"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Office rental fee between {name1} and {name2}",
-            "ja": "オフィス賃料として {name1} から {name2} に支払い",
-            "it": "Tassa affitto ufficio tra {name1} e {name2}",
-            "ru": "Оплата пилотом {name1} сбора за аренду офиса на станции, принадлежащей {name2}",
-            "zh": "{name1}和{name2}之间的办公室租借费",
-            "de": "Transfer von Büroanmietungsgebühren zwischen {name1} und {name2}",
-            "ko": "{name1}, {name2} 사이의 정거장 사무실 대여 비용",
-            "fr": "Frais de location des bureaux partagés entre {name1} et {name2}",
-            "es": "Alquiler de la oficina entre {name1} y {name2}."
+            "en": [
+                "Office rental fee between {name1} and {name2}"
+            ],
+            "zh": [
+                "{name1}和{name2}之间的办公室租借费"
+            ]
         }
     },
     "factory_slot_rental_fee": {
         "entryTypeName": {
-            "en": "Factory Slot Rental Fee",
-            "ja": "工場スロットのレンタル料金",
-            "it": "Tassa affitto slot di produzione",
-            "ru": "Плата за аренду заводской ячейки",
-            "zh": "工厂槽位租借费",
-            "de": "Fabrikplatz-Mietgebühr",
-            "ko": "공장 슬롯 대여료",
-            "fr": "Frais de location d'un créneau d'usine",
-            "es": "Alquiler de ranura de fábrica"
+            "en": [
+                "Factory Slot Rental Fee"
+            ],
+            "zh": [
+                "工厂槽位租借费"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Factory slot rental fee between{name1} and {name2}",
-            "ja": "工場スロットレンタル料として {name1} から {name2} に支払い",
-            "it": "Tassa affitto slot di produzione tra {name1} e {name2}",
-            "ru": "Оплата пилотом {name1} сбора за аренду заводской ячейки на станции, принадлежащей {name2}",
-            "zh": "{name1}和{name2}之间的工厂槽位租借费",
-            "de": "Transfer von Fabrikgebühren zwischen {name1} und {name2}",
-            "ko": "{name1}, {name2} 간 공장 슬롯 대여 비용",
-            "fr": "Frais de location d'un créneau usine entre {name1} et {name2}",
-            "es": "Alquiler de ranura de fábrica entre {name1} y {name2}."
+            "en": [
+                "Factory slot rental fee between{name1} and {name2}"
+            ],
+            "zh": [
+                "{name1}和{name2}之间的工厂槽位租借费"
+            ]
         }
     },
     "repair_bill": {
         "entryTypeName": {
-            "en": "Repair Bill",
-            "ja": "リペア請求書",
-            "it": "Fattura riparazione",
-            "ru": "Счет за ремонт",
-            "zh": "维修账单",
-            "de": "Reparatur-Rechnung",
-            "ko": "수리비",
-            "fr": "Facture de réparation",
-            "es": "Factura de reparación"
+            "en": [
+                "Repair Bill"
+            ],
+            "zh": [
+                "维修账单"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Repair bill between {name1} and {name2}",
-            "ja": "修理費として {name1} から {name2} へ支払い",
-            "it": "Fattura di riparazione tra {name1} e {name2}",
-            "ru": "Оплата пилотом {name1} стоимости ремонта, выполненного {name2}",
-            "zh": "{name1}和{name2}之间的修理费",
-            "de": "Reparaturrechnung zwischen {name1} und {name2}",
-            "ko": "{name1}, {name2} 사이의 수리 비용",
-            "fr": "Facture de réparation entre {name1} et {name2}",
-            "es": "Factura de reparación entre {name1} y {name2}."
+            "en": [
+                "Repair bill between {name1} and {name2}"
+            ],
+            "zh": [
+                "{name1}和{name2}之间的修理费"
+            ]
         }
     },
     "bounty": {
         "entryTypeName": {
-            "en": "Bounty",
-            "ja": "懸賞金",
-            "it": "Taglia",
-            "ru": "Награда за голову",
-            "zh": "赏金",
-            "de": "Kopfgeld",
-            "ko": "현상금",
-            "fr": "Prime",
-            "es": "Recompensa"
+            "en": [
+                "Bounty"
+            ],
+            "zh": [
+                "赏金"
+            ]
         }
     },
     "bounty_prize": {
         "entryTypeName": {
-            "en": "Bounty Prize",
-            "ja": "獲得賞金/懸賞金",
-            "it": "Ricompensa taglia",
-            "ru": "Награда",
-            "zh": "追击赏金",
-            "de": "Kopfgeld-Auszahlung",
-            "ko": "현상금 상품",
-            "fr": "Récompense de prime",
-            "es": "Pago de recompensa"
+            "en": [
+                "Bounty Prize"
+            ],
+            "zh": [
+                "追击赏金"
+            ]
         }
     },
     "insurance": {
         "entryTypeName": {
-            "en": "Insurance",
-            "ja": "保険",
-            "it": "Assicurazione",
-            "ru": "Страховка",
-            "zh": "保险",
-            "de": "Versicherung",
-            "ko": "보험",
-            "fr": "Assurance",
-            "es": "Seguro"
+            "en": [
+                "Insurance"
+            ],
+            "zh": [
+                "保险"
+            ]
+        },
+        "entryJournalMessage": {
+            "en": [
+                "Insurance paid by {name1} to {name2} for ship {location} (Insurance RefID:{refID}",
+                "Insurance paid by {name1} to {name2} covering loss of a {itemname}",
+                "Insurance paid by {name1} to {name2}"
+            ],
+            "zh": [
+                "{name1}为飞船{location}投保而向{name2}支付保险金 (保单参考ID：{refID})",
+                "{name1}为{itemname}的损失而对{name2}保险赔付",
+                "{name1}支付给{name2}的保险金"
+            ]
         }
     },
     "mission_expiration": {
         "entryTypeName": {
-            "en": "Mission Expiration",
-            "ja": "ミッションの有効期限",
-            "it": "Scadenza missione",
-            "ru": "Истечение срока задания",
-            "zh": "任务过期",
-            "de": "Verfall der Mission",
-            "ko": "미션 만료",
-            "fr": "Expiration de la mission",
-            "es": "Caducidad de la misión"
+            "en": [
+                "Mission Expiration"
+            ],
+            "zh": [
+                "任务过期"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Mission rollback due to expiration",
-            "ja": "期限切れによるミッションロールバック",
-            "it": "Missione ritirata poiché è scaduta",
-            "ru": "Отмена задания из-за истечения срока",
-            "zh": "任务由于过期而撤回",
-            "de": "Ausgelaufene Mission zurückgesetzt",
-            "ko": "기간 만료로 인한 미션 초기화",
-            "fr": "Mission réinitialisée à cause de l'expiration",
-            "es": "Anulación de la misión debido a caducidad."
+            "en": [
+                "Mission rollback due to expiration"
+            ],
+            "zh": [
+                "任务由于过期而撤回"
+            ]
         }
     },
     "mission_completion": {
         "entryTypeName": {
-            "en": "Mission Completion",
-            "ja": "ミッション完了",
-            "it": "Completamento missione",
-            "ru": "Завершение задания",
-            "zh": "任务完成",
-            "de": "Missionsabschluss",
-            "ko": "미션 완료",
-            "fr": "Accomplissement de la mission",
-            "es": "Cumplimiento de la misión"
+            "en": [
+                "Mission Completion"
+            ],
+            "zh": [
+                "任务完成"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Mission completion",
-            "ja": "ミッション完了",
-            "it": "Completamento missione",
-            "ru": "Выполнение задания",
-            "zh": "任务完成",
-            "de": "Abschluss der Mission",
-            "ko": "미션 완료",
-            "fr": "Achèvement de la mission",
-            "es": "Cumplimiento de la misión."
+            "en": [
+                "Mission completion"
+            ],
+            "zh": [
+                "任务完成"
+            ]
         }
     },
     "shares": {
         "entryTypeName": {
-            "en": "Shares",
-            "ja": "シェア",
-            "it": "Quote",
-            "ru": "Акции",
-            "zh": "股票",
-            "de": "Aktien",
-            "ko": "주식",
-            "fr": "Actions",
-            "es": "Acciones"
+            "en": [
+                "Shares"
+            ],
+            "zh": [
+                "股票"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Company shares transaction",
-            "ja": "会社株式取引",
-            "it": "Transazione quote della società",
-            "ru": "Операция с акциями компании",
-            "zh": "军团股份交易",
-            "de": "Firmenaktientransfer",
-            "ko": "회사 지분 거래",
-            "fr": "Transaction d'actions d'entreprise",
-            "es": "Transacción de acciones de la compañía."
+            "en": [
+                "Company shares transaction"
+            ],
+            "zh": [
+                "军团股份交易"
+            ]
         }
     },
     "courier_mission_escrow": {
         "entryTypeName": {
-            "en": "Courier Mission Escrow",
-            "ja": "輸送ミッションのエスクロー",
-            "it": "Corriere in missione per deposito presso terzi",
-            "ru": "Залог за курьерское задание",
-            "zh": "快递任务契约金",
-            "de": "Kuriermissionshinterlegung",
-            "ko": "운반 미션 예탁금",
-            "fr": "Dépôt fiduciaire de mission de courrier",
-            "es": "Depósito de misión de reparto"
+            "en": [
+                "Courier Mission Escrow"
+            ],
+            "zh": [
+                "快递任务契约金"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Courier mission escrow",
-            "ja": "輸送ミッションのエスクロー",
-            "it": "Corriere in missione per deposito presso terzi",
-            "ru": "Внесение залога при получении курьерского задания",
-            "zh": "快递任务契约",
-            "de": "Kuriermissionshinterlegung",
-            "ko": "운송 미션 제3자 예탁금",
-            "fr": "Dépôt fiduciaire de mission de courrier",
-            "es": "Depósito de misión de reparto."
+            "en": [
+                "Courier mission escrow"
+            ],
+            "zh": [
+                "快递任务契约"
+            ]
         }
     },
     "mission_cost": {
         "entryTypeName": {
-            "en": "Mission Cost",
-            "ja": "ミッションの経費",
-            "it": "Costo della missione",
-            "ru": "Стоимость задания",
-            "zh": "任务花销",
-            "de": "Missionskosten",
-            "ko": "미션 비용",
-            "fr": "Coût de la mission",
-            "es": "Coste de la misión"
+            "en": [
+                "Mission Cost"
+            ],
+            "zh": [
+                "任务花销"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Mission cost",
-            "ja": "ミッションの経費",
-            "it": "Costo della missione",
-            "ru": "Стоимость задания",
-            "zh": "任务开销",
-            "de": "Missionskosten",
-            "ko": "미션 비용",
-            "fr": "Coût de la mission",
-            "es": "Coste de la misión."
+            "en": [
+                "Mission cost"
+            ],
+            "zh": [
+                "任务开销"
+            ]
         }
     },
     "agent_miscellaneous": {
         "entryTypeName": {
-            "en": "Agent Miscellaneous",
-            "ja": "その他のエージェント",
-            "it": "Miscellanee agente",
-            "ru": "Другие услуги агента",
-            "zh": "代理人杂项",
-            "de": "Agent - Verschiedenes",
-            "ko": "에이전트 기타",
-            "fr": "Divers - Agent",
-            "es": "Servicios varios de agente"
+            "en": [
+                "Agent Miscellaneous"
+            ],
+            "zh": [
+                "代理人杂项"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Cash transfer from agent {name1} to {name2}",
-            "ja": "エージェント {name1} から {name2} へ送金",
-            "it": "Trasferimento fondi dall'agente {name1} a {name2}",
-            "ru": "Перевод средств на счет {name2} от агента {name1} ",
-            "zh": "从代理人{name1}到{name2}的现金转账",
-            "de": "Geldtransfer von Agent {name1} zu {name2}",
-            "ko": "{name1} 플레이어가 {name2} 플레이어에게 이체한 금액",
-            "fr": "Transfert d'argent de l'agent {name1} à {name2}",
-            "es": "Transferencia de dinero del agente {name1} a {name2}."
+            "en": [
+                "Cash transfer from agent {name1} to {name2}"
+            ],
+            "zh": [
+                "从代理人{name1}到{name2}的现金转账"
+            ]
         }
     },
     "lp_store": {
         "entryTypeName": {
-            "en": "LP Store",
-            "ja": "LP ストア",
-            "it": "Negozio LP",
-            "ru": "Магазин наград",
-            "zh": "忠诚点商店",
-            "de": "LP-Shop",
-            "ko": "LP 스토어",
-            "fr": "Magasin PL",
-            "es": "Tienda de PL"
+            "en": [
+                "LP Store"
+            ],
+            "zh": [
+                "忠诚点商店"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Payment to LP Store",
-            "ja": "LP ストアへの支払い",
-            "it": "Pagamento a LP Store",
-            "ru": "Оплата в магазине наград",
-            "zh": "支付给忠诚点商店的款项",
-            "de": "Zahlung an LP-Shop",
-            "ko": "LP 스토어 거래",
-            "fr": "Paiement au magasin PL",
-            "es": "Pago a la tienda de PL."
+            "en": [
+                "Payment to LP Store"
+            ],
+            "zh": [
+                "支付给忠诚点商店的款项"
+            ]
         }
     },
     "agent_location_services": {
         "entryTypeName": {
-            "en": "Agent Location Services",
-            "ja": "エージェントの人物捜索サービス",
-            "it": "Servizio di locazione agente",
-            "ru": "Поисковый сервис агента",
-            "zh": "位置追踪服务",
-            "de": "Agent - Ortungsdienste",
-            "ko": "에이전트 위치 확인 서비스",
-            "fr": "Services de localisation - Agent",
-            "es": "Servicios de ubicación de agente"
+            "en": [
+                "Agent Location Services"
+            ],
+            "zh": [
+                "位置追踪服务"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Paid agent to locate somebody",
-            "ja": "エージェントの手数料（人物の捜索依頼）",
-            "it": "Agente pagato per localizzare qualcuno",
-            "ru": "Плата агенту за поиск пилота",
-            "zh": "请代理人寻人而支付的费用",
-            "de": "Agent wurde bezahlt, um jemanden zu orten",
-            "ko": "현상금 에이전트 서비스 사용료 지불",
-            "fr": "Agent payé pour localiser quelqu'un",
-            "es": "Agente pagado para localizar a alguien."
+            "en": [
+                "Paid agent to locate somebody"
+            ],
+            "zh": [
+                "请代理人寻人而支付的费用"
+            ]
         }
     },
     "agent_donation": {
         "entryTypeName": {
-            "en": "Agent Donation",
-            "ja": "エージェントへの寄付",
-            "it": "Donazione agente",
-            "ru": "Подарок агента",
-            "zh": "代理人捐赠",
-            "de": "Agent - Zahlung",
-            "ko": "에이전트 기부",
-            "fr": "Donation - Agent",
-            "es": "Donación de agente"
+            "en": [
+                "Agent Donation"
+            ],
+            "zh": [
+                "代理人捐赠"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Donation from {name1} to agent {name2}",
-            "ja": "寄付金として {name1} からエージェント {name2} へ支払い",
-            "it": "Donazione da {name1} all'agente {name2}",
-            "ru": "Пожертвование, переданное пилотом {name1} агенту {name2}",
-            "zh": "{name1}给予代理人{name2}的捐赠",
-            "de": "Spende von {name1} an Agent {name2}",
-            "ko": "{name1} 플레이어가 {name2} 에이전트에게 기부한 금액",
-            "fr": "Don de {name1} à l'agent {name2}",
-            "es": "Donación de {name1} al agente {name2}."
+            "en": [
+                "Donation from {name1} to agent {name2}"
+            ],
+            "zh": [
+                "{name1}给予代理人{name2}的捐赠"
+            ]
         }
     },
     "agent_security_services": {
         "entryTypeName": {
-            "en": "Agent Security Services",
-            "ja": "エージェントの警護サービス",
-            "it": "Servizi di sicurezza agenti",
-            "ru": "Услуги безопасности агента",
-            "zh": "代理人保安服务",
-            "de": "Agent - Sicherheitsdienst",
-            "ko": "에이전트 보안 서비스",
-            "fr": "Services de sécurité - Agent",
-            "es": "Servicios de seguridad de agente"
+            "en": [
+                "Agent Security Services"
+            ],
+            "zh": [
+                "代理人保安服务"
+            ]
         },
         "entryJournalMessage": {
-            "en": "CONCORD relations by agent {name1} on behalf of {name2}",
-            "ja": "CONCORD 関連費としてエージェント {name1} から {name2} の代理で送金",
-            "it": "Relazione dell'agente {name1} con CONCORD per conto di {name2}",
-            "ru": "Оплата агентом {name1} улучшения отношений с КОНКОРДом (от имени {name2})",
-            "zh": "代表{name2}的代理人{name1}和统合部的关系",
-            "de": "CONCORD-Beziehungen zu Agent {name1} im Namen von {name2}",
-            "ko": "CONCORD와의 관계 향상을 위해 {name2} 플레이어가 {name1} 에이전트에게 지불한 금액",
-            "fr": "Relations CONCORD par l'agent {name1} au nom de {name2}",
-            "es": "Relaciones en CONCORD por el agente {name1} en nombre de {name2}."
+            "en": [
+                "CONCORD relations by agent {name1} on behalf of {name2}"
+            ],
+            "zh": [
+                "代表{name2}的代理人{name1}和统合部的关系"
+            ]
         }
     },
     "agent_mission_collateral_paid": {
         "entryTypeName": {
-            "en": "Agent Mission Collateral Paid",
-            "ja": "支払われたエージェントミッションの担保金",
-            "it": "Missione collaterale agente pagata",
-            "ru": "Залог за задание агента выплачен",
-            "zh": "代理人任务保证金已缴纳",
-            "de": "Agent - Mission-Sicherheitszahlung",
-            "ko": "에이전트 미션 담보금 지급",
-            "fr": "Caution payée - Mission d'agent",
-            "es": "Garantía de misión de agente pagada"
+            "en": [
+                "Agent Mission Collateral Paid"
+            ],
+            "zh": [
+                "代理人任务保证金已缴纳"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Mission collateral paid by {name1} to agent {name2}",
-            "ja": "ミッション担保金として {name1} から エージェント{name2} へ支払い",
-            "it": "Garanzia missione pagata da {name1} all'agente {name2}",
-            "ru": "Оплата пилотом {name1} залога для задания агента {name2}",
-            "zh": "{name1}支付给代理人{name2}的任务保证金",
-            "de": "Missionssicherheit von {name1} an Agent {name2} gezahlt",
-            "ko": "{name2} 에이전트에게 {name1} 플레이어가 지불한 담보",
-            "fr": "Caution de la mission payée par {name1} à l'agent {name2}",
-            "es": "Garantía de misión pagada por {name1} al agente {name2}."
+            "en": [
+                "Mission collateral paid by {name1} to agent {name2}"
+            ],
+            "zh": [
+                "{name1}支付给代理人{name2}的任务保证金"
+            ]
         }
     },
     "agent_mission_collateral_refunded": {
         "entryTypeName": {
-            "en": "Agent Mission Collateral Refunded",
-            "ja": "払い戻されたエージェントミッションの担保金",
-            "it": "Missione collaterale agente rimborsata",
-            "ru": "Залог за задание агента возвращен",
-            "zh": "代理人任务保证金已返还",
-            "de": "Agent - Mission-Sicherheitsrückzahlung",
-            "ko": "환급한 에이전트 미션 담보금",
-            "fr": "Caution remboursée - Mission d'agent",
-            "es": "Garantía de misión de agente devuelta"
+            "en": [
+                "Agent Mission Collateral Refunded"
+            ],
+            "zh": [
+                "代理人任务保证金已返还"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Mission collateral refunded by agent {name1} to  {name2}",
-            "ja": "ミッション担保金をエージェント {name1} から {name2} へ返金",
-            "it": "Garanzia missione rimborsata dall'agente {name1} a  {name2}",
-            "ru": "Залог за задание возмещен агентом {name1} пилоту {name2}",
-            "zh": "代理人{name1}返还给{name2}的任务保证金",
-            "de": "Missionssicherheit zurückgezahlt von Agent {name1} an {name2}",
-            "ko": "{name2} 플레이어에게 {name1} 에이전트가 환급한 담보",
-            "fr": "Caution de la mission remboursée par l'agent {name1} à {name2}",
-            "es": "Garantía de misión devuelta por el agente {name1} a {name2}."
+            "en": [
+                "Mission collateral refunded by agent {name1} to  {name2}"
+            ],
+            "zh": [
+                "代理人{name1}返还给{name2}的任务保证金"
+            ]
         }
     },
     "agents_preward": {
         "entryTypeName": {
-            "en": "Agents_preward",
-            "ja": "エージェントの前払い報酬",
-            "it": "Agenti_ricompensa",
-            "ru": "Агенты_preward",
-            "zh": "代理人_预付金",
-            "de": "Agent - Vorauszahlung",
-            "ko": "에이전트_preward",
-            "fr": "Pré-récompense_Agent",
-            "es": "Agents_preward"
+            "en": [
+                "Agents_preward"
+            ],
+            "zh": [
+                "代理人_预付金"
+            ]
         }
     },
     "agent_mission_reward": {
         "entryTypeName": {
-            "en": "Agent Mission Reward",
-            "ja": "エージェントミッションの報酬",
-            "it": "Ricompensa missione agente",
-            "ru": "Вознаграждение за выполнение задания агента",
-            "zh": "代理人任务奖励",
-            "de": "Agent - Missions-Belohnung",
-            "ko": "에이전트 미션 보상",
-            "fr": "Récompense - Mission d'agent",
-            "es": "Retribución de misión de agente"
+            "en": [
+                "Agent Mission Reward"
+            ],
+            "zh": [
+                "代理人任务奖励"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Mission reward from agent {name1} to {name2}",
-            "ja": "ミッション報酬としてエージェント {name1} から {name2} へ支払い",
-            "it": "Ricompensa missione dall'agente {name1} a {name2}",
-            "ru": "Награда за выполнение задания для пилота {name2} от агента {name1}",
-            "zh": "代理人{name1}给予{name2}的任务酬劳",
-            "de": "Transfer einer Missionsbelohnung von Agent {name1} zu {name2}",
-            "ko": "{name1}이(가) {name2}에게 미션 보상 지급",
-            "fr": "Récompense de mission de l'agent {name1} à {name2}",
-            "es": "Retribución de la misión del agente {name1} a {name2}."
+            "en": [
+                "Mission reward from agent {name1} to {name2}"
+            ],
+            "zh": [
+                "代理人{name1}给予{name2}的任务酬劳"
+            ]
         }
     },
     "agent_mission_time_bonus_reward": {
         "entryTypeName": {
-            "en": "Agent Mission Time Bonus Reward",
-            "ja": "エージェントミッションのタイムボーナスの報酬",
-            "it": "Bonus ricompensa tempo missione agente",
-            "ru": "Бонус за досрочное выполнение задания агента",
-            "zh": "代理人任务时间加成奖励",
-            "de": "Agent - Missions-Belohnung für Zeitbonus",
-            "ko": "에이전트 미션 추가 보상",
-            "fr": "Récompense du bonus de temps - Mission d'agent",
-            "es": "Retribución de bonificación de tiempo de misión de agente"
+            "en": [
+                "Agent Mission Time Bonus Reward"
+            ],
+            "zh": [
+                "代理人任务时间加成奖励"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Mission reward bonus from agent {name1} to {name2}",
-            "ja": "ミッションボーナス報酬としてエージェント {name1} から {name2} へ支払い",
-            "it": "Bonus ricompensa missione dall'agente {name1} a {name2}",
-            "ru": "Бонус за досрочное выполнение задания для пилота {name2} от агента {name1}",
-            "zh": "代理人{name1}给予{name2}的任务酬劳奖金",
-            "de": "Missionsbelohnungsbonus von Agent {name1} an {name2}",
-            "ko": "{name1}이(가) {name2}에게 미션 추가 보상 지급",
-            "fr": "Récompense bonus de mission de l'agent {name1} à {name2}",
-            "es": "Bonificación de retribución de la misión del agente {name1} a {name2}."
+            "en": [
+                "Mission reward bonus from agent {name1} to {name2}"
+            ],
+            "zh": [
+                "代理人{name1}给予{name2}的任务酬劳奖金"
+            ]
         }
     },
     "cspa": {
         "entryTypeName": {
-            "en": "CSPA",
-            "ja": "CSPA",
-            "it": "CSPA",
-            "ru": "CSPA",
-            "zh": "CSPA",
-            "de": "CSPA",
-            "ko": "CSPA",
-            "fr": "Loi sur la protection contre les spams (CSPA)",
-            "es": "LPSC"
+            "en": [
+                "CSPA"
+            ],
+            "zh": [
+                "CSPA"
+            ]
         }
     },
     "cspaofflinerefund": {
         "entryTypeName": {
-            "en": "CSPAOfflineRefund",
-            "ja": "CSPAオフライン払い戻し",
-            "it": "CSPARimborsoOffline",
-            "ru": "CSPAOfflineRefund",
-            "zh": "CSPA离线返还金",
-            "de": "CSPA Offline-Rückzahlung",
-            "ko": "CSPA 오프라인 환급",
-            "fr": "Remboursement hors-ligne CSPA",
-            "es": "Devolución de la LPSC sin conexión"
+            "en": [
+                "CSPAOfflineRefund"
+            ],
+            "zh": [
+                "CSPA离线返还金"
+            ]
         }
     },
     "corporation_account_withdrawal": {
         "entryTypeName": {
-            "en": "Corporation Account Withdrawal",
-            "ja": "コーポレーションアカウント出金",
-            "it": "Prelievo account corporazione",
-            "ru": "Списание средств со счета корпорации",
-            "zh": "军团账户支取",
-            "de": "Corporation - Kontoabhebung",
-            "ko": "코퍼레이션 계좌 출금",
-            "fr": "Retrait d'argent - Corporation",
-            "es": "Retirada de cuenta corporativa"
+            "en": [
+                "Corporation Account Withdrawal"
+            ],
+            "zh": [
+                "军团账户支取"
+            ]
         },
         "entryJournalMessage": {
-            "en": "{name1} transferred cash from {name2}'s corporate account to {name3}'s account",
-            "ja": "{name1} が {name2} のコーポレーション口座から {name3} の口座へ送金",
-            "it": "{name1} ha trasferito fondi dall'account corporativo di {name2} all'account di {name3}",
-            "ru": "{name1} перевел средства с корпоративного счета {name2} на счет {name3}",
-            "zh": "{name1}从{name2}的军团账户转移现金到{name3}的账户",
-            "de": "{name1} überwies Geld vom Corporation-Konto von {name2} auf das Konto von {name3}",
-            "ko": "{name1}이(가) {name2} 코퍼레이션 계좌에서 {name3}의 계좌로 ISK 이체",
-            "fr": "{name1} a transféré de l'argent du compte de corporation de {name2} vers le compte de {name3}",
-            "es": "{name1} ha transferido dinero de la cuenta corporativa de {name2} a la cuenta de {name3}."
+            "en": [
+                "{name1} transferred cash from {name2}'s corporate account to {name3}'s account"
+            ],
+            "zh": [
+                "{name1}从{name2}的军团账户转移现金到{name3}的账户"
+            ]
         }
     },
     "corporation_dividend_payment": {
         "entryTypeName": {
-            "en": "Corporation Dividend Payment",
-            "ja": "コーポレーション配当金支払い",
-            "it": "Pagamento dividendo corporazione",
-            "ru": "Выплата дивидендов по корпорации",
-            "zh": "军团分红支付",
-            "de": "Corporation - Dividendenzahlung",
-            "ko": "코퍼레이션 배당금 지불",
-            "fr": "Paiement des dividendes - Corporation",
-            "es": "Pago de dividendos corporativos"
+            "en": [
+                "Corporation Dividend Payment"
+            ],
+            "zh": [
+                "军团分红支付"
+            ]
         }
     },
     "corporation_registration_fee": {
         "entryTypeName": {
-            "en": "Corporation Registration Fee",
-            "ja": "コーポレーション登録料",
-            "it": "Tassa registrazione corporazione",
-            "ru": "Акциз за регистрацию корпорации",
-            "zh": "军团注册费",
-            "de": "Corporation - Anmeldegebühr",
-            "ko": "코퍼레이션 설립 비용",
-            "fr": "Frais d'inscription - Corporation",
-            "es": "Cuota de inscripción de la corporación"
+            "en": [
+                "Corporation Registration Fee"
+            ],
+            "zh": [
+                "军团注册费"
+            ]
         },
         "entryJournalMessage": {
-            "en": "{name1} paid corporation registration fee",
-            "ja": "{name1} によるコーポレーション登録料の支払い",
-            "it": "{name1} ha pagato la tassa registrazione corporazione",
-            "ru": "Оплата сбора за регистрацию корпорации (отправитель платежа — {name1})",
-            "zh": "{name1}支付了军团注册费",
-            "de": "{name1} zahlte Corporation-Registrierungsgebühr",
-            "ko": "{name1}이(가) 코퍼레이션 설립 비용 지불",
-            "fr": "{name1} a payé des frais d'enregistrement de corporation",
-            "es": "{name1} ha pagado la cuota de inscripción de la corporación."
+            "en": [
+                "{name1} paid corporation registration fee"
+            ],
+            "zh": [
+                "{name1}支付了军团注册费"
+            ]
         }
     },
     "corporation_logo_change_cost": {
         "entryTypeName": {
-            "en": "Corporation Logo Change Cost",
-            "ja": "コーポレーションロゴ変更費用",
-            "it": "Costo cambio logo corporazione",
-            "ru": "Стоимость изменения логотипа корпорации",
-            "zh": "军团图标变更费用",
-            "de": "Corporation - Kosten für Logo-Wechsel",
-            "ko": "코퍼레이션 로고 변경 비용",
-            "fr": "Frais de changement du logo - Corporation",
-            "es": "Coste de cambio del logotipo corporativo"
+            "en": [
+                "Corporation Logo Change Cost"
+            ],
+            "zh": [
+                "军团图标变更费用"
+            ]
         }
     },
     "release_of_impounded_property": {
         "entryTypeName": {
-            "en": "Release Of Impounded Property",
-            "ja": "差押資産の凍結解除",
-            "it": "Rilascio proprietà sequestrata",
-            "ru": "Cнятие ареста с имущества",
-            "zh": "扣押资产赎金",
-            "de": "Freigabe beschlagnahmten Besitzes",
-            "ko": "압류된 자산 회수 비용",
-            "fr": "Restitution des biens confisqués - Corporation",
-            "es": "Liberación de propiedad embargada"
+            "en": [
+                "Release Of Impounded Property"
+            ],
+            "zh": [
+                "扣押资产赎金"
+            ]
         }
     },
     "market_escrow": {
         "entryTypeName": {
-            "en": "Market Escrow",
-            "ja": "マーケットエスクロー",
-            "it": "Deposito presso terzi",
-            "ru": "Платеж за покупку (внесен на счет посредника)",
-            "zh": "市场契约金",
-            "de": "Markt-Hinterlegung",
-            "ko": "거래소 예탁금",
-            "fr": "Dépôt fiduciaire au marché",
-            "es": "Depósito de mercado"
+            "en": [
+                "Market Escrow"
+            ],
+            "zh": [
+                "市场契约金"
+            ]
+        },
+        "entryJournalMessage": {
+            "en": [
+                "Market escrow release"
+            ],
+            "zh": [
+                "市场契约金退还"
+            ]
         }
     },
     "agent_services_rendered": {
         "entryTypeName": {
-            "en": "Agent Services Rendered",
-            "ja": "エージェントのサービス",
-            "it": "Fornitura servizi per agenti",
-            "ru": "Услуги, предоставляемые агентом",
-            "zh": "代理人服务已提供",
-            "de": "Agent - Dienste geleistet",
-            "ko": "에이전트 서비스 제공됨",
-            "fr": "Services rendus - Agent",
-            "es": "Servicios de agente prestados"
+            "en": [
+                "Agent Services Rendered"
+            ],
+            "zh": [
+                "代理人服务已提供"
+            ]
         }
     },
     "market_fine_paid": {
         "entryTypeName": {
-            "en": "Market Fine Paid",
-            "ja": "支払われた市場法違反罰則金",
-            "it": "Multa del mercato pagata",
-            "ru": "Рыночный сбор оплачен",
-            "zh": "支付市场罚款",
-            "de": "Markt-Bußgeld bezahlt",
-            "ko": "거래소 벌금 지불",
-            "fr": "Amende payée du marché",
-            "es": "Multa de mercado pagada"
+            "en": [
+                "Market Fine Paid"
+            ],
+            "zh": [
+                "支付市场罚款"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Market: paid fine",
-            "ja": "マーケット : 罰金の支払い",
-            "it": "Mercato: multa pagata",
-            "ru": "Рынок: выплата штрафа",
-            "zh": "市场：已付罚金",
-            "de": "Markt: Bußgeld bezahlt",
-            "ko": "거래소: 벌금 지불",
-            "fr": "Marché : amende payée",
-            "es": "Mercado: multa pagada."
+            "en": [
+                "Market: paid fine"
+            ],
+            "zh": [
+                "市场：已付罚金"
+            ]
         }
     },
     "corporation_liquidation": {
         "entryTypeName": {
-            "en": "Corporation Liquidation",
-            "ja": "コーポレーションの清算",
-            "it": "Liquidazione corporazione",
-            "ru": "Ликвидация корпорации",
-            "zh": "军团结算",
-            "de": "Corporation - Liquidation",
-            "ko": "코퍼레이션 해산",
-            "fr": "Liquidation - Corporation",
-            "es": "Liquidación de la corporación"
+            "en": [
+                "Corporation Liquidation"
+            ],
+            "zh": [
+                "军团结算"
+            ]
         }
     },
     "brokers_fee": {
         "entryTypeName": {
-            "en": "Brokers Fee",
-            "ja": "ブローカー料",
-            "it": "Tassa agente mediatore",
-            "ru": "Гонорар брокера",
-            "zh": "经纪人中介费",
-            "de": "Maklergebühr",
-            "ko": "중개인 수수료",
-            "fr": "Frais de courtage",
-            "es": "Comisión"
+            "en": [
+                "Brokers Fee"
+            ],
+            "zh": [
+                "经纪人中介费"
+            ]
+        },
+        "entryJournalMessage": {
+            "en": [
+                "Market order commission to broker authorized by: {name1}"
+            ],
+            "zh": [
+                "{name1}授权的支付给中介的市场订单佣金"
+            ]
         }
     },
     "corporation_bulk_payment": {
         "entryTypeName": {
-            "en": "Corporation Bulk Payment",
-            "ja": "コーポレーションの一括支払い",
-            "it": "Pagamento generoso corporazione",
-            "ru": "Массовый платеж корпорации",
-            "zh": "军团批量付款",
-            "de": "Corporation - Großzahlung",
-            "ko": "코퍼레이션 대량 지불",
-            "fr": "Paiements en masse - Corporation",
-            "es": "Pago masivo de la corporación"
+            "en": [
+                "Corporation Bulk Payment"
+            ],
+            "zh": [
+                "军团批量付款"
+            ]
         }
     },
     "alliance_registration_fee": {
         "entryTypeName": {
-            "en": "Alliance Registration Fee",
-            "ja": "アライアンス登録料",
-            "it": "Tassa registrazione alleanza",
-            "ru": "Сбор за регистрацию альянса",
-            "zh": "联盟注册费用",
-            "de": "Allianz-Registrierungsgebühr",
-            "ko": "얼라이언스 설립 비용",
-            "fr": "Frais d'inscription - Alliance",
-            "es": "Cuota de inscripción de la alianza"
+            "en": [
+                "Alliance Registration Fee"
+            ],
+            "zh": [
+                "联盟注册费用"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Alliance registration fee",
-            "ja": "アライアンス登録料",
-            "it": "Tassa registrazione alleanza",
-            "ru": "Плата за регистрацию альянса",
-            "zh": "联盟注册费",
-            "de": "Allianzregistrierungsgebühr",
-            "ko": "얼라이언스 등록 비용",
-            "fr": "Frais d'inscription - Alliance",
-            "es": "Cuota de inscripción de la alianza."
+            "en": [
+                "Alliance registration fee"
+            ],
+            "zh": [
+                "联盟注册费"
+            ]
         }
     },
     "war_fee": {
         "entryTypeName": {
-            "en": "War Fee",
-            "ja": "戦争に関する費用",
-            "it": "Tassa per la guerra",
-            "ru": "Оплата войны",
-            "zh": "战争费",
-            "de": "Kriegsgebühr",
-            "ko": "전쟁 비용",
-            "fr": "Frais de guerre",
-            "es": "Tasa de guerra"
+            "en": [
+                "War Fee"
+            ],
+            "zh": [
+                "战争费"
+            ]
         }
     },
     "alliance_maintainance_fee": {
         "entryTypeName": {
-            "en": "Alliance Maintainance Fee",
-            "ja": "アライアンスのメンテナンス料",
-            "it": "Tassa manutenzione alleanza",
-            "ru": "Сбор за обслуживание альянса",
-            "zh": "联盟维护费用",
-            "de": "Allianz-Unterhaltsgebühr",
-            "ko": "얼라이언스 정비 비용",
-            "fr": "Frais de maintenance - Alliance",
-            "es": "Tasa de mantenimiento de la alianza"
+            "en": [
+                "Alliance Maintainance Fee"
+            ],
+            "zh": [
+                "联盟维护费用"
+            ]
         }
     },
     "contraband_fine": {
         "entryTypeName": {
-            "en": "Contraband Fine",
-            "ja": "密輸品の罰則金",
-            "it": "Multa contrabbando",
-            "ru": "Штраф за контрабанду",
-            "zh": "违禁物罚金",
-            "de": "Schmuggelstrafe",
-            "ko": "밀수 벌금",
-            "fr": "Amende de contrebande",
-            "es": "Multa por contrabando"
+            "en": [
+                "Contraband Fine"
+            ],
+            "zh": [
+                "违禁物罚金"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Fine for contraband smuggling",
-            "ja": "禁輸品輸送の罰金",
-            "it": "Multa per contrabbando",
-            "ru": "Штраф за контрабанду",
-            "zh": "走私违禁品的罚款",
-            "de": "Strafe für das Schmuggeln von Ware",
-            "ko": "밀수 적발에 따른 벌금",
-            "fr": "Amende pour contrebande",
-            "es": "Multa por contrabando."
+            "en": [
+                "Fine for contraband smuggling"
+            ],
+            "zh": [
+                "走私违禁品的罚款"
+            ]
         }
     },
     "clone_transfer": {
         "entryTypeName": {
-            "en": "Clone Transfer",
-            "ja": "クローンの転送",
-            "it": "Trasferimento clone",
-            "ru": "Передача клона",
-            "zh": "克隆转移",
-            "de": "Klonüberführung",
-            "ko": "클론 전송",
-            "fr": "Transfert de clones",
-            "es": "Transferencia de clon"
+            "en": [
+                "Clone Transfer"
+            ],
+            "zh": [
+                "克隆转移"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Clone transfer to {[location]arg.name}",
-            "ja": "クローンを {[location]arg.name} へ移動",
-            "it": "Trasferimento clone a {[location]arg.name}",
-            "ru": "Перемещение клона на станцию {[location]arg.name}",
-            "zh": "克隆转移到{[location]arg.name}",
-            "de": "Klon-Transfer nach {[location]arg.name}",
-            "ko": "{[location]arg.name} 로의 클론 이송",
-            "fr": "Transfert de clones vers {[location]arg.name}",
-            "es": "Transferencia de clon a {[location]arg.name}."
+            "en": [
+                "Clone transfer to {[location]arg.name}"
+            ],
+            "zh": [
+                "克隆转移到{[location]arg.name}"
+            ]
         }
     },
     "acceleration_gate_fee": {
         "entryTypeName": {
-            "en": "Acceleration Gate Fee",
-            "ja": "アクセラレーションゲートの料金",
-            "it": "Tassa portale di accelerazione",
-            "ru": "Плата за врата ускорения",
-            "zh": "加速轨道费用",
-            "de": "Beschleunigungstor-Gebühr",
-            "ko": "액셀레이션 게이트 비용",
-            "fr": "Frais de portail d'accélération",
-            "es": "Tasa de portal de aceleración"
+            "en": [
+                "Acceleration Gate Fee"
+            ],
+            "zh": [
+                "加速轨道费用"
+            ]
         }
     },
     "transaction_tax": {
         "entryTypeName": {
-            "en": "Transaction Tax",
-            "ja": "取引税",
-            "it": "Tassa transazione",
-            "ru": "Налог на сделку",
-            "zh": "交易税",
-            "de": "Transaktionssteuer",
-            "ko": "거래세",
-            "fr": "Taxe de transaction",
-            "es": "Impuesto de transacción"
+            "en": [
+                "Transaction Tax"
+            ],
+            "zh": [
+                "交易税"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Sales tax paid to the SCC",
-            "ja": "SCC への物品税の支払い",
-            "it": "Tassa sulle vendite pagata al SCC",
-            "ru": "Уплаченный SCC налог с продаж",
-            "zh": "向SCC支付的销售税",
-            "de": "Umsatzsteuer an den SCC gezahlt",
-            "ko": "안전무역위원회(SCC)에 지불하는 판매 수수료",
-            "fr": "Taxe de ventes payée au SCC",
-            "es": "Impuesto de ventas pagado a la CCS."
+            "en": [
+                "Sales tax paid to the SCC"
+            ],
+            "zh": [
+                "向SCC支付的销售税"
+            ]
         }
     },
     "jump_clone_installation_fee": {
         "entryTypeName": {
-            "en": "Jump Clone Installation Fee",
-            "ja": "ジャンプクローンのインストール料金",
-            "it": "Tassa installazione clone Jump",
-            "ru": "Гонорар за установку прыжкового клона",
-            "zh": "远距克隆安装费",
-            "de": "Sprungklon-Installationsgebühr",
-            "ko": "점프 클론 설치 비용",
-            "fr": "Frais de création de clones hyperspatiaux",
-            "es": "Tasa de instalación de clon de salto"
+            "en": [
+                "Jump Clone Installation Fee"
+            ],
+            "zh": [
+                "远距克隆安装费"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Fee for installing a Jump Clone paid from {name1} to {name2}",
-            "ja": "ジャンプクローンの設置料（{name1}から{name2}に支払い）",
-            "it": "Tassa per l'installazione di un clone Jump",
-            "ru": "{name1} выплатил {name2} комиссию за размещение джамп-клона",
-            "zh": "{name1} 支付给{name2}的安装远距克隆费用",
-            "de": "Gebühr für die Installation eines Sprungklons wurde von {name1} an {name2} gezahlt",
-            "ko": "{name1}이(가) {name2}에 점프 클론 설치 비용 지불",
-            "fr": "Frais d'installation d'un clone hyperspatial payés par {name1} pour {name2}",
-            "es": "{name1} Ha pagado la tasa de instalación de un clon de salto a {name2}."
+            "en": [
+                "Fee for installing a Jump Clone paid from {name1} to {name2}"
+            ],
+            "zh": [
+                "{name1} 支付给{name2}的安装远距克隆费用"
+            ]
         }
     },
     "manufacturing": {
         "entryTypeName": {
-            "en": "Manufacturing",
-            "ja": "製造",
-            "it": "Manifattura",
-            "ru": "Обработка",
-            "zh": "制造",
-            "de": "Fertigung",
-            "ko": "제조",
-            "fr": "Production",
-            "es": "Fabricación"
+            "en": [
+                "Manufacturing"
+            ],
+            "zh": [
+                "制造"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Manufacturing job fee between {name1} and {name2} (Job ID: {arg1})",
-            "ja": "製造費として {name1} から {name2} へ支払い（ジョブ ID: {arg1}）",
-            "it": "Tassa sul lavoro di manifattura tra {name1} e {name2} (Job ID: {arg1})",
-            "ru": "Оплата производственных работ (участники платежа — {name1} и {name2}, номер заказа: {arg1})",
-            "zh": "{name1}与{name2}之间的生产项目费用 (项目ID：{arg1})",
-            "de": "Produktionsauftragsgebühr zwischen {name1} und {name1} (Auftrag-ID: {arg1})",
-            "ko": "{name1}, {name2} 사이의 제조 작업 수수료 (작업 ID: {arg1})",
-            "fr": "Frais de travail de production entre {name1} et {name2} (ID du travail : {arg1})",
-            "es": "Tasa de trabajo de fabricación entre {name1} y {name2} (ID de trabajo: {arg1})."
+            "en": [
+                "Manufacturing job fee between {name1} and {name2} (Job ID: {arg1})"
+            ],
+            "zh": [
+                "{name1}与{name2}之间的生产项目费用 (项目ID：{arg1})"
+            ]
         }
     },
     "researching_technology": {
         "entryTypeName": {
-            "en": "Researching Technology",
-            "ja": "技術研究",
-            "it": "Tecnologia di ricerca",
-            "ru": "Технология исследования",
-            "zh": "研究技术",
-            "de": "Technologieforschung",
-            "ko": "기술 연구",
-            "fr": "Recherche en technologie",
-            "es": "Investigar tecnología"
+            "en": [
+                "Researching Technology"
+            ],
+            "zh": [
+                "研究技术"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Technological research job fee between {name1} and {name2} (Job ID: {arg1})",
-            "ja": "技術研究依頼費として {name1} から {name2} へ支払い（ジョブ ID: {arg1}）",
-            "it": "Tassa sul lavoro di ricerca tecnologica tra {name1} e {name2} (Job ID: {arg1})",
-            "ru": "Плата за аренду пилотом {name2} лаборатории {name1} для исследования технологий (Код работы: {arg1})",
-            "zh": "{name1}与{name2}之间的技术研究费用 (项目ID：{arg1})",
-            "de": "Gebühr für Technologieforschungsauftrag zwischen {name1} und {name2} (Auftrag-ID: {arg1})",
-            "ko": "{name1}, {name2} 사이의 기술 연구 작업 비용 (작업 ID: {arg1})",
-            "fr": "Frais professionnels de recherche en technologies entre {name1} et {name2} (ID du travail : {arg1})",
-            "es": "Tasa de trabajo de investigación tecnológica entre {name1} y {name2} (ID de trabajo: {arg1})."
+            "en": [
+                "Technological research job fee between {name1} and {name2} (Job ID: {arg1})"
+            ],
+            "zh": [
+                "{name1}与{name2}之间的技术研究费用 (项目ID：{arg1})"
+            ]
         }
     },
     "researching_time_productivity": {
         "entryTypeName": {
-            "en": "Researching Time Efficiency",
-            "ja": "時間効率研究",
-            "it": "Produttività tempo di ricerca",
-            "ru": "Повышение скорости производства",
-            "zh": "研究时间效率",
-            "de": "Zeiteffizienz-Forschung",
-            "ko": "시간효율성 연구",
-            "fr": "Recherche gain de temps",
-            "es": "Investigar eficiencia temporal"
+            "en": [
+                "Researching Time Efficiency"
+            ],
+            "zh": [
+                "研究时间效率"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Time efficiency research job fee between {name1} and {name2} (Job ID: {arg1})",
-            "ja": "時間効率研究ジョブ料金として{name1}から{name2}へ支払い（ジョブ ID: {arg1}）",
-            "it": "Tassa sul lavoro di ricerca relativo alla produttività temporale tra {name1} e {name2} (Job ID: {arg1})",
-            "ru": "Оплата стоимости работ по повышению скорости производства (участники платежа — {name1}, {name2}; номер заказа — {arg1})",
-            "zh": "{name1}与{name2}之间的时间效率研究费用（项目ID：{arg1}）",
-            "de": "Gebühr für den Zeiteffizienz-Forschungsauftrag zwischen {name1} und {name2} (Auftrag-ID: {arg1})",
-            "ko": "{name1}, {name2} 사이의 시간효율성 연구 작업 비용 (작업 ID: {arg1})",
-            "fr": "Frais liés au travail de recherche de gain de temps entre {name1} et {name2} (ID du travail : {arg1})",
-            "es": "Tasa de trabajo de investigación sobre eficiencia temporal entre {name1} y {name2} (ID de trabajo: {arg1})."
+            "en": [
+                "Time efficiency research job fee between {name1} and {name2} (Job ID: {arg1})"
+            ],
+            "zh": [
+                "{name1}与{name2}之间的时间效率研究费用（项目ID：{arg1}）"
+            ]
         }
     },
     "researching_material_productivity": {
         "entryTypeName": {
-            "en": "Researching Material Efficiency",
-            "ja": "資源効率研究",
-            "it": "Produttività materiale di ricerca",
-            "ru": "Повышение материалоэффективности производства",
-            "zh": "研究材料效率",
-            "de": "Materialeffizienz-Forschung",
-            "ko": "자원효율성 연구",
-            "fr": "Recherche efficacité de matériaux",
-            "es": "Investigar eficiencia de materiales"
+            "en": [
+                "Researching Material Efficiency"
+            ],
+            "zh": [
+                "研究材料效率"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Material efficiency research job fee between {name1} and {name2} (Job ID: {arg1})",
-            "ja": "資源効率研究ジョブ料金として{name1}から{name2}へ支払い（ジョブID：{arg1}）",
-            "it": "Tassa sul lavoro di ricerca relativo alla produttività materiale tra {name1} e {name2} (Job ID: {arg1})",
-            "ru": "Оплата стоимости работ по повышению материалоэффективности производства (участники платежа — {name1}, {name2}; номер заказа — {arg1})",
-            "zh": "{name1}与{name2}之间的材料效率研究费用（项目ID：{arg1}）",
-            "de": "Gebühr für den Materialeffizienz-Forschungsauftrag zwischen {name1} und {name2} (Auftrag-ID: {arg1})",
-            "ko": "{name1}, {name2} 사이의 자원효율성 연구 작업 비용 (작업 ID: {arg1})",
-            "fr": "Frais liés au travail de recherche d'efficacité matérielle entre {name1} et {name2} (ID du travail : {arg1})",
-            "es": "Tasa de trabajo de investigación sobre eficiencia de materiales entre {name1} y {name2} (ID de trabajo: {arg1})."
+            "en": [
+                "Material efficiency research job fee between {name1} and {name2} (Job ID: {arg1})"
+            ],
+            "zh": [
+                "{name1}与{name2}之间的材料效率研究费用（项目ID：{arg1}）"
+            ]
         }
     },
     "copying": {
         "entryTypeName": {
-            "en": "Copying",
-            "ja": "コピー",
-            "it": "Copiando",
-            "ru": "Kопирование",
-            "zh": "拷贝",
-            "de": "Kopieren",
-            "ko": "복제",
-            "fr": "Copie en cours",
-            "es": "Copia"
+            "en": [
+                "Copying"
+            ],
+            "zh": [
+                "拷贝"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Blueprint copying job fee between {name1} and {name2} (Job ID: {arg1})",
-            "ja": "ブループリント複製手数料として {name1} から {name2} へ支払い（ジョブ ID: {arg1}）",
-            "it": "Tassa sul lavoro di copiatura cianografia tra {name1} e {name2} (Job ID: {arg1})",
-            "ru": "Оплата стоимости работ по копированию чертежа (участники платежа — {name1}, {name2}; номер заказа — {arg1})",
-            "zh": "{name1}与{name2}之间的蓝图复制费用 (项目ID：{arg1})",
-            "de": "Gebühr für Blueprint-Kopierauftrag zwischen {name1} und {name2} (Auftrag-ID: {arg1})",
-            "ko": "{name1}, {name2} 사이의 블루프린트 복제 작업 비용 (작업 ID: {arg1})",
-            "fr": "Frais professionnels de copie de plan de construction entre {name1} et {name2} (ID du travail : {arg1})",
-            "es": "Tasa de trabajo de copia de planos entre {name1} y {name2} (ID de trabajo: {arg1})."
+            "en": [
+                "Blueprint copying job fee between {name1} and {name2} (Job ID: {arg1})"
+            ],
+            "zh": [
+                "{name1}与{name2}之间的蓝图复制费用 (项目ID：{arg1})"
+            ]
         }
     },
     "reverse_engineering": {
         "entryTypeName": {
-            "en": "Reverse Engineering",
-            "ja": "リバースエンジニアリング",
-            "it": "Ingegneria inversa",
-            "ru": "Инженерный анализ",
-            "zh": "逆向工程",
-            "de": "Nachkonstruktion",
-            "ko": "역설계",
-            "fr": "Rétro-ingénierie",
-            "es": "Ingeniería inversa"
+            "en": [
+                "Reverse Engineering"
+            ],
+            "zh": [
+                "逆向工程"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Invention job fee between {name1} and {name2} (Job ID: {arg1})",
-            "ja": "発明費として {name1} から {name2} へ支払い（ジョブ ID: {arg1}）",
-            "it": "Tassa sul lavoro di invenzione tra {name1} e {name2} (Job ID: {arg1})",
-            "ru": "Плата за аренду пилотом {name2} лаборатории {name1} для работы над изобретением (Код работы: {arg1})",
-            "zh": "{name1}与{name2}之间的发明项目费用 (项目ID：{arg1})",
-            "de": "Erfindungsauftragsgebühr zwischen {name1} und {name2} (Auftrag-ID: {arg1})",
-            "ko": "{name1}, {name2} 사이의 인벤션 작업 비용 (작업 ID: {arg1})",
-            "fr": "Frais professionnels d'invention entre {name1} et {name2} (ID du travail : {arg1})",
-            "es": "Tasa de trabajo de invención entre {name1} y {name2} (ID de trabajo: {arg1})."
+            "en": [
+                "Invention job fee between {name1} and {name2} (Job ID: {arg1})"
+            ],
+            "zh": [
+                "{name1}与{name2}之间的发明项目费用 (项目ID：{arg1})"
+            ]
         }
     },
     "contract_auction_bid": {
         "entryTypeName": {
-            "en": "Contract Auction Bid",
-            "ja": "契約オークション入札金",
-            "it": "Contratto offerta all'asta",
-            "ru": "Ставка на аукционе",
-            "zh": "合同拍卖出价",
-            "de": "Vertrag - Auktionsgebot",
-            "ko": "계약 경매 입찰",
-            "fr": "Offre de l'enchère - Contrat",
-            "es": "Puja contractual"
+            "en": [
+                "Contract Auction Bid"
+            ],
+            "zh": [
+                "合同拍卖出价"
+            ]
         },
         "entryJournalMessage": {
-            "en": "A bid on an Auction",
-            "ja": "オークション入札",
-            "it": "Offerta per un'asta",
-            "ru": "Ставка на аукционе",
-            "zh": "对一项拍卖的出价",
-            "de": "Ein Gebot bei einer Auktion",
-            "ko": "경매 입찰금",
-            "fr": "Une offre sur une enchère",
-            "es": "Puja en una subasta."
+            "en": [
+                "A bid on an Auction"
+            ],
+            "zh": [
+                "对一项拍卖的出价"
+            ]
         }
     },
     "contract_auction_bid_refund": {
         "entryTypeName": {
-            "en": "Contract Auction Bid Refund",
-            "ja": "契約オークション入札金払い戻し",
-            "it": "Rimborso contratto offerta all'asta",
-            "ru": "Возмещение ставки на аукционе",
-            "zh": "合同拍卖出价返还",
-            "de": "Vertrag - Auktionsgebot-Rückzahlung",
-            "ko": "계약 경매 입찰금 환급",
-            "fr": "Remboursement de l'offre de l'enchère - Contrat",
-            "es": "Devolución de puja contractual"
+            "en": [
+                "Contract Auction Bid Refund"
+            ],
+            "zh": [
+                "合同拍卖出价返还"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Auction Bid refund. You have been outbid.",
-            "ja": "オークション入札金が払い戻されます。あなたより高い価格での入札がありました。",
-            "it": "Rimborso offerta asta. La tua offerta è stata superata.",
-            "ru": "Возмещение ставки на аукционе. Вашу ставку перебили.",
-            "zh": "拍卖出价返还。有人出价高过你。",
-            "de": "Auktionsgebot-Rückzahlung. Sie wurden überboten.",
-            "ko": "경매 입찰금 반환. 다른 사람이 더 높은 가격으로 입찰했습니다.",
-            "fr": "Remboursement de l'offre de l'enchère. On a surenchéri sur vous.",
-            "es": "Devolución de la licitación de subasta. Han superado tu puja."
+            "en": [
+                "Auction Bid refund. You have been outbid."
+            ],
+            "zh": [
+                "拍卖出价返还。有人出价高过你。"
+            ]
         }
     },
     "contract_collateral": {
         "entryTypeName": {
-            "en": "Contract Collateral",
-            "ja": "契約担保金",
-            "it": "Garanzia contratto",
-            "ru": "Залог за контракт",
-            "zh": "合同保证金",
-            "de": "Vertrag - Sicherheit",
-            "ko": "계약 담보금",
-            "fr": "Caution du contrat",
-            "es": "Garantía de contrato"
+            "en": [
+                "Contract Collateral"
+            ],
+            "zh": [
+                "合同保证金"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Collateral for a contract",
-            "ja": "契約担保金",
-            "it": "Garanzie per un contratto",
-            "ru": "Залог за контракт",
-            "zh": "合同保证金",
-            "de": "Sicherheit für einen Vertrag",
-            "ko": "계약 담보",
-            "fr": "Caution pour un contrat",
-            "es": "Garantía de un contrato."
+            "en": [
+                "Collateral for a contract"
+            ],
+            "zh": [
+                "合同保证金"
+            ]
         }
     },
     "contract_reward_refund": {
         "entryTypeName": {
-            "en": "Contract Reward Refund",
-            "ja": "契約報酬の払い戻し",
-            "it": "Rimborso ricompensa contratto",
-            "ru": "Возмещение награды за контракт",
-            "zh": "合同奖金返还",
-            "de": "Vertrag - Belohnungsrückzahlung",
-            "ko": "계약 보상 환급",
-            "fr": "Remboursement de récompense - Contrat",
-            "es": "Devolución de retribución contractual"
+            "en": [
+                "Contract Reward Refund"
+            ],
+            "zh": [
+                "合同奖金返还"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Reward refund for a cancelled or completed contract",
-            "ja": "契約の取り消しまたは完了による報酬の払い戻し",
-            "it": "Ricompensa rimborso per un contratto rescisso o completato",
-            "ru": "Возмещение награды за отмену или выполнение контракта",
-            "zh": "合同取消或者完成后退还的报酬",
-            "de": "Belohnungsrückzahlung für einen gekündigten oder erfüllten Vertrag",
-            "ko": "계약 취소나 완료로 인한 보상 환급",
-            "fr": "Récompense reversée pour un contrat annulé ou complété",
-            "es": "Devolución de la retribución por cumplir un contrato."
+            "en": [
+                "Reward refund for a cancelled or completed contract"
+            ],
+            "zh": [
+                "合同取消或者完成后退还的报酬"
+            ]
         }
     },
     "contract_auction_sold": {
         "entryTypeName": {
-            "en": "Contract Auction Sold",
-            "ja": "売却済の契約オークション",
-            "it": "Contratto vendita all'asta",
-            "ru": "Продано с аукциона",
-            "zh": "合同拍卖售出",
-            "de": "Vertrag - Auktion 'Verkauft'",
-            "ko": "계약 경매 낙찰",
-            "fr": "Vendu aux enchères - Contrat",
-            "es": "Venta de subasta contractual"
+            "en": [
+                "Contract Auction Sold"
+            ],
+            "zh": [
+                "合同拍卖售出"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Bid payout for a completed Auction contract",
-            "ja": "成立したオークションの入札金支払い",
-            "it": "Versamento minimo per un contratto d'asta completato",
-            "ru": "Выплата ставки на аукционе",
-            "zh": "拍卖合同收获款",
-            "de": "Gebotsauszahlung für einen abgeschlossenen Auktionsvertrag",
-            "ko": "경매 완료로 인한 입찰금 지급",
-            "fr": "Paiement de l'offre pour compléter un contrat d'enchère",
-            "es": "Pago de puja por un contrato de subasta cumplido."
+            "en": [
+                "Bid payout for a completed Auction contract"
+            ],
+            "zh": [
+                "拍卖合同收获款"
+            ]
         }
     },
     "contract_reward": {
         "entryTypeName": {
-            "en": "Contract Reward",
-            "ja": "契約報酬",
-            "it": "Ricompensa contratto",
-            "ru": "Вознаграждение за контракт",
-            "zh": "合同酬金",
-            "de": "Vertrag - Belohnung",
-            "ko": "계약 보상",
-            "fr": "Récompense du contrat",
-            "es": "Retribución contractual"
+            "en": [
+                "Contract Reward"
+            ],
+            "zh": [
+                "合同酬金"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Reward for completing a contract",
-            "ja": "契約完了時の報酬",
-            "it": "Ricompensa per il completamento di un contratto",
-            "ru": "Вознаграждение за выполнение условий контракта",
-            "zh": "完成合同的酬劳",
-            "de": "Belohnung für die Erfüllung eines Vertrags",
-            "ko": "계약 완료로 인한 보상",
-            "fr": "Récompense pour compléter un contrat",
-            "es": "Retribución por cumplir un contrato."
+            "en": [
+                "Reward for completing a contract"
+            ],
+            "zh": [
+                "完成合同的酬劳"
+            ]
         }
     },
     "contract_collateral_refund": {
         "entryTypeName": {
-            "en": "Contract Collateral Refund",
-            "ja": "契約担保金の払い戻し",
-            "it": "Rimborso garanzia contratto",
-            "ru": "Возмещение залога за контракт",
-            "zh": "合同保证金返还",
-            "de": "Vertrag - Sicherheitsrückzahlung",
-            "ko": "계약 담보금 환급",
-            "fr": "Remboursement de caution - Contrat",
-            "es": "Devolución de garantía contractual"
+            "en": [
+                "Contract Collateral Refund"
+            ],
+            "zh": [
+                "合同保证金返还"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Refund of collateral for a contract",
-            "ja": "契約担保金の払い戻し",
-            "it": "Rimborso delle garanzie per un contratto",
-            "ru": "Возврат залога по контракту",
-            "zh": "合同保证金返还",
-            "de": "Rückzahlung von Sicherheiten für einen Vertrag",
-            "ko": "계약 담보 반환",
-            "fr": "Remboursement de la caution du contrat",
-            "es": "Devolución de la garantía de un contrato."
+            "en": [
+                "Refund of collateral for a contract"
+            ],
+            "zh": [
+                "合同保证金返还"
+            ]
         }
     },
     "contract_collateral_payout": {
         "entryTypeName": {
-            "en": "Contract Collateral Payout",
-            "ja": "契約担保金の支払い",
-            "it": "Pagamento garanzia contratto",
-            "ru": "Выплата залога за контракт",
-            "zh": "合同保证金支付",
-            "de": "Vertrag - Sicherheitsauszahlung",
-            "ko": "계약 담보금 지불",
-            "fr": "Paiement de caution - Contrat",
-            "es": "Pago de garantía contractual"
+            "en": [
+                "Contract Collateral Payout"
+            ],
+            "zh": [
+                "合同保证金支付"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Collateral Payout because of a failed contract",
-            "ja": "契約未履行による担保金支払い",
-            "it": "Versamento delle garanzie a causa di un contratto non riuscito",
-            "ru": "Выплата залога после неудачного контракта",
-            "zh": "因合同失败而支付的保证金",
-            "de": "Sicherheitsauszahlung für einen fehlgeschlagenen Vertrag",
-            "ko": "계약 실패에 따른 담보 수령",
-            "fr": "Paiement de la caution pour échec du contrat",
-            "es": "Pago de la garantía por un contrato incumplido."
+            "en": [
+                "Collateral Payout because of a failed contract"
+            ],
+            "zh": [
+                "因合同失败而支付的保证金"
+            ]
         }
     },
     "contract_price": {
         "entryTypeName": {
-            "en": "Contract Price",
-            "ja": "契約料金",
-            "it": "Prezzo contratto",
-            "ru": "Стоимость контракта ",
-            "zh": "合同价格",
-            "de": "Vertrag - Preis",
-            "ko": "계약 금액",
-            "fr": "Prix du contrat",
-            "es": "Precio del contrato"
+            "en": [
+                "Contract Price"
+            ],
+            "zh": [
+                "合同价格"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Price for accepting a contract",
-            "ja": "契約受諾料金",
-            "it": "Prezzo per l'accettazione di un contratto",
-            "ru": "Цена принятия контракта",
-            "zh": "接受合同所需要的费用",
-            "de": "Preis für die Annahme eines Vertrages",
-            "ko": "계약 수락에 따른 비용",
-            "fr": "Prix pour accepter un contrat",
-            "es": "Precio de aceptación de un contrato."
+            "en": [
+                "Price for accepting a contract"
+            ],
+            "zh": [
+                "接受合同所需要的费用"
+            ]
         }
     },
     "contract_brokers_fee": {
         "entryTypeName": {
-            "en": "Contract Brokers Fee",
-            "ja": "契約仲介者のブローカー料",
-            "it": "Tassa contratto con agente mediatore",
-            "ru": "Гонорар брокера за контракт",
-            "zh": "合同经纪人中介费",
-            "de": "Vertrag - Maklergebühr",
-            "ko": "계약 중개 수수료",
-            "fr": "Frais de courtage - Contrat",
-            "es": "Comisión contractual"
+            "en": [
+                "Contract Brokers Fee"
+            ],
+            "zh": [
+                "合同经纪人中介费"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Contract Broker's Fee",
-            "ja": "契約仲介手数料",
-            "it": "Tassa contratto con agente mediatore",
-            "ru": "Уплата брокерской комиссии за работу с контрактом",
-            "zh": "合同经纪人中介费",
-            "de": "Vertragsmaklergebühr",
-            "ko": "계약 중개 수수료",
-            "fr": "Frais de courtage du contrat",
-            "es": "Comisión del contrato."
+            "en": [
+                "Contract Broker's Fee"
+            ],
+            "zh": [
+                "合同经纪人中介费"
+            ]
         }
     },
     "contract_sales_tax": {
         "entryTypeName": {
-            "en": "Contract Sales Tax",
-            "ja": "契約に伴う物品税",
-            "it": "Tassa contratto di vendite",
-            "ru": "Налог с продаж на контракт",
-            "zh": "合同销售税",
-            "de": "Vertrag - Umsatzsteuer",
-            "ko": "계약 판매세",
-            "fr": "Taxes de vente - Contrat",
-            "es": "Impuesto de venta contractual"
+            "en": [
+                "Contract Sales Tax"
+            ],
+            "zh": [
+                "合同销售税"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Contract Sales Tax",
-            "ja": "契約に伴う物品税",
-            "it": "Tassa contratto di vendite",
-            "ru": "Налог с продажи по контракту",
-            "zh": "合同销售税",
-            "de": "Vertrag - Umsatzsteuer",
-            "ko": "계약 판매 수수료",
-            "fr": "Taxes de vente du contrat",
-            "es": "Impuesto de venta de contrato."
+            "en": [
+                "Contract Sales Tax"
+            ],
+            "zh": [
+                "合同销售税"
+            ]
         }
     },
     "contract_deposit": {
         "entryTypeName": {
-            "en": "Contract Deposit",
-            "ja": "契約保証金",
-            "it": "Contratto di deposito",
-            "ru": "Депозит по контракту",
-            "zh": "合同定金",
-            "de": "Vertrag - Einlage",
-            "ko": "계약 보증금",
-            "fr": "Caution pour le contrat",
-            "es": "Fianza de contrato"
+            "en": [
+                "Contract Deposit"
+            ],
+            "zh": [
+                "合同定金"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Contract Deposit",
-            "ja": "契約保証金",
-            "it": "Contratto di deposito",
-            "ru": "Депозит по контракту",
-            "zh": "合同定金",
-            "de": "Vertrag - Einlage",
-            "ko": "계약 보증금",
-            "fr": "Dépôt pour le contrat",
-            "es": "Fianza de contrato."
+            "en": [
+                "Contract Deposit"
+            ],
+            "zh": [
+                "合同定金"
+            ]
         }
     },
     "contract_deposit_sales_tax": {
         "entryTypeName": {
-            "en": "Contract Deposit Sales Tax",
-            "ja": "契約保証金に伴う物品税",
-            "it": "Tassa contratto di deposito vendite",
-            "ru": "Налог с продаж по контракту",
-            "zh": "合同定金销售税",
-            "de": "Vertrag - Einlagenumsatzsteuer",
-            "ko": "계약 보증금 판매세",
-            "fr": "Taxes de vente du dépôt - Contrat",
-            "es": "Impuesto de venta de fianza contractual"
+            "en": [
+                "Contract Deposit Sales Tax"
+            ],
+            "zh": [
+                "合同定金销售税"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Contract Deposit return with Sales Tax deducted",
-            "ja": "物品税控除による契約保証金の払い戻し",
-            "it": "Reso contratto di deposito con deduzione tassa sulle vendite",
-            "ru": "Возврат залога за вычетом налога с продаж",
-            "zh": "扣除销售税后的合同定金返还",
-            "de": "Vertragseinlage abzüglich Steuern zurückgezahlt",
-            "ko": "판매 수수료가 공제된 계약 보증금 반환",
-            "fr": "Dépôt pour le contrat reversé avec les taxes de ventes déduites",
-            "es": "Fianza de contrato devuelta con impuestos de venta deducidos."
+            "en": [
+                "Contract Deposit return with Sales Tax deducted"
+            ],
+            "zh": [
+                "扣除销售税后的合同定金返还"
+            ]
         }
     },
     "contract_auction_bid_corp": {
         "entryTypeName": {
-            "en": "Contract Auction Bid (corp)",
-            "ja": "契約オークション入札金（コーポレーション）",
-            "it": "Contratto offerta all'asta (corp)",
-            "ru": "Ставка на аукционе (корпорация)",
-            "zh": "合同拍卖出价(军团)",
-            "de": "Vertrag - Auktionsgebot (Corp)",
-            "ko": "계약 경매 입찰 (코퍼레이션)",
-            "fr": "Offre de l'enchère de contrat - Corporation",
-            "es": "Puja contractual (corporación)"
+            "en": [
+                "Contract Auction Bid (corp)"
+            ],
+            "zh": [
+                "合同拍卖出价(军团)"
+            ]
         },
         "entryJournalMessage": {
-            "en": "A bid on an Auction authorized by {name} (contract ID: {arg})",
-            "ja": "{name} が承認したオークション入札（契約 ID: {arg}）",
-            "it": "Un'offerta per un'asta autorizzata da {name} (contract ID: {arg})",
-            "ru": "Ставка на аукционе, утвержденная {name} (Код контракта:  {arg})",
-            "zh": "由{name}授权的拍卖出价 (合同ID：{arg})",
-            "de": "Ein Gebot bei einer Auktion autorisiert durch {name1} (Vertrags-ID: {arg})",
-            "ko": "{name}의 승인으로 인한 경매 입찰 비용 (contract ID: {arg})",
-            "fr": "Une offre pour une enchère autorisée par {name} (ID du contrat : {arg})",
-            "es": "{name} ha autorizado una puja en una subasta (ID de contrato: {arg})."
+            "en": [
+                "A bid on an Auction authorized by {name} (contract ID: {arg})"
+            ],
+            "zh": [
+                "由{name}授权的拍卖出价 (合同ID：{arg})"
+            ]
         }
     },
     "contract_collateral_deposited_corp": {
         "entryTypeName": {
-            "en": "Contract Collateral Deposited (corp)",
-            "ja": "預けられた契約担保金（コーポレーション）",
-            "it": "Garanzia contratto depositata (corp)",
-            "ru": "Залог за контракт размещен (корп.)",
-            "zh": "预缴合同保证金(军团)",
-            "de": "Vertrag - Sicherheit eingezahlt (Corp)",
-            "ko": "계약 담보금 입금 (코퍼레이션)",
-            "fr": "Caution de contrat déposée - Corporation",
-            "es": "Garantía de contrato depositada (corporación)"
+            "en": [
+                "Contract Collateral Deposited (corp)"
+            ],
+            "zh": [
+                "预缴合同保证金(军团)"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Collateral for a contract authorized by {name} (contract ID: {arg})",
-            "ja": "{name} が承認した契約担保金（契約 ID: {arg}）",
-            "it": "Garanzia per un contratto autorizzata da {name} (contract ID: {arg})",
-            "ru": "Внесение залога при подписании контракта (утвержден пилотом {name}, код контракта: {arg})",
-            "zh": "由{name}授权的合同保证金 (合同ID：{arg})",
-            "de": "Sicherheit für einen Vertrag autorisiert durch {name} (Vertrags-ID: {arg})",
-            "ko": "{name}의 승인으로 인한 계약 담보 (contract ID: {arg})",
-            "fr": "Caution pour le contrat autorisé par {name} (ID du contrat : {arg})",
-            "es": "Garantía de un contrato autorizado por {name} (ID de contrato: {arg})."
+            "en": [
+                "Collateral for a contract authorized by {name} (contract ID: {arg})"
+            ],
+            "zh": [
+                "由{name}授权的合同保证金 (合同ID：{arg})"
+            ]
         }
     },
     "contract_price_payment_corp": {
         "entryTypeName": {
-            "en": "Contract Price Payment (corp)",
-            "ja": "契約料金の支払い（コーポレーション）",
-            "it": "Pagamento prezzo contratto (corp)",
-            "ru": "Оплата стоимости контракта (корп.)",
-            "zh": "合同价格付款(军团)",
-            "de": "Vertrag - Bezahlung (Corporation)",
-            "ko": "계약 금액 지불 (코퍼레이션)",
-            "fr": "Paiement du prix du contrat - Corporation",
-            "es": "Pago del precio contractual (corporación)"
+            "en": [
+                "Contract Price Payment (corp)"
+            ],
+            "zh": [
+                "合同价格付款(军团)"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Price for accepting a contract authorized by {name} (contract ID: {arg})",
-            "ja": "{name} が承認した契約受諾料金（契約 ID: {arg}）",
-            "it": "Prezzo per l'accettazione di un contratto autorizzato da {name} (contract ID: {arg})",
-            "ru": "Платеж при подписании контракта (утвержден пилотом {name}, код контракта: {arg})",
-            "zh": "接受由{name}授权的合同所需要的费用 (合同ID：{arg})",
-            "de": "Preis für die Annahme eines Vertrages autorisiert durch {name} (Vertrags-ID: {arg})",
-            "ko": "{name}의 승인으로 인한 계약 수락 비용 (contract ID: {arg})",
-            "fr": "Prix pour accepter le contrat autorisé par {name} (ID du contrat : {arg})",
-            "es": "Precio de aceptación de un contrato autorizado por {name} (ID de contrato: {arg})."
+            "en": [
+                "Price for accepting a contract authorized by {name} (contract ID: {arg})"
+            ],
+            "zh": [
+                "接受由{name}授权的合同所需要的费用 (合同ID：{arg})"
+            ]
         }
     },
     "contract_brokers_fee_corp": {
         "entryTypeName": {
-            "en": "Contract Brokers Fee (corp)",
-            "ja": "契約仲介者のブローカー料（コーポレーション）",
-            "it": "Tassa contratto con agente mediatore (corp)",
-            "ru": "Гонорар брокера за контракт (корп.)",
-            "zh": "合同经纪人中介费(军团)",
-            "de": "Vertrag - Maklergebühr",
-            "ko": "계약 중개인 수수료 (코퍼레이션)",
-            "fr": "Frais de courtage du contrat - Corporation",
-            "es": "Comisión de contrato (corporación)"
+            "en": [
+                "Contract Brokers Fee (corp)"
+            ],
+            "zh": [
+                "合同经纪人中介费(军团)"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Contract Broker's Fee authorized by {name} (contract ID: {arg})",
-            "ja": "{name} が承認した契約仲介手数料（contract ID: {arg}）",
-            "it": "Tassa per l'intermediario di un contratto autorizzata da {name} (contract ID: {arg})",
-            "ru": "Плата брокеру за контракт (утвержден пилотом {name}, код контракта: {arg})",
-            "zh": "由{name}授权的合同经纪人中介费 (合同ID：{arg})",
-            "de": "Vertragsmaklergebühr autorisiert durch {name} (Vertrags-ID: {arg})",
-            "ko": "{name}의 승인으로 인한 중개 수수료 (contract ID: {arg})",
-            "fr": "Frais du courtage du contrat autorisé par {name} (ID du contrat : {arg})",
-            "es": "Comisión autorizada por {name} (ID de contrato: {arg})."
+            "en": [
+                "Contract Broker's Fee authorized by {name} (contract ID: {arg})"
+            ],
+            "zh": [
+                "由{name}授权的合同经纪人中介费 (合同ID：{arg})"
+            ]
         }
     },
     "contract_deposit_corp": {
         "entryTypeName": {
-            "en": "Contract Deposit (corp)",
-            "ja": "契約保証金（コーポレーション）",
-            "it": "Contratto di deposito (corp)",
-            "ru": "Депозит по контракту (корп.)",
-            "zh": "合同定金(军团)",
-            "de": "Vertrag - Einlage (Corporation)",
-            "ko": "계약 보증금 (코퍼레이션)",
-            "fr": "Caution pour le contrat - Corporation",
-            "es": "Fianza de contrato (corporación)"
+            "en": [
+                "Contract Deposit (corp)"
+            ],
+            "zh": [
+                "合同定金(军团)"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Contract Deposit authorized by {name} (contract ID: {arg})",
-            "ja": "{name} が承認した契約保証金（contract ID: {arg}）",
-            "it": "Contratto di deposito autorizzato da {name} (contract ID: {arg})",
-            "ru": "Залог по контракту (утвержден пилотом {name}, код контракта: {arg})",
-            "zh": "由{name}授权的合同定金 (合同ID：{arg})",
-            "de": "Vertragspfand autorisiert durch {name} (Vertrags-ID: {arg})",
-            "ko": "{name}의 승인으로 인한 계약 보증금 (contract ID: {arg})",
-            "fr": "Caution pour le contrat autorisé par {name} (ID du contrat : {arg})",
-            "es": "{name} ha autorizado la fianza del contrato (ID de contrato: {arg})."
+            "en": [
+                "Contract Deposit authorized by {name} (contract ID: {arg})"
+            ],
+            "zh": [
+                "由{name}授权的合同定金 (合同ID：{arg})"
+            ]
         }
     },
     "contract_deposit_refund": {
         "entryTypeName": {
-            "en": "Contract Deposit Refund",
-            "ja": "契約保証金の払い戻し",
-            "it": "Rimborso contratto di deposito",
-            "ru": "Возмещение депозита по контракту",
-            "zh": "合同定金返还",
-            "de": "Vertrag - Einlagenrückzahlung",
-            "ko": "계약 보증금 환급",
-            "fr": "Remboursement de la caution pour le contrat",
-            "es": "Devolución de la fianza de un contrato."
+            "en": [
+                "Contract Deposit Refund"
+            ],
+            "zh": [
+                "合同定金返还"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Deposit refunded for completion of a contract",
-            "ja": "契約完了時の保証金の返金",
-            "it": "Deposito rimborsato per il completamento di un contratto",
-            "ru": "Возврат залога по выполнении условий контракта",
-            "zh": "合同完成后的定金返还",
-            "de": "Erstattung der Einlage durch Erfüllung eines Vertrages",
-            "ko": "계약 완료로 인한 보증금 환급",
-            "fr": "Dépôt reversé pour l'accomplissement d'un contrat",
-            "es": "Fianza devuelta tras cumplir un contrato."
+            "en": [
+                "Deposit refunded for completion of a contract"
+            ],
+            "zh": [
+                "合同完成后的定金返还"
+            ]
         }
     },
     "contract_reward_deposited": {
         "entryTypeName": {
-            "en": "Contract Reward Deposited",
-            "ja": "預けられた契約報酬",
-            "it": "Ricompensa contratto depositata",
-            "ru": "Вознаграждение за контракт размещен (корп.)",
-            "zh": "预缴合同奖金",
-            "de": "Vertrag - Belohnung eingezahlt",
-            "ko": "계약 보상금 입금",
-            "fr": "Récompense du contrat déposée",
-            "es": "Retribución contractual ingresada"
+            "en": [
+                "Contract Reward Deposited"
+            ],
+            "zh": [
+                "预缴合同奖金"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Reward deposited for completing a contract",
-            "ja": "契約保証金",
-            "it": "Ricompensa depositata per il completamento di un contratto",
-            "ru": "Депонированная награда за выполнение контракта",
-            "zh": "预付完成合同的酬劳",
-            "de": "Belohnung für die Erfüllung eines Vertrages hinterlegt",
-            "ko": "계약 성공 보수",
-            "fr": "Récompense déposée pour avoir complété un contrat",
-            "es": "Retribución ingresada por cumplir un contrato."
+            "en": [
+                "Reward deposited for completing a contract"
+            ],
+            "zh": [
+                "预付完成合同的酬劳"
+            ]
         }
     },
     "contract_reward_deposited_corp": {
         "entryTypeName": {
-            "en": "Contract Reward Deposited (corp)",
-            "ja": "預けられた契約報酬（コーポレーション）",
-            "it": "Ricompensa contratto depositata (corp)",
-            "ru": "Вознаграждение за контракт размещен (корп.)",
-            "zh": "预缴合同奖金(军团)",
-            "de": "Vertrag - Belohnung eingezahlt (Corporation)",
-            "ko": "계약 보상금 입금 (코퍼레이션)",
-            "fr": "Récompense du contrat déposée - Corporation",
-            "es": "Retribución contractual ingresada (corporación)"
+            "en": [
+                "Contract Reward Deposited (corp)"
+            ],
+            "zh": [
+                "预缴合同奖金(军团)"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Reward deposited for completing a contract authorized by {name} (contract ID: {arg})",
-            "ja": "{name} が承認した契約完了報酬の保証金（契約 ID: {arg}）",
-            "it": "Ricompensa depositata per il completamento di un contratto autorizzata da {name} (contract ID: {arg})",
-            "ru": "Депонированная награда за выполнение контракта (платеж утвержден пилотом {name}, код контракта: {arg})",
-            "zh": "由{name}授权的对完成合同酬劳的预付 (合同ID：{arg})",
-            "de": "Hinterlegung der Belohnung für die Erfüllung eines Vertrages autorisiert durch {name} (Vertrags-ID: {arg})",
-            "ko": "{name}의 승인으로 인한 계약 완료 보상 (contract ID: {arg})",
-            "fr": "Récompense déposée pour avoir complété un contrat autorisé par {name} (ID du contrat : {arg})",
-            "es": "Retribución ingresada tras cumplir un contrato autorizado por {name} (ID de contrato: {arg})."
+            "en": [
+                "Reward deposited for completing a contract authorized by {name} (contract ID: {arg})"
+            ],
+            "zh": [
+                "由{name}授权的对完成合同酬劳的预付 (合同ID：{arg})"
+            ]
         }
     },
     "bounty_prizes": {
         "entryTypeName": {
-            "en": "Bounty Prizes",
-            "ja": "獲得賞金/懸賞金",
-            "it": "Premi ricompensa",
-            "ru": "Награда за голову",
-            "zh": "追击赏金",
-            "de": "Kopfgeld-Auszahlungen",
-            "ko": "현상금",
-            "fr": "Récompenses de prime",
-            "es": "Pagos de recompensa"
+            "en": [
+                "Bounty Prizes"
+            ],
+            "zh": [
+                "追击赏金"
+            ]
         },
         "entryJournalMessage": {
-            "en": "{name1} got bounty prizes for killing pirates in {location}",
-            "ja": "{name1} が {location} の海賊を殺したことによる懸賞金獲得",
-            "it": "{name1} ha ottenuto una ricompensa per aver ucciso pirati a {location}",
-            "ru": "Вознаграждение для пилота {name1} за уничтожение пиратов в системе {location}",
-            "zh": "{name1}因在{location}击毁海盗而获得追击赏金",
-            "de": "{name1} erhielt Kopfgeld für das Töten von Piraten in {location}",
-            "ko": "{name1}이(가) {location}에서 해적 처치",
-            "fr": "{name1} a reçu une récompense de prime pour avoir tué des pirates à {location}",
-            "es": "{name1} ha recibido una recompensa por matar a piratas en {location}."
+            "en": [
+                "{name1} got bounty prizes for killing pirates in {location}",
+                "{name1} got bounty prize for killing {name2}",
+                "Player got bounty prize for killing someone"
+            ],
+            "zh": [
+                "{name1}因在{location}击毁海盗而获得追击赏金",
+                "{name1}因击毁{name2}而获得追击赏金",
+                "玩家因为成功追击某人而得到的奖金"
+            ]
         }
     },
     "advertisement_listing_fee": {
         "entryTypeName": {
-            "en": "Advertisement Listing Fee",
-            "ja": "広告掲載料",
-            "it": "Tassa elenco annunci",
-            "ru": "Плата за размещение рекламы",
-            "zh": "广告登记费",
-            "de": "Anzeigengebühr",
-            "ko": "광고비",
-            "fr": "Frais d'annonces",
-            "es": "Tasa por anuncios"
+            "en": [
+                "Advertisement Listing Fee"
+            ],
+            "zh": [
+                "广告登记费"
+            ]
         },
         "entryJournalMessage": {
-            "en": "{name1} paid corporation advertisement fee",
-            "ja": "{name1} によるコーポレーション広告費の支払い",
-            "it": "{name1} ha pagato la tassa pubblicitaria corporativa",
-            "ru": "Оплата взноса за публикацию объявления о вербовке пилотов (отправитель платежа — {name1})",
-            "zh": "{name1}支付了军团广告费",
-            "de": "{name1} zahlte Corporation-Werbegebühr",
-            "ko": "{name1}이(가) 코퍼레이션 광고 비용 지불",
-            "fr": "{name1} a payé des frais d'annonce de corporation",
-            "es": "{name1} ha pagado la cuota publicitaria de la corporación."
+            "en": [
+                "{name1} paid corporation advertisement fee"
+            ],
+            "zh": [
+                "{name1}支付了军团广告费"
+            ]
         }
     },
     "medal_creation": {
         "entryTypeName": {
-            "en": "Medal Creation",
-            "ja": "メダル作成",
-            "it": "Creazione medaglia",
-            "ru": "Создание медали",
-            "zh": "制作奖章",
-            "de": "Orden erstellen",
-            "ko": "훈장 제작",
-            "fr": "Création de médaille",
-            "es": "Creación de medalla"
+            "en": [
+                "Medal Creation"
+            ],
+            "zh": [
+                "制作奖章"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Medal creation fee between {name1} and {name2}",
-            "ja": "メダル作成料として {name1} から {name2} に支払い",
-            "it": "Tassa sulla creazione della medaglia tra {name1} e {name2}",
-            "ru": "Оплата сбора за создание новой награды (участники платежа — {name1}, {name2})",
-            "zh": "{name1}和{name2}之间的奖章制作费",
-            "de": "Kosten für Ordensentwurf zwischen {name1} und {name2}",
-            "ko": "{name1}, {name2} 사이의 훈장 제작 수수료",
-            "fr": "Frais de création de médaille entre {name1} et {name2}",
-            "es": "Tasa de creación de medallas entre {name1} y {name2}."
+            "en": [
+                "Medal creation fee between {name1} and {name2}"
+            ],
+            "zh": [
+                "{name1}和{name2}之间的奖章制作费"
+            ]
         }
     },
     "medal_issued": {
         "entryTypeName": {
-            "en": "Medal Issued",
-            "ja": "メダル授与",
-            "it": "Medaglia rilasciata",
-            "ru": "Медаль выдана",
-            "zh": "授予奖章",
-            "de": "Orden verliehen",
-            "ko": "훈장 발행",
-            "fr": "Attribution de médaille",
-            "es": "Medalla emitida"
+            "en": [
+                "Medal Issued"
+            ],
+            "zh": [
+                "授予奖章"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Medal issuing fee between {name1} and {name2}",
-            "ja": "メダル発行料として {name1} から {name2} に支払い",
-            "it": "Tassa sull'emissione della medaglia tra {name1} e {name2}",
-            "ru": "Оплата сбора за выдачу награды (участники платежа — {name1}, {name2})",
-            "zh": "{name1}和{name2}之间的奖章颁发费",
-            "de": "Kosten für Ordensveröffentlichung zwischen {name1} und {name2}",
-            "ko": "{name1}, {name2} 사이의 훈장 발행 수수료",
-            "fr": "Frais d'émission de médaille entre {name1} et {name2}",
-            "es": "Tasa de entrega de medallas entre {name1} y {name2}."
+            "en": [
+                "Medal issuing fee between {name1} and {name2}"
+            ],
+            "zh": [
+                "{name1}和{name2}之间的奖章颁发费"
+            ]
         }
     },
     "dna_modification_fee": {
         "entryTypeName": {
-            "en": "DNA Modification Fee",
-            "ja": "DNA 修正費",
-            "it": "Tassa modifica del DNA",
-            "ru": "Плата за модифицирование ДНК",
-            "zh": "DNA改造费",
-            "de": "DNS-Modifikationsgebühr",
-            "ko": "DNA 개조 비용",
-            "fr": "Frais de modification d'ADN",
-            "es": "Tasa de modificación del ADN"
+            "en": [
+                "DNA Modification Fee"
+            ],
+            "zh": [
+                "DNA改造费"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Neural Remapping Fee",
-            "ja": "神経系リマップ費",
-            "it": "Tassa sulla rimappatura neurale",
-            "ru": "Плата за нейронное перераспределение",
-            "zh": "属性改造费",
-            "de": "Gebühr für neurale Umprogrammierung",
-            "ko": "신경망 재배열 비용",
-            "fr": "Frais de reprogrammation neurale",
-            "es": "Tasa de reprogramación neuronal"
+            "en": [
+                "Neural Remapping Fee"
+            ],
+            "zh": [
+                "属性改造费"
+            ]
         }
     },
     "sovereignity_bill": {
         "entryTypeName": {
-            "en": "Sovereignty bill",
-            "ja": "領有権保持金",
-            "it": "Costo sovranità",
-            "ru": "Счет за поддержание права владения",
-            "zh": "主权账单",
-            "de": "Hoheitsgebietsrechnung",
-            "ko": "소버린티 청구서",
-            "fr": "Facture de souveraineté",
-            "es": "Factura de soberanía"
+            "en": [
+                "Sovereignty bill"
+            ],
+            "zh": [
+                "主权账单"
+            ]
         }
     },
     "bounty_prize_corporation_tax": {
         "entryTypeName": {
-            "en": "Bounty Prize Corporation Tax",
-            "ja": "獲得賞金/懸賞金のコーポレーション税",
-            "it": "Tassa corporazione per il premio sulla taglia",
-            "ru": "Налог корпорации на награды за голову ",
-            "zh": "追击赏金 军团税金",
-            "de": "Kopfgeld-Auszahlung Corporation-Steuer",
-            "ko": "현상금 상품 코퍼레이션 세금",
-            "fr": "Taxe de corporation de récompense de prime",
-            "es": "Impuesto de la corporación sobre un pago de recompensa"
+            "en": [
+                "Bounty Prize Corporation Tax"
+            ],
+            "zh": [
+                "追击赏金 军团税金"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Corporation tax on pirate bounties",
-            "ja": "海賊にかけられた懸賞金に対するコーポレーション税",
-            "it": "Tassa corporativa sulle taglie sui pirati",
-            "ru": "Уплата корпоративного налога с вознаграждения за борьбу с пиратами",
-            "zh": "针对海盗追击赏金的军团税",
-            "de": "Corporation-Steuer auf Piraten-Kopfgelder",
-            "ko": "해적 현상금에 대한 사납금",
-            "fr": "Taxe sur les primes de pirates - Corporation",
-            "es": "Impuesto de la corporación sobre recompensas de piratas."
+            "en": [
+                "Corporation tax on pirate bounties"
+            ],
+            "zh": [
+                "针对海盗追击赏金的军团税"
+            ]
         }
     },
     "agent_mission_reward_corporation_tax": {
         "entryTypeName": {
-            "en": "Agent Mission Reward Corporation Tax",
-            "ja": "エージェントミッション報酬のコーポレーション税",
-            "it": "Tassa corporazione per ricompensa missione dell'agente",
-            "ru": "Налог корпорации на награды заданий агентов",
-            "zh": "代理人任务奖励 军团税金",
-            "de": "Agent - Missions-Belohnung Corporation-Steuer",
-            "ko": "에이전트 미션 보상 (코퍼레이션 세금)",
-            "fr": "Taxe de corporation de récompense - Mission d'agent",
-            "es": "Impuesto de la corporación sobre la retribución de misión de agente"
+            "en": [
+                "Agent Mission Reward Corporation Tax"
+            ],
+            "zh": [
+                "代理人任务奖励 军团税金"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Corporation tax on mission rewards",
-            "ja": "ミッション報酬に対するコーポレーション税",
-            "it": "Tassa corporativa sulle ricompense delle missioni",
-            "ru": "Уплата корпоративного налога с вознаграждения за выполнение задания",
-            "zh": "针对任务报酬的军团税",
-            "de": "Corporation-Steuer auf Missionsbelohnungen",
-            "ko": "미션 보상에 대한 사납금",
-            "fr": "Taxe sur les récompenses de mission - Corporation",
-            "es": "Impuesto de la corporación sobre retribuciones de misión."
+            "en": [
+                "Corporation tax on mission rewards"
+            ],
+            "zh": [
+                "针对任务报酬的军团税"
+            ]
         }
     },
     "agent_mission_time_bonus_reward_corporation_tax": {
         "entryTypeName": {
-            "en": "Agent Mission Time Bonus Reward Corporation Tax",
-            "ja": "エージェントミッションタイムボーナス報酬のコーポレーション税",
-            "it": "Tassa corporazione per bonus ricompensa tempo missione agente",
-            "ru": "Налог корпорации на бонусы за время прохождения заданий агентов",
-            "zh": "代理人任务时间加成奖励 军团税金",
-            "de": "Agent - Missions-Belohnung für Zeitbonus-Corporation-Steuer",
-            "ko": "에이전트 미션 추가 보상 (코퍼레이션 세금)",
-            "fr": "Taxe de corporation de récompense du bonus de temps - Mission d'agent",
-            "es": "Impuesto de la corporación sobre una retribución de bonificación de tiempo de misión de agente"
+            "en": [
+                "Agent Mission Time Bonus Reward Corporation Tax"
+            ],
+            "zh": [
+                "代理人任务时间加成奖励 军团税金"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Corporation tax on mission bonus rewards",
-            "ja": "ミッションボーナスの報酬に対するコーポレーション税",
-            "it": "Tassa corporativa sul bonus ricompense delle missioni",
-            "ru": "Налог корпорации на бонусы от заданий",
-            "zh": "针对任务报酬奖金的军团税",
-            "de": "Corporation-Steuer auf Bonus-Missionsbelohnung",
-            "ko": "미션 추가 보상에 대한 사납금",
-            "fr": "Taxe sur les bonus de récompenses de mission - Corporation",
-            "es": "Impuesto de la corporación sobre retribuciones de bonificación de misión."
+            "en": [
+                "Corporation tax on mission bonus rewards"
+            ],
+            "zh": [
+                "针对任务报酬奖金的军团税"
+            ]
         }
     },
     "upkeep_adjustment_fee": {
         "entryTypeName": {
-            "en": "Upkeep adjustment fee",
-            "ja": "維持調整料金",
-            "it": "Tassa aggiustamenti di manutenzione",
-            "ru": "Изменение платы за содержание",
-            "zh": "主权维护调整费",
-            "de": "Betriebsanpassungsgebühr",
-            "ko": "유지비 조정 비용",
-            "fr": "Frais d'ajustement d'entretien",
-            "es": "Tasa de ajuste de mantenimiento"
+            "en": [
+                "Upkeep adjustment fee"
+            ],
+            "zh": [
+                "主权维护调整费"
+            ]
         }
     },
     "planetary_import_tax": {
         "entryTypeName": {
-            "en": "Planetary Import Tax",
-            "ja": "惑星輸入税",
-            "it": "Tassa planetaria di importazione",
-            "ru": "Планетарный налог на импорт",
-            "zh": "行星进口税",
-            "de": "Planetarische Einfuhrsteuer",
-            "ko": "행성 수입 관세",
-            "fr": "Taxe d'importation planétaire",
-            "es": "Impuesto de importación planetaria"
+            "en": [
+                "Planetary Import Tax"
+            ],
+            "zh": [
+                "行星进口税"
+            ]
         }
     },
     "planetary_export_tax": {
         "entryTypeName": {
-            "en": "Planetary Export Tax",
-            "ja": "惑星輸出税",
-            "it": "Tassa planetaria di esportazione",
-            "ru": "Планетарный налог на экспорт",
-            "zh": "行星出口税",
-            "de": "Planetarische Ausfuhrsteuer",
-            "ko": "행성 수출 관세",
-            "fr": "Taxe d'exportation planétaire",
-            "es": "Impuesto de exportación planetaria"
+            "en": [
+                "Planetary Export Tax"
+            ],
+            "zh": [
+                "行星出口税"
+            ]
         }
     },
     "planetary_construction": {
         "entryTypeName": {
-            "en": "Planetary Construction",
-            "ja": "惑星建設",
-            "it": "Costruzione planetaria",
-            "ru": "Планетарное строительство",
-            "zh": "行星建设",
-            "de": "Planetary Construction",
-            "ko": "행성 건설",
-            "fr": "Construction planétaire",
-            "es": "Construcción planetaria"
+            "en": [
+                "Planetary Construction"
+            ],
+            "zh": [
+                "行星建设"
+            ]
         }
     },
     "corporate_reward_payout": {
         "entryTypeName": {
-            "en": "Corporate Reward Payout",
-            "ja": "コーポレーション報酬の支払い",
-            "it": "Pagamento ricompensa corporativa",
-            "ru": "Выплата корпоративной награды",
-            "zh": "军团奖励支付",
-            "de": "Coporationsbelohnungsauszahlung",
-            "ko": "코퍼레이션 보상 지불",
-            "fr": "Paiement de récompense de corporation",
-            "es": "Pago de retribución corporativa"
+            "en": [
+                "Corporate Reward Payout"
+            ],
+            "zh": [
+                "军团奖励支付"
+            ]
         },
         "entryJournalMessage": {
-            "en": "{name1} rewarded {name2} for services performed.",
-            "ja": "サービス提供の報酬として {name1} から {name2} に支払い",
-            "it": "{name1} ha ricompensato {name2} per i servizi forniti.",
-            "ru": "{name1} выплатил {name2} вознаграждение за оказанные услуги.",
-            "zh": "{name1}对{name2}的服务给予报酬。",
-            "de": "{name1} hat {name2} für die geleisteten Dienste belohnt.",
-            "ko": "{name1}이(가) {name2}에게 지급한 보상",
-            "fr": "{name1} a récompensé {name2} pour les services rendus.",
-            "es": "{name1} ha recompensado a {name2} por los servicios realizados."
+            "en": [
+                "{name1} rewarded {name2} for services performed."
+            ],
+            "zh": [
+                "{name1}对{name2}的服务给予报酬。"
+            ]
         }
     },
     "bounty_surcharge": {
         "entryTypeName": {
-            "en": "Bounty Surcharge",
-            "ja": "懸賞金の追加料金",
-            "it": "Soprattassa sulle taglie",
-            "ru": "Отчисления с награды за голову",
-            "zh": "赏金附加费用",
-            "de": "Kopfgeld-Aufschlag",
-            "ko": "현상금 추가 비용",
-            "fr": "Supplément de prime",
-            "es": "Recargo de recompensa"
+            "en": [
+                "Bounty Surcharge"
+            ],
+            "zh": [
+                "赏金附加费用"
+            ]
         },
         "entryJournalMessage": {
-            "en": "A temporary charge levied against transactions due to local conditions.",
-            "ja": "現地の条件により取引に課せられる臨時手数料",
-            "it": "Un costo temporaneo imposto per le transizioni a causa di condizioni locali.",
-            "ru": "Дополнительный сбор за совершение транзакций в условиях чрезвычайной ситуации",
-            "zh": "出于当地情况收取的临时交易费。",
-            "de": "Aufgrund der vor Ort herrschenden Bedingungen wird zeitweilig eine Gebühr bei Transaktionen erhoben.",
-            "ko": "현지 사정으로 인해 임시로 징수된 금액",
-            "fr": "Une redevance temporaire imposée contre les transactions dues aux conditions locales.",
-            "es": "Se ha añadido una carga temporal contra las transacciones debido a las condiciones locales."
+            "en": [
+                "A temporary charge levied against transactions due to local conditions."
+            ],
+            "zh": [
+                "出于当地情况收取的临时交易费。"
+            ]
         }
     },
     "contract_reversal": {
         "entryTypeName": {
-            "en": "Contract Reversal",
-            "ja": "契約の取り消し",
-            "it": "Storno contratto",
-            "ru": "Отмена контракта",
-            "zh": "合同撤销",
-            "de": "Vertragsaufhebung",
-            "ko": "계약 철회",
-            "fr": "Remboursement du contrat",
-            "es": "Revocación de contrato"
+            "en": [
+                "Contract Reversal"
+            ],
+            "zh": [
+                "合同撤销"
+            ]
         },
         "entryJournalMessage": {
-            "en": "GM [{arg}] reversed contract between {name1} and {name2}",
-            "ja": "GM [{arg}] による {name1} と {name2} との契約の取り消し",
-            "it": "GM [{arg}] ha scambiato il contratto tra {name1} e {name2}",
-            "ru": "Гейм-мастер [{arg}] аннулировал контракт, заключенный между {name1} и {name2}",
-            "zh": "GM[{arg}]逆转了{name1}与{name2}之间的合同",
-            "de": "GM [{arg})] hat den Vertrag zwischen {name1} und {name2} aufgehoben",
-            "ko": "GM [{arg}]에 의해 {name1} 플레이어와 {name2} 플레이어 사이의 계약이 반대로 뒤집혔습니다.",
-            "fr": "MJ [{arg}] a annulé un contrat entre {name1} et {name2}",
-            "es": "El GM [{arg}] ha revertido el contrato entre {name1} y {name2}."
+            "en": [
+                "GM [{arg}] reversed contract between {name1} and {name2}"
+            ],
+            "zh": [
+                "GM[{arg}]逆转了{name1}与{name2}之间的合同"
+            ]
         }
     },
     "corporate_reward_tax": {
         "entryTypeName": {
-            "en": "Corporate Reward Tax",
-            "ja": "コーポレーション報酬の税金",
-            "it": "Tassa sulla ricompensa corporativa",
-            "ru": "Налог на корпоративную премию",
-            "zh": "军团奖励税",
-            "de": "Corporationsbelohnungssteuer",
-            "ko": "코퍼레이션 보상 세금",
-            "fr": "Taxe de récompense de corporation",
-            "es": "Impuesto de retribución corporativa"
+            "en": [
+                "Corporate Reward Tax"
+            ],
+            "zh": [
+                "军团奖励税"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Corporation tax on {name} rewards",
-            "ja": "コーポレーション税として {name} 報酬より天引",
-            "it": "Tassa corporativa sulle ricompense {name}",
-            "ru": "Оплата корпоративного налога за награды {name}",
-            "zh": "针对{name}奖励的军团税",
-            "de": "Corporation-Steuer auf {name}-Belohnungen",
-            "ko": "{name} 보상에 대한 사납금",
-            "fr": "Taxe sur les récompenses de {name} - Corporation",
-            "es": "Impuesto de la corporación sobre retribuciones de {name}."
+            "en": [
+                "Corporation tax on {name} rewards"
+            ],
+            "zh": [
+                "针对{name}奖励的军团税"
+            ]
         }
     },
     "store_purchase": {
         "entryTypeName": {
-            "en": "Store Purchase",
-            "ja": "ストアでの購入",
-            "it": "Acquisto negozio",
-            "ru": "Покупка в магазине",
-            "zh": "商城消费",
-            "de": "Laden-Einkauf",
-            "ko": "스토어 구매",
-            "fr": "Achat au magasin",
-            "es": "Compra en la tienda"
+            "en": [
+                "Store Purchase"
+            ],
+            "zh": [
+                "商城消费"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Purchased one or more items from the store.",
-            "ja": "ストアから 1 つ以上のアイテムを購入しました。",
-            "it": "Acquistati uno o più articoli dal negozio.",
-            "ru": "Совершены покупки в магазине.",
-            "zh": "从商店中购买了一个或多个商品。",
-            "de": "Gegenstand oder Gegenstände im Laden erworben.",
-            "ko": "상점에서 아이템을 구매했습니다.",
-            "fr": "Acheté un ou plusieurs objets de la boutique.",
-            "es": "Has comprado uno o más artículos en la tienda."
+            "en": [
+                "Purchased one or more items from the store."
+            ],
+            "zh": [
+                "从商店中购买了一个或多个商品。"
+            ]
         }
     },
     "store_purchase_refund": {
         "entryTypeName": {
-            "en": "Store Purchase Refund",
-            "ja": "ストアでの購入の払い戻し",
-            "it": "Rimborso acquisto negozio",
-            "ru": "Возврат за покупку в магазине",
-            "zh": "商城消费退款",
-            "de": "Laden-Einkauf Rückerstattung",
-            "ko": "스토어 구매 환불",
-            "fr": "Remboursement d'achat au magasin",
-            "es": "Devolución de compra de la tienda"
+            "en": [
+                "Store Purchase Refund"
+            ],
+            "zh": [
+                "商城消费退款"
+            ]
         },
         "entryJournalMessage": {
-            "en": "A refund from the store was preformed to take back goods previously purchased.",
-            "ja": "以前購入した商品の返品分が、ストアから返金されました。",
-            "it": "È stato effettuato un rimborso da parte del negozio per riprendere le merci acquistate in precedenza.",
-            "ru": "В связи с возвратом в магазин ранее купленных вами товаров на ваш счет была перечислена их стоимость.",
-            "zh": "商店进行了退款，收回了之前售出的商品。",
-            "de": "Eine Rückerstattung vom Laden wurde durchgeführt, um zuvor gekaufte Waren zurückzunehmen.",
-            "ko": "기존에 구매했던 상품 환불",
-            "fr": "Un remboursement de la boutique a été effectué afin de récupérer les marchandises achetées.",
-            "es": "Devolución de la tienda para recuperar los bienes comprados anteriormente."
+            "en": [
+                "A refund from the store was preformed to take back goods previously purchased."
+            ],
+            "zh": [
+                "商店进行了退款，收回了之前售出的商品。"
+            ]
         }
     },
     "datacore_fee": {
         "entryTypeName": {
-            "en": "Datacore Fee",
-            "ja": "データコアの料金",
-            "it": "Tassa Datacore",
-            "ru": "Стоимость инфоблоков",
-            "zh": "数据核心费用",
-            "de": "Datacore Gebühr",
-            "ko": "데이터코어 비용",
-            "fr": "Frais de stockage d'informations",
-            "es": "Tasa de núcleo de datos"
+            "en": [
+                "Datacore Fee"
+            ],
+            "zh": [
+                "数据核心费用"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Bought datacore(s) from agent",
-            "ja": "エージェントから購入したデータコア",
-            "it": "Comprato Datacore da un agente",
-            "ru": "Покупка инфоблоков у агента",
-            "zh": "从代理人处买入数据核心",
-            "de": "Datacore(s) von einem Agenten gekauft",
-            "ko": "에이전트에게서 데이터코어 구매",
-            "fr": "Banque(s) de données achetée(s) à l'agent",
-            "es": "Núcleo(s) de datos comprados a un agente."
+            "en": [
+                "Bought datacore(s) from agent"
+            ],
+            "zh": [
+                "从代理人处买入数据核心"
+            ]
         }
     },
     "war_fee_surrender": {
         "entryTypeName": {
-            "en": "War Surrender Fee",
-            "ja": "戦争降伏料金",
-            "it": "Tassa di ritirata",
-            "ru": "Плата за поражение в войне",
-            "zh": "战争投降费用",
-            "de": "Kriegskapitulationsgebühr",
-            "ko": "전시 투항 비용",
-            "fr": "Frais de capitulation de guerre",
-            "es": "Tasa de rendición"
+            "en": [
+                "War Surrender Fee"
+            ],
+            "zh": [
+                "战争投降费用"
+            ]
         }
     },
     "war_ally_contract": {
         "entryTypeName": {
-            "en": "War Ally Contract",
-            "ja": "戦争同盟契約",
-            "it": "Contratto alleato",
-            "ru": "Контракт: военный союзник",
-            "zh": "战争同盟合同",
-            "de": "Kriegsalliiertenabkommen",
-            "ko": "전시 동맹 계약",
-            "fr": "Contrat de guerre alliée",
-            "es": "Contrato de aliado de guerra"
+            "en": [
+                "War Ally Contract"
+            ],
+            "zh": [
+                "战争同盟合同"
+            ]
         }
     },
     "bounty_reimbursement": {
         "entryTypeName": {
-            "en": "Bounty Reimbursement",
-            "ja": "賞金の払い戻し",
-            "it": "Rimborso taglia",
-            "ru": "Возмещение награды за голову",
-            "zh": "支付追击赏金",
-            "de": "Zurückerstattung des Kopfgelds",
-            "ko": "현상금 환급",
-            "fr": "Remboursement de la prime",
-            "es": "Reembolso de recompensa"
+            "en": [
+                "Bounty Reimbursement"
+            ],
+            "zh": [
+                "支付追击赏金"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Bounty reimbursed",
-            "ja": "賞金の払い戻し",
-            "it": "Taglia rimborsata",
-            "ru": "Награда возвращена",
-            "zh": "领取追击赏金",
-            "de": "Kopfgeld wurde erstattet",
-            "ko": "현상금 환급",
-            "fr": "Prime remboursée",
-            "es": "Reembolso de recompensa."
+            "en": [
+                "Bounty reimbursed"
+            ],
+            "zh": [
+                "领取追击赏金"
+            ]
         }
     },
     "kill_right_fee": {
         "entryTypeName": {
-            "en": "Kill Right",
-            "ja": "殺害許可",
-            "it": "Diritto di uccidere",
-            "ru": "Лицензия на уничтожение",
-            "zh": "击毁权",
-            "de": "Abschussfreigabe",
-            "ko": "사살권",
-            "fr": "Permis de détruire",
-            "es": "Derecho de asesinato"
+            "en": [
+                "Kill Right"
+            ],
+            "zh": [
+                "击毁权"
+            ]
         }
     },
     "security_processing_fee": {
         "entryTypeName": {
-            "en": "Fee for processing one or more security tags",
-            "ja": "セキュリティタグの処理費用",
-            "it": "Tassa per il trattamento di una o più tag di sicurezza",
-            "ru": "Плата, взимаемая за обработку пиратских бирок",
-            "zh": "安全等级铭牌上交手续费",
-            "de": "Bearbeitungsgebühr für Sicherheitsmarken",
-            "ko": "인식표 수수료",
-            "fr": "Frais de traitement d'une ou de plusieurs balises de sécurité",
-            "es": "Tasa por el procesamiento de una o varias chapas de seguridad."
+            "en": [
+                "Fee for processing one or more security tags"
+            ],
+            "zh": [
+                "安全等级铭牌上交手续费"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Fee for processing one or more security tags",
-            "ja": "セキュリティタグの処理費用",
-            "it": "Tassa per il trattamento di una o più tag di sicurezza",
-            "ru": "Плата, взимаемая за обработку пиратских бирок",
-            "zh": "安全等级铭牌上交手续费",
-            "de": "Bearbeitungsgebühr für Sicherheitsmarken",
-            "ko": "인식표 수수료",
-            "fr": "Frais de traitement d'une ou de plusieurs balises de sécurité",
-            "es": "Tasa por el procesamiento de una o varias chapas de seguridad."
+            "en": [
+                "Fee for processing one or more security tags"
+            ],
+            "zh": [
+                "安全等级铭牌上交手续费"
+            ]
         }
     },
     "industry_job_tax": {
         "entryTypeName": {
-            "en": "Industry Facility Tax",
-            "ja": "生産施設税",
-            "ru": "Заводской налог",
-            "zh": "工业设施税",
-            "de": "Industrieanlagensteuer",
-            "ko": "산업 시설 수수료",
-            "fr": "Taxe d'installation industrielle",
-            "es": "Impuesto de centro industrial"
+            "en": [
+                "Industry Facility Tax"
+            ],
+            "zh": [
+                "工业设施税"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Industry facility tax between {name1} and {name2} (Job ID: {arg1})",
-            "ja": "生産施設税として{name1}から{name2}へ支払い（ジョブ ID：{arg1}）",
-            "ru": "Заводской налог (участники платежа — {name1} и {name2}, номер проекта: {arg1})",
-            "zh": "{name1}与{name2}之间的工业设施税（项目ID：{arg1}）",
-            "de": "Industrieanlagensteuer zwischen {name1} und {name2} (Auftrag-ID: {arg1})",
-            "ko": "{name1}, {name2} 사이의 산업 시설 수수료 (작업 ID: {arg1})",
-            "fr": "Taxe d'installation industrielle {name1} et {name2} (ID du travail : {arg1})",
-            "es": "Impuesto de centro industrial entre {name1} y {name2} (ID de trabajo: {arg1})."
+            "en": [
+                "Industry facility tax between {name1} and {name2} (Job ID: {arg1})"
+            ],
+            "zh": [
+                "{name1}与{name2}之间的工业设施税（项目ID：{arg1}）"
+            ]
         }
     },
     "infrastructure_hub_maintenance": {
         "entryTypeName": {
-            "en": "Infrastructure Hub bill",
-            "ja": "インフラストラクチャハブの請求書",
-            "ru": "Счёт за центр управления планетной системой",
-            "zh": "基础设施中心账单",
-            "de": "Infrastrukturzentrum-Rechnung",
-            "ko": "인프라 허브 유지 비용",
-            "fr": "Facture de Centre d'infrastructure",
-            "es": "Factura del centro de infraestructuras"
+            "en": [
+                "Infrastructure Hub bill"
+            ],
+            "zh": [
+                "基础设施中心账单"
+            ]
         }
     },
     "asset_safety_recovery_tax": {
         "entryTypeName": {
-            "en": "Asset safety recovery tax",
-            "ja": "アセットセーフティ・リカバリー税",
-            "ru": "Налог на безопасное извлечение активов",
-            "zh": "资产安全恢复税",
-            "de": "Besitzsicherheit-Steuer",
-            "ko": "보호 자산 회수 수수료",
-            "fr": "Impôt de récupération des biens",
-            "es": "Impuesto de recuperación de seguridad de bienes"
+            "en": [
+                "Asset safety recovery tax"
+            ],
+            "zh": [
+                "资产安全恢复税"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Asset safety recovery tax",
-            "ja": "アセットセーフティ・リカバリー税",
-            "ru": "Налог на безопасное извлечение активов",
-            "zh": "资产安全恢复税",
-            "de": "Besitzsicherheit-Steuer",
-            "ko": "보호 자산 회수 수수료",
-            "fr": "Impôt de récupération des biens",
-            "es": "Impuesto de recuperación de seguridad de bienes."
+            "en": [
+                "Asset safety recovery tax"
+            ],
+            "zh": [
+                "资产安全恢复税"
+            ]
         }
     },
     "opportunity_reward": {
         "entryTypeName": {
-            "en": "Opportunity Reward",
-            "ja": "オポチュニティ報酬",
-            "ru": "Награда за возможности",
-            "zh": "机遇奖励",
-            "de": "Gelegenheitsbelohnung",
-            "ko": "오퍼튜니티 보상",
-            "fr": "Récompense d'opportunité",
-            "es": "Retribución de la oportunidad"
+            "en": [
+                "Opportunity Reward"
+            ],
+            "zh": [
+                "机遇奖励"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Reward for opportunity completion",
-            "ja": "オポチュニティの完了による報酬",
-            "ru": "Награда за реализацию возможности",
-            "zh": "完成机遇奖励",
-            "de": "Belohnung für den Abschluss einer Gelegenheit",
-            "ko": "오퍼튜니티 완료 보상",
-            "fr": "Récompense de fin d'opportunité",
-            "es": "Retribución por completar oportunidades."
+            "en": [
+                "Reward for opportunity completion"
+            ],
+            "zh": [
+                "完成机遇奖励"
+            ]
         }
     },
     "project_discovery_reward": {
         "entryTypeName": {
-            "en": "Project Discovery reward",
-            "ja": "プロジェクト・ディスカバリーの報酬",
-            "ru": "Вознаграждение за участие в проекте «Дискавери»",
-            "zh": "探索计划奖励",
-            "de": "Projekt Discovery Belohnung",
-            "ko": "프로젝트 디스커버리 보상",
-            "fr": "Récompense Project Discovery",
-            "es": "Retribución del proyecto Discovery"
+            "en": [
+                "Project Discovery reward"
+            ],
+            "zh": [
+                "探索计划奖励"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Reward given for scientific contribution to Project Discovery.",
-            "ja": "プロジェクト・ディスカバリーへの科学的な貢献に対する報酬。",
-            "ru": "Вознаграждение, выданное за вклад в науку посредством участия в проекте «Дискавери».",
-            "zh": "给予对探索计划做出科学贡献的人的奖励。",
-            "de": "Belohnung, die für den wissenschaftlichen Beitrag zu Projekt „Discovery“ vergeben wurde.",
-            "ko": "프로젝트 디스커버리에 과학적 기여를 하여 보상 지급",
-            "fr": "Récompense offerte pour contribution scientifique à Project Discovery",
-            "es": "Retribución otorgada por realizar una contribución científica al proyecto Discovery."
+            "en": [
+                "Reward given for scientific contribution to Project Discovery."
+            ],
+            "zh": [
+                "给予对探索计划做出科学贡献的人的奖励。"
+            ]
         }
     },
     "project_discovery_tax": {
         "entryTypeName": {
-            "en": "Corporation tax on Project Discovery rewards",
-            "ja": "プロジェクト・ディスカバリーの報酬に課税されるコーポレーション税",
-            "ru": "Корпоративный налог на вознаграждение от проекта «Дискавери»",
-            "zh": "针对探索计划奖励的军团税",
-            "de": "Corporationssteuer für Belohnungen von Projekt „Discovery“.",
-            "ko": "프로젝트 디스커버리 사납금",
-            "fr": "Impôt de corporation sur les récompenses de Project Discovery",
-            "es": "Impuesto de la corporación sobre las retribuciones del proyecto Discovery."
+            "en": [
+                "Corporation tax on Project Discovery rewards"
+            ],
+            "zh": [
+                "针对探索计划奖励的军团税"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Corporation tax on Project Discovery rewards",
-            "ja": "プロジェクト・ディスカバリーの報酬に課税されるコーポレーション税",
-            "ru": "Корпоративный налог на вознаграждение от проекта «Дискавери»",
-            "zh": "针对探索计划奖励的军团税",
-            "de": "Corporationssteuer für Belohnungen von Projekt „Discovery“.",
-            "ko": "프로젝트 디스커버리 사납금",
-            "fr": "Impôt de corporation sur les récompenses de Project Discovery",
-            "es": "Impuesto de la corporación sobre las retribuciones del proyecto Discovery."
+            "en": [
+                "Corporation tax on Project Discovery rewards"
+            ],
+            "zh": [
+                "针对探索计划奖励的军团税"
+            ]
         }
     },
     "reprocessing_tax": {
         "entryTypeName": {
-            "en": "Reprocessing Tax",
-            "ja": "再処理税",
-            "ru": "Налог на переработку",
-            "zh": "提炼税",
-            "de": "Aufbereitungssteuer",
-            "ko": "재처리 수수료",
-            "fr": "Impôt de retraitement",
-            "es": "Impuesto de reprocesamiento"
+            "en": [
+                "Reprocessing Tax"
+            ],
+            "zh": [
+                "提炼税"
+            ]
         }
     },
     "jump_clone_activation_fee": {
         "entryTypeName": {
-            "en": "Jump Clone Activation Fee",
-            "ja": "ジャンプクローンの起動費用",
-            "ru": "Комиссия за перенос сознания в джамп-клона",
-            "zh": "远距克隆激活费用",
-            "de": "Sprungklon-Aktivierungsgebühr",
-            "ko": "점프 클론 활성화 비용",
-            "fr": "Frais d'activation des clones hyperspatiaux",
-            "es": "Tasa de activación de clon de salto"
+            "en": [
+                "Jump Clone Activation Fee"
+            ],
+            "zh": [
+                "远距克隆激活费用"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Fee for activating a Jump Clone paid from {name1} to {name2}",
-            "ja": "ジャンプクローンの有効化料（{name1}から{name2}に支払い）",
-            "ru": "{name1} выплатил {name2} комиссию за перенос сознания в джамп-клона",
-            "zh": "{name1} 支付给{name2}的激活远距克隆费用",
-            "de": "Gebühr für die Aktivierung eines Sprungklons wurde von {name1} an {name2} gezahlt",
-            "ko": "{name1}이(가) {name2}에 점프 클론 활성화 수수료 지불",
-            "fr": "Frais d'activation d'un clone hyperspatial payé par {name1} pour {name2}",
-            "es": "{name1} ha pagado a {name2} la tasa de activación de un clon de salto."
+            "en": [
+                "Fee for activating a Jump Clone paid from {name1} to {name2}"
+            ],
+            "zh": [
+                "{name1} 支付给{name2}的激活远距克隆费用"
+            ]
         }
     },
     "operation_bonus": {
         "entryTypeName": {
-            "en": "Mission Reward",
-            "ja": "ミッションの報酬",
-            "ru": "Награда за задание",
-            "zh": "任务奖励",
-            "de": "Missionsbelohnung",
-            "ko": "미션 보상",
-            "fr": "Récompense de mission",
-            "es": "Retribución de misión"
+            "en": [
+                "Mission Reward"
+            ],
+            "zh": [
+                "任务奖励"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Mission Reward from the Tutorial",
-            "ja": "チュートリアルのミッション報酬",
-            "ru": "Награда за прохождение обучения",
-            "zh": "教程提供的任务奖励",
-            "de": "Missionsbelohnung des Tutorials",
-            "ko": "튜토리얼 미션 보상",
-            "fr": "Récompense de mission du didacticiel",
-            "es": "Retribución de misión del tutorial."
+            "en": [
+                "Mission Reward from the Tutorial"
+            ],
+            "zh": [
+                "教程提供的任务奖励"
+            ]
         }
     },
     "resource_wars_reward": {
         "entryTypeName": {
-            "en": "Mining Site Protection Money",
-            "ja": "採掘サイト防衛報酬",
-            "ru": "Сумма страховки района добычи",
-            "zh": "采集地点保护费",
-            "de": "Bergbaugebiet-Schutzgeld",
-            "ko": "채광 사이트 보호비",
-            "fr": "Émoluments pour la protection du site d’extraction minière",
-            "es": "Dinero por protección de yacimiento minero"
+            "en": [
+                "Mining Site Protection Money"
+            ],
+            "zh": [
+                "采集地点保护费"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Payment for protecting valuable ORE from pirates.",
-            "ja": "海賊から貴重な鉱石を防衛したことへの報酬",
-            "ru": "Плата за защиту ценной РУДЫ от пиратов.",
-            "zh": "保护贵重的ORE不受海盗侵袭的报酬",
-            "de": "Lohn für den Schutz wertvoller Erze vor Piratenangriffen",
-            "ko": "중요 ORE 자산 보호비",
-            "fr": "Paiement pour la protection des minerais précieux contre les pirates.",
-            "es": "Pago por proteger menas valiosas de los piratas."
+            "en": [
+                "Payment for protecting valuable ORE from pirates."
+            ],
+            "zh": [
+                "保护贵重的ORE不受海盗侵袭的报酬"
+            ]
         }
     },
     "duel_wager_escrow": {
         "entryTypeName": {
-            "en": "Duel wager escrow payment",
-            "ja": "決闘の掛け金の預託費",
-            "ru": "Депонирование ставки на дуэль",
-            "zh": "决斗赌注保证金支付",
-            "de": "Duellwette - Treuhandzahlung",
-            "ko": "내기 결투 제3자 예탁금 지불",
-            "fr": "Dépôt fiduciaire de la mise du duel",
-            "es": "Pago del depósito por apuesta en duelo"
+            "en": [
+                "Duel wager escrow payment"
+            ],
+            "zh": [
+                "决斗赌注保证金支付"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Duel wager escrow payment",
-            "ja": "決闘の掛け金の預託費",
-            "ru": "Депонирование ставки на дуэль",
-            "zh": "决斗赌注保证金支付",
-            "de": "Duellwette - Treuhandzahlung",
-            "ko": "내기 결투 제3자 예탁금 지불",
-            "fr": "Dépôt fiduciaire de la mise du duel",
-            "es": "Pago del depósito de apuesta en duelo"
+            "en": [
+                "Duel wager escrow payment"
+            ],
+            "zh": [
+                "决斗赌注保证金支付"
+            ]
         }
     },
     "duel_wager_payment": {
         "entryTypeName": {
-            "en": "Duel wager reward",
-            "ja": "決闘の掛けで得た利益",
-            "ru": "Вознаграждение по ставке на дуэль",
-            "zh": "决斗赌注奖励",
-            "de": "Duellwettbelohnung",
-            "ko": "내기 결투 보상",
-            "fr": "Récompense des mises du duel",
-            "es": "Retribución de apuesta en duelo"
+            "en": [
+                "Duel wager reward"
+            ],
+            "zh": [
+                "决斗赌注奖励"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Duel wager reward",
-            "ja": "決闘の掛けで得た利益",
-            "ru": "Вознаграждение по ставке на дуэль",
-            "zh": "决斗赌注奖励",
-            "de": "Duellwettbelohnung",
-            "ko": "내기 결투 보상",
-            "fr": "Récompense des mises du duel",
-            "es": "Retribución de apuesta en duelo"
+            "en": [
+                "Duel wager reward"
+            ],
+            "zh": [
+                "决斗赌注奖励"
+            ]
         }
     },
     "duel_wager_refund": {
         "entryTypeName": {
-            "en": "Duel wager refund",
-            "ja": "決闘の掛け金の払い戻し",
-            "ru": "Возмещение по ставке на дуэль",
-            "zh": "决斗赌注退款",
-            "de": "Duellwetterstattung",
-            "ko": "내기 결투 환불",
-            "fr": "Remboursement de la mise du duel",
-            "es": "Devolución de apuesta en duelo"
+            "en": [
+                "Duel wager refund"
+            ],
+            "zh": [
+                "决斗赌注退款"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Duel wager refund",
-            "ja": "決闘の掛け金の払い戻し",
-            "ru": "Возмещение по ставке на дуэль",
-            "zh": "决斗赌注退款",
-            "de": "Duellwetterstattung",
-            "ko": "내기 결투 환불",
-            "fr": "Remboursement de la mise du duel",
-            "es": "Devolución de apuesta en duelo"
+            "en": [
+                "Duel wager refund"
+            ],
+            "zh": [
+                "决斗赌注退款"
+            ]
         }
     },
     "reaction": {
         "entryTypeName": {
-            "en": "Reactions",
-            "ja": "反応",
-            "ru": "Реакции",
-            "zh": "反应",
-            "de": "Reaktionen",
-            "ko": "반응로 작업",
-            "fr": "Réactions",
-            "es": "Reacciones"
+            "en": [
+                "Reactions"
+            ],
+            "zh": [
+                "反应"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Reaction job fee between {name1} and {name2} (Job ID: {arg1})",
-            "ja": "{name1}と{name2}間の反応ジョブ費用（ジョブID： {arg1}）",
-            "ru": "Стоимость выполнения реакции между {name1} и {name2} (Номер заказа: {arg1})",
-            "zh": "{name1}与{name2}之间的反应项目费用 (项目ID：{arg1})",
-            "de": "Reaktionsauftragsgebühr zwischen {name1} und {name2} (Auftrag-ID: {arg1})",
-            "ko": "{name1}, {name2} 사이의 합성 비용 (작업 ID: {arg1})",
-            "fr": "Frais de la tâche de réaction entre {name1} et {name2} (Job ID: {arg1})",
-            "es": "Tasa de trabajo de reacción entre {name1} y {name2} (ID de trabajo: {arg1})."
+            "en": [
+                "Reaction job fee between {name1} and {name2} (Job ID: {arg1})"
+            ],
+            "zh": [
+                "{name1}与{name2}之间的反应项目费用 (项目ID：{arg1})"
+            ]
         }
     },
     "external_trade_freeze": {
         "entryTypeName": {
-            "en": "External Trade Freeze",
-            "ja": "外部トレードの停止",
-            "ru": "Блокировка средств сторонним сервисом",
-            "zh": "外部交易冻结",
-            "de": "Sperrung durch externen Handel",
-            "ko": "외부 거래 동결",
-            "fr": "Gel du commerce extérieur",
-            "es": "Congelación de comercio exterior"
+            "en": [
+                "External Trade Freeze"
+            ],
+            "zh": [
+                "外部交易冻结"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Transactions via external services",
-            "ja": "外部サービスを経由した取り引き",
-            "ru": "Операции через внешние службы",
-            "zh": "藏宝阁交易",
-            "de": "Transactions via external services",
-            "ko": "외부 서비스를 통한 거래기록",
-            "fr": "Transactions au moyen de services externes",
-            "es": "Transacciones a través de servicios externos."
+            "en": [
+                "Transactions via external services"
+            ],
+            "zh": [
+                "藏宝阁交易"
+            ]
         }
     },
     "external_trade_thaw": {
         "entryTypeName": {
-            "en": "External Trade Thaw",
-            "ja": "外部トレードの解禁",
-            "ru": "Разблокировка средств сторонним сервисом",
-            "zh": "外部交易解冻",
-            "de": "Entsperrung durch externen Handel",
-            "ko": "외부 거래 동결 해제",
-            "fr": "Dégel du commerce extérieur",
-            "es": "Descongelación de comercio exterior"
+            "en": [
+                "External Trade Thaw"
+            ],
+            "zh": [
+                "外部交易解冻"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Transactions via external services",
-            "ja": "外部サービスを経由した取り引き",
-            "ru": "Операции через внешние службы",
-            "zh": "藏宝阁交易",
-            "de": "Transaktionen über externe Dienste",
-            "ko": "외부 서비스를 통한 거래기록",
-            "fr": "Transactions au moyen de services externes",
-            "es": "Transacciones a través de servicios externos."
+            "en": [
+                "Transactions via external services"
+            ],
+            "zh": [
+                "藏宝阁交易"
+            ]
         }
     },
     "external_trade_delivery": {
         "entryTypeName": {
-            "en": "External Trade Delivery",
-            "ja": "外部トレードによる配送",
-            "ru": "Денежный перевод сторонним сервисом",
-            "zh": "外部交易递送",
-            "de": "Lieferung durch externen Handel",
-            "ko": "외부 거래 배송",
-            "fr": "Livraison du commerce extérieur",
-            "es": "Entrega de comercio exterior"
+            "en": [
+                "External Trade Delivery"
+            ],
+            "zh": [
+                "外部交易递送"
+            ]
         }
     },
     "season_challenge_reward": {
         "entryTypeName": {
-            "en": "Challenge Completed",
-            "ja": "チャレンジ完了",
-            "ru": "Испытание завершено",
-            "zh": "挑战已完成",
-            "de": "Herausforderung abgeschlossen",
-            "ko": "도전과제 완료",
-            "fr": "Défi réussi",
-            "es": "Desafío superado"
+            "en": [
+                "Challenge Completed"
+            ],
+            "zh": [
+                "挑战已完成"
+            ]
         },
         "entryJournalMessage": {
-            "en": "A reward for completing a challenge during an event.",
-            "ja": "イベント中のチャレンジ完了時の報酬",
-            "ru": "Награда за прохождение испытания в ходе события.",
-            "zh": "在活动中完成一个挑战而获得的奖励。",
-            "de": "Eine Belohnung für das Abschließen einer Herausforderung während eines Events.",
-            "ko": "이벤트 기간 중 도전과제 완료 보상",
-            "fr": "Une récompense pour avoir réussi un défi lors d'un événement.",
-            "es": "Retribución por superar un desafío durante un evento."
+            "en": [
+                "A reward for completing a challenge during an event."
+            ],
+            "zh": [
+                "在活动中完成一个挑战而获得的奖励。"
+            ]
         }
     },
     "structure_gate_jump": {
         "entryTypeName": {
-            "en": "Jump Bridge Fee",
-            "ja": "ジャンプブリッジ利用料",
-            "ru": "Сбор для гипермоста",
-            "zh": "跳跃桥接费用",
-            "de": "Sprungbrückengebühr",
-            "ko": "점프 브릿지 수수료",
-            "fr": "Frais du pont interstellaire",
-            "es": "Tarifa del puente de salto"
+            "en": [
+                "Jump Bridge Fee"
+            ],
+            "zh": [
+                "跳跃桥接费用"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Fee for activating a Upwell Jump Bridge paid from {name1} to {name2}",
-            "ja": "{name1}が{name2}に支払うアップウェルジャンプブリッジ起動費用",
-            "ru": "Плата за использование гипермоста «Апвелл», внесённая пилотом {name1} владельцу {name2}",
-            "zh": "昇威跳跃桥接的激活费用由{name1}支付给{name2}。",
-            "de": "Gebühr für die Aktivierung einer Upwell-Sprungbrücke, die von {name1} an {name2} bezahlt wurde",
-            "ko": "{name1}(이)가 {name2}에 업웰 점프 브릿지 활성화 수수료 지불",
-            "fr": "Frais d'activation d'un pont interstellaire Upwell payés par {name1} à {name2}",
-            "es": "Tasa por la activación de un puente de salto de Upwell que {name1} ha pagado a {name2}."
+            "en": [
+                "Fee for activating a Upwell Jump Bridge paid from {name1} to {name2}"
+            ],
+            "zh": [
+                "昇威跳跃桥接的激活费用由{name1}支付给{name2}。"
+            ]
         }
     },
     "skill_purchase": {
         "entryTypeName": {
-            "en": "Skill Purchase",
-            "ja": "スキルの購入",
-            "ru": "Покупка навыка",
-            "zh": "技能购买",
-            "de": "Skillkauf",
-            "ko": "스킬 구매",
-            "fr": "Achat de compétence",
-            "es": "Compra de habilidad"
+            "en": [
+                "Skill Purchase"
+            ],
+            "zh": [
+                "技能购买"
+            ]
         },
         "entryJournalMessage": {
-            "en": "{name1} purchased a skill ({[item]arg1.name})",
-            "ja": "{name1}がスキル（{[item]arg1.name}）を購入しました",
-            "ru": "{name1} приобрел(а) навык ({[item]arg1.name})",
-            "zh": "{name1}购买了一个技能({[item]arg1.name})",
-            "de": "{name1} hat einen Skill erworben ({[item]arg1.name})",
-            "ko": "{name1}이(가) ({[item]arg1.name}) 스킬 구매",
-            "fr": "{name1} a acheté une compétence ({[item]arg1.name})",
-            "es": "{name1} ha comprado una habilidad ({[item]arg1.name})."
+            "en": [
+                "{name1} purchased a skill ({[item]arg1.name})"
+            ],
+            "zh": [
+                "{name1}购买了一个技能({[item]arg1.name})"
+            ]
         }
     },
     "item_trader_payment": {
         "entryTypeName": {
-            "en": "Item Trade",
-            "ja": "アイテムトレード",
-            "ru": "Купля/продажа",
-            "zh": "物品交易",
-            "de": "Gegenstandshandel",
-            "ko": "아이템 거래",
-            "fr": "Troc d'objet",
-            "es": "Comercio de artículos"
+            "en": [
+                "Item Trade"
+            ],
+            "zh": [
+                "物品交易"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Payment for use of {itemTraderTypeID}.",
-            "ja": "{itemTraderTypeID}の利用費",
-            "ru": "Плата за использование {itemTraderTypeID}.",
-            "zh": "使用{itemTraderTypeID}而支付的款项。",
-            "de": "Zahlung für die Verwendung von {itemTraderTypeID}.",
-            "ko": "{itemTraderTypeID} 사용 요금입니다.",
-            "fr": "Paiement pour l'utilisation de {itemTraderTypeID}.",
-            "es": "Pago por el uso de {itemTraderTypeID}."
+            "en": [
+                "Payment for use of {itemTraderTypeID}."
+            ],
+            "zh": [
+                "使用{itemTraderTypeID}而支付的款项。"
+            ]
         }
     },
     "flux_ticket_sale": {
         "entryTypeName": {
-            "en": "HyperNode transaction",
-            "ja": "ハイパーノード取引",
-            "ru": "Операция с гиперузлом",
-            "zh": "超网节点交易",
-            "de": "HyperNode-Transaktion",
-            "ko": "하이퍼노드 구매",
-            "fr": "Transaction d'Hyper nœuds",
-            "es": "Transacción de HyperNode"
+            "en": [
+                "HyperNode transaction"
+            ],
+            "zh": [
+                "超网节点交易"
+            ]
         }
     },
     "flux_payout": {
         "entryTypeName": {
-            "en": "Completed HyperNet Relay Payout",
-            "ja": "ハイパーネットリレー費用の支払い完了",
-            "ru": "Выплата про реализованному предложению гиперсети",
-            "zh": "完成的超网中继支付",
-            "de": "Abgeschlossene HyperNet-Relais-Auszahlung",
-            "ko": "하이퍼넷 중계 비용 지불",
-            "fr": "Crédit relais Hypernet terminé",
-            "es": "Pago del relé de HyperNet completado"
+            "en": [
+                "Completed HyperNet Relay Payout"
+            ],
+            "zh": [
+                "完成的超网中继支付"
+            ]
         }
     },
     "flux_tax": {
         "entryTypeName": {
-            "en": "HyperNet Relay Fee",
-            "ja": "ハイパーネットリレー費用",
-            "ru": "Счёт за использование гиперсетевого реле",
-            "zh": "超网中继交易费",
-            "de": "HyperNet-Relaisgebühr",
-            "ko": "하이퍼넷 중계 비용",
-            "fr": "Coût du relais Hypernet",
-            "es": "Tasa del relé de HyperNet"
+            "en": [
+                "HyperNet Relay Fee"
+            ],
+            "zh": [
+                "超网中继交易费"
+            ]
         }
     },
     "flux_ticket_repayment": {
         "entryTypeName": {
-            "en": "HyperNode refund for expired HyperNet Offer",
-            "ja": "期限切れになったハイパーネットオファーのハイパーノードの払い戻し",
-            "ru": "Возврат гиперузлов за просроченное предложение гиперсети",
-            "zh": "因超网订单过期而返还超网节点购买金额",
-            "de": "HyperNode-Rückerstattung für abgelaufenes HyperNet-Angebot",
-            "ko": "종료된 하이퍼넷 오퍼에 대한 하이퍼노드 환불",
-            "fr": "Remboursement d'Hyper nœud pour l'offre Hypernet arrivée à expiration",
-            "es": "Devolución de HyperNode por oferta de HyperNet caducada"
+            "en": [
+                "HyperNode refund for expired HyperNet Offer"
+            ],
+            "zh": [
+                "因超网订单过期而返还超网节点购买金额"
+            ]
         }
     },
     "redeemed_isk_token": {
         "entryTypeName": {
-            "en": "Redeemed ISK token",
-            "ja": "引き換え済みISKトークン",
-            "ru": "Активирован сертификат ISK",
-            "zh": "兑换星币令牌",
-            "de": "Eingelöstes ISK-Token",
-            "ko": "ISK 토큰 교환 완료",
-            "fr": "Jeton ISK utilisé",
-            "es": "Ficha de ISK canjeada"
+            "en": [
+                "Redeemed ISK token"
+            ],
+            "zh": [
+                "兑换星币令牌"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Reward for redeeming ISK token",
-            "ja": "ISKトークン引き換えの報酬",
-            "ru": "Награда за активацию сертификата ISK",
-            "zh": "兑换星币令牌奖励",
-            "de": "Belohnung zum Einlösen von ISK-Token",
-            "ko": "ISK 토큰 교환 보상",
-            "fr": "Récompense pour avoir utilisé un jeton ISK",
-            "es": "Retribución por canjear una ficha de ISK."
+            "en": [
+                "Reward for redeeming ISK token"
+            ],
+            "zh": [
+                "兑换星币令牌奖励"
+            ]
         }
     },
     "daily_challenge_reward": {
         "entryTypeName": {
-            "en": "Daily Challenge Completed",
-            "ja": "デイリーチャレンジ完了",
-            "ru": "Ежедневное задание выполнено",
-            "zh": "完成的每日挑战",
-            "de": "Tägliche Herausforderung abgeschlossen",
-            "ko": "일일 과제 완료",
-            "fr": "Défi quotidien réussi",
-            "es": "Desafío diario superado"
+            "en": [
+                "Daily Challenge Completed"
+            ],
+            "zh": [
+                "完成的每日挑战"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Reward for completing a daily challenge",
-            "ja": "デイリーチャレンジ完了時の報酬",
-            "ru": "Награда за выполнение ежедневного задания",
-            "zh": "完成每日挑战获得的奖励",
-            "de": "Belohnung für das Abschließen einer täglichen Herausforderung",
-            "ko": "일일 미션 완료 보상",
-            "fr": "Récompense pour avoir réussi un défi quotidien",
-            "es": "Retribución por superar un desafío diario."
+            "en": [
+                "Reward for completing a daily challenge"
+            ],
+            "zh": [
+                "完成每日挑战获得的奖励"
+            ]
         }
     },
     "market_provider_tax": {
         "entryTypeName": {
-            "en": "SCC surcharge",
-            "ja": "SCCの追加料金",
-            "ru": "Пошлина КпБТ",
-            "zh": "商业安全委员会追加费用",
-            "de": "SCC-Aufpreis",
-            "ko": "안전무역위원회 추가 수수료",
-            "fr": "Surtaxe de CCS",
-            "es": "Recargo de CCS"
+            "en": [
+                "SCC surcharge"
+            ],
+            "zh": [
+                "商业安全委员会追加费用"
+            ]
         }
     },
     "ess_escrow_transfer": {
         "entryTypeName": {
-            "en": "ESS Escrow Payment",
-            "ja": "ESS預託費支払い",
-            "ru": "Депозитный платёж СНС",
-            "zh": "事件监测装置保证金支付",
-            "de": "ESS-Treuhandzahlung",
-            "ko": "ESS 예탁금 지불",
-            "fr": "Paiement d'un dépôt du SSA",
-            "es": "Pago de depósito del SVE"
+            "en": [
+                "ESS Escrow Payment"
+            ],
+            "zh": [
+                "事件监测装置保证金支付"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Encounter Surveillance System in {[location]arg1.name} transferred funds to {name2}",
-            "ja": "{[location]arg1.name}の対戦監視システムが{name2}に送金しました",
-            "ru": "Система наблюдения за столкновениями ({[location]arg1.name}) перевела средства пилоту {name2}",
-            "zh": "{[location]arg1.name}的事件监测装置赏金池转移给{name2}",
-            "de": "Gefechtsüberwachungssystem in {[location]arg1.name} hat Geldmittel an {name2} überwiesen.",
-            "ko": "{[location]arg1.name}에 위치한 교전 감지 시스템이 {name2}(으)로 ISK를 전송했습니다",
-            "fr": "Le système de surveillance des affrontements de {[location]arg1.name} a transféré des fonds à {name2}",
-            "es": "El sistema de vigilancia de encuentros en {[location]arg1.name} ha transferido fondos a {name2}."
+            "en": [
+                "Encounter Surveillance System in {[location]arg1.name} transferred funds to {name2}"
+            ],
+            "zh": [
+                "{[location]arg1.name}的事件监测装置赏金池转移给{name2}"
+            ]
         }
     },
     "milestone_reward_payment": {
         "entryTypeName": {
-            "en": "First Day ISK Bonus",
-            "ja": "初日ISKボーナス",
-            "ru": "ISK в подарок за первый день",
-            "zh": "首日星币加成",
-            "de": "ISK-Bonus an Tag 1",
-            "ko": "1일차 ISK 보너스",
-            "fr": "Bonus d'ISK du premier jour",
-            "es": "Bonificación de ISK del primer día"
+            "en": [
+                "First Day ISK Bonus"
+            ],
+            "zh": [
+                "首日星币加成"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Welcome to New Eden!",
-            "ja": "ニューエデンにようこそ！",
-            "ru": "Добро пожаловать в Новый Эдем!",
-            "zh": "欢迎来到新伊甸！",
-            "de": "Willkommen in New Eden!",
-            "ko": "뉴에덴에 오신 것을 환영합니다!",
-            "fr": "Bienvenue dans New Eden !",
-            "es": "¡Te damos la bienvenida a Nuevo Edén!"
+            "en": [
+                "Welcome to New Eden!"
+            ],
+            "zh": [
+                "欢迎来到新伊甸！"
+            ]
         }
     },
     "under_construction": {
         "entryTypeName": {
-            "en": "Building Materials Delivered",
-            "ja": "配送済み建築資材",
-            "ru": "Стройматериалы доставлены",
-            "zh": "建造材料已交付",
-            "de": "Baumaterialien geliefert",
-            "ko": "건설자재 수령",
-            "fr": "Matériaux de construction livrés",
-            "es": "Materiales de construcción entregados"
+            "en": [
+                "Building Materials Delivered"
+            ],
+            "zh": [
+                "建造材料已交付"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Payment for delivering building materials in {[location]arg1.name}",
-            "ja": "{[location]arg1.name}での建築資材の配送に関する支払い",
-            "ru": "Оплата за доставку стройматериалов: {[location]arg1.name}",
-            "zh": "为交付建筑材料到{[location]arg1.name}所支付的款项",
-            "de": "Zahlung für die Lieferung von Baumaterialien in {[location]arg1.name}",
-            "ko": "{[location]arg1.name}에서 건설 중인 구조물의 건설 자재 운송 대금",
-            "fr": "Paiement pour la livraison de matériaux de construction à {[location]arg1.name}",
-            "es": "Pago por entregar los materiales de construcción en {[location]arg1.name}"
+            "en": [
+                "Payment for delivering building materials in {[location]arg1.name}"
+            ],
+            "zh": [
+                "为交付建筑材料到{[location]arg1.name}所支付的款项"
+            ]
         }
     },
     "allignment_based_gate_toll": {
         "entryTypeName": {
-            "en": "Zarzakh Stargate Toll",
-            "ja": "ザルザクのスターゲート利用料",
-            "ru": "Сбор за врата Zarzakh",
-            "zh": "扎尔扎克星门通行费",
-            "de": "Zarzakh-Sprungtor-Gebühr",
-            "ko": "자르자크 스타게이트 요금",
-            "fr": "Péage du portail stellaire de Zarzakh",
-            "es": "Peaje de portal estelar de Zarzakh"
+            "en": [
+                "Zarzakh Stargate Toll"
+            ],
+            "zh": [
+                "扎尔扎克星门通行费"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Fee for using a stargate to Zarzakh in {[location]arg1.name}.",
-            "ja": "{[location]arg1.name}にあるザルザク行きスターゲートの使用料です。",
-            "ru": "{[location]arg1.name}: плата за пользование звёздными вратами, ведущими в Zarzakh.",
-            "zh": "在{[location]arg1.name}使用星门前往扎尔扎克的费用。",
-            "de": "Gebühr für die Nutzung eines Sprungtors nach Zarzakh in {[location]arg1.name}.",
-            "ko": "{[location]arg1.name}에서 자르자크 성계 스타게이트를 이용하는 비용입니다.",
-            "fr": "Frais pour l'utilisation d'un portail stellaire vers Zarzakh dans {[location]arg1.name}.",
-            "es": "Tasa por usar un portal estelar a Zarzakh en {[location]arg1.name}."
+            "en": [
+                "Fee for using a stargate to Zarzakh in {[location]arg1.name}."
+            ],
+            "zh": [
+                "在{[location]arg1.name}使用星门前往扎尔扎克的费用。"
+            ]
         }
     },
     "project_payouts": {
         "entryTypeName": {
-            "en": "Corporation Projects",
-            "ja": "コーポレーション・プロジェクト",
-            "ru": "Проекты корпорации",
-            "zh": "军团项目",
-            "de": "Corporation-Projekte",
-            "ko": "코퍼레이션 프로젝트",
-            "fr": "Projets de corporation",
-            "es": "Proyectos de la corporación"
+            "en": [
+                "Corporation Projects"
+            ],
+            "zh": [
+                "军团项目"
+            ]
         },
         "entryJournalMessage": {
-            "en": "{corp_name} Project - {project_name}",
-            "ja": "{corp_name} プロジェクト- {project_name}",
-            "ru": "Проект «{project_name}» корпорации {corp_name}",
-            "zh": "{corp_name}项目 - {project_name}",
-            "de": "{corp_name} Projekt – {project_name}",
-            "ko": "{corp_name} 프로젝트 - {project_name}",
-            "fr": "Projet de {corp_name} - {project_name}",
-            "es": "Proyecto de {corp_name}: {project_name}"
+            "en": [
+                "{corp_name} Project - {project_name}"
+            ],
+            "zh": [
+                "{corp_name}项目 - {project_name}"
+            ]
         }
     },
     "insurgency_corruption_contribution_reward": {
         "entryTypeName": {
-            "en": "Insurgency corruption contribution reward",
-            "ja": "反乱イベントの腐敗功績報酬",
-            "ru": "Награда за помощь в дестабилизации во время интервенции",
-            "zh": "叛乱活动的腐蚀贡献奖励",
-            "de": "Belohnung für den Beitrag zur Aufstands-Korruption",
-            "ko": "반란 변절 기여 보상",
-            "fr": "Récompense de l'insurrection pour contribution à la corruption",
-            "es": "Retribución por contribución a la corrupción de la insurgencia"
+            "en": [
+                "Insurgency corruption contribution reward"
+            ],
+            "zh": [
+                "叛乱活动的腐蚀贡献奖励"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Reward from {name1} for pirate actions",
-            "ja": "海賊活動に対する{name1}からの報酬",
-            "ru": "{name1} награждает вас за пиратскую деятельность",
-            "zh": "{name1}为海盗行动发放的奖励",
-            "de": "Belohnung von {name1} für Piratenaktivitäten",
-            "ko": "해적 활동에 대한 {name1}의 보상",
-            "fr": "Récompense de {name1} pour les actions de pirates",
-            "es": "Retribución de {name1} por acciones piratas"
+            "en": [
+                "Reward from {name1} for pirate actions"
+            ],
+            "zh": [
+                "{name1}为海盗行动发放的奖励"
+            ]
         }
     },
     "insurgency_suppression_contribution_reward": {
         "entryTypeName": {
-            "en": "Insurgency suppression contribution reward",
-            "ja": "反乱イベントの鎮圧功績報酬",
-            "ru": "Награда за помощь в стабилизации во время интервенции",
-            "zh": "叛乱活动的镇压贡献奖励",
-            "de": "Belohnung für den Beitrag zur Aufstands-Bekämpfung",
-            "ko": "반란 억제 기여 보상",
-            "fr": "Récompense de l'insurrection pour contribution à la répression",
-            "es": "Retribución por contribución a la represión de la insurgencia"
+            "en": [
+                "Insurgency suppression contribution reward"
+            ],
+            "zh": [
+                "叛乱活动的镇压贡献奖励"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Reward from {name1} for antipirate actions",
-            "ja": "対海賊活動に対する{name1}からの報酬",
-            "ru": "{name1} награждает вас за противодействие пиратам",
-            "zh": "{name1}为反海盗行动发放的奖励",
-            "de": "Belohnung von {name1} für Anti-Piraten-Aktivitäten",
-            "ko": "해적 억제 활동에 대한 {name1}의 보상",
-            "fr": "Récompense de {name1} pour les actions anti-pirates",
-            "es": "Retribución de {name1} por acciones antipiratas"
+            "en": [
+                "Reward from {name1} for antipirate actions"
+            ],
+            "zh": [
+                "{name1}为反海盗行动发放的奖励"
+            ]
         }
     },
     "daily_goal_payouts": {
         "entryTypeName": {
-            "en": "Daily Goal Reward",
-            "ja": "デイリー目標報酬",
-            "ru": "Награда за ежедневную цель",
-            "zh": "每日目标奖励",
-            "de": "Belohnung für tägliche Ziele",
-            "ko": "일일 목표 보상",
-            "fr": "Récompense de l'objectif journalier",
-            "es": "Retribución por objetivo diario"
+            "en": [
+                "Daily Goal Reward"
+            ],
+            "zh": [
+                "每日目标奖励"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Reward for completion of the AIR Daily Goal {goal_name} by {character_name}",
-            "ja": "{character_name}がAIRデイリー目標「{goal_name}」を達成した際の報酬です",
-            "ru": "Награда за выполнение ежедневной цели АМИ «{goal_name}» ({character_name})",
-            "zh": "{character_name}完成星空会每日目标{goal_name}而获得的奖励",
-            "de": "Belohnung für das Erreichen des täglichen AIR-Ziels {goal_name} durch {character_name}",
-            "ko": "{character_name} 캡슐리어의 {goal_name} AIR 일일 목표 완료 보상",
-            "fr": "Récompense pour l'accomplissement de l'objectif journalier de l'AIR {goal_name} par {character_name}",
-            "es": "Retribución por completar el objetivo diario de AIR {goal_name} por {character_name}."
+            "en": [
+                "Reward for completion of the AIR Daily Goal {goal_name} by {character_name}"
+            ],
+            "zh": [
+                "{character_name}完成星空会每日目标{goal_name}而获得的奖励"
+            ]
         }
     },
     "daily_goal_payouts_tax": {
         "entryTypeName": {
-            "en": "Daily Goal Reward Tax",
-            "ja": "デイリー目標報酬税",
-            "ru": "Налог на награду за ежедневную цель",
-            "zh": "每日目标奖励税",
-            "de": "Steuer auf die Belohnung für tägliche Ziele",
-            "ko": "일일 목표 보상 세금",
-            "fr": "Taxe sur la récompense de l'objectif journalier",
-            "es": "Impuesto de retribución por objetivo diario"
+            "en": [
+                "Daily Goal Reward Tax"
+            ],
+            "zh": [
+                "每日目标奖励税"
+            ]
         },
         "entryJournalMessage": {
-            "en": "Corporation tax paid on a reward earned by completing an AIR Daily Goal",
-            "ja": "AIRデイリー目標を達成した際の報酬にかかるコーポレーション税です",
-            "ru": "Корпоративный налог с вознаграждения, заработанного за выполнение ежедневной цели АМИ",
-            "zh": "为完成星空会每日目标获得的奖励而缴纳的军团税",
-            "de": "Die Corporation-Steuer, die auf eine durch das Erreichen eines täglichen AIR-Ziels verdiente Belohnung gezahlt wurde",
-            "ko": "AIR 일일 목표 보상에 적용되는 코퍼레이션 세금 납부 완료",
-            "fr": "Impôt de corporation payé sur une récompense obtenue en accomplissant un objectif journalier de l'AIR",
-            "es": "Impuesto de la corporación pagado por una retribución obtenida al completar un objetivo diario de AIR."
+            "en": [
+                "Corporation tax paid on a reward earned by completing an AIR Daily Goal"
+            ],
+            "zh": [
+                "为完成星空会每日目标获得的奖励而缴纳的军团税"
+            ]
         }
     },
     "cosmetic_market_component_item_purchase": {
         "entryTypeName": {
-            "en": "Paragon Hub Design Element",
-            "ja": "パラゴンハブでのデザイン要素",
-            "ru": "Декоративный элемент из штаба «Парагона»",
-            "zh": "派瑞根中心设计元素",
-            "de": "Paragon-Hub-Designelement",
-            "ko": "파라곤 허브 디자인 요소",
-            "fr": "Élément de design du centre Paragon",
-            "es": "Elemento de diseño del Centro de Paragon"
+            "en": [
+                "Paragon Hub Design Element"
+            ],
+            "zh": [
+                "派瑞根中心设计元素"
+            ]
         }
     },
     "cosmetic_market_skin_sale_broker_fee": {
         "entryTypeName": {
-            "en": "Paragon Hub Listing Fee",
-            "ja": "パラゴンハブでの掲載費",
-            "ru": "Сбор за размещение в штабе «Парагона»",
-            "zh": "派瑞根中心上架费用",
-            "de": "Paragon-Hub-Auflistungsgegebühr",
-            "ko": "파라곤 허브 등록 서비스 비용",
-            "fr": "Frais d'annonce au centre Paragon",
-            "es": "Tasa de comercialización en el Centro de Paragon"
+            "en": [
+                "Paragon Hub Listing Fee"
+            ],
+            "zh": [
+                "派瑞根中心上架费用"
+            ]
         }
     },
     "cosmetic_market_skin_purchase": {
         "entryTypeName": {
-            "en": "Paragon Hub SKIN purchase",
-            "ja": "パラゴンハブでのSKIN購入",
-            "ru": "Покупка окраски в штабе «Парагона»",
-            "zh": "派瑞根中心涂装购买",
-            "de": "Paragon-Hub-SKIN-Kauf",
-            "ko": "파라곤 허브 SKIN 구매",
-            "fr": "Achat de SKIN du centre Paragon",
-            "es": "Compra de SKIN en el Centro de Paragon"
+            "en": [
+                "Paragon Hub SKIN purchase"
+            ],
+            "zh": [
+                "派瑞根中心涂装购买"
+            ]
         }
     },
     "cosmetic_market_skin_sale": {
         "entryTypeName": {
-            "en": "Paragon Hub SKIN sale",
-            "ja": "パラゴンハブでのSKIN販売",
-            "ru": "Продажа окрасок в штабе «Парагона»",
-            "zh": "派瑞根中心涂装销售",
-            "de": "Paragon-Hub.SKIN-Verkauf",
-            "ko": "파라곤 허브 SKIN 판매",
-            "fr": "Vente de SKIN au centre Paragon",
-            "es": "Venta de SKIN en el Centro de Paragon"
+            "en": [
+                "Paragon Hub SKIN sale"
+            ],
+            "zh": [
+                "派瑞根中心涂装销售"
+            ]
         }
     },
     "cosmetic_market_skin_sale_tax": {
         "entryTypeName": {
-            "en": "Paragon Hub Vendor Fee",
-            "ja": "パラゴンハブでの販売費",
-            "ru": "Торговый сбор штаба «Парагона»",
-            "zh": "派瑞根中心商家费用",
-            "de": "Paragon-Hub-Verkaufsgebühr",
-            "ko": "파라곤 허브 거래 비용",
-            "fr": "Frais de vendeur au centre Paragon",
-            "es": "Tasa de vendedor en el Centro de Paragon"
+            "en": [
+                "Paragon Hub Vendor Fee"
+            ],
+            "zh": [
+                "派瑞根中心商家费用"
+            ]
         }
     },
     "cosmetic_market_skin_transaction": {
         "entryTypeName": {
-            "en": "Paragon Hub SKIN transaction",
-            "ja": "パラゴンハブでのSKIN取り引き",
-            "ru": "Операция с окраской в штабе «Парагона»",
-            "zh": "派瑞根中心涂装交易",
-            "de": "Paragon-Hub-SKIN-Transaktion",
-            "ko": "파라곤 허브 SKIN 거래",
-            "fr": "Transaction de SKIN du centre Paragon",
-            "es": "Transacción de SKIN en el Centro de Paragon"
+            "en": [
+                "Paragon Hub SKIN transaction"
+            ],
+            "zh": [
+                "派瑞根中心涂装交易"
+            ]
         }
     }
 }

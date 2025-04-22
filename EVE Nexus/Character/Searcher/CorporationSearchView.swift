@@ -1,16 +1,13 @@
 import SwiftUI
 
-struct CorporationSearchView: View {
+@MainActor
+struct CorporationSearchView {
     let characterId: Int
     let searchText: String
     @Binding var searchResults: [SearcherView.SearchResult]
     @Binding var filteredResults: [SearcherView.SearchResult]
     @Binding var searchingStatus: String
     @Binding var error: Error?
-
-    var body: some View {
-        EmptyView()  // 这里不需要UI，因为UI在主搜索视图中
-    }
 
     func search() async {
         do {

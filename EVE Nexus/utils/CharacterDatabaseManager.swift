@@ -523,8 +523,8 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
             // 准备语句
             if sqlite3_prepare_v2(db, query, -1, &statement, nil) != SQLITE_OK {
                 let errmsg = String(cString: sqlite3_errmsg(db))
-                Logger.error("准备语句失败: \(errmsg)")
-                result = .error("准备语句失败: \(errmsg)")
+                Logger.error("[CharacterDB] 准备语句失败: \(errmsg)")
+                result = .error("[CharacterDB] 准备语句失败: \(errmsg)")
                 return
             }
 
@@ -691,7 +691,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
     /// 删除指定角色的所有相关数据
     func deleteCharacterData(characterId: Int) async throws {
         Logger.info("开始清理角色 \(characterId) 的数据库数据...")
-        
+
         // 准备删除语句
         let deleteStatements = [
             "DELETE FROM character_current_state WHERE character_id = ?",
@@ -708,9 +708,9 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
             "DELETE FROM loyalty_points WHERE character_id = ?",
             "DELETE FROM industry_jobs WHERE character_id = ?",
             "DELETE FROM mining_ledger WHERE character_id = ?",
-            "DELETE FROM contracts WHERE character_id = ?"
+            "DELETE FROM contracts WHERE character_id = ?",
         ]
-        
+
         // 执行所有删除语句
         for statement in deleteStatements {
             let result = executeQuery(statement, parameters: [characterId])
@@ -721,7 +721,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                 Logger.error("执行删除语句失败: \(statement), 错误: \(error)")
             }
         }
-        
+
         Logger.info("角色 \(characterId) 的数据库数据清理完成")
     }
 }

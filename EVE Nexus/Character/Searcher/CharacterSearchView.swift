@@ -1,6 +1,7 @@
 import SwiftUI
 
-struct CharacterSearchView: View {
+@MainActor
+struct CharacterSearchView {
     let characterId: Int
     let searchText: String
     @Binding var searchResults: [SearcherView.SearchResult]
@@ -10,10 +11,6 @@ struct CharacterSearchView: View {
 
     var corporationFilter: String
     var allianceFilter: String
-
-    var body: some View {
-        EmptyView()  // 这里不需要UI，因为UI在主搜索视图中
-    }
 
     func search() async {
         do {

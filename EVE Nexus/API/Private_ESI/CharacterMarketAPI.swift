@@ -8,13 +8,18 @@ class CharacterMarketAPI {
         let timestamp: Date
     }
 
-    private let cachePrefix = "character_market_orders_cache_"
-    private let cacheTimeout: TimeInterval = 8 * 60 * 60  // 8 小时缓存 UserDefaults
+    private let cacheTimeout: TimeInterval = 8 * 60 * 60  // 8 小时缓存
+    private let cacheDirectory: URL = {
+        let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
+        let ordersDirectory = paths[0].appendingPathComponent("CharacterOrders", isDirectory: true)
+        try? FileManager.default.createDirectory(at: ordersDirectory, withIntermediateDirectories: true)
+        return ordersDirectory
+    }()
 
     private init() {}
 
-    private func getCacheKey(characterId: Int64) -> String {
-        return "\(cachePrefix)\(characterId)"
+    private func getCacheFilePath(characterId: Int64) -> URL {
+        return cacheDirectory.appendingPathComponent("\(characterId)_market_orders.json")
     }
 
     private func isCacheValid(_ cache: CachedData) -> Bool {
@@ -33,10 +38,10 @@ class CharacterMarketAPI {
     }
 
     private func getCachedOrders(characterId: Int64) -> (jsonString: String, cache: CachedData)? {
-        let key = getCacheKey(characterId: characterId)
-
-        // 1. 尝试获取并解码缓存数据
-        guard let data = UserDefaults.standard.data(forKey: key),
+        let cacheFile = getCacheFilePath(characterId: characterId)
+        
+        // 1. 尝试从文件读取并解码缓存数据
+        guard let data = try? Data(contentsOf: cacheFile),
             let cache = try? JSONDecoder().decode(CachedData.self, from: data)
         else {
             return nil
@@ -49,7 +54,7 @@ class CharacterMarketAPI {
             return nil
         }
 
-        Logger.debug("获取市场订单缓存数据 - 角色ID: \(characterId), 订单数量: \(cache.orders.count)")
+        Logger.debug("获取市场订单缓存数据 from: \(cacheFile) - 角色ID: \(characterId), 订单数量: \(cache.orders.count)")
         return (jsonString, cache)
     }
 
@@ -62,11 +67,14 @@ class CharacterMarketAPI {
         }
 
         let cache = CachedData(orders: orders, timestamp: Date())
-        let key = getCacheKey(characterId: characterId)
+        let cacheFile = getCacheFilePath(characterId: characterId)
 
-        if let encoded = try? JSONEncoder().encode(cache) {
-            UserDefaults.standard.set(encoded, forKey: key)
+        do {
+            let encoded = try JSONEncoder().encode(cache)
+            try encoded.write(to: cacheFile)
             Logger.debug("保存市场订单数据到缓存成功 - 角色ID: \(characterId)")
+        } catch {
+            Logger.error("保存市场订单缓存失败: \(error)")
         }
     }
 
@@ -102,79 +110,25 @@ class CharacterMarketAPI {
 
         // 1. 检查缓存
         if !forceRefresh, let cachedData = getCachedOrders(characterId: characterId) {
-            let cachedJson = cachedData.jsonString
             let cache = cachedData.cache
 
             // 检查缓存是否有效
             if isCacheValid(cache) {
                 Logger.debug("使用有效的市场订单缓存数据 - 角色ID: \(characterId)")
-                return cachedJson
-            } else {
-                // 如果缓存过期，在后台刷新
-                Logger.info("使用过期的市场订单数据，将在后台刷新 - 角色ID: \(characterId)")
-                Task {
-                    do {
-                        progressCallback?(true)
-                        let jsonString = try await fetchFromNetwork(characterId: characterId)
-                        await mergeAndSaveOrders(
-                            newJsonString: jsonString, existingJsonString: cachedJson,
-                            characterId: characterId
-                        )
-                        progressCallback?(false)
-                    } catch {
-                        Logger.error("后台刷新市场订单数据失败: \(error)")
-                        progressCallback?(false)
-                    }
-                }
-                return cachedJson
+                return cachedData.jsonString
             }
         }
 
-        // 2. 如果强制刷新或没有缓存，从网络获取
-        let jsonString = try await fetchFromNetwork(characterId: characterId)
-
-        // 3. 如果有缓存数据，尝试合并
-        if let cachedData = getCachedOrders(characterId: characterId) {
-            await mergeAndSaveOrders(
-                newJsonString: jsonString, existingJsonString: cachedData.jsonString,
-                characterId: characterId
-            )
+        // 2. 如果强制刷新或缓存无效，从网络获取
+        do {
+            let jsonString = try await fetchFromNetwork(characterId: characterId)
+            
+            // 3. 保存新数据到缓存
+            saveOrdersToCache(jsonString: jsonString, characterId: characterId)
             return jsonString
-        }
-
-        // 4. 如果没有缓存，直接保存新数据
-        saveOrdersToCache(jsonString: jsonString, characterId: characterId)
-        return jsonString
-    }
-
-    // 合并并保存订单数据
-    private func mergeAndSaveOrders(
-        newJsonString: String, existingJsonString: String, characterId: Int64
-    ) async {
-        guard let existingData = existingJsonString.data(using: .utf8),
-            let existingOrders = try? JSONDecoder().decode(
-                [CharacterMarketOrder].self, from: existingData
-            ),
-            let newData = newJsonString.data(using: .utf8),
-            let newOrders = try? JSONDecoder().decode([CharacterMarketOrder].self, from: newData)
-        else {
-            // 如果合并失败，至少保存新数据
-            saveOrdersToCache(jsonString: newJsonString, characterId: characterId)
-            return
-        }
-
-        // 合并并去重
-        let allOrders = Set(existingOrders).union(newOrders)
-        let mergedOrders = Array(allOrders).sorted { $0.issued > $1.issued }
-
-        // 保存合并后的数据
-        if let mergedData = try? JSONEncoder().encode(mergedOrders),
-            let mergedString = String(data: mergedData, encoding: .utf8)
-        {
-            saveOrdersToCache(jsonString: mergedString, characterId: characterId)
-        } else {
-            // 如果合并后的数据编码失败，保存新数据
-            saveOrdersToCache(jsonString: newJsonString, characterId: characterId)
+        } catch {
+            Logger.error("获取市场订单数据失败: \(error)")
+            throw error
         }
     }
 }

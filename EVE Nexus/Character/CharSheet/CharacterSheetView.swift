@@ -23,7 +23,7 @@ struct CharacterSheetView: View {
     @State private var birthday: String?
     @State private var medals: [CharacterMedal]?
     @State private var isLoadingMedals = true
-    @State private var hasInitialized = false // 追踪是否已初始化
+    @State private var hasInitialized = false  // 追踪是否已初始化
 
     // UserDefaults 键名常量
     private let lastShipTypeIdKey: String
@@ -77,13 +77,13 @@ struct CharacterSheetView: View {
             }
         }
     }
-    
+
     // 初始化数据加载，确保只加载一次
     private func loadInitialDataIfNeeded() {
         guard !hasInitialized else { return }
-        
+
         hasInitialized = true
-        
+
         Task {
             // 1. 首先加载本地数据库中的数据
             loadLocalData()
@@ -316,7 +316,7 @@ struct CharacterSheetView: View {
                             .shadow(color: Color.primary.opacity(0.1), radius: 4, x: 0, y: 2)
                             .padding(4)
                     } else {
-                        Image(systemName: "person.crop.square")
+                        Image("default_char")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
                             .frame(width: 72, height: 72)
@@ -366,6 +366,7 @@ struct CharacterSheetView: View {
 
                             Text(character.CharacterName)
                                 .font(.headline)
+                                .textSelection(.enabled)
                                 .lineLimit(1)
                         }
 
@@ -463,7 +464,7 @@ struct CharacterSheetView: View {
                     // 位置图标
                     if locationDetail != nil {
                         if let typeId = locationTypeId,
-                            let iconFileName = getStationIcon(
+                            let iconFileName = getTypeIcon(
                                 typeId: typeId, databaseManager: databaseManager
                             )
                         {
@@ -542,8 +543,11 @@ struct CharacterSheetView: View {
                 // 当前飞船信息
                 HStack {
                     // 飞船图标
-                    if let ship = currentShip {
-                        IconManager.shared.loadImage(for: getShipIcon(typeId: ship.ship_type_id))
+                    if let ship = currentShip,
+                        let ship_icon = getTypeIcon(
+                            typeId: ship.ship_type_id, databaseManager: databaseManager)
+                    {
+                        IconManager.shared.loadImage(for: ship_icon)
                             .resizable()
                             .frame(width: 36, height: 36)
                             .cornerRadius(6)
@@ -827,18 +831,7 @@ struct CharacterSheetView: View {
         }
     }
 
-    private func getStationIcon(typeId: Int, databaseManager: DatabaseManager) -> String? {
-        let query = "SELECT icon_filename FROM types WHERE type_id = ?"
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]),
-            let row = rows.first,
-            let iconFile = row["icon_filename"] as? String
-        {
-            return iconFile.isEmpty ? DatabaseConfig.defaultItemIcon : iconFile
-        }
-        return DatabaseConfig.defaultItemIcon
-    }
-
-    private func getShipIcon(typeId: Int) -> String {
+    private func getTypeIcon(typeId: Int, databaseManager: DatabaseManager) -> String? {
         let query = "SELECT icon_filename FROM types WHERE type_id = ?"
         if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]),
             let row = rows.first,

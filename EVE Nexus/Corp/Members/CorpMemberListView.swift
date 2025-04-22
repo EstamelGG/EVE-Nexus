@@ -1,4 +1,3 @@
-import Kingfisher
 import SwiftUI
 
 // 移除HTML标签的扩展
@@ -46,7 +45,7 @@ struct LocationCacheInfo {
     let stationName: String?
 
     static let unknown = LocationCacheInfo(
-        systemName: "Unknown",
+        systemName: NSLocalizedString("Unknown", comment: ""),
         security: 0.0,
         stationName: nil
     )
@@ -70,7 +69,6 @@ class CorpMemberListViewModel: ObservableObject {
     @Published var totalPages = 0
     @Published var searchText: String = ""
     @AppStorage("MemberSortOption") private var sortOptionRaw: String = "name"
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
 
     var sortOption: MemberSortOption {
         get {
@@ -267,7 +265,7 @@ class CorpMemberListViewModel: ObservableObject {
             Logger.debug("加载星系信息 - 数量: \(solarSystemIds.count)")
             let query = """
                     SELECT u.solarsystem_id, u.system_security,
-                           s.solarSystemName, s.solarSystemName_en
+                           s.solarSystemName
                     FROM universe u
                     JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
                     WHERE u.solarsystem_id IN (\(solarSystemIds.sorted().map { String($0) }.joined(separator: ",")))
@@ -280,7 +278,6 @@ class CorpMemberListViewModel: ObservableObject {
                     // 先获取原始值
                     let rawSystemId = row["solarsystem_id"]
                     let rawSystemNameLocal = row["solarSystemName"]
-                    let rawSystemNameEn = row["solarSystemName_en"]
                     let rawSecurity = row["system_security"]
 
                     // Logger.debug("原始数据类型 - systemId: \(type(of: rawSystemId)), systemName: \(type(of: rawSystemNameLocal)), security: \(type(of: rawSecurity))")
@@ -305,14 +302,6 @@ class CorpMemberListViewModel: ObservableObject {
                         continue
                     }
 
-                    let systemNameEn: String
-                    if let name = rawSystemNameEn as? String {
-                        systemNameEn = name
-                    } else {
-                        Logger.error("systemNameEn 类型转换失败: \(String(describing: rawSystemNameEn))")
-                        continue
-                    }
-
                     let security: Double
                     if let sec = rawSecurity as? Double {
                         security = sec
@@ -323,7 +312,7 @@ class CorpMemberListViewModel: ObservableObject {
                         continue
                     }
 
-                    let systemName = useEnglishSystemNames ? systemNameEn : systemNameLocal
+                    let systemName = systemNameLocal
 
                     let info = LocationCacheInfo(
                         systemName: systemName,
@@ -343,7 +332,7 @@ class CorpMemberListViewModel: ObservableObject {
             Logger.debug("加载空间站信息 - 数量: \(stationIds.count)")
             let query = """
                     SELECT s.stationID, s.stationName,
-                           ss.solarSystemName, ss.solarSystemName_en, u.system_security
+                           ss.solarSystemName, u.system_security
                     FROM stations s
                     JOIN solarsystems ss ON s.solarSystemID = ss.solarSystemID
                     JOIN universe u ON u.solarsystem_id = ss.solarSystemID
@@ -356,9 +345,9 @@ class CorpMemberListViewModel: ObservableObject {
                     // Logger.debug("处理空间站数据行: \(row)")
                     // 先获取原始值
                     let rawStationId = row["stationID"]
-                    let stationName = row["stationName"] as? String ?? "Unknown"
+                    let stationName =
+                        row["stationName"] as? String ?? NSLocalizedString("Unknown", comment: "")
                     let rawSystemNameLocal = row["solarSystemName"]
-                    let rawSystemNameEn = row["solarSystemName_en"]
                     let rawSecurity = row["system_security"]
 
                     // 尝试不同的类型转换
@@ -381,15 +370,7 @@ class CorpMemberListViewModel: ObservableObject {
                         continue
                     }
 
-                    let systemNameEn: String
-                    if let name = rawSystemNameEn as? String {
-                        systemNameEn = name
-                    } else {
-                        Logger.error("systemNameEn 类型转换失败: \(String(describing: rawSystemNameEn))")
-                        continue
-                    }
-
-                    let systemName = useEnglishSystemNames ? systemNameEn : systemNameLocal
+                    let systemName = systemNameLocal
 
                     let security: Double
                     if let sec = rawSecurity as? Double {
@@ -436,7 +417,7 @@ class CorpMemberListViewModel: ObservableObject {
             )
 
             let query = """
-                    SELECT s.solarSystemName, s.solarSystemName_en, u.system_security
+                    SELECT s.solarSystemName, u.system_security
                     FROM solarsystems s
                     JOIN universe u ON u.solarsystem_id = s.solarSystemID
                     WHERE s.solarSystemID = ?
@@ -447,10 +428,9 @@ class CorpMemberListViewModel: ObservableObject {
             ),
                 let row = rows.first,
                 let systemNameLocal = row["solarSystemName"] as? String,
-                let systemNameEn = row["solarSystemName_en"] as? String,
                 let security = row["system_security"] as? Double
             {
-                let systemName = useEnglishSystemNames ? systemNameEn : systemNameLocal
+                let systemName = systemNameLocal
 
                 let locationInfo = LocationCacheInfo(
                     systemName: systemName,
@@ -761,7 +741,7 @@ struct LocationView: View {
                     .font(.caption)
             }
         } else {
-            Text("Loading...")
+            Text(NSLocalizedString("Main_Loading", comment: ""))
                 .font(.caption)
                 .foregroundColor(.gray)
                 .onAppear {
@@ -788,21 +768,31 @@ struct MemberRowView: View {
     let member: MemberDetailInfo
     @ObservedObject var viewModel: CorpMemberListViewModel
     @State private var loadingTask: Task<Void, Never>?
+    @State private var isLoadingPortrait: Bool = false
+    @State private var hasAttemptedPortraitLoad: Bool = false
 
     var body: some View {
         HStack(spacing: 12) {
             // 头像
-            if let portrait = member.portrait {
+            if isLoadingPortrait {
+                ProgressView()
+                    .frame(width: 48, height: 48)
+                    .background(Color(.systemGray6))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            } else if let portrait = member.portrait {
                 Image(uiImage: portrait)
                     .resizable()
                     .frame(width: 48, height: 48)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             } else {
-                Image(systemName: "person.crop.circle")
-                    .resizable()
-                    .frame(width: 48, height: 48)
-                    .foregroundColor(.gray)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                UniversePortrait(
+                    id: member.id,
+                    type: .character,
+                    size: 64,
+                    displaySize: 48
+                )
+                .frame(width: 48, height: 48)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
             }
 
             // 成员信息
@@ -853,20 +843,37 @@ struct MemberRowView: View {
         }
         .padding(.vertical, 4)
         .onAppear {
-            // 取消之前的任务
-            loadingTask?.cancel()
-
-            // 创建新的延迟加载任务
-            loadingTask = Task {
-                try? await Task.sleep(nanoseconds: 100_000_000)  // 0.1秒延迟
-                if !Task.isCancelled {
-                    viewModel.loadMemberDetails(for: member.id)
-                }
-            }
+            scheduleLoad()
         }
         .onDisappear {
             loadingTask?.cancel()
             loadingTask = nil
+        }
+    }
+
+    private func scheduleLoad() {
+        loadingTask?.cancel()
+        loadingTask = Task {
+            if !Task.isCancelled && !hasAttemptedPortraitLoad {
+                await loadPortrait()
+            }
+        }
+    }
+
+    private func loadPortrait() async {
+        guard !isLoadingPortrait && !hasAttemptedPortraitLoad else { return }
+
+        isLoadingPortrait = true
+        hasAttemptedPortraitLoad = true
+
+        do {
+            viewModel.loadMemberDetails(for: member.id)
+        }
+
+        if !Task.isCancelled {
+            await MainActor.run {
+                isLoadingPortrait = false
+            }
         }
     }
 }

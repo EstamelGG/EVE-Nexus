@@ -19,11 +19,6 @@ public struct AssetTreeWrapper: Codable {
     let assetsTree: [AssetTreeNode]
 }
 
-// ESI错误响应
-private struct ESIErrorResponse: Codable {
-    let error: String
-}
-
 // 空间站信息
 private struct StationInfo: Codable {
     let name: String
@@ -67,11 +62,7 @@ private struct SysInfo {
 // MARK: - Error Types
 
 public enum AssetError: Error {
-    case networkError(Error)
-    case incompleteData(String)
-    case decodingError(Error)
     case invalidURL
-    case maxRetriesReached
     case locationFetchError(String)
     case invalidData(String)
 }
@@ -187,8 +178,6 @@ public class CharacterAssetsJsonAPI {
             Logger.error("保存资产树缓存失败: \(error)")
         }
     }
-
-    // MARK: - Private Methods
 
     // 获取所有资产
     private func fetchAllAssets(
@@ -380,6 +369,10 @@ public class CharacterAssetsJsonAPI {
             )
         }
 
+        // 处理名称 - 对于玩家自定义名称的容器，保留名称
+        // 对于系统位置（如空间站内部的仓库等），不需要特殊处理，因为它们没有自己的名称
+        let nodeName: String? = names[asset.item_id]
+
         return AssetTreeNode(
             location_id: asset.location_id,
             item_id: asset.item_id,
@@ -387,7 +380,7 @@ public class CharacterAssetsJsonAPI {
             location_type: asset.location_type,
             location_flag: asset.location_flag,
             quantity: asset.quantity,
-            name: names[asset.item_id],
+            name: nodeName,
             icon_name: iconName,
             is_singleton: asset.is_singleton,
             is_blueprint_copy: asset.is_blueprint_copy,
@@ -744,6 +737,19 @@ public class CharacterAssetsJsonAPI {
                     if let items = locationMap[locationId] {
                         let locationType = items.first?.location_type ?? "unknown"
 
+                        // 根据位置类型决定是否存储名称
+                        // 对于空间站和星系，不存储名称（从游戏数据库查询）
+                        // 对于其他类型（玩家命名的结构等），保留名称
+                        let nodeName: String?
+                        switch locationType {
+                        case "station", "solar_system":
+                            // 这些是游戏内置位置，不保存名称，UI显示时从本地数据库查询
+                            nodeName = nil
+                        default:
+                            // 其他是玩家自定义名称的位置，保留名称
+                            nodeName = locationName
+                        }
+
                         let locationNode = AssetTreeNode(
                             location_id: locationId,
                             item_id: locationId,
@@ -751,7 +757,7 @@ public class CharacterAssetsJsonAPI {
                             location_type: locationType,
                             location_flag: "root",
                             quantity: 1,
-                            name: locationName,
+                            name: nodeName,
                             icon_name: iconName,
                             is_singleton: true,
                             is_blueprint_copy: nil,

@@ -10,7 +10,7 @@ extension Array {
 }
 
 @MainActor
-struct StructureSearchView: View {
+struct StructureSearchView {
     let characterId: Int
     let searchText: String
     @Binding var searchResults: [SearcherView.SearchResult]
@@ -35,21 +35,6 @@ struct StructureSearchView: View {
         _searchingStatus = searchingStatus
         _error = error
         self.structureType = structureType
-    }
-
-    var body: some View {
-        EmptyView()  // 这个视图不需要UI，只是用于处理搜索逻辑
-            .task {
-                do {
-                    try await search()
-                } catch is CancellationError {
-                    Logger.debug("搜索任务被取消")
-                } catch {
-                    Logger.error("搜索失败: \(error)")
-                    self.error = error
-                }
-                searchingStatus = ""
-            }
     }
 
     // 批量加载位置信息
@@ -137,6 +122,26 @@ struct StructureSearchView: View {
         }
     }
 
+    // 从本地数据库搜索空间站
+    private func searchLocalStations(searchText: String) throws -> [Int] {
+        let sql = """
+                SELECT stationID 
+                FROM stations 
+                WHERE stationName LIKE ?
+                LIMIT 500
+            """
+
+        guard
+            case let .success(rows) = DatabaseManager.shared.executeQuery(
+                sql, parameters: ["%\(searchText)%"]
+            )
+        else {
+            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "本地数据库搜索失败"])
+        }
+
+        return rows.compactMap { $0["stationID"] as? Int }
+    }
+
     func search() async throws {
         // 检查是否被取消
         try Task.checkCancellation()
@@ -150,42 +155,50 @@ struct StructureSearchView: View {
         Logger.debug("开始搜索建筑，关键词: \(searchText)")
         searchingStatus = NSLocalizedString("Main_Search_Status_Finding_Structures", comment: "")
 
-        // 使用CharacterSearchAPI进行搜索
-        let data = try await CharacterSearchAPI.shared.search(
-            characterId: characterId,
-            categories: [.station, .structure],
-            searchText: searchText
-        )
-
-        // 检查是否被取消
-        try Task.checkCancellation()
-
-        // 打印响应结果
-        if let responseString = String(data: data, encoding: .utf8) {
-            Logger.debug("搜索响应结果: \(responseString)")
-        }
-
-        let response = try JSONDecoder().decode(SearcherView.SearchResponse.self, from: data)
-
-        // 分别存储空间站和建筑物ID
-        var stationIds: [Int] = []
+        // 收集所有找到的空间站ID
+        var allStationIds = Set<Int>()
         var structureIds: [Int] = []
 
-        // 处理空间站
-        if let stations = response.station {
-            stationIds = stations
-            Logger.debug("找到 \(stations.count) 个空间站")
-            Logger.debug("空间站ID列表: \(stations.map { String($0) }.joined(separator: ", "))")
+        // 1. 从本地数据库搜索
+        do {
+            let localStationIds = try searchLocalStations(searchText: searchText)
+            allStationIds.formUnion(localStationIds)
+            Logger.debug("本地数据库找到 \(localStationIds.count) 个空间站")
+        } catch {
+            Logger.error("本地数据库搜索失败: \(error)")
         }
 
-        // 处理建筑物
-        if let structures = response.structure {
-            structureIds = structures
-            Logger.debug("找到 \(structures.count) 个建筑物")
-            Logger.debug("建筑物ID列表: \(structures.map { String($0) }.joined(separator: ", "))")
+        // 2. 使用CharacterSearchAPI进行在线搜索
+        do {
+            let data = try await CharacterSearchAPI.shared.search(
+                characterId: characterId,
+                categories: [.station, .structure],
+                searchText: searchText
+            )
+
+            // 检查是否被取消
+            try Task.checkCancellation()
+
+            let response = try JSONDecoder().decode(SearcherView.SearchResponse.self, from: data)
+
+            // 处理在线搜索结果
+            if let stations = response.station {
+                allStationIds.formUnion(stations)
+                Logger.debug("在线搜索找到 \(stations.count) 个空间站")
+            }
+
+            // 处理建筑物
+            if let structures = response.structure {
+                structureIds = structures
+                Logger.debug("找到 \(structures.count) 个建筑物")
+            }
+        } catch {
+            Logger.error("在线搜索失败: \(error)")
+            // 在线搜索失败时，继续使用本地搜索结果
         }
 
-        guard !stationIds.isEmpty || !structureIds.isEmpty else {
+        // 合并所有结果并继续处理
+        guard !allStationIds.isEmpty || !structureIds.isEmpty else {
             Logger.debug("没有找到任何建筑")
             searchResults = []
             filteredResults = []
@@ -196,7 +209,7 @@ struct StructureSearchView: View {
         var results: [SearcherView.SearchResult] = []
 
         // 处理空间站结果
-        if !stationIds.isEmpty {
+        if !allStationIds.isEmpty {
             searchingStatus = NSLocalizedString(
                 "Main_Search_Status_Loading_Station_Info", comment: ""
             )
@@ -204,7 +217,7 @@ struct StructureSearchView: View {
                 try Task.checkCancellation()
 
                 // 批量获取空间站信息
-                let stationsInfo = try loadStationsInfo(stationIds: stationIds)
+                let stationsInfo = try loadStationsInfo(stationIds: Array(allStationIds))
 
                 // 收集所有空间站的系统ID和类型ID
                 let systemIds = stationsInfo.map { $0.systemId }

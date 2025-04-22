@@ -37,7 +37,6 @@ enum GroupingType {
 // 统一的列表视图
 struct DatabaseListView: View {
     @ObservedObject var databaseManager: DatabaseManager
-    @Environment(\.dismiss) private var dismiss
 
     let title: String
     let groupingType: GroupingType

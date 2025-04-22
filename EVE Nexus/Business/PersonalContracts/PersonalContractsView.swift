@@ -21,7 +21,6 @@ struct ContractGroup: Identifiable {
 
 @MainActor
 final class PersonalContractsViewModel: ObservableObject {
-    @Published var contracts: [ContractInfo] = []
     @Published var contractGroups: [ContractGroup] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
@@ -265,7 +264,7 @@ final class PersonalContractsViewModel: ObservableObject {
                 try? await Task.sleep(nanoseconds: 100_000_000)  // 等待100ms
             }
             // 如果等待超时，返回未知
-            return "Unknown"
+            return NSLocalizedString("Unknown", comment: "")
         }
 
         // 标记为正在加载
@@ -279,7 +278,7 @@ final class PersonalContractsViewModel: ObservableObject {
             return name
         }
         locationLoadingTasks.remove(locationId)
-        return "Unknown"
+        return NSLocalizedString("Unknown", comment: "")
     }
 
     // 修改按路线分组合同的方法
@@ -355,18 +354,7 @@ final class PersonalContractsViewModel: ObservableObject {
 
 struct PersonalContractsView: View {
     @StateObject private var viewModel: PersonalContractsViewModel
-    @Environment(\.colorScheme) private var colorScheme
     @State private var showSettings = false
-
-    // 使用计算属性来获取和设置带有角色ID的AppStorage键
-    private var showActiveOnlyKey: String { "showActiveOnly_\(viewModel.characterId)" }
-    private var showCourierContractsKey: String { "showCourierContracts_\(viewModel.characterId)" }
-    private var showItemExchangeContractsKey: String {
-        "showItemExchangeContracts_\(viewModel.characterId)"
-    }
-
-    private var showAuctionContractsKey: String { "showAuctionContracts_\(viewModel.characterId)" }
-    private var maxContractsKey: String { "maxContracts_\(viewModel.characterId)" }
 
     // 使用@AppStorage并使用动态key
     @AppStorage("") private var showActiveOnly: Bool = false

@@ -12,9 +12,6 @@ class CorporationContractsAPI {
         return paths[0].appendingPathComponent("CorporationContractsCache")
     }()
 
-    private let maxConcurrentPages = 2  // 最大并发页数
-    private let cacheTimeout: TimeInterval = 8 * 3600  // 8小时缓存有效期
-
     private let lastContractsQueryKey = "LastCorporationContractsQuery_"
     private let lastContractItemsQueryKey = "LastCorporationContractItemsQuery_"
 

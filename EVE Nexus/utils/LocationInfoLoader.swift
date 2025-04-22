@@ -18,10 +18,6 @@ class LocationInfoLoader {
     private let databaseManager: DatabaseManager
     private let characterId: Int64
 
-    private var useEnglishSystemNames: Bool {
-        UserDefaults.standard.bool(forKey: "useEnglishSystemNames")
-    }
-
     init(databaseManager: DatabaseManager, characterId: Int64) {
         self.databaseManager = databaseManager
         self.characterId = characterId
@@ -52,7 +48,7 @@ class LocationInfoLoader {
             Logger.debug("加载星系信息 - 数量: \(solarSystemIds.count), IDs: \(solarSystemIds)")
             let query = """
                     SELECT u.solarsystem_id, u.system_security,
-                           s.solarSystemName, s.solarSystemName_en
+                           s.solarSystemName
                     FROM universe u
                     JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
                     WHERE u.solarsystem_id IN (\(solarSystemIds.sorted().map { String($0) }.joined(separator: ",")))
@@ -62,10 +58,9 @@ class LocationInfoLoader {
                 for row in rows {
                     if let systemId = row["solarsystem_id"] as? Int64,
                         let security = row["system_security"] as? Double,
-                        let systemNameLocal = row["solarSystemName"] as? String,
-                        let systemNameEn = row["solarSystemName_en"] as? String
+                        let systemNameLocal = row["solarSystemName"] as? String
                     {
-                        let systemName = useEnglishSystemNames ? systemNameEn : systemNameLocal
+                        let systemName = systemNameLocal
                         locationInfoCache[systemId] = LocationInfoDetail(
                             stationName: "",
                             solarSystemName: systemName,
@@ -82,7 +77,7 @@ class LocationInfoLoader {
             Logger.debug("加载空间站信息 - 数量: \(stationIds.count), IDs: \(stationIds)")
             let query = """
                     SELECT s.stationID, s.stationName,
-                           ss.solarSystemName, ss.solarSystemName_en, u.system_security
+                           ss.solarSystemName, u.system_security
                     FROM stations s
                     JOIN solarsystems ss ON s.solarSystemID = ss.solarSystemID
                     JOIN universe u ON u.solarsystem_id = ss.solarSystemID
@@ -96,10 +91,9 @@ class LocationInfoLoader {
                     if let stationId = row["stationID"] as? Int,
                         let stationName = row["stationName"] as? String,
                         let systemNameLocal = row["solarSystemName"] as? String,
-                        let systemNameEn = row["solarSystemName_en"] as? String,
                         let security = row["system_security"] as? Double
                     {
-                        let systemName = useEnglishSystemNames ? systemNameEn : systemNameLocal
+                        let systemName = systemNameLocal
                         let stationIdInt64 = Int64(stationId)
                         locationInfoCache[stationIdInt64] = LocationInfoDetail(
                             stationName: stationName,
@@ -131,7 +125,7 @@ class LocationInfoLoader {
                     )
 
                     let query = """
-                            SELECT ss.solarSystemName, ss.solarSystemName_en, u.system_security
+                            SELECT ss.solarSystemName, u.system_security
                             FROM solarsystems ss
                             JOIN universe u ON u.solarsystem_id = ss.solarSystemID
                             WHERE ss.solarSystemID = ?
@@ -142,10 +136,9 @@ class LocationInfoLoader {
                     ),
                         let row = rows.first,
                         let systemNameLocal = row["solarSystemName"] as? String,
-                        let systemNameEn = row["solarSystemName_en"] as? String,
                         let security = row["system_security"] as? Double
                     {
-                        let systemName = useEnglishSystemNames ? systemNameEn : systemNameLocal
+                        let systemName = systemNameLocal
                         locationInfoCache[structureId] = LocationInfoDetail(
                             stationName: structureInfo.name,
                             solarSystemName: systemName,

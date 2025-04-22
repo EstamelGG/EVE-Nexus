@@ -46,7 +46,7 @@ class MarketManager {
         return groups
     }
 
-    // 获取顶级目录
+    // 获取默认的展示的顶级目录
     func getRootGroups(_ groups: [MarketGroup], allowedIDs: Set<Int>? = nil) -> [MarketGroup] {
         let rootGroups = groups.filter { $0.parentGroupID == nil }
 
@@ -56,6 +56,15 @@ class MarketManager {
         }
 
         return rootGroups
+    }
+
+    // 将指定的ID设为展示的顶级目录
+    func setRootGroups(_ groups: [MarketGroup], allowedIDs: Set<Int>? = nil) -> [MarketGroup] {
+        guard let allowedIDs = allowedIDs else {
+            return groups.filter { $0.parentGroupID == nil }
+        }
+
+        return groups.filter { allowedIDs.contains($0.id) }
     }
 
     // 获取子目录

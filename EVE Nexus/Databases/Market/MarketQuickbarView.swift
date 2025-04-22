@@ -7,17 +7,53 @@ struct MarketQuickbar: Identifiable, Codable {
     var name: String
     var items: [QuickbarItem]  // 存储物品的 typeID 和数量
     var lastUpdated: Date
-    var marketLocation: String  // 存储市场位置，格式为 "system_id:xxx" 或 "region_id:xxx"
+    var regionID: Int  // 直接存储星域 ID
+    var marketLocation: String?  // 用于 JSON 存储的市场位置字符串
 
     init(
         id: UUID = UUID(), name: String, items: [QuickbarItem] = [],
-        marketLocation: String = "system_id:30000142"
+        regionID: Int = 10_000_002  // 默认使用 The Forge 星域
     ) {
         self.id = id
         self.name = name
         self.items = items
         lastUpdated = Date()
-        self.marketLocation = marketLocation
+        self.regionID = regionID
+        self.marketLocation = "region_id:\(regionID)"  // 设置默认的市场位置字符串
+    }
+
+    // 自定义编码
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(items, forKey: .items)
+        try container.encode(lastUpdated, forKey: .lastUpdated)
+        try container.encode(regionID, forKey: .regionID)
+        try container.encode("region_id:\(regionID)", forKey: .marketLocation)
+    }
+
+    // 自定义解码
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        items = try container.decode([QuickbarItem].self, forKey: .items)
+        lastUpdated = try container.decode(Date.self, forKey: .lastUpdated)
+
+        // 尝试解码 regionID
+        if let newRegionID = try? container.decode(Int.self, forKey: .regionID) {
+            regionID = newRegionID
+        } else {
+            regionID = 10_000_002  // 默认值
+        }
+
+        // 设置 marketLocation
+        marketLocation = "region_id:\(regionID)"
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, items, lastUpdated, regionID, marketLocation
     }
 }
 
@@ -133,7 +169,6 @@ struct MarketItemSelectorBaseView<Content: View>: View {
     let onDismiss: () -> Void
 
     @State private var items: [DatabaseListItem] = []
-    @State private var marketGroupNames: [Int: String] = [:]
     @State private var metaGroupNames: [Int: String] = [:]  // 添加科技等级名称字典
     @State private var searchText = ""
     @State private var isSearchActive = false
@@ -146,7 +181,8 @@ struct MarketItemSelectorBaseView<Content: View>: View {
         guard !items.isEmpty else { return [] }
 
         // 按categoryID和groupID组织数据
-        var groupedByCategory: [Int: [(groupID: Int, name: String, items: [DatabaseListItem])]] = [:]
+        var groupedByCategory: [Int: [(groupID: Int, name: String, items: [DatabaseListItem])]] =
+            [:]
 
         // 首先按categoryID和groupID分组
         for item in items {
@@ -184,7 +220,8 @@ struct MarketItemSelectorBaseView<Content: View>: View {
                             return (item1.metaGroupID ?? -1) < (item2.metaGroupID ?? -1)
                         }
                         // 科技等级相同时按名称排序
-                        return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+                        return item1.name.localizedCaseInsensitiveCompare(item2.name)
+                            == .orderedAscending
                     }
                     result.append((id: group.groupID, name: group.name, items: sortedItems))
                 }
@@ -202,70 +239,12 @@ struct MarketItemSelectorBaseView<Content: View>: View {
                             return (item1.metaGroupID ?? -1) < (item2.metaGroupID ?? -1)
                         }
                         // 科技等级相同时按名称排序
-                        return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+                        return item1.name.localizedCaseInsensitiveCompare(item2.name)
+                            == .orderedAscending
                     }
                     result.append((id: group.groupID, name: group.name, items: sortedItems))
                 }
             }
-        }
-
-        return result
-    }
-
-    var groupedItems: [(id: Int, name: String, items: [DatabaseListItem])] {
-        let publishedItems = items.filter { $0.published }
-        let unpublishedItems = items.filter { !$0.published }
-
-        var result: [(id: Int, name: String, items: [DatabaseListItem])] = []
-
-        // 按科技等级分组
-        var techLevelGroups: [Int?: [DatabaseListItem]] = [:]
-        for item in publishedItems {
-            let techLevel = item.metaGroupID
-            if techLevelGroups[techLevel] == nil {
-                techLevelGroups[techLevel] = []
-            }
-            techLevelGroups[techLevel]?.append(item)
-        }
-
-        // 添加已发布物品组
-        for (techLevel, items) in techLevelGroups.sorted(by: { ($0.key ?? -1) < ($1.key ?? -1) }) {
-            if let techLevel = techLevel {
-                let name =
-                    metaGroupNames[techLevel]
-                    ?? NSLocalizedString("Main_Database_base", comment: "基础物品")
-                // 对每个科技等级组内的物品按名称排序
-                let sortedItems = items.sorted { item1, item2 in
-                    item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
-                }
-                result.append((id: techLevel, name: name, items: sortedItems))
-            }
-        }
-
-        // 添加未分组的物品
-        if let ungroupedItems = techLevelGroups[nil], !ungroupedItems.isEmpty {
-            // 对未分组物品按名称排序
-            let sortedItems = ungroupedItems.sorted { item1, item2 in
-                item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
-            }
-            result.append(
-                (
-                    id: -2, name: NSLocalizedString("Main_Database_ungrouped", comment: "未分组"),
-                    items: sortedItems
-                ))
-        }
-
-        // 添加未发布物品组
-        if !unpublishedItems.isEmpty {
-            // 对未发布物品按名称排序
-            let sortedItems = unpublishedItems.sorted { item1, item2 in
-                item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
-            }
-            result.append(
-                (
-                    id: -1, name: NSLocalizedString("Main_Database_unpublished", comment: "未发布"),
-                    items: sortedItems
-                ))
         }
 
         return result
@@ -674,7 +653,6 @@ struct MarketQuickbarView: View {
     @State private var isShowingAddAlert = false
     @State private var newQuickbarName = ""
     @State private var searchText = ""
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
 
     private var filteredQuickbars: [MarketQuickbar] {
         if searchText.isEmpty {
@@ -828,12 +806,16 @@ struct MarketQuickbarDetailView: View {
     @State private var items: [DatabaseListItem] = []
     @State private var isEditingQuantity = false
     @State private var itemQuantities: [Int: Int64] = [:]  // typeID: quantity
-    @State private var selectedRegion: String = "Jita"  // 默认选择 Jita
+    @State private var selectedRegion: String = ""  // 默认不设置，将从数据库获取
     @State private var regions: [(id: Int, name: String)] = []  // 存储星域列表
     @State private var marketOrders: [Int: [MarketOrder]] = [:]  // typeID: orders
     @State private var isLoadingOrders = false
     @State private var orderType: OrderType = .sell  // 新增：订单类型选择
     @State private var hasLoadedOrders = false  // 标记是否已加载过订单
+    @State private var showRegionPicker = false  // 新增：控制星域选择器显示
+    @State private var saveSelection = false  // 不保存默认市场位置
+    @State private var selectedRegionID: Int = 0  // 新增：选中的星域ID
+    @State private var selectedRegionName: String = ""  // 新增：选中的星域名称
 
     // 新增：订单类型枚举
     private enum OrderType: String, CaseIterable {
@@ -845,54 +827,13 @@ struct MarketQuickbarDetailView: View {
         }
     }
 
-    // 特殊市场地点的系统ID和星域ID映射
-    private let specialMarkets = [
-        "Jita": "system_id:30000142",
-        "Amarr": "system_id:30002187",
-        "Rens": "system_id:30002510",
-        "Hek": "system_id:30002053",
-    ]
-
-    private let specialRegions = [
-        "Jita": 10_000_002,
-        "Amarr": 10_000_043,
-        "Hek": 10_000_042,
-        "Rens": 10_000_030,
-    ]
-
     // 获取当前选择的星域ID
     private var currentRegionID: Int {
-        if let regionName = specialMarkets.first(where: { $0.value == quickbar.marketLocation })?
-            .key,
-            let regionID = specialRegions[regionName]
-        {
-            return regionID
-        } else if quickbar.marketLocation.hasPrefix("region_id:") {
-            return Int(quickbar.marketLocation.dropFirst(10)) ?? 10_000_002
-        }
-        return 10_000_002  // 默认返回 The Forge (Jita所在星域)
+        return quickbar.regionID
     }
 
     var sortedItems: [DatabaseListItem] {
         items.sorted(by: { $0.id < $1.id })
-    }
-
-    // 根据存储的市场位置获取显示名称
-    private var initialMarketLocation: String {
-        if quickbar.marketLocation.hasPrefix("system_id:") {
-            let systemId = String(quickbar.marketLocation.dropFirst(10))
-            switch systemId {
-            case "30000142": return "Jita"
-            case "30002187": return "Amarr"
-            case "30002510": return "Rens"
-            case "30002053": return "Hek"
-            default: return "Jita"
-            }
-        } else if quickbar.marketLocation.hasPrefix("region_id:") {
-            let regionId = Int(quickbar.marketLocation.dropFirst(10)) ?? 0
-            return regions.first(where: { $0.id == regionId })?.name ?? "Jita"
-        }
-        return "Jita"
     }
 
     var body: some View {
@@ -906,21 +847,8 @@ struct MarketQuickbarDetailView: View {
                     HStack {
                         Text(NSLocalizedString("Main_Market_Location", comment: ""))
                         Spacer()
-                        Menu {
-                            // 主要交易中心
-                            Button("Jita") { selectedRegion = "Jita" }
-                            Button("Amarr") { selectedRegion = "Amarr" }
-                            Button("Rens") { selectedRegion = "Rens" }
-                            Button("Hek") { selectedRegion = "Hek" }
-
-                            Divider()
-
-                            // 所有星域
-                            ForEach(regions, id: \.id) { region in
-                                Button(region.name) {
-                                    selectedRegion = region.name
-                                }
-                            }
+                        Button {
+                            showRegionPicker = true
                         } label: {
                             HStack {
                                 Text(selectedRegion)
@@ -935,19 +863,18 @@ struct MarketQuickbarDetailView: View {
                             .cornerRadius(8)
                         }
                     }
-                    .onChange(of: selectedRegion) { _, newValue in
+                    .onChange(of: selectedRegionID) { _, newValue in
                         // 更新市场位置
-                        if let specialLocation = specialMarkets[newValue] {
-                            quickbar.marketLocation = specialLocation
-                        } else if let region = regions.first(where: { $0.name == newValue }) {
-                            quickbar.marketLocation = "region_id:\(region.id)"
-                        }
-                        // 更改市场位置时立即保存
-                        Logger.info("市场位置更改，进行保存")
-                        MarketQuickbarManager.shared.saveQuickbar(quickbar)
-                        Task {
-                            // 强制刷新市场订单
-                            await loadAllMarketOrders(forceRefresh: true)
+                        if let region = regions.first(where: { $0.id == newValue }) {
+                            quickbar.regionID = region.id
+                            selectedRegion = region.name
+                            // 更改市场位置时立即保存
+                            Logger.info("市场位置更改，进行保存")
+                            MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                            Task {
+                                // 强制刷新市场订单
+                                await loadAllMarketOrders(forceRefresh: true)
+                            }
                         }
                     }
 
@@ -977,7 +904,7 @@ struct MarketQuickbarDetailView: View {
                                     .foregroundColor(
                                         priceInfo.hasInsufficientStock ? .red : .secondary)
                             } else {
-                                Text(NSLocalizedString("Main_Market_Calculating", comment: ""))
+                                Text(NSLocalizedString("Main_Market_No_Orders", comment: ""))
                                     .foregroundColor(.secondary)
                             }
                         }
@@ -1083,10 +1010,20 @@ struct MarketQuickbarDetailView: View {
                 }
             )
         }
+        .sheet(isPresented: $showRegionPicker) {
+            MarketRegionPickerView(
+                selectedRegionID: $selectedRegionID,
+                selectedRegionName: $selectedRegionName,
+                saveSelection: $saveSelection,  // 通过市场关注列表查看和设置订单信息，不保存默认市场位置
+                databaseManager: databaseManager
+            )
+        }
         .task {
             loadItems()
             loadRegions()
-            selectedRegion = initialMarketLocation
+            selectedRegionID = currentRegionID
+            selectedRegion = regions.first(where: { $0.id == currentRegionID })?.name ?? ""
+            selectedRegionName = selectedRegion
 
             // 只在第一次加载时获取市场订单
             if !hasLoadedOrders {
@@ -1172,12 +1109,6 @@ struct MarketQuickbarDetailView: View {
 
         // 根据订单类型过滤订单
         var filteredOrders = orders.filter { $0.isBuyOrder == (orderType == .buy) }
-
-        // 如果是特殊市场（Jita, Amarr, Rens, Hek），则只取对应星系的订单
-        if quickbar.marketLocation.hasPrefix("system_id:") {
-            let systemID = Int(quickbar.marketLocation.dropFirst(10)) ?? 0
-            filteredOrders = filteredOrders.filter { $0.systemId == systemID }
-        }
 
         // 根据订单类型排序（买单从高到低，卖单从低到高）
         filteredOrders.sort { orderType == .buy ? $0.price > $1.price : $0.price < $1.price }
@@ -1291,7 +1222,8 @@ struct MarketQuickbarDetailView: View {
             NavigationLink {
                 MarketItemDetailView(
                     databaseManager: databaseManager,
-                    itemID: item.id
+                    itemID: item.id,
+                    selectedRegionID: currentRegionID  // 添加当前选中的星域ID
                 )
             } label: {
                 HStack(spacing: 12) {
@@ -1379,10 +1311,8 @@ struct MarketQuickbarDetailView: View {
     }
 
     private func loadRegions() {
-        let useEnglishSystemNames = UserDefaults.standard.bool(forKey: "useEnglishSystemNames")
-
         let query = """
-                SELECT r.regionID, r.regionName, r.regionName_en
+                SELECT r.regionID, r.regionName
                 FROM regions r
                 WHERE r.regionID < 11000000
                 ORDER BY r.regionName
@@ -1391,10 +1321,9 @@ struct MarketQuickbarDetailView: View {
         if case let .success(rows) = databaseManager.executeQuery(query) {
             for row in rows {
                 if let regionId = row["regionID"] as? Int,
-                    let regionNameLocal = row["regionName"] as? String,
-                    let regionNameEn = row["regionName_en"] as? String
+                    let regionNameLocal = row["regionName"] as? String
                 {
-                    let regionName = useEnglishSystemNames ? regionNameEn : regionNameLocal
+                    let regionName = regionNameLocal
                     regions.append((id: regionId, name: regionName))
                 }
             }

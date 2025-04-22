@@ -1,13 +1,15 @@
+import Combine
 import SwiftUI
+
+let minSearchLength = 3  // 最少要输入3个搜索关键词
 
 struct SearcherView: View {
     let character: EVECharacterInfo
+
     @StateObject private var viewModel = SearcherViewModel()
     @State private var searchText = ""
     @State private var selectedSearchType = SearchType.character
-    @State private var isLoadingContacts = true
-    @State private var loadingError: Error?
-    @State private var hasLoadedContacts = false
+    @State private var isSearchActive = false
 
     // 过滤条件
     @State private var corporationFilter = ""
@@ -107,7 +109,7 @@ struct SearcherView: View {
             }
             .pickerStyle(SegmentedPickerStyle())
             .padding(.horizontal)
-            .padding(.top)
+            .padding(.vertical, 8)
             .onChange(of: selectedSearchType) { _, newType in
                 // 清空搜索结果和状态
                 viewModel.searchResults = []
@@ -128,43 +130,17 @@ struct SearcherView: View {
                 }
 
                 // 如果有搜索文本，则重新搜索
-                if !searchText.isEmpty && searchText.count > 2 {
-                    viewModel.debounceSearch(
-                        characterId: character.CharacterID,
-                        searchText: searchText,
-                        type: selectedSearchType,
-                        character: character,
-                        showOnlyMyCorp: showOnlyMyCorporation,
-                        showOnlyMyAlliance: showOnlyMyAlliance
-                    )
+                if !searchText.isEmpty && !(searchText.count < minSearchLength) {
+                    viewModel.processSearchInput(searchText)
                 }
-            }
 
-            // 搜索框
-            HStack(spacing: 12) {
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.gray)
-                    TextField(
-                        NSLocalizedString("Main_Search_Placeholder", comment: ""), text: $searchText
-                    )
-                    .submitLabel(.search)
-
-                    if !searchText.isEmpty {
-                        Button(action: {
-                            searchText = ""
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.gray)
-                        }
-                    }
-                }
-                .padding(8)
-                .background(Color(.systemGray6))
-                .cornerRadius(8)
+                viewModel.updateSearchParameters(
+                    type: newType,
+                    character: character,
+                    showOnlyMyCorp: showOnlyMyCorporation,
+                    showOnlyMyAlliance: showOnlyMyAlliance
+                )
             }
-            .padding(.horizontal)
-            .padding(.vertical, 8)
 
             List {
                 // 过滤条件部分，只在角色和建筑搜索时显示
@@ -208,9 +184,71 @@ struct SearcherView: View {
                                 }
                                 Spacer()
                             }
-                        } else if searchText.count <= 2 {
-                            Text(NSLocalizedString("Main_Search_Min_Length", comment: ""))
-                                .foregroundColor(.secondary)
+                        } else if !viewModel.searchResults.isEmpty {
+                            // 如果有搜索结果，直接显示
+                            if viewModel.filteredResults.isEmpty {
+                                // 如果是建筑搜索且当前分类无结果，显示None
+                                if selectedSearchType == .structure {
+                                    Text(NSLocalizedString("Main_Search_No_Results", comment: ""))
+                                        .foregroundColor(.secondary)
+                                } else {
+                                    Text(
+                                        NSLocalizedString(
+                                            "Main_Search_No_Filtered_Results", comment: "")
+                                    )
+                                    .foregroundColor(.secondary)
+                                }
+                            } else {
+                                ForEach(viewModel.filteredResults) { result in
+                                    if result.type == .structure {
+                                        if !viewModel.filteredResults.isEmpty {
+                                            SearchResultRow(result: result, character: character)
+                                                .environmentObject(viewModel)
+                                        } else {
+                                            Text(
+                                                NSLocalizedString(
+                                                    "Main_Search_No_Results", comment: ""))
+                                        }
+
+                                    } else {
+                                        NavigationLink(destination: {
+                                            switch result.type {
+                                            case .character:
+                                                CharacterDetailView(
+                                                    characterId: result.id, character: character
+                                                )
+                                            case .corporation:
+                                                CorporationDetailView(
+                                                    corporationId: result.id, character: character
+                                                )
+                                            case .alliance:
+                                                AllianceDetailView(
+                                                    allianceId: result.id, character: character
+                                                )
+                                            default:
+                                                SearchResultRow(
+                                                    result: result, character: character
+                                                )
+                                                .environmentObject(viewModel)
+                                            }
+                                        }) {
+                                            SearchResultRow(result: result, character: character)
+                                                .environmentObject(viewModel)
+                                        }
+                                        .buttonStyle(.plain)
+                                    }
+                                }
+                                .listRowInsets(
+                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                            }
+                        } else if searchText.count < minSearchLength {
+                            Text(
+                                String(
+                                    format: NSLocalizedString(
+                                        "Main_Search_Min_Length", comment: ""),
+                                    minSearchLength
+                                )
+                            ).foregroundColor(.secondary)
                         } else if viewModel.filteredResults.isEmpty {
                             if viewModel.searchResults.isEmpty {
                                 Text(NSLocalizedString("Main_Search_No_Results", comment: ""))
@@ -223,38 +261,6 @@ struct SearcherView: View {
                                 )
                                 .foregroundColor(.secondary)
                             }
-                        } else {
-                            ForEach(viewModel.filteredResults) { result in
-                                if result.type == .structure {
-                                    SearchResultRow(result: result, character: character)
-                                        .environmentObject(viewModel)
-                                } else {
-                                    NavigationLink(destination: {
-                                        switch result.type {
-                                        case .character:
-                                            CharacterDetailView(
-                                                characterId: result.id, character: character
-                                            )
-                                        case .corporation:
-                                            CorporationDetailView(
-                                                corporationId: result.id, character: character
-                                            )
-                                        case .alliance:
-                                            AllianceDetailView(
-                                                allianceId: result.id, character: character
-                                            )
-                                        default:
-                                            SearchResultRow(result: result, character: character)
-                                                .environmentObject(viewModel)
-                                        }
-                                    }) {
-                                        SearchResultRow(result: result, character: character)
-                                            .environmentObject(viewModel)
-                                    }
-                                    .buttonStyle(.plain)
-                                }
-                            }
-                            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                 } else if (selectedSearchType == .corporation || selectedSearchType == .alliance)
@@ -279,6 +285,12 @@ struct SearcherView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Search_Title", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
+        .searchable(
+            text: $searchText,
+            isPresented: $isSearchActive,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: Text(NSLocalizedString("Main_Search_Placeholder", comment: ""))
+        )
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 if viewModel.isLoadingContacts {
@@ -304,6 +316,12 @@ struct SearcherView: View {
                     await viewModel.loadContactsData(character: character)
                 }
             }
+            viewModel.updateSearchParameters(
+                type: selectedSearchType,
+                character: character,
+                showOnlyMyCorp: showOnlyMyCorporation,
+                showOnlyMyAlliance: showOnlyMyAlliance
+            )
         }
         .onChange(of: searchText) { _, newValue in
             if newValue.isEmpty {
@@ -311,20 +329,13 @@ struct SearcherView: View {
                 viewModel.filteredResults = []
                 viewModel.error = nil
                 viewModel.searchingStatus = ""
-            } else if newValue.count <= 2 {
+            } else if viewModel.getUrlEncodedLength(newValue) < minSearchLength {
                 viewModel.searchResults = []
                 viewModel.filteredResults = []
                 viewModel.error = nil
                 viewModel.searchingStatus = ""
             } else {
-                viewModel.debounceSearch(
-                    characterId: character.CharacterID,
-                    searchText: newValue,
-                    type: selectedSearchType,
-                    character: character,
-                    showOnlyMyCorp: showOnlyMyCorporation,
-                    showOnlyMyAlliance: showOnlyMyAlliance
-                )
+                viewModel.processSearchInput(newValue)
             }
         }
         .onChange(of: corporationFilter) { _, _ in
@@ -337,9 +348,21 @@ struct SearcherView: View {
             viewModel.updateStructureFilters(structureType: selectedStructureType)
         }
         .onChange(of: showOnlyMyCorporation) { _, _ in
+            viewModel.updateSearchParameters(
+                type: selectedSearchType,
+                character: character,
+                showOnlyMyCorp: showOnlyMyCorporation,
+                showOnlyMyAlliance: showOnlyMyAlliance
+            )
             applyFilters()
         }
         .onChange(of: showOnlyMyAlliance) { _, _ in
+            viewModel.updateSearchParameters(
+                type: selectedSearchType,
+                character: character,
+                showOnlyMyCorp: showOnlyMyCorporation,
+                showOnlyMyAlliance: showOnlyMyAlliance
+            )
             applyFilters()
         }
     }
@@ -445,9 +468,11 @@ struct SearchResultRow: View {
                     .frame(width: 38, height: 38)
                     .cornerRadius(6)
             } else {
-                UniversePortrait(id: result.id, type: result.type.recipientType, size: 64, displaySize: 32)
-                    .frame(width: 38, height: 38)
-                    .cornerRadius(6)
+                UniversePortrait(
+                    id: result.id, type: result.type.recipientType, size: 64, displaySize: 32
+                )
+                .frame(width: 38, height: 38)
+                .cornerRadius(6)
             }
 
             // 信息
@@ -464,7 +489,7 @@ struct SearchResultRow: View {
                             .foregroundColor(.secondary)
                             .font(.caption)
                     } else {
-                        Text("[No Corp]")
+                        Text("[\(NSLocalizedString("Main_No_Corp", comment: ""))]")
                             .foregroundColor(.secondary)
                             .font(.caption)
                     }
@@ -473,7 +498,7 @@ struct SearchResultRow: View {
                             .foregroundColor(.secondary)
                             .font(.caption)
                     } else {
-                        Text("[No Alliance]")
+                        Text("[\(NSLocalizedString("Main_No_Alliance", comment: ""))]")
                             .foregroundColor(.secondary)
                             .font(.caption)
                     }
@@ -631,12 +656,76 @@ class SearcherViewModel: ObservableObject {
     var corporationContacts: [ContactInfo] = []
     var allianceContacts: [ContactInfo] = []
 
-    private var searchTask: Task<Void, Never>?
     private var currentCorpFilter = ""
     private var currentAllianceFilter = ""
     private var currentStructureType: SearcherView.StructureType = .all
-    private var corporationNames: [Int: String] = [:]
-    private var allianceNames: [Int: String] = [:]
+
+    private let searchController = SearchController()
+    private var cancellables = Set<AnyCancellable>()
+    private var currentSearchType: SearcherView.SearchType = .character
+    private var currentCharacter: EVECharacterInfo?
+    private var currentShowOnlyMyCorp = false
+    private var currentShowOnlyMyAlliance = false
+
+    init() {
+        setupSearch()
+    }
+
+    private func setupSearch() {
+        searchController.debouncedSearchPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] query in
+                guard let self = self,
+                    let character = self.currentCharacter
+                else { return }
+                Task {
+                    await self.search(
+                        characterId: character.CharacterID,
+                        searchText: query,
+                        type: self.currentSearchType,
+                        character: character,
+                        showOnlyMyCorp: self.currentShowOnlyMyCorp,
+                        showOnlyMyAlliance: self.currentShowOnlyMyAlliance
+                    )
+                }
+            }
+            .store(in: &cancellables)
+    }
+
+    // 添加计算URL编码长度的方法
+    func getUrlEncodedLength(_ string: String) -> Int {
+        guard
+            let encodedString = string.addingPercentEncoding(
+                withAllowedCharacters: .urlQueryAllowed)
+        else {
+            return string.count
+        }
+        return encodedString.count
+    }
+
+    func processSearchInput(_ query: String) {
+        // 检查URL编码后的长度
+        if getUrlEncodedLength(query) < minSearchLength {
+            searchResults = []
+            filteredResults = []
+            error = nil
+            searchingStatus = ""
+            return
+        }
+        searchController.processSearchInput(query)
+    }
+
+    func updateSearchParameters(
+        type: SearcherView.SearchType,
+        character: EVECharacterInfo,
+        showOnlyMyCorp: Bool,
+        showOnlyMyAlliance: Bool
+    ) {
+        currentSearchType = type
+        currentCharacter = character
+        currentShowOnlyMyCorp = showOnlyMyCorp
+        currentShowOnlyMyAlliance = showOnlyMyAlliance
+    }
 
     // 加载联系人数据的方法
     func loadContactsData(character: EVECharacterInfo) async {
@@ -948,8 +1037,8 @@ class SearcherViewModel: ObservableObject {
         characterId: Int, searchText: String, type: SearcherView.SearchType,
         character: EVECharacterInfo, showOnlyMyCorp: Bool, showOnlyMyAlliance: Bool
     ) async {
-        // 先检查搜索文本是否有效
-        guard !searchText.isEmpty && searchText.count > 2 else {
+        // 先检查搜索文本是否有效（使用URL编码后的长度）
+        guard !searchText.isEmpty && !(getUrlEncodedLength(searchText) < minSearchLength) else {
             searchResults = []
             filteredResults = []
             searchingStatus = ""
@@ -1083,26 +1172,6 @@ class SearcherViewModel: ObservableObject {
             self.error = error
         }
         searchingStatus = ""
-    }
-
-    func debounceSearch(
-        characterId: Int, searchText: String, type: SearcherView.SearchType,
-        character: EVECharacterInfo, showOnlyMyCorp: Bool, showOnlyMyAlliance: Bool
-    ) {
-        searchTask?.cancel()
-
-        searchTask = Task {
-            try? await Task.sleep(nanoseconds: 500_000_000)  // 500ms
-            if Task.isCancelled { return }
-            await search(
-                characterId: characterId,
-                searchText: searchText,
-                type: type,
-                character: character,
-                showOnlyMyCorp: showOnlyMyCorp,
-                showOnlyMyAlliance: showOnlyMyAlliance
-            )
-        }
     }
 
     func updateStructureFilters(structureType: SearcherView.StructureType) {

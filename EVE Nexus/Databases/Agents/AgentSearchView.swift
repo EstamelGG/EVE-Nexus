@@ -1,30 +1,5 @@
-import Kingfisher
+import Foundation
 import SwiftUI
-
-struct DropdownOption: Identifiable {
-    let id: Int
-    let value: String
-    let key: String
-
-    init(id: Int, value: String, key: String = "") {
-        self.id = id
-        self.value = value
-        self.key = key.isEmpty ? "\(id)" : key
-    }
-}
-
-// 搜索条件结构体
-struct SearchConditions {
-    var divisionID: Int?
-    var level: Int?
-    var securityLevel: String?
-    var factionID: Int?
-    var corporationID: Int?
-    var isLocatorOnly: Bool
-    var agentType: Int?
-    var regionID: Int?  // 添加星域ID
-    var solarSystemID: Int?  // 添加星系ID
-}
 
 // 代理人类型ID列表
 let agentTypeIDs: [Int] = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13]
@@ -100,22 +75,10 @@ struct AgentItem: Identifiable {
     let solarSystemName: String?
 }
 
-struct AgentSearchRootView: View {
-    @ObservedObject var databaseManager: DatabaseManager
-
-    var body: some View {
-        NavigationStack {
-            AgentSearchView(databaseManager: databaseManager)
-        }
-    }
-}
-
 struct AgentSearchView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var isNavigatingToResults = false
     @State private var searchResultsDestination: String? = nil
-    @State private var isNavigatingToRegionSearch = false  // 添加星域搜索导航状态
-    @State private var isNavigatingToSystemSearch = false  // 添加星系搜索导航状态
     @State private var searchResults: [AgentItem] = []  // 添加存储搜索结果的状态变量
 
     // 过滤条件
@@ -140,11 +103,11 @@ struct AgentSearchView: View {
 
     // 等级数据
     let levels = [
-        (1, "Level 1"),
-        (2, "Level 2"),
-        (3, "Level 3"),
-        (4, "Level 4"),
-        (5, "Level 5"),
+        (1, String(format: NSLocalizedString("Misc_Level", comment: "lv1"), 1)),
+        (2, String(format: NSLocalizedString("Misc_Level", comment: "lv2"), 2)),
+        (3, String(format: NSLocalizedString("Misc_Level", comment: "lv3"), 3)),
+        (4, String(format: NSLocalizedString("Misc_Level", comment: "lv4"), 4)),
+        (5, String(format: NSLocalizedString("Misc_Level", comment: "lv5"), 5)),
     ]
 
     // 安全等级选项
@@ -300,7 +263,7 @@ struct AgentSearchView: View {
                             VStack(alignment: .leading) {
                                 Text(
                                     NSLocalizedString(
-                                        "Agent_Search_Locator_Only", comment: "仅显示定位代理人")
+                                        "Agent_Search_Locator_Only", comment: "仅显示寻人代理人")
                                 )
                                 .font(.system(size: 16))
                                 .foregroundColor(.primary)
@@ -457,22 +420,6 @@ struct AgentSearchView: View {
             parameters.append(level)
         }
 
-        // 添加安全等级过滤条件
-        if let securityLevel = selectedSecurityLevel {
-            switch securityLevel {
-            case "highsec":
-                conditions.append("(s.security_status >= 0.5 OR st.security >= 0.5)")
-            case "lowsec":
-                conditions.append(
-                    "((s.security_status < 0.5 AND s.security_status >= 0.0) OR (st.security < 0.5 AND st.security >= 0.0))"
-                )
-            case "nullsec":
-                conditions.append("((s.security_status < 0.0) OR (st.security < 0.0))")
-            default:
-                break
-            }
-        }
-
         // 添加势力过滤条件
         if let factionID = selectedFactionID {
             conditions.append("c.faction_id = ?")
@@ -558,15 +505,17 @@ struct AgentSearchView: View {
                 SELECT 
                     a.agent_id, 
                     a.agent_type, 
-                    COALESCE(a.agent_name, n.itemName) as name,  -- 从agents表获取agent_name，如果为null则使用invNames的itemName
+                    COALESCE(a.agent_name, n.itemName) as name,
                     a.level, 
                     a.corporationID, 
                     a.divisionID, 
                     a.isLocator, 
                     a.locationID,
-                    COALESCE(st.stationName, l.itemName) as locationName,  -- 从stations表获取stationName，如果为null则使用invNames的itemName
+                    COALESCE(st.stationName, l.itemName) as locationName,
                     a.solarSystemID, 
                     s.solarSystemName as solarSystemName,
+                    s.security_status as system_security,
+                    st.security as station_security,
                     c.name as corporationName, 
                     f.id as factionID, 
                     f.name as factionName, 
@@ -606,6 +555,30 @@ struct AgentSearchView: View {
                 let solarSystemID = row["solarSystemID"] as? Int
                 let solarSystemName = row["solarSystemName"] as? String
                 let agentType = row["agent_type"] as? Int ?? 0
+
+                // 获取安全等级
+                let systemSecurity = row["system_security"] as? Double
+                let stationSecurity = row["station_security"] as? Double
+
+                // 根据代理人位置选择正确的安全等级
+                let security = solarSystemID != nil ? systemSecurity : stationSecurity
+
+                // 使用calculateDisplaySecurity计算显示用的安全等级
+                let displaySecurity = calculateDisplaySecurity(security ?? 0.0)
+
+                // 根据安全等级筛选
+                if let securityLevel = selectedSecurityLevel {
+                    switch securityLevel {
+                    case "highsec":
+                        if displaySecurity < 0.5 { return nil }
+                    case "lowsec":
+                        if displaySecurity >= 0.5 || displaySecurity < 0.0 { return nil }
+                    case "nullsec":
+                        if displaySecurity >= 0.0 { return nil }
+                    default:
+                        break
+                    }
+                }
 
                 return AgentItem(
                     agentID: agentID,
@@ -827,24 +800,6 @@ struct AgentSearchView: View {
             // 合并三组类型
             availableAgentTypes = mainTypes + secondaryTypes + otherTypes
         }
-    }
-}
-
-// 代理人列表视图
-struct AgentListView: View {
-    let level: Int
-    let levelName: String
-    let searchResults: [AgentItem]
-    @ObservedObject var databaseManager: DatabaseManager
-
-    var body: some View {
-        List {
-            ForEach(searchResults) { agent in
-                AgentCellView(agent: agent, databaseManager: databaseManager)
-            }
-            .listRowInsets(EdgeInsets(top: 0, leading: 16, bottom: 0, trailing: 16))
-        }
-        .navigationTitle(levelName)
     }
 }
 
@@ -1291,7 +1246,12 @@ struct AgentListHierarchyView: View {
         for agent in searchResults {
             if !uniqueLevels.contains(agent.level) {
                 uniqueLevels.insert(agent.level)
-                levelsList.append((agent.level, "Level \(agent.level)"))
+                levelsList.append(
+                    (
+                        agent.level,
+                        String(
+                            format: NSLocalizedString("Misc_Level", comment: "lv%d"), agent.level)
+                    ))
             }
         }
 
@@ -1417,7 +1377,9 @@ struct AgentCellView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var portraitImage: Image?
     @State private var isLoadingPortrait = true
-    @State private var locationInfo: (name: String, security: Double?) = ("Loading...", nil)
+    @State private var locationInfo: (name: String, security: Double?) = (
+        NSLocalizedString("Misc_Loading", comment: ""), nil
+    )
     @State private var affiliationInfo:
         (factionName: String, corporationName: String, factionIcon: String, corporationIcon: String) =
             ("", "", "", "")
@@ -1437,7 +1399,7 @@ struct AgentCellView: View {
                         .frame(width: 64, height: 64)
                         .clipShape(Circle())
                 } else {
-                    Image(systemName: "person.circle.fill")
+                    Image("default_char")
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 64, height: 64)
@@ -1534,7 +1496,7 @@ struct AgentCellView: View {
 
                     // 定位代理人标签
                     if agent.isLocator {
-                        Text(NSLocalizedString("Agent_Locator", comment: "定位代理人"))
+                        Text(NSLocalizedString("Agent_Locator", comment: "寻人代理人"))
                             .font(.caption)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
@@ -1719,6 +1681,8 @@ struct RegionSearchView: View {
     @Binding var selectedRegionID: Int?
     @Binding var selectedRegionName: String?
     @State private var isSearchActive = false
+    @State private var sectionedRegions: [String: [(Int, String)]] = [:]
+    @State private var sectionTitles: [String] = []
 
     var body: some View {
         VStack {
@@ -1731,38 +1695,50 @@ struct RegionSearchView: View {
                     .foregroundColor(.gray)
                 Spacer()
             } else {
-                List {
-                    // 添加"所有星域"选项
-                    Button(action: {
-                        selectedRegionID = nil
-                        selectedRegionName = nil
-                        dismiss()
-                    }) {
-                        HStack {
-                            Text(NSLocalizedString("Region_All", comment: "所有星域"))
-                                .foregroundColor(.primary)
-                            Spacer()
-                            if selectedRegionID == nil {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(.blue)
+                ZStack(alignment: .trailing) {
+                    List {
+                        // 添加"所有星域"选项
+                        Section {
+                            Button(action: {
+                                selectedRegionID = nil
+                                selectedRegionName = nil
+                                dismiss()
+                            }) {
+                                HStack {
+                                    Text(NSLocalizedString("Region_All", comment: "所有星域"))
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                    if selectedRegionID == nil {
+                                        Image(systemName: "checkmark")
+                                            .foregroundColor(.blue)
+                                    }
+                                }
                             }
                         }
-                    }
 
-                    // 过滤并显示星域列表
-                    ForEach(filteredRegions, id: \.0) { regionID, regionName in
-                        Button(action: {
-                            selectedRegionID = regionID
-                            selectedRegionName = regionName
-                            dismiss()
-                        }) {
-                            HStack {
-                                Text(regionName)
-                                    .foregroundColor(.primary)
-                                Spacer()
-                                if selectedRegionID == regionID {
-                                    Image(systemName: "checkmark")
-                                        .foregroundColor(.blue)
+                        // 按首字母分组显示星域列表
+                        ForEach(sectionTitles, id: \.self) { sectionTitle in
+                            if let regionsInSection = sectionedRegions[sectionTitle],
+                                !regionsInSection.isEmpty
+                            {
+                                Section(header: Text(sectionTitle).id(sectionTitle)) {
+                                    ForEach(regionsInSection, id: \.0) { regionID, regionName in
+                                        Button(action: {
+                                            selectedRegionID = regionID
+                                            selectedRegionName = regionName
+                                            dismiss()
+                                        }) {
+                                            HStack {
+                                                Text(regionName)
+                                                    .foregroundColor(.primary)
+                                                Spacer()
+                                                if selectedRegionID == regionID {
+                                                    Image(systemName: "checkmark")
+                                                        .foregroundColor(.blue)
+                                                }
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -1776,22 +1752,72 @@ struct RegionSearchView: View {
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: NSLocalizedString("Region_Search_Placeholder", comment: "搜索星域...")
         )
+        .onChange(of: searchText) { _, _ in
+            updateSections()
+        }
+        .onChange(of: isSearchActive) { _, _ in
+            // 当搜索状态改变时，也需要更新分组
+            updateSections()
+        }
         .navigationTitle(NSLocalizedString("Region_Search_Title", comment: "选择星域"))
         .onAppear {
             loadRegions()
         }
     }
 
-    // 过滤后的星域列表
-    private var filteredRegions: [(Int, String)] {
-        var result: [(Int, String)]
-        if searchText.isEmpty {
-            result = regions
-        } else {
-            result = regions.filter { $0.1.localizedCaseInsensitiveContains(searchText) }
+    // 更新分组数据
+    private func updateSections() {
+        var filteredData: [(Int, String)] = regions
+
+        // 如果有搜索文本，过滤数据
+        if !searchText.isEmpty {
+            filteredData = regions.filter { $0.1.localizedCaseInsensitiveContains(searchText) }
         }
-        // 对结果进行本地化排序，使用localizedStandardCompare以正确处理混合字符排序
-        return result.sorted { $0.1.localizedStandardCompare($1.1) == .orderedAscending }
+
+        // 按首字母分组
+        let grouped = Dictionary(grouping: filteredData) { region -> String in
+            // 获取首字母（包括处理中文拼音）
+            let name = region.1
+            if let firstChar = name.first {
+                let firstLetter = getFirstLetter(of: String(firstChar))
+                return firstLetter
+            }
+            return "#"
+        }
+
+        sectionedRegions = grouped
+        sectionTitles = grouped.keys.sorted()
+
+        // 对每个组内的数据进行排序
+        for (key, _) in sectionedRegions {
+            sectionedRegions[key]?.sort { $0.1.localizedStandardCompare($1.1) == .orderedAscending }
+        }
+    }
+
+    // 获取字符的首字母（包括中文拼音）
+    private func getFirstLetter(of char: String) -> String {
+        // 转换为大写
+        let uppercaseChar = char.uppercased()
+
+        // 判断是否为英文字母
+        if uppercaseChar >= "A" && uppercaseChar <= "Z" {
+            return uppercaseChar
+        }
+
+        // 中文字符转拼音
+        let pinyin = NSMutableString(string: char) as CFMutableString
+        CFStringTransform(pinyin, nil, kCFStringTransformToLatin, false)
+        CFStringTransform(pinyin, nil, kCFStringTransformStripDiacritics, false)
+
+        if let firstPinyinChar = String(pinyin as String).first {
+            let letter = String(firstPinyinChar).uppercased()
+            if letter >= "A" && letter <= "Z" {
+                return letter
+            }
+        }
+
+        // 其他字符
+        return "#"
     }
 
     // 加载所有星域
@@ -1813,8 +1839,9 @@ struct RegionSearchView: View {
                 }
                 return (regionID, regionName)
             }
-            // 在内存中进行本地化排序，使用localizedStandardCompare以正确处理混合字符排序
-            regions.sort { $0.1.localizedStandardCompare($1.1) == .orderedAscending }
+
+            // 初始化分组数据
+            updateSections()
         }
 
         isLoading = false

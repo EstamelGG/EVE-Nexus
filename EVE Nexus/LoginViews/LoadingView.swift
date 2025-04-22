@@ -35,7 +35,7 @@ struct LoadingView: View {
             }
 
             // 加载文本
-            Text("Unzipping Icons...")
+            Text(NSLocalizedString("Main_Unzipping_Icons", comment: ""))
                 .font(.headline)
         }
         .onChange(of: loadingState) { _, newState in

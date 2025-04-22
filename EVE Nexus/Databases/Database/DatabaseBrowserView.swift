@@ -26,7 +26,8 @@ struct DatabaseBrowserView: View {
     let level: BrowserLevel
 
     // 静态缓存
-    private static var navigationCache: [BrowserLevel: ([DatabaseListItem], [Int: String], [Int: String])] = [:]
+    private static var navigationCache:
+        [BrowserLevel: ([DatabaseListItem], [Int: String], [Int: String])] = [:]
     private static let maxCacheSize = 10  // 最大缓存层级数
     private static var cacheAccessTime: [BrowserLevel: Date] = [:]  // 记录访问时间
 
@@ -51,7 +52,9 @@ struct DatabaseBrowserView: View {
     }
 
     // 获取缓存数据
-    private func getCachedData(for level: BrowserLevel) -> ([DatabaseListItem], [Int: String], [Int: String])? {
+    private func getCachedData(for level: BrowserLevel) -> (
+        [DatabaseListItem], [Int: String], [Int: String]
+    )? {
         if let cachedData = Self.navigationCache[level] {
             // 更新访问时间
             Self.updateAccessTime(for: level)
@@ -62,7 +65,9 @@ struct DatabaseBrowserView: View {
     }
 
     // 设置缓存数据
-    private func setCacheData(for level: BrowserLevel, data: ([DatabaseListItem], [Int: String], [Int: String])) {
+    private func setCacheData(
+        for level: BrowserLevel, data: ([DatabaseListItem], [Int: String], [Int: String])
+    ) {
         Self.navigationCache[level] = data
         Self.updateAccessTime(for: level)
     }
@@ -75,12 +80,6 @@ struct DatabaseBrowserView: View {
         case .items:
             return .metaGroups
         }
-    }
-
-    // 搜索时使用的分组类型
-    private var searchGroupingType: GroupingType {
-        // 搜索结果总是显示衍生等级
-        return .metaGroups
     }
 
     var body: some View {
@@ -111,18 +110,20 @@ struct DatabaseBrowserView: View {
                 searchData: { dbManager, searchText in
                     // 搜索不使用缓存
                     let searchResult: ([DatabaseListItem], [Int: String], [Int: String])
-                    
+
                     switch level {
                     case .categories:
                         searchResult = dbManager.searchItems(searchText: searchText)
                     case let .groups(categoryID, _):
-                        searchResult = dbManager.searchItems(searchText: searchText, categoryID: categoryID)
+                        searchResult = dbManager.searchItems(
+                            searchText: searchText, categoryID: categoryID)
                     case let .items(groupID, _):
-                        searchResult = dbManager.searchItems(searchText: searchText, groupID: groupID)
+                        searchResult = dbManager.searchItems(
+                            searchText: searchText, groupID: groupID)
                     }
-                    
+
                     let (items, metaGroupNames, _) = searchResult
-                    
+
                     // 对搜索结果进行排序：先按科技等级，再按名称
                     let sortedItems = items.sorted { item1, item2 in
                         // 首先按科技等级排序
@@ -130,9 +131,10 @@ struct DatabaseBrowserView: View {
                             return (item1.metaGroupID ?? -1) < (item2.metaGroupID ?? -1)
                         }
                         // 科技等级相同时按名称排序
-                        return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+                        return item1.name.localizedCaseInsensitiveCompare(item2.name)
+                            == .orderedAscending
                     }
-                    
+
                     return (sortedItems, metaGroupNames, [:])
                 }
             )
@@ -254,7 +256,7 @@ struct DatabaseBrowserView: View {
                 // 科技等级相同时按名称排序
                 return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
             }
-            
+
             let items = sortedItems.map { item in
                 DatabaseListItem(
                     id: item.id,
@@ -488,12 +490,6 @@ struct IconWithValueView: View {
         value =
             unit.map { "\(FormatUtil.format(Double(numericValue)))\($0)" }
             ?? FormatUtil.format(Double(numericValue))
-    }
-
-    // 原有的字符串初始化方法
-    init(iconName: String, value: String) {
-        self.iconName = iconName
-        self.value = value
     }
 
     var body: some View {

@@ -14,7 +14,6 @@ struct CorpStructureView: View {
     }
 
     @State private var tempDays: String = ""
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames: Bool = false
 
     init(characterId: Int) {
         self.characterId = characterId
@@ -272,7 +271,7 @@ struct StructureCell: View {
                         .frame(width: 40, height: 40)
                         .clipShape(Circle())
                 } else {
-                    Image(systemName: "building.2")
+                    Image("default_char")
                         .resizable()
                         .scaledToFit()
                         .frame(width: 40, height: 40)
@@ -442,10 +441,6 @@ class CorpStructureViewModel: ObservableObject {
     private let characterId: Int
     private var currentMonitorDays: Int
 
-    private var useEnglishSystemNames: Bool {
-        UserDefaults.standard.bool(forKey: "useEnglishSystemNames")
-    }
-
     init(characterId: Int) {
         self.characterId = characterId
         // 从 UserDefaults 获取保存的监控时间
@@ -500,8 +495,8 @@ class CorpStructureViewModel: ObservableObject {
         var groups: [String: [[String: Any]]] = [:]
         for structure in structures {
             if let systemId = structure["system_id"] as? Int {
-                let systemName = systemNames[systemId] ?? "Unknown"
-                let regionName = regionNames[systemId] ?? "Unknown"
+                let systemName = systemNames[systemId] ?? NSLocalizedString("Unknown", comment: "")
+                let regionName = regionNames[systemId] ?? NSLocalizedString("Unknown", comment: "")
                 let locationKey = "\(regionName) - \(systemName)"
 
                 if groups[locationKey] == nil {
@@ -541,7 +536,7 @@ class CorpStructureViewModel: ObservableObject {
                 "type_id": structure.type_id,
                 "system_id": structure.system_id,
                 "state": structure.state,
-                "name": structure.name ?? "Unknown",
+                "name": structure.name ?? NSLocalizedString("Unknown", comment: ""),
             ]
 
             if let fuelExpires = structure.fuel_expires {
@@ -589,7 +584,7 @@ class CorpStructureViewModel: ObservableObject {
     private func loadLocationInfo(systemIds: [Int]) async {
         // 1. 获取星系名称
         let systemQuery = """
-                SELECT solarSystemID, solarSystemName, solarSystemName_en
+                SELECT solarSystemID, solarSystemName
                 FROM solarsystems
                 WHERE solarSystemID IN (\(Array(systemIds).map { String($0) }.joined(separator: ",")))
             """
@@ -597,10 +592,9 @@ class CorpStructureViewModel: ObservableObject {
         if case let .success(rows) = systemResult {
             for row in rows {
                 if let systemId = row["solarSystemID"] as? Int,
-                    let systemNameLocal = row["solarSystemName"] as? String,
-                    let systemNameEn = row["solarSystemName_en"] as? String
+                    let systemNameLocal = row["solarSystemName"] as? String
                 {
-                    let systemName = useEnglishSystemNames ? systemNameEn : systemNameLocal
+                    let systemName = systemNameLocal
                     systemNames[systemId] = systemName
                 }
             }
@@ -609,7 +603,7 @@ class CorpStructureViewModel: ObservableObject {
         // 2. 获取星域信息
         let universeQuery = """
                 SELECT DISTINCT u.solarsystem_id, u.region_id, 
-                       r.regionName, r.regionName_en
+                       r.regionName
                 FROM universe u
                 JOIN regions r ON r.regionID = u.region_id
                 WHERE u.solarsystem_id IN (\(Array(systemIds).sorted().map { String($0) }.joined(separator: ",")))
@@ -618,10 +612,9 @@ class CorpStructureViewModel: ObservableObject {
         if case let .success(rows) = universeResult {
             for row in rows {
                 if let systemId = row["solarsystem_id"] as? Int,
-                    let regionNameLocal = row["regionName"] as? String,
-                    let regionNameEn = row["regionName_en"] as? String
+                    let regionNameLocal = row["regionName"] as? String
                 {
-                    let regionName = useEnglishSystemNames ? regionNameEn : regionNameLocal
+                    let regionName = regionNameLocal
                     regionNames[systemId] = regionName
                 }
             }

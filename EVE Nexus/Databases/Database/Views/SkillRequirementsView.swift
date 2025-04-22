@@ -50,7 +50,7 @@ struct SkillRequirementRow: View {
                     Spacer()
 
                     // 等级要求
-                    Text("Lv \(level)")
+                    Text(String(format: NSLocalizedString("Misc_Level", comment: "lv%d"), level))
                         .font(.body)
                         .foregroundColor(.secondary)
                 }

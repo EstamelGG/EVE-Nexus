@@ -21,6 +21,7 @@ class CharacterPortraitViewModel: ObservableObject {
     @Published var image: UIImage?
     @Published var isLoading = false
     @Published var isCorporation = false
+    @Published var error: Error?
 
     let characterId: Int
     let size: Int
@@ -40,34 +41,62 @@ class CharacterPortraitViewModel: ObservableObject {
 
         // 如果缓存中没有，则开始加载
         isLoading = true
-        defer { isLoading = false }
 
-        // 先尝试获取角色头像
+        // 使用defer确保在函数结束时重置isLoading状态
+        defer {
+            isLoading = false
+        }
+
         do {
-            let portrait = try await CharacterAPI.shared.fetchCharacterPortrait(
-                characterId: characterId, size: size, catchImage: false
-            )
-            // 保存到缓存
-            await CharacterPortraitCache.shared.setImage(portrait, for: characterId, size: size)
-            image = portrait
-            Logger.info(
-                "成功获取并缓存角色头像 - 角色ID: \(characterId), 大小: \(size), 数据大小: \(portrait.jpegData(compressionQuality: 1.0)?.count ?? 0) bytes"
-            )
-            return
-        } catch {
-            Logger.info("获取角色头像失败，尝试获取军团头像 - ID: \(characterId)")
-            // 如果获取角色头像失败，尝试获取军团头像
+            // 检查任务是否已取消
+            try Task.checkCancellation()
+
+            // 尝试获取角色头像
             do {
+                let portrait = try await CharacterAPI.shared.fetchCharacterPortrait(
+                    characterId: characterId, size: size, catchImage: false
+                )
+
+                // 再次检查任务是否已取消
+                try Task.checkCancellation()
+
+                // 保存到缓存
+                await CharacterPortraitCache.shared.setImage(portrait, for: characterId, size: size)
+                image = portrait
+                Logger.info(
+                    "成功获取并缓存角色头像 - 角色ID: \(characterId), 大小: \(size), 数据大小: \(portrait.jpegData(compressionQuality: 1.0)?.count ?? 0) bytes"
+                )
+                return
+            } catch {
+                // 检查任务是否已取消
+                try Task.checkCancellation()
+
+                if error is CancellationError {
+                    throw error
+                }
+
+                Logger.info("获取角色头像失败，尝试获取军团头像 - ID: \(characterId)")
+
+                // 如果获取角色头像失败，尝试获取军团头像
                 let corpLogo = try await CorporationAPI.shared.fetchCorporationLogo(
                     corporationId: characterId, size: size
                 )
+
+                // 再次检查任务是否已取消
+                try Task.checkCancellation()
+
                 // 保存到缓存
                 await CharacterPortraitCache.shared.setImage(corpLogo, for: characterId, size: size)
                 image = corpLogo
                 isCorporation = true
                 Logger.info("成功获取并缓存军团头像 - 军团ID: \(characterId), 大小: \(size)")
-            } catch {
+            }
+        } catch {
+            if error is CancellationError {
+                Logger.debug("加载头像任务被取消 - ID: \(characterId)")
+            } else {
                 Logger.error("加载头像失败（角色和军团都失败）: \(error)")
+                self.error = error
             }
         }
     }
@@ -79,7 +108,6 @@ struct CharacterPortrait: View {
     let displaySize: CGFloat
     let cornerRadius: CGFloat
     @StateObject private var viewModel: CharacterPortraitViewModel
-    @State private var hasInitialized = false // 追踪是否已执行初始化
 
     init(characterId: Int, size: CGFloat, displaySize: CGFloat? = nil, cornerRadius: CGFloat = 6) {
         self.characterId = characterId
@@ -89,17 +117,6 @@ struct CharacterPortrait: View {
         // 始终使用64尺寸的图片
         _viewModel = StateObject(
             wrappedValue: CharacterPortraitViewModel(characterId: characterId, size: 64))
-    }
-    
-    // 初始化数据加载方法
-    private func loadImageIfNeeded() {
-        guard !hasInitialized else { return }
-        
-        hasInitialized = true
-        
-        Task {
-            await viewModel.loadImage()
-        }
     }
 
     var body: some View {
@@ -120,7 +137,7 @@ struct CharacterPortrait: View {
                 ProgressView()
                     .frame(width: displaySize, height: displaySize)
             } else {
-                Image(systemName: "person.circle.fill")
+                Image("default_char")
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: displaySize, height: displaySize)
@@ -128,14 +145,10 @@ struct CharacterPortrait: View {
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             }
         }
-        .onAppear {
-            loadImageIfNeeded()
+        .task {
+            await viewModel.loadImage()
         }
     }
-}
-
-enum MailDatabaseError: Error {
-    case fetchError(String)
 }
 
 @MainActor
@@ -293,7 +306,7 @@ class CharacterMailListViewModel: ObservableObject {
     }
 
     func getSenderName(_ characterId: Int) -> String {
-        return senderNames[characterId] ?? "未知发件人"
+        return senderNames[characterId] ?? NSLocalizedString("Unknown", comment: "")
     }
 }
 
@@ -384,10 +397,9 @@ struct CharacterMailListView: View {
     let title: String
 
     @StateObject private var viewModel = CharacterMailListViewModel()
-    @Namespace private var scrollSpace
     @State private var scrollPosition: Int?
     @State private var composeMailData: ComposeMailData?
-    @State private var hasInitialized = false // 追踪是否已执行初始化
+    @State private var hasInitialized = false  // 追踪是否已执行初始化
 
     struct ComposeMailData: Identifiable {
         let id = UUID()
@@ -399,13 +411,13 @@ struct CharacterMailListView: View {
         self.labelId = labelId
         self.title = title ?? NSLocalizedString("Main_EVE_Mail_All", comment: "")
     }
-    
+
     // 初始化数据加载方法
     private func loadInitialDataIfNeeded() {
         guard !hasInitialized else { return }
-        
+
         hasInitialized = true
-        
+
         Task {
             await viewModel.fetchMails(characterId: characterId, labelId: labelId)
         }

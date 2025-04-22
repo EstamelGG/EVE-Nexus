@@ -35,10 +35,6 @@ public struct CharacterMarketOrder: Identifiable, Codable, Hashable {
 
     public var id: Int64 { orderId }
 
-    public var isSellOrder: Bool {
-        return !(isBuyOrder ?? false)
-    }
-
     // 实现 Hashable
     public func hash(into hasher: inout Hasher) {
         hasher.combine(orderId)

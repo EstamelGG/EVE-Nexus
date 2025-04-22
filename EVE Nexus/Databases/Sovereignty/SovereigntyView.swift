@@ -304,13 +304,3 @@ struct SovereigntyView: View {
         .navigationTitle(NSLocalizedString("Main_Sovereignty", comment: ""))
     }
 }
-
-struct LocationInfo: Codable {
-    let systemId: Int
-    let systemName: String
-    let security: Double
-    let constellationId: Int
-    let constellationName: String
-    let regionId: Int
-    let regionName: String
-}

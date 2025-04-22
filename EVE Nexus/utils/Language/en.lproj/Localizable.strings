@@ -6,6 +6,8 @@
   
 */
 
+"App_Language" = "en";
+"Main_Home" = "Home";
 "Main_Character" = "Character";
 "Main_Character_Sheet" = "Character Sheet";
 "Main_Jump_Clones" = "Jump Clones";
@@ -56,7 +58,7 @@
 "Contract_Acceptor" = "Acceptor";
 "Contract_Days_To_Complete" = "Days to Complete";
 "Select_Item" = "Select Item";
-"Main_Market" = "Market";
+"Main_Market" = "Region Market";
 "Main_Market_Watch_List" = "Market Watch List";
 "Main_Market_Watch_List_Empty" = "No watched items";
 "Main_Market_Watch_List_Add" = "Add Watch List";
@@ -75,6 +77,7 @@
 "Main_Wallet_Journal" = "Wallet Journal";
 "Main_Industry_Jobs" = "Industry Jobs";
 "Main_Other" = "Other";
+"Main_Unzipping_Icons" = "Unzipping Icons...";
 
 "Main_Setting" = "Setting";
 "Main_Setting_Title" = "Setting";
@@ -111,12 +114,17 @@
 "Misc_number_types" = " Items";
 "Misc_per" = "per";
 "Misc_unit" = "unit(s)";
+"Misc_No_Data" = "No data";
+"Misc_Calculating" = "Calculating...";
+"Misc_Loading" = "Loading...";
+"Misc_Not_Found" = "Not found";
+"Misc_Level" = "Level %d";
+"Misc_Level_Short" = "Lv %d";
 
 // Blueprint Details
 "Blueprint_Product" = "Product";
 "Blueprint_Invention_Product" = "Invention Product";
 "Blueprint_Success_Rate" = "Success Rate: %d%%";
-"Blueprint_Level" = "Level %d";
 "Time_Year" = "y";
 "Time_Month" = "mon";
 "Time_Day" = "d";
@@ -154,8 +162,11 @@
 "Item_Basic_Info" = "Basic Info";
 "Container_Basic_Info" = "Container";
 "Item_Volume" = "Volume";
+"Item_RepackagesVolume" = "Repackaged Volume";
 "Item_Capacity" = "Capacity";
 "Item_Mass" = "Mass";
+"Item_load_error" = "Can not load info.";
+"Item_details_notfound" = "Details not found";
 
 "Main_Setting_Clean_Cache_Title" = "Clean Cache";
 "Main_Setting_Clean_Cache_Message" = "This will clean app cache, including network cache and temporary files. Are you sure?";
@@ -294,7 +305,7 @@
 "Assets_Loading_Fetching" = "Fetching assets data (Page %d)";
 "Assets_Loading_Complete" = "Loading complete";
 "Assets_Loading" = "Loading...";
-"Assets_Item_Count" = "Include %d items";
+"Assets_Item_Count" = "Contains %d items";
 "Assets_Loading_Names" = "Loading container names (%d/%d)";
 "Assets_Loading_Building_Tree" = "Building asset tree";
 "Assets_Loading_Processing_Locations" = "Processing location information";
@@ -348,7 +359,7 @@
 
 // Assets Loading Status
 "Assets_Loading_Page" = "Fetching page %d";
-"Assets_Loading_Calculating" = "Calculating";
+"Assets_Loading_Calculating" = "Calculating...";
 "Assets_Loading_Fetching_Names" = "Fetching names";
 "Assets_Unknown_Location" = "Unknown Location";
 "Assets_Unknown_Region" = "Unknown Region";
@@ -428,6 +439,9 @@
 "Industry_Status_paused" = "Paused";
 "Industry_Status_ready" = "Ready";
 "Industry_Status_reverted" = "Reverted";
+"Finished_on" = "Finish on";
+"Industry_runs" = "runs";
+"Industry_copies" = "copies";
 
 // Industry Activity Status
 "Industry" = "Industry";
@@ -512,14 +526,16 @@
 "Main_Skills_Queue_Count" = "Skill Queue (%d)";
 "Main_Skills_Queue_Count_Time" = "Skill Queue (%d) - %@ remaining";
 "Main_Skills_Queue_Count_Paused" = "Skill Queue (%d) - Paused";
-"Main_Skills_Queue_Empty" = "No skills in training queue";
-"Main_Skills_Level" = "Lv %d";
+"Main_Skills_Queue_Empty" = "No skills in queue";
 "Main_Skills_Points_Progress" = "%@ / %@ SP";
 "Main_Skills_Time_Remaining" = "Remaining: %@";
 "Main_Skills_Time_Required" = "Required: %@";
 "Main_Skills_Categories" = "Skill Categories";
 "Main_Skills_Not_Injected" = "Not Injected";
 "Main_Skills_Completed" = "Completed";
+"Main_Skills_Paused" = "Paused";
+"Main_Skills_Running" = "Running";
+"Main_Skills_Empty" = "Empty Queue";
 
 // Time Format
 "Time_Days_Hours_Minutes" = "%dd %dh %dm";
@@ -684,8 +700,7 @@
 "Total Income" = "Total Income";
 "Total Expense" = "Total Expense";
 "Transaction Dates" = "Transaction Dates";
-"transactions" = "transactions";
-"Transactions" = "Transactions";
+"transactions" = "trans";
 "Common_Error" = "Error";
 "Net Balance" = "Net Balance";
 "Load More" = "Load More";
@@ -739,6 +754,9 @@
 "Main_Search_Type_Alliance" = "Alliance";
 "Main_Search_Type_Structure" = "Structure";
 "Main_Search_Results_Limit" = "Results limited";
+"Main_No_Corp" = "No Corp";
+"Main_No_Alliance" = "No Alliance";
+"Main_No_Title" = "No title";
 
 // Search Filters
 "Main_Search_Filter_Title" = "Filters(can be empty)";
@@ -833,7 +851,7 @@
 "Main_Market_Insufficient_Stock" = "(Insufficient stock)";
 "Main_Market_Avg_Price" = "Avg price: ";
 "Main_Market_Total_Price" = "Sum price: ";
-"Main_Market_Calculating" = "Calculating..."; 
+"Main_Market_Calculating" = "Calculating...";
 
 "Main_Ore_Variations" = "Ore Variations";
 
@@ -862,19 +880,19 @@
 // KillMail Stats
 "KillMail_Destroyed_Value" = "Destroyed Value";
 "KillMail_Lost_Value" = "Lost Value";
-"KillMail_Search_Title" = "Search Battle Records";
+"KillMail_Search_Title" = "Search KillBoard";
 "KillMail_Battle_Records" = "Battle Records";
 "KillMail_Filter" = "Filter";
 "KillMail_Filter_All" = "All";
 "KillMail_Filter_Kills" = "Kills";
 "KillMail_Filter_Losses" = "Losses";
-"KillMail_Unknown_Item" = "Unknown Item";
-"KillMail_Unknown_Location" = "Unknown";
+"KillMail_Unknown_Item" = "Unknown Item(TypeID:%d)";
+"KillMail_Unknown_Location" = "Unknown Location";
 "KillMail_Load_More" = "Load More";
 "KillMail_Stats_Failed" = "Failed to load battle statistics: %@";
 
 // KillMail View
-"KillMail_View_Title" = "Killboard";
+"KillMail_View_Title" = "KillBoard";
 
 // KillMail Stats
 "KillMail_Data_Source" = "Data from zkillboard and kb.evetools.org";
@@ -911,7 +929,6 @@
 "Main_KM_Subsystem_Slots" = "Subsystem";
 "Main_KM_Fighter_Tubes" = "Fighter Tube";
 "Main_KM_Cargo" = "Cargo Hold";
-"KillMail_Unknown_Item" = "Unknown Item";
 
 "Main_KM_Drone_Bay" = "Drone Bay";
 "Main_KM_Fighter_Bay" = "Fighter Bay";
@@ -1020,6 +1037,8 @@
 "Main_Planetary_Error" = "Loading Failed";
 "Planet_Detail_Last_Update" = "Planetary layout submit at";
 "Main_Planetary_Total_Count" = "Total %d planets";
+"Main_Planetary_location_calc" = "Find System for Colony";
+"Main_Planetary_of_Mine" = "My Planetary";
 
 // Extractor Related
 "Total_Yield" = "Total Yield:";
@@ -1285,6 +1304,7 @@
 "System_Search_Placeholder" = "Search systems...";
 "Loading_Regions" = "Loading regions...";
 "Loading_Systems" = "Loading systems...";
+"Main_Founded" = "Founded";
 
 // Attribute Compare Tool
 "Main_Attribute_Compare" = "Compare Tool";
@@ -1318,6 +1338,8 @@
 "Jump_Navigation_Calculating_Jump_Distance" = "Calculating...";
 "Jump_Navigation_Max_Jump_Range" = "Max";
 "Jump_Navigation_DOTLAN_Route" = "View on Dotlan";
+"Jump_Navigation_Safety_Settings" = "Safety Options";
+"Jump_Navigation_Avoid_Incursion" = "Avoid Incursions";
 
 // Jump Navigation Sections
 "Jump_Navigation_Ship_And_Skills" = "Ship & Skills";
@@ -1348,9 +1370,95 @@
 "Jump_Navigation_Error_Path_Not_Found" = "Cannot find path from %@ to %@";
 
 "Server_Status_Online" = "Server Online";
-"Server_Status_Offline" = "Offline";
+"Server_Status_Offline" = "Server Offline";
 "Server_Status_Checking" = "Checking Status...";
 "Server_Status_Players" = " (%@ players)";
 
 "Character_Implants_Count" = "%d Implant(s)";
 "Character_Clone_And_Implants_Count" = "%d Clone(s) · %d Implant(s)";
+
+"Main_Planetary_Filter_Conditions" = "Filter Conditions";
+"Main_Planetary_Select_Product" = "Select Product";
+"Main_Planetary_Select_Region" = "Select Region";
+"Main_Planetary_Select_Sovereignty" = "Select Sovereignty";
+"Main_Planetary_Not_Selected" = "Not Selected";
+"Main_Planetary_calc" = "Planetary Calc";
+"Main_Planetary_Output" = "Show Output of Zone";
+
+// Sovereignty Selection
+"Loading_Sovereignty" = "Loading sovereignty data...";
+"Sovereignty_All" = "All Sovereignty";
+"Sovereignty_Search_Title" = "Select Sovereignty";
+"Sovereignty_Search_Placeholder" = "Search sovereignty...";
+"Sovereignty_Systems" = " systems";
+"Sovereignty_Loading" = "Loading...";
+"Sovereignty_No_Data" = "No sovereignty data";
+"Sovereignty_Error" = "Loading failed";
+"Sovereignty_Retry" = "Retry";
+
+// Planetary Site Calculation
+"Main_Planetary_Calculate" = "Calculate";
+"Main_Planetary_Calculating" = "Calculating...";
+
+"Main_Planetary_Jump_Range" = "Jump Range";
+"Main_Planetary_Jumps" = "jumps";
+"Main_Planetary_Search_Results" = "Search Result";
+
+// New strings for PlanetarySearchResultView
+"Planetary_Search_Tip_1" = "1. Please consider customs tax and transportation in your selection.";
+"Planetary_Search_Tip_2" = "2. This feature recommends systems based on planet count and types, The systems following have all the P0 resource required for your selection. For reference only.";
+"Planetary_Local_Resources" = "Local Resources:";
+"Planetary_Nearby_Resources" = "Nearby Resources:";
+"Planetary_Resource_Planet_Count" = "%@ planets";
+"Planetary_Resource_Jump_Count" = "%d jumps required";
+"Planetary_Coverage" = "Resource Coverage: %.1f%%";
+"Planetary_Resource_System_Format" = "%@ (%d jumps)";
+"Planetary_Search_No_Results" = "No systems found that can produce the required resources";
+"Planetary_Search_No_Results_Tips" = "Please consider the following adjustments:\n• Increase jump range\n• Select a different region or sovereignty\n• Choose a different product that may be easier to produce";
+
+// Planetary site finder descriptions
+"Planetary_Product_Description" = "What product";
+"Planetary_Region_Description" = "In which region";
+"Planetary_Sovereignty_Description" = "Which Faction";
+"Planetary_Jump_Description" = "Max distance";
+
+"Main_Setting_Static_Resource_Faction_Icons" = "Faction Icons";
+
+// Planetary Output Calculator
+"PI_Output_Filter_Conditions" = "Filter Conditions";
+"PI_Output_Select_Solar_System" = "Select Solar System";
+"PI_Output_Not_Selected" = "Not Selected";
+"PI_Output_Max_Jumps" = "Max Jumps";
+"PI_Output_Search_Solar_System" = "Search Solar System";
+"PI_Output_No_Results" = "No Results Found";
+"PI_Output_Loading_Systems" = "Loading Systems...";
+"Common_Cancel" = "Cancel";
+"Planetary_System_Description" = "Select system as production center";
+
+"PI_Output_Calculating" = "Calc...";
+"PI_Output_View_Systems" = "Show Systems";
+"PI_Output_Systems_List" = "Available Systems";
+"PI_Output_Start_System" = "Base System";
+"Types" = "types";
+"PI_Output_Resources" = "Available resource and production";
+"PI_Output_View_Planets" = "View Planets";
+"PI_Output_Planet_Distribution" = "Available Planets";
+"PI_Production_Plan_BasicInfo" = "Basic Info";
+"PI_Production_name" = "Production";
+"PI_Production_solar" = "Base System";
+"PI_Production_Plan_JumpRange" = "Range";
+"PI_Production_Plan_Systems" = "Jump(s)";
+"PI_Production_Sov" = "Sovereignty";
+"PI_Production_Plan_Title" = "Production Plan";
+"PI_Resource_Chain_Error" = "Error";
+"PI_Production_Plan_P0Requirements" = "Requirements";
+"PI_Available_production" = "Available Production";
+
+"Industry_Runs_Format" = "%d runs ×";
+"Industry_Runs_With_Copies_Format" = "%d runs × %d copies";
+
+// Recipient Types Text
+"Recipient_Type_Character" = "Character";
+"Recipient_Type_Corporation" = "Corporation";
+"Recipient_Type_Alliance" = "Alliance";
+"Recipient_Type_Mailing_List" = "Mailing List";

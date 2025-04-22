@@ -21,26 +21,7 @@ class CharacterWalletAPI {
     // UserDefaults键前缀
     private let walletCachePrefix = "wallet_cache_"
 
-    // MARK: - Wallet Journal Methods
-
-    // 钱包日志缓存结构
-    private struct WalletJournalCacheEntry: Codable {
-        let jsonString: String
-        let timestamp: Date
-    }
-
-    // 钱包日志缓存前缀
-    private let walletJournalCachePrefix = "wallet_journal_cache_"
-
     // 钱包交易记录缓存前缀
-    private let walletTransactionsCachePrefix = "wallet_transactions_cache_"
-
-    // 钱包交易记录缓存结构
-    private struct WalletTransactionsCacheEntry: Codable {
-        let jsonString: String
-        let timestamp: Date
-    }
-
     private let lastJournalQueryKey = "LastWalletJournalQuery_"
     private let lastTransactionQueryKey = "LastWalletTransactionQuery_"
     private let queryInterval: TimeInterval = 3600  // 1小时的查询间隔

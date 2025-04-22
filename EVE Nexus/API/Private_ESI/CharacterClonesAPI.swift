@@ -24,11 +24,6 @@ struct JumpClone: Codable {
 class CharacterClonesAPI {
     static let shared = CharacterClonesAPI()
     private let databaseManager = CharacterDatabaseManager.shared
-
-    // 缓存相关常量
-    private let lastClonesQueryKey = "LastClonesQuery_"
-    private let queryInterval: TimeInterval = 3600  // 1小时的查询间隔
-
     private init() {}
 
     // 保存克隆体数据到数据库

@@ -23,17 +23,6 @@ struct MarketOrdersView: View {
         )
     }
 
-    private var filteredOrders: [MarketOrder] {
-        let filtered = orders.filter { $0.isBuyOrder == showBuyOrders }
-        return filtered.sorted { order1, order2 -> Bool in
-            if showBuyOrders {
-                return order1.price > order2.price  // 买单按价格从高到低
-            } else {
-                return order1.price < order2.price  // 卖单按价格从低到高
-            }
-        }
-    }
-
     var body: some View {
         VStack(spacing: 0) {
             // 顶部选择器

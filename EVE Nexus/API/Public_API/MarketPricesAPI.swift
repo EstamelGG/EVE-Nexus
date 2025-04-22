@@ -166,6 +166,7 @@ class MarketPricesAPI {
     // MARK: - 公共方法
 
     func fetchMarketPrices(forceRefresh: Bool = false) async throws -> [MarketPrice] {
+        // 获取市场估价
         // 如果不是强制刷新，尝试从数据库获取
         if !forceRefresh {
             if let cached = loadFromDatabase(), !cached.isEmpty {

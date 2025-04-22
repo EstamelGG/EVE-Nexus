@@ -1,13 +1,26 @@
 import SwiftUI
 
-private struct DatabaseManagerKey: EnvironmentKey {
-    static let defaultValue: DatabaseManager = .shared
+// 共用的图标尺寸常量
+private struct IconSize {
+    static let standard: CGFloat = 32
+    static let location: CGFloat = 36
 }
 
-extension EnvironmentValues {
-    var databaseManager: DatabaseManager {
-        get { self[DatabaseManagerKey.self] }
-        set { self[DatabaseManagerKey.self] = newValue }
+// 共用的图标视图
+private struct AssetIconView: View {
+    let iconName: String
+    let size: CGFloat
+
+    init(iconName: String, size: CGFloat = IconSize.standard) {
+        self.iconName = iconName
+        self.size = size
+    }
+
+    var body: some View {
+        IconManager.shared.loadImage(for: iconName)
+            .resizable()
+            .frame(width: size, height: size)
+            .cornerRadius(6)
     }
 }
 
@@ -20,15 +33,12 @@ private struct LocationRowView: View {
         HStack {
             // 位置图标
             if let iconFileName = location.icon_name {
-                IconManager.shared.loadImage(for: iconFileName)
-                    .resizable()
-                    .frame(width: 36, height: 36)
-                    .cornerRadius(6)
+                AssetIconView(iconName: iconFileName, size: IconSize.location)
             } else if location.name == nil {
                 // 位置未知时显示默认图标（ID为0）
                 Image("not_found")
                     .resizable()
-                    .frame(width: 36, height: 36)
+                    .frame(width: IconSize.location, height: IconSize.location)
                     .cornerRadius(6)
             }
 
@@ -57,15 +67,12 @@ private struct LocationRowView: View {
 // 位置名称视图
 private struct LocationNameView: View {
     let location: AssetTreeNode
-    @AppStorage("useEnglishSystemNames") private var useEnglishSystemNames = false
-    @State private var solarSystemName: String?
-    @Environment(\.databaseManager) private var databaseManager
     @EnvironmentObject private var viewModel: CharacterAssetsViewModel
 
     var body: some View {
         LocationInfoView(
-            stationName: location.name,
-            solarSystemName: solarSystemName ?? "Unknown loc (\(location.location_id))",
+            stationName: location.getLocationName(stationNameCache: viewModel.stationNameCache),
+            solarSystemName: getSolarSystemName(),
             security: location.security_status,
             locationId: location.location_id,
             font: .body,
@@ -73,22 +80,16 @@ private struct LocationNameView: View {
             inSpaceNote: location.location_type == "solar_system"
                 ? NSLocalizedString("Character_in_space", comment: "") : nil
         )
-        .task {
-            if let systemId = location.system_id {
-                // 首先尝试从ViewModel的缓存中获取
-                if let systemInfo = viewModel.systemInfoCache[systemId] {
-                    solarSystemName = systemInfo.systemName
-                } else {
-                    // 如果缓存中没有，再查询数据库
-                    if let systemInfo = await getSolarSystemInfo(
-                        solarSystemId: systemId,
-                        databaseManager: databaseManager
-                    ) {
-                        solarSystemName = systemInfo.systemName
-                    }
-                }
-            }
+    }
+
+    // 获取星系名称，优先使用缓存
+    private func getSolarSystemName() -> String? {
+        if let systemId = location.system_id,
+            let name = viewModel.solarSystemNameCache[systemId]
+        {
+            return name
         }
+        return nil
     }
 }
 
@@ -100,10 +101,7 @@ private struct SearchResultRowView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 // 物品图标
-                IconManager.shared.loadImage(for: result.itemInfo.iconFileName)
-                    .resizable()
-                    .frame(width: 32, height: 32)
-                    .cornerRadius(6)
+                AssetIconView(iconName: result.itemInfo.iconFileName)
 
                 VStack(alignment: .leading, spacing: 2) {
                     // 物品名称
@@ -233,7 +231,7 @@ struct CharacterAssetsView: View {
                                     await viewModel.loadAssets(forceRefresh: true)
                                 }
                             }) {
-                                Text(NSLocalizedString("Main_Retry", comment: ""))
+                                Text(NSLocalizedString("ESI_Status_Retry", comment: ""))
                                     .padding(.horizontal, 20)
                                     .padding(.vertical, 8)
                                     .background(Color.accentColor)
@@ -253,7 +251,9 @@ struct CharacterAssetsView: View {
                     NavigationLink(
                         destination: LocationAssetsView(
                             location: result.containerNode,
-                            preloadedItemInfo: viewModel.itemInfoCache)
+                            preloadedItemInfo: viewModel.itemInfoCache,
+                            stationNameCache: viewModel.stationNameCache,
+                            solarSystemNameCache: viewModel.solarSystemNameCache)
                     ) {
                         SearchResultRowView(result: result)
                     }
@@ -275,7 +275,10 @@ struct CharacterAssetsView: View {
                         ) { location in
                             NavigationLink(
                                 destination: LocationAssetsView(
-                                    location: location, preloadedItemInfo: viewModel.itemInfoCache)
+                                    location: location,
+                                    preloadedItemInfo: viewModel.itemInfoCache,
+                                    stationNameCache: viewModel.stationNameCache,
+                                    solarSystemNameCache: viewModel.solarSystemNameCache)
                             ) {
                                 LocationRowView(location: location)
                                     .environmentObject(viewModel)

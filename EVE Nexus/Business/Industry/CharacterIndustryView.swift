@@ -584,8 +584,13 @@ struct IndustryJobRow: View {
                         HStack {
                             Text(
                                 job.activity_id == 5
-                                    ? "\(job.runs) runs \(NSLocalizedString("Misc_number_item_x", comment: "")) \(job.licensed_runs ?? 0) copies"
-                                    : "\(job.runs) runs \(NSLocalizedString("Misc_number_item_x", comment: ""))"
+                                    ? String(
+                                        format: NSLocalizedString(
+                                            "Industry_Runs_With_Copies_Format", comment: ""),
+                                        job.runs, job.licensed_runs ?? 1)
+                                    : String(
+                                        format: NSLocalizedString(
+                                            "Industry_Runs_Format", comment: ""), job.runs)
                             )
                             .font(.caption)
                             .foregroundColor(.secondary)
@@ -631,7 +636,7 @@ struct IndustryJobRow: View {
                         .font(.caption)
                         .foregroundColor(getStatusColor())
                     Spacer()
-                    Text("Finish on \(getTimeDisplay())")
+                    Text("\(NSLocalizedString("Finished_on", comment: "")) \(getTimeDisplay())")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
