@@ -505,13 +505,13 @@ struct AgentSearchView: View {
                 SELECT 
                     a.agent_id, 
                     a.agent_type, 
-                    COALESCE(a.agent_name, n.itemName) as name,
+                    COALESCE(a.agent_name, 'Unknown') as name,
                     a.level, 
                     a.corporationID, 
                     a.divisionID, 
                     a.isLocator, 
                     a.locationID,
-                    COALESCE(st.stationName, l.itemName) as locationName,
+                    COALESCE(st.stationName, 'Unknown') as locationName,
                     a.solarSystemID, 
                     s.solarSystemName as solarSystemName,
                     s.security_status as system_security,
@@ -522,10 +522,8 @@ struct AgentSearchView: View {
                     f.iconName as factionIcon,
                     c.icon_id as corporationIconID, 
                     d.name as divisionName,
-                    COALESCE(s.solarSystemName, ss.solarSystemName, l.itemName) as sortLocation
+                    COALESCE(s.solarSystemName, ss.solarSystemName, 'Unknown') as sortLocation
                 FROM agents a
-                LEFT JOIN invNames n ON a.agent_id = n.itemID
-                LEFT JOIN invNames l ON a.locationID = l.itemID
                 LEFT JOIN solarsystems s ON a.solarSystemID = s.solarSystemID
                 LEFT JOIN stations st ON a.locationID = st.stationID
                 LEFT JOIN solarsystems ss ON st.solarSystemID = ss.solarSystemID
@@ -676,10 +674,9 @@ struct AgentSearchView: View {
     // 加载特定势力的军团
     private func loadCorporationsForFaction(_ factionID: Int) {
         let query = """
-                SELECT DISTINCT c.corporation_id, c.name, c.icon_id, i.iconFile_new
+                SELECT DISTINCT c.corporation_id, c.name, c.icon_id, c.icon_filename
                 FROM agents a
                 JOIN npcCorporations c ON a.corporationID = c.corporation_id
-                JOIN iconIDs i ON c.icon_id = i.icon_id
                 WHERE c.faction_id = ?
                 ORDER BY c.name
             """
@@ -688,7 +685,7 @@ struct AgentSearchView: View {
             availableCorporations = rows.compactMap { row in
                 guard let corporationID = row["corporation_id"] as? Int,
                     let name = row["name"] as? String,
-                    let iconFile = row["iconFile_new"] as? String
+                    let iconFile = row["icon_filename"] as? String
                 else {
                     return nil
                 }
@@ -1160,9 +1157,8 @@ struct AgentListHierarchyView: View {
 
         // 一次性查询指定势力下的所有军团
         let query = """
-                SELECT c.corporation_id, c.name, c.icon_id, i.iconFile_new
+                SELECT c.corporation_id, c.name, c.icon_id, c.icon_filename
                 FROM npcCorporations c
-                LEFT JOIN iconIDs i ON c.icon_id = i.icon_id
                 WHERE c.faction_id = ?
                 ORDER BY c.name
             """
@@ -1175,7 +1171,7 @@ struct AgentListHierarchyView: View {
                     return nil
                 }
 
-                let iconFile = row["iconFile_new"] as? String ?? "corporation_default"
+                let iconFile = row["icon_filename"] as? String ?? "corporation_default"
                 return (corporationID, name, iconFile)
             }
 
@@ -1587,10 +1583,9 @@ struct AgentCellView: View {
         let affiliationQuery = """
                 SELECT c.name as corporationName, f.name as factionName, 
                        f.iconName as factionIcon, c.icon_id as corporationIconID,
-                       i.iconFile_new as corporationIcon
+                       c.icon_filename as corporationIcon
                 FROM npcCorporations c
                 JOIN factions f ON c.faction_id = f.id
-                LEFT JOIN iconIDs i ON c.icon_id = i.icon_id
                 WHERE c.corporation_id = ?
             """
 

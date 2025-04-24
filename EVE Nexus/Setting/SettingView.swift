@@ -426,19 +426,21 @@ struct SettingView: View {
 
     private struct ShowImportantAttributesToggle: View {
         @State private var showImportantOnly: Bool = AttributeDisplayConfig.showImportantOnly
-        
+
         var body: some View {
             HStack {
                 Toggle(isOn: $showImportantOnly) {
                     VStack(alignment: .leading) {
                         Text(
-                            NSLocalizedString("Main_Database_Show_Important_Only", comment: "只显示重要属性")
+                            NSLocalizedString(
+                                "Main_Database_Show_Important_Only", comment: "只显示重要属性")
                         )
                         .font(.system(size: 16))
                         .foregroundColor(.primary)
                         Text(
                             NSLocalizedString(
-                                "Main_Database_Show_Important_Only_Detail", comment: "只显示有display_name的属性"
+                                "Main_Database_Show_Important_Only_Detail",
+                                comment: "只显示有display_name的属性"
                             )
                         )
                         .font(.system(size: 12))
@@ -494,12 +496,6 @@ struct SettingView: View {
                 ) { _ in
                     AnyView(ShowImportantAttributesToggle())
                 }
-                //            SettingItem(
-                //                title: NSLocalizedString("Main_Setting_Logs", comment: ""),
-                //                detail: NSLocalizedString("Main_Setting_Logs_Detail", comment: ""),
-                //                icon: "doc.text.magnifyingglass",
-                //                action: { showingLogViewer = true }
-                //            )
             ]
         )
     }

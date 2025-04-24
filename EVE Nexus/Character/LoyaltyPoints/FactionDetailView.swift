@@ -74,9 +74,8 @@ struct FactionDetailView: View {
         error = nil
 
         let query = """
-                SELECT c.corporation_id, c.name, c.faction_id, i.iconFile_new
+                SELECT c.corporation_id, c.name, c.faction_id, c.icon_filename
                 FROM npcCorporations c
-                LEFT JOIN iconIDs i ON c.icon_id = i.icon_id
                 WHERE c.faction_id = ?
                 ORDER BY c.name
             """

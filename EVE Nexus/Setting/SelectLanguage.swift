@@ -54,7 +54,7 @@ struct SelectLanguageView: View {
                     .font(.headline)
                     .foregroundColor(.primary)
             }
-            
+
             // 数据库语言设置部分
             Section {
                 ForEach(languages.keys.sorted(), id: \.self) { language in
@@ -88,9 +88,11 @@ struct SelectLanguageView: View {
             displayLanguage = "English"
             selectedLanguage = "en"
         }
-        
+
         // 根据当前 selectedDatabaseLanguage 设置数据库显示语言
-        if let defaultDBLanguage = languages.first(where: { $0.value == selectedDatabaseLanguage })?.key {
+        if let defaultDBLanguage = languages.first(where: { $0.value == selectedDatabaseLanguage })?
+            .key
+        {
             displayDatabaseLanguage = defaultDBLanguage
         } else {
             // 如果没有匹配的语言，默认使用英语
@@ -129,20 +131,20 @@ struct SelectLanguageView: View {
             )
         }
     }
-    
+
     private func applyDatabaseLanguageChange(_ language: String) {
         guard let languageCode = languages[language] else { return }
-        
+
         // 1. 保存新的数据库语言设置
         selectedDatabaseLanguage = languageCode
-        
+
         // 2. 清除数据库相关缓存
         DatabaseBrowserView.clearCache()  // 清除导航缓存
         databaseManager.clearCache()  // 清除 SQL 查询缓存
-        
+
         // 3. 重新加载数据库，使用新的语言设置
         databaseManager.loadDatabase()
-        
+
         // 4. 发送通知，更新数据库相关视图
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
             NotificationCenter.default.post(

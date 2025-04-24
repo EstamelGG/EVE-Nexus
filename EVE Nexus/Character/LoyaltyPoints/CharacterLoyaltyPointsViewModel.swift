@@ -70,28 +70,16 @@ class CharacterLoyaltyPointsViewModel: ObservableObject {
         name: String, iconFileName: String
     )? {
         let query = """
-                SELECT name, icon_id FROM npcCorporations WHERE corporation_id = \(corporationId)
+                SELECT name, icon_filename FROM npcCorporations WHERE corporation_id = \(corporationId)
             """
 
         guard case let .success(rows) = SQLiteManager.shared.executeQuery(query),
             let result = rows.first,
             let name = result["name"] as? String,
-            let iconId = result["icon_id"] as? Int
+            let iconFileName = result["icon_filename"] as? String
         else {
             return nil
         }
-
-        let iconQuery = """
-                SELECT iconFile_new FROM iconIDs WHERE icon_id = \(iconId)
-            """
-
-        guard case let .success(iconRows) = SQLiteManager.shared.executeQuery(iconQuery),
-            let iconResult = iconRows.first,
-            let iconFileName = iconResult["iconFile_new"] as? String
-        else {
-            return (name, "")
-        }
-
         return (name, iconFileName)
     }
 }

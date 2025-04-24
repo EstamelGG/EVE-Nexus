@@ -3,14 +3,14 @@ import SwiftUI
 // 抗性条显示组件
 struct ResistanceBarView: View {
     let resistances: [Double]
-
+    
     // 定义抗性类型
     private struct ResistanceType: Identifiable {
         let id: Int
         let iconName: String
         let color: Color
     }
-
+    
     // 定义抗性类型数据
     private let resistanceTypes = [
         ResistanceType(
@@ -34,13 +34,13 @@ struct ResistanceBarView: View {
             color: Color(red: 185 / 255, green: 138 / 255, blue: 62 / 255)  // Explosive - 橙色
         ),
     ]
-
+    
     // 获取格式化后的百分比值
     private func roundedPercentage(_ value: Double) -> String {
         let formatted = String(format: "%.2f", value)
         return formatted.replacingOccurrences(of: "\\.?0+$", with: "", options: .regularExpression)
     }
-
+    
     var body: some View {
         VStack(spacing: 2) {
             // 图标和数值行
@@ -52,13 +52,13 @@ struct ResistanceBarView: View {
                             Image(type.iconName)
                                 .resizable()
                                 .frame(width: 20, height: 20)
-
+                            
                             // 数值
                             Text("\(roundedPercentage(resistances[type.id]))%")
                                 .font(.system(size: 13, weight: .medium))
                                 .foregroundColor(.primary)
                                 .lineLimit(1)
-
+                            
                             Spacer()
                         }
                         .frame(width: geometry.size.width)
@@ -66,7 +66,7 @@ struct ResistanceBarView: View {
                 }
             }
             .frame(height: 24)
-
+            
             // 进度条行
             HStack(spacing: 8) {
                 ForEach(resistanceTypes) { type in
@@ -77,7 +77,7 @@ struct ResistanceBarView: View {
                                 .fill(type.color.opacity(0.8))
                                 .overlay(Color.black.opacity(0.5))
                                 .frame(width: geometry.size.width)
-
+                            
                             // 进度条 - 增加亮度和饱和度
                             Rectangle()
                                 .fill(type.color)
@@ -92,7 +92,7 @@ struct ResistanceBarView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 2))
                     .overlay(
                         RoundedRectangle(cornerRadius: 2)
-                            // .stroke(type.color, lineWidth: 1.5)
+                        // .stroke(type.color, lineWidth: 1.5)
                             .stroke(type.color, lineWidth: 0)
                             .saturation(1.2)  // 增加饱和度
                     )
@@ -108,21 +108,21 @@ struct AttributeItemView: View {
     let attribute: DogmaAttribute
     let allAttributes: [Int: Double]
     @ObservedObject var databaseManager: DatabaseManager
-
+    
     // 检查是否是可跳转的属性
     private var isNavigable: Bool {
         attribute.unitID == 115 || attribute.unitID == 116  // 只有 groupID 和 typeID 可以跳转
     }
-
+    
     // 获取目标视图
     private var navigationDestination: AnyView? {
         guard let value = allAttributes[attribute.id] else { return nil }
         let id = Int(value)
-
+        
         if attribute.unitID == 115 {  // groupID
             let groupName =
-                databaseManager.getGroupName(for: id)
-                ?? NSLocalizedString("Main_Database_Unknown", comment: "未知")
+            databaseManager.getGroupName(for: id)
+            ?? NSLocalizedString("Main_Database_Unknown", comment: "未知")
             return AnyView(
                 DatabaseBrowserView(
                     databaseManager: databaseManager,
@@ -139,25 +139,25 @@ struct AttributeItemView: View {
         }
         return nil
     }
-
+    
     // 获取显示名称
     private var displayName: String {
         guard let value = allAttributes[attribute.id] else { return "" }
         let id = Int(value)
-
+        
         if attribute.unitID == 115 {  // groupID
             return databaseManager.getGroupName(for: id)
-                ?? NSLocalizedString("Main_Database_Unknown", comment: "未知")
+            ?? NSLocalizedString("Main_Database_Unknown", comment: "未知")
         } else if attribute.unitID == 116 {  // typeID
             return databaseManager.getTypeName(for: id)
-                ?? NSLocalizedString("Main_Database_Unknown", comment: "未知")
+            ?? NSLocalizedString("Main_Database_Unknown", comment: "未知")
         } else if attribute.unitID == 119 {  // attributeID
             return databaseManager.getAttributeName(for: id)
-                ?? NSLocalizedString("Main_Database_Unknown", comment: "未知")
+            ?? NSLocalizedString("Main_Database_Unknown", comment: "未知")
         }
         return ""
     }
-
+    
     // 获取格式化后的显示值
     private var formattedValue: String {
         let result = AttributeDisplayConfig.transformValue(
@@ -175,13 +175,13 @@ struct AttributeItemView: View {
             return ""
         }
     }
-
+    
     var body: some View {
         if AttributeDisplayConfig.shouldShowAttribute(attribute.id, attribute: attribute) {
             let result = AttributeDisplayConfig.transformValue(
                 attribute.id, allAttributes: allAttributes, unitID: attribute.unitID
             )
-
+            
             switch result {
             case let .resistance(resistances):
                 ResistanceBarView(resistances: resistances)
@@ -190,8 +190,8 @@ struct AttributeItemView: View {
             }
         }
     }
-
-    private var defaultAttributeView: some View {
+    
+    private var defaultAttributeView: some View { // 最普通的属性展示
         HStack {
             if attribute.iconID != 0 {
                 IconManager.shared.loadImage(for: attribute.iconFileName)
@@ -199,16 +199,17 @@ struct AttributeItemView: View {
                     .frame(width: 32, height: 32)
             }
 
-            Text(attribute.displayTitle)
+                Text(attribute.displayTitle)
                 .font(.body)
 
             Spacer()
-
+            
             if attribute.unitID == 119 {
                 Text(displayName)
                     .font(.body)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.trailing)
+                
             } else if isNavigable, let destination = navigationDestination {
                 NavigationLink(destination: destination) {
                     HStack {
@@ -242,11 +243,11 @@ struct AttributeGroupView: View {
         group.attributes
             .filter { attribute in
                 // 始终隐藏武器伤害属性
-
+                
                 if damageAttributeIDs.contains(attribute.id) {
                     return false
                 }
-
+                
                 return AttributeDisplayConfig.shouldShowAttribute(
                     attribute.id, attribute: attribute)
             }
@@ -263,17 +264,17 @@ struct AttributeGroupView: View {
                 return order1 < order2
             }
     }
-
+    
     // 检查当前组是否包含507属性
     private var hasMissileAttribute: Bool {
         group.attributes.contains { $0.id == 507 }
     }
-
+    
     // 检查当前组是否包含武器伤害属性
     private var hasWeaponDamageAttributes: Bool {
         return group.attributes.contains { damageAttributeIDs.contains($0.id) }
     }
-
+    
     var body: some View {
         if AttributeDisplayConfig.shouldShowGroup(group.id)
             && (filteredAttributes.count > 0
@@ -290,7 +291,7 @@ struct AttributeGroupView: View {
                 ) {
                     ResistanceBarView(resistances: resistances)
                 }
-
+                
                 // 显示所有属性（包括507，受过滤影响）
                 ForEach(filteredAttributes) { attribute in
                     AttributeItemView(
@@ -299,17 +300,17 @@ struct AttributeGroupView: View {
                         databaseManager: databaseManager
                     )
                 }
-
+                
                 // 只在包含507属性的组中显示导弹伤害信息
                 if hasMissileAttribute {
                     missileInfoView()
                 }
-
+                
                 // 显示武器伤害信息
                 if hasWeaponDamageAttributes {
                     weaponDamageView()
                 }
-
+                
             } header: {
                 Text(group.name)
                     .font(.headline)
@@ -323,7 +324,7 @@ struct AttributesView: View {
     let attributeGroups: [AttributeGroup]
     let typeID: Int
     @ObservedObject var databaseManager: DatabaseManager
-
+    
     private var allAttributes: [Int: Double] {
         var dict: [Int: Double] = [:]
         for group in attributeGroups {
@@ -333,14 +334,14 @@ struct AttributesView: View {
         }
         return dict
     }
-
+    
     private var sortedGroups: [AttributeGroup] {
         attributeGroups.sorted { group1, group2 in
             AttributeDisplayConfig.getGroupOrder(group1.id)
-                < AttributeDisplayConfig.getGroupOrder(group2.id)
+            < AttributeDisplayConfig.getGroupOrder(group2.id)
         }
     }
-
+    
     // 检查是否有衍生矿石属性
     private var hasDerivativeOre: Bool {
         for group in attributeGroups {
@@ -352,7 +353,7 @@ struct AttributesView: View {
         }
         return false
     }
-
+    
     // 获取衍生矿石属性值
     private var derivativeOreValue: Double? {
         for group in attributeGroups {
@@ -364,7 +365,7 @@ struct AttributesView: View {
         }
         return nil
     }
-
+    
     var body: some View {
         ForEach(sortedGroups) { group in
             if group.id == 8 {
@@ -375,7 +376,7 @@ struct AttributesView: View {
                 if !requirements.isEmpty {
                     let totalPoints = requirements.reduce(0) { total, skill in
                         guard let multiplier = skill.timeMultiplier,
-                            skill.level > 0 && skill.level <= SkillTreeManager.levelBasePoints.count
+                              skill.level > 0 && skill.level <= SkillTreeManager.levelBasePoints.count
                         else {
                             return total
                         }
@@ -407,7 +408,7 @@ struct AttributesView: View {
                 )
             }
         }
-
+        
         // 添加衍生矿石列表
         if hasDerivativeOre, let value = derivativeOreValue {
             let items = databaseManager.getItemsByAttributeValue(attributeID: 2711, value: value)

@@ -105,8 +105,7 @@
 "Main_About_Author" = "Author";
 "Main_About_Github" = "Github";
 "Main_About_Report_Bug" = "Report Bug";
-"Main_About_Privacy_Title" = "Privacy Statement";
-"Main_About_Privacy_Statement" =  "We are committed to protecting your privacy and data security:\n\n• Data Storage: All personal data is stored locally on your device only\n• ESI Authorization: We only access EVE Online ESI API with your explicit consent\n• Data Usage: Your game data is used solely for app functionality and not for any other purpose\n• Third-party Sharing: We do not share your personal data with any third parties\n• Data Deletion: You can revoke authorization and delete all local data at any time";
+"Main_About_copyright_Title" = "Copy Right And Privacy Statement";
 
 "Misc_true" = "True";
 "Misc_false" = "False";
@@ -323,6 +322,7 @@
 
 // Location Flags
 "Location_Flag_Hangar" = "Hangar";
+"Location_Flag_CorpSAG" = "Corporation Hangar";
 "Location_Flag_CorpSAG1" = "Corporation Hangar 1";
 "Location_Flag_CorpSAG2" = "Corporation Hangar 2";
 "Location_Flag_CorpSAG3" = "Corporation Hangar 3";
@@ -360,6 +360,9 @@
 "Location_Flag_SpecializedSalvageHold" = " Salvage Hold";
 "Location_Flag_SpecializedShipHold" = " Ship Hold";
 "Location_Flag_SpecializedSmallShipHold" = " Small Ship Hold";
+"Location_Flag_StructureDeedBay" = "Structure Deed Bay";
+"Location_Flag_Unlocked" = "Unlocked";
+"Location_Flag_Wardrobe" = "Wardrobe";
 
 // Assets Loading Status
 "Assets_Loading_Page" = "Fetching page %d";
@@ -848,6 +851,7 @@
 "Main_Market_Location" = "Market Location";
 "Main_Market_Order_Type" = "Order Type";
 "Main_Market_Price" = "Market Price";
+"Main_Market_QuickBar_info" = "Basic Info";
 "Main_Market_Item_List" = "Item List";
 "Main_Market_Edit_Quantity" = "Edit Qty...";
 "Main_Market_Done_Edit" = "Done";
@@ -860,8 +864,8 @@
 "Main_Ore_Variations" = "Ore Variations";
 
 // Market Order Types
-"Main_Market_Order_Buy" = "Buy Orders";
-"Main_Market_Order_Sell" = "Sell Orders";
+"Main_Market_Order_Buy" = "Buy";
+"Main_Market_Order_Sell" = "Sell";
 
 "Main_Battle" = "Battle";
 "Main_Killboard" = "KillBoard";

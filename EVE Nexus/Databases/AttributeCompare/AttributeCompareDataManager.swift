@@ -19,8 +19,8 @@ enum AttributeCompareUtil {
         // 已发布属性名称信息 - 格式: [attributeID: display_name]
         let publishedAttributeInfo: [String: String]
 
-//         // 未发布属性名称信息 - 格式: [attributeID: name]
-//         let unpublishedAttributeInfo: [String: String]
+        //         // 未发布属性名称信息 - 格式: [attributeID: name]
+        //         let unpublishedAttributeInfo: [String: String]
 
         // 属性图标信息 - 格式: [attributeID: iconFileName]
         let attributeIcons: [String: String]

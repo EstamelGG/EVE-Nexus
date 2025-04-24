@@ -151,7 +151,7 @@ struct MarketBaseView<Content: View>: View {
                     }
             } else if items.isEmpty && !searchText.isEmpty {
                 ContentUnavailableView {
-                    Label("Not found", systemImage: "magnifyingglass")
+                    Label(NSLocalizedString("Misc_Not_Found", comment: ""), systemImage: "magnifyingglass")
                 }
             } else if searchText.isEmpty && isSearchActive {
                 Color.black.opacity(0.2)

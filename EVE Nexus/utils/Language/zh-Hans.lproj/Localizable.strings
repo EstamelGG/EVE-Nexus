@@ -119,9 +119,9 @@
 "Main_About_Database_Version" = "数据库版本";
 "Main_About_Author" = "作者";
 "Main_About_Github" = "Github";
-"Main_About_Privacy_Title" = "隐私声明";
-"Main_About_Privacy_Statement" = "我们致力于保护您的隐私和数据安全：\n\n• 数据存储：所有个人数据仅存储在您的设备本地\n• ESI 授权：我们仅在获得您的明确授权后访问 EVE Online ESI API\n• 数据使用：您的游戏数据仅用于提供应用功能，不会用于其他目的\n• 第三方共享：我们不会将您的个人数据分享给任何第三方\n• 数据删除：您可以随时撤销授权并删除所有本地数据";
 "Main_About_Report_Bug" = "报告缺陷";
+"Main_About_copyright_Title" = "版权与隐私说明";
+
 
 "Misc_true" = "是";
 "Misc_false" = "否";
@@ -338,6 +338,9 @@
 "Location_Flag_SpecializedSalvageHold" = "特殊打捞仓";
 "Location_Flag_SpecializedShipHold" = "特殊舰船仓";
 "Location_Flag_SpecializedSmallShipHold" = "特殊小型舰船仓";
+"Location_Flag_StructureDeedBay" = "建筑契据仓";
+"Location_Flag_Unlocked" = "已解锁";
+"Location_Flag_Wardrobe" = "衣柜";
 
 // Assets Loading Status
 "Assets_Loading_Page" = "正在获取第%d页";
@@ -862,6 +865,7 @@
 "Main_Market_Location" = "市场地点";
 "Main_Market_Order_Type" = "订单类型";
 "Main_Market_Price" = "市场价格";
+"Main_Market_QuickBar_info" = "基本信息";
 "Main_Market_Item_List" = "物品列表";
 "Main_Market_Edit_Quantity" = "编辑数量...";
 "Main_Market_Done_Edit" = "完成";

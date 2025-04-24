@@ -233,8 +233,13 @@ struct BRKillMailDetailView: View {
                     }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
 
                     if !highSlotItems.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_KM_High_Slots", comment: "")))
-                        {
+                        Section(
+                            header: Text(NSLocalizedString("Main_KM_High_Slots", comment: ""))
+                                .fontWeight(.bold)
+                                .font(.system(size: 18))
+                                .foregroundColor(.primary)
+                                .textCase(.none)
+                        ) {
                             ForEach(highSlotItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
@@ -263,6 +268,10 @@ struct BRKillMailDetailView: View {
                     if !mediumSlotItems.isEmpty {
                         Section(
                             header: Text(NSLocalizedString("Main_KM_Medium_Slots", comment: ""))
+                                .fontWeight(.bold)
+                                .font(.system(size: 18))
+                                .foregroundColor(.primary)
+                                .textCase(.none)
                         ) {
                             ForEach(mediumSlotItems, id: \.self) { item in
                                 let typeId = item[1]
@@ -290,7 +299,13 @@ struct BRKillMailDetailView: View {
                     }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
 
                     if !lowSlotItems.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_KM_Low_Slots", comment: ""))) {
+                        Section(
+                            header: Text(NSLocalizedString("Main_KM_Low_Slots", comment: ""))
+                                .fontWeight(.bold)
+                                .font(.system(size: 18))
+                                .foregroundColor(.primary)
+                                .textCase(.none)
+                        ) {
                             ForEach(lowSlotItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
@@ -317,7 +332,13 @@ struct BRKillMailDetailView: View {
                     }.sorted { $0[0] < $1[0] }  // 按槽位顺序排序
 
                     if !rigSlotItems.isEmpty {
-                        Section(header: Text(NSLocalizedString("Main_KM_Rig_Slots", comment: ""))) {
+                        Section(
+                            header: Text(NSLocalizedString("Main_KM_Rig_Slots", comment: ""))
+                                .fontWeight(.bold)
+                                .font(.system(size: 18))
+                                .foregroundColor(.primary)
+                                .textCase(.none)
+                        ) {
                             ForEach(rigSlotItems, id: \.self) { item in
                                 let typeId = item[1]
                                 if item[2] > 0 {  // 掉落数量
@@ -346,6 +367,10 @@ struct BRKillMailDetailView: View {
                     if !subsystemSlotItems.isEmpty {
                         Section(
                             header: Text(NSLocalizedString("Main_KM_Subsystem_Slots", comment: ""))
+                                .fontWeight(.bold)
+                                .font(.system(size: 18))
+                                .foregroundColor(.primary)
+                                .textCase(.none)
                         ) {
                             ForEach(subsystemSlotItems, id: \.self) { item in
                                 let typeId = item[1]
@@ -375,6 +400,10 @@ struct BRKillMailDetailView: View {
                     if !fighterTubeItems.isEmpty {
                         Section(
                             header: Text(NSLocalizedString("Main_KM_Fighter_Tubes", comment: ""))
+                                .fontWeight(.bold)
+                                .font(.system(size: 18))
+                                .foregroundColor(.primary)
+                                .textCase(.none)
                         ) {
                             ForEach(fighterTubeItems, id: \.self) { item in
                                 let typeId = item[1]
@@ -426,7 +455,13 @@ struct BRKillMailDetailView: View {
                             } ?? []
 
                         if !flagItems.isEmpty || !flagContainers.isEmpty {
-                            Section(header: Text(getFlagName(flag))) {
+                            Section(
+                                header: Text(getFlagName(flag))
+                                    .fontWeight(.bold)
+                                    .font(.system(size: 18))
+                                    .foregroundColor(.primary)
+                                    .textCase(.none)
+                            ) {
                                 // 显示直接在该舱室的物品
                                 ForEach(flagItems, id: \.self) { item in
                                     let typeId = item[1]

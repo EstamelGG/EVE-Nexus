@@ -217,7 +217,7 @@ enum AttributeDisplayConfig {
     static var customGroupOrder: [Int: Int]?
     static var customHiddenGroups: Set<Int>?
     static var customHiddenAttributes: Set<Int>?
-    
+
     // 只显示重要属性（有displayName的属性）
     static var showImportantOnly: Bool {
         get {

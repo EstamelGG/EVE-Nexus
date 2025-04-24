@@ -41,15 +41,13 @@ struct AboutView: View {
             icon: "envelope.fill",
             url: URL(string: "mailto:jzx1040798357@icloud.com")
         ),
+        AboutItem(
+            title: NSLocalizedString("Main_About_copyright_Title", comment: ""),
+            value: "Copyright.md",
+            icon: "link",
+            url: URL(string: "https://raw.githubusercontent.com/EstamelGG/EVE-Nexus/refs/heads/main/Copyright.md")
+        ),
     ]
-
-    private var privacyText: String {
-        NSLocalizedString("Main_About_Privacy_Statement", comment: "")
-    }
-
-    private var privacyTitle: String {
-        NSLocalizedString("Main_About_Privacy_Title", comment: "")
-    }
 
     var body: some View {
         List {
@@ -90,14 +88,6 @@ struct AboutView: View {
                         AboutItemRow(item: item)
                     }
                 }
-            }
-
-            // Privacy Section
-            Section(header: Text(privacyTitle).fontWeight(.bold)) {
-                Text(privacyText)
-                    .font(.system(size: 14))
-                    .foregroundColor(.primary)
-                    .padding(.vertical, 8)
             }
         }
         .listStyle(.insetGrouped)

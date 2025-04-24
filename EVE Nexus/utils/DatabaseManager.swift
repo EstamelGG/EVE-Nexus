@@ -38,7 +38,7 @@ class DatabaseManager: ObservableObject {
         case "en":
             return "item_db_en"
         default:
-            return "item_db_en" // 默认使用英文数据库
+            return "item_db_en"  // 默认使用英文数据库
         }
     }
 
@@ -285,7 +285,11 @@ class DatabaseManager: ObservableObject {
                 WHERE t.name LIKE ? OR t.en_name LIKE ? OR t.zh_name LIKE ? OR t.de_name LIKE ? OR t.es_name LIKE ? OR t.fr_name LIKE ? OR t.ja_name LIKE ? OR t.ko_name LIKE ? OR t.ru_name LIKE ? OR t.type_id = ?
             """
 
-        var parameters: [Any] = ["%\(searchText)%", "%\(searchText)%", "%\(searchText)%", "%\(searchText)%", "%\(searchText)%", "%\(searchText)%", "%\(searchText)%", "%\(searchText)%", "%\(searchText)%", "\(searchText)"]
+        var parameters: [Any] = [
+            "%\(searchText)%", "%\(searchText)%", "%\(searchText)%", "%\(searchText)%",
+            "%\(searchText)%", "%\(searchText)%", "%\(searchText)%", "%\(searchText)%",
+            "%\(searchText)%", "\(searchText)",
+        ]
 
         if let categoryID = categoryID {
             query += " AND t.categoryID = ?"
@@ -444,10 +448,9 @@ class DatabaseManager: ObservableObject {
         // 2. 加载物品的所有属性值
         let attributeQuery = """
                 SELECT da.attribute_id, da.categoryID, da.name, da.display_name, da.iconID, ta.value, da.unitID,
-                       COALESCE(i.iconFile_new, '') as icon_filename
+                       COALESCE(da.icon_filename, '') as icon_filename
                 FROM typeAttributes ta
                 JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id
-                LEFT JOIN iconIDs i ON da.iconID = i.icon_id
                 WHERE ta.type_id = ?
                 ORDER BY da.categoryID, da.attribute_id
             """
