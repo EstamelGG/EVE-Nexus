@@ -116,7 +116,7 @@ struct DatabaseListView: View {
                 }
         } else if items.isEmpty && !searchText.isEmpty {
             ContentUnavailableView {
-                Label("Not found", systemImage: "magnifyingglass")
+                Label(NSLocalizedString("Misc_Not_Found", comment: ""), systemImage: "magnifyingglass")
             }
         } else if searchText.isEmpty && isSearchActive {
             // 添加一个可点击的半透明遮罩

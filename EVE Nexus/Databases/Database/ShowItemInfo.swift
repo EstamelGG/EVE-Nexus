@@ -92,7 +92,7 @@ struct ShowItemInfo: View {
                             .font(.headline)
                     }
                 }
-                
+
                 // 属性 Sections
                 AttributesView(
                     attributeGroups: attributeGroups,

@@ -170,7 +170,7 @@ final class IncursionsViewModel: ObservableObject {
     }
 
     private func getFactionInfo(factionId: Int) async -> (iconName: String, name: String)? {
-        let iconName = factionId == 500_019 ? "corporations_44_128_2.png" : "corporations_default"
+        let iconName = factionId == 500_019 ? "sansha" : "corporations_default"
 
         let query = "SELECT name FROM factions WHERE id = ?"
         guard
@@ -226,7 +226,7 @@ struct IncursionCell: View {
                             .foregroundColor(.secondary)
                             .font(.subheadline)
                         if incursion.incursion.hasBoss {
-                            IconManager.shared.loadImage(for: "items_4_64_7.png")
+                            IconManager.shared.loadImage(for: "sansha_boss")
                                 .resizable()
                                 .frame(width: 18, height: 18)
                         }

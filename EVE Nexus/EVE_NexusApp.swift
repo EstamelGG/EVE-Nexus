@@ -5,6 +5,7 @@ import SwiftUI
 @main
 struct EVE_NexusApp: App {
     @AppStorage("selectedLanguage") private var selectedLanguage: String?
+    @AppStorage("selectedDatabaseLanguage") private var selectedDatabaseLanguage: String?
     @StateObject private var databaseManager = DatabaseManager()
     @State private var loadingState: LoadingState = .processing
     @State private var isInitialized = false
@@ -86,6 +87,14 @@ struct EVE_NexusApp: App {
             UserDefaults.standard.set([selectedLanguage], forKey: "AppleLanguages")
             UserDefaults.standard.synchronize()
             Logger.debug("使用已保存的语言设置: \(String(describing: selectedLanguage))")
+        }
+        
+        // 配置数据库语言，如果未设置则与应用语言保持一致
+        if selectedDatabaseLanguage == nil {
+            selectedDatabaseLanguage = selectedLanguage
+            Logger.debug("首次启动，设置数据库语言与应用语言一致: \(String(describing: selectedDatabaseLanguage))")
+        } else {
+            Logger.debug("使用已保存的数据库语言设置: \(String(describing: selectedDatabaseLanguage))")
         }
     }
 

@@ -10,7 +10,7 @@ struct Corporation: Identifiable {
         guard let corporationId = row["corporation_id"] as? Int,
             let name = row["name"] as? String,
             let factionId = row["faction_id"] as? Int,
-            let iconFileName = row["iconFile_new"] as? String
+            let iconFileName = row["icon_filename"] as? String
         else {
             return nil
         }

@@ -328,7 +328,7 @@ struct MarketItemSelectorBaseView<Content: View>: View {
                     }
             } else if items.isEmpty && !searchText.isEmpty {
                 ContentUnavailableView {
-                    Label("Not found", systemImage: "magnifyingglass")
+                    Label(NSLocalizedString("Misc_Not_Found", comment: ""), systemImage: "magnifyingglass")
                 }
             } else if searchText.isEmpty && isSearchActive {
                 Color.black.opacity(0.2)
@@ -919,7 +919,7 @@ struct MarketQuickbarDetailView: View {
                         }
                     }
                 } header: {
-                    Text(NSLocalizedString("Main_Market_Item_List", comment: ""))
+                    Text(NSLocalizedString("Main_Market_QuickBar_info", comment: ""))
                         .fontWeight(.bold)
                         .font(.system(size: 18))
                         .foregroundColor(.primary)

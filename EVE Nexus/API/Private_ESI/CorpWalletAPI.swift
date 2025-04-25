@@ -169,6 +169,30 @@ class CorpWalletAPI {
     /// - Returns: 本地化的部门名称
     func getDivisionName(division: Int, type: String, customName: String?) -> String {
         if let name = customName {
+            // 如果是wallet类型且名称匹配"Wallet Division \d+"模式，则不使用customName
+            if type == "wallet" {
+                let pattern = "^Wallet Division \\d+$"
+                if let regex = try? NSRegularExpression(pattern: pattern, options: []),
+                    regex.firstMatch(
+                        in: name, options: [], range: NSRange(location: 0, length: name.utf16.count)
+                    ) != nil
+                {
+                    // 使用默认格式
+                    if division == 1 {
+                        return String(
+                            format: NSLocalizedString(
+                                "Main_Corporation_Wallet_Division1", comment: ""),
+                            division
+                        )
+                    } else {
+                        return String(
+                            format: NSLocalizedString(
+                                "Main_Corporation_Wallet_Default", comment: ""),
+                            division
+                        )
+                    }
+                }
+            }
             return name
         }
 
@@ -177,7 +201,7 @@ class CorpWalletAPI {
             return String(
                 format: NSLocalizedString("Main_Corporation_Hangar_Default", comment: ""), division
             )
-        } else {
+        } else if type == "wallet" {
             if division == 1 {
                 return String(
                     format: NSLocalizedString("Main_Corporation_Wallet_Division1", comment: ""),
@@ -189,6 +213,8 @@ class CorpWalletAPI {
                     division
                 )
             }
+        } else {
+            return NSLocalizedString("Unknown", comment: "")
         }
     }
 
@@ -226,28 +252,6 @@ class CorpWalletAPI {
                 progressCallback?(.loading(page: page))
             }
         )
-
-        //        let urlString =
-        //            "https://esi.evetech.net/latest/corporations/\(corporationId)/wallets/\(division)/journal/?datasource=tranquility&page=1"
-        //        guard let url = URL(string: urlString) else {
-        //            throw NetworkError.invalidURL
-        //        }
-        //
-        //        // 通知进度回调
-        //        progressCallback?(.loading(page: 1))
-        //
-        //        // 使用fetchDataWithToken获取数据
-        //        let data = try await NetworkManager.shared.fetchDataWithToken(
-        //            from: url, characterId: characterId
-        //        )
-        //
-        //        // 解析返回的JSON数据
-        //        guard let entries = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else {
-        //            throw NetworkError.invalidResponse
-        //        }
-        //
-        //        Logger.info("成功获取军团钱包日志，共\(entries.count)条记录")
-        //        return entries
     }
 
     /// 从数据库获取军团钱包日志

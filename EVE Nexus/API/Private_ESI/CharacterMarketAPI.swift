@@ -12,7 +12,8 @@ class CharacterMarketAPI {
     private let cacheDirectory: URL = {
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         let ordersDirectory = paths[0].appendingPathComponent("CharacterOrders", isDirectory: true)
-        try? FileManager.default.createDirectory(at: ordersDirectory, withIntermediateDirectories: true)
+        try? FileManager.default.createDirectory(
+            at: ordersDirectory, withIntermediateDirectories: true)
         return ordersDirectory
     }()
 
@@ -39,7 +40,7 @@ class CharacterMarketAPI {
 
     private func getCachedOrders(characterId: Int64) -> (jsonString: String, cache: CachedData)? {
         let cacheFile = getCacheFilePath(characterId: characterId)
-        
+
         // 1. 尝试从文件读取并解码缓存数据
         guard let data = try? Data(contentsOf: cacheFile),
             let cache = try? JSONDecoder().decode(CachedData.self, from: data)
@@ -54,7 +55,8 @@ class CharacterMarketAPI {
             return nil
         }
 
-        Logger.debug("获取市场订单缓存数据 from: \(cacheFile) - 角色ID: \(characterId), 订单数量: \(cache.orders.count)")
+        Logger.debug(
+            "获取市场订单缓存数据 from: \(cacheFile) - 角色ID: \(characterId), 订单数量: \(cache.orders.count)")
         return (jsonString, cache)
     }
 
@@ -122,7 +124,7 @@ class CharacterMarketAPI {
         // 2. 如果强制刷新或缓存无效，从网络获取
         do {
             let jsonString = try await fetchFromNetwork(characterId: characterId)
-            
+
             // 3. 保存新数据到缓存
             saveOrdersToCache(jsonString: jsonString, characterId: characterId)
             return jsonString

@@ -10,11 +10,11 @@ struct SovereigntyListView: View {
     @State private var errorMessage: String? = nil
     @State private var showError: Bool = false
     @StateObject private var iconLoader = AllianceIconLoader()
-    
+
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
     }
-    
+
     var body: some View {
         VStack {
             if isLoading {
@@ -43,7 +43,7 @@ struct SovereigntyListView: View {
                                     .background(Color.gray.opacity(0.1))
                                     .cornerRadius(6)
                             }
-                            
+
                             VStack(alignment: .leading) {
                                 Text(sovereignty.name)
                                     .foregroundColor(.primary)
@@ -74,19 +74,22 @@ struct SovereigntyListView: View {
         .onDisappear {
             iconLoader.cancelAllTasks()
         }
-        .alert(NSLocalizedString("Load_Error", comment: "加载错误"), isPresented: $showError, actions: {
-            Button(NSLocalizedString("OK", comment: "确定"), role: .cancel) {
-                showError = false
-            }
-        }, message: {
-            if let errorMsg = errorMessage {
-                Text(errorMsg)
-            } else {
-                Text(NSLocalizedString("Unknown_Error", comment: "未知错误"))
-            }
-        })
+        .alert(
+            NSLocalizedString("Load_Error", comment: "加载错误"), isPresented: $showError,
+            actions: {
+                Button(NSLocalizedString("OK", comment: "确定"), role: .cancel) {
+                    showError = false
+                }
+            },
+            message: {
+                if let errorMsg = errorMessage {
+                    Text(errorMsg)
+                } else {
+                    Text(NSLocalizedString("Unknown_Error", comment: "未知错误"))
+                }
+            })
     }
-    
+
     // 过滤后的主权列表
     private var filteredSovereignties: [SovereigntyInfo] {
         if searchText.isEmpty {
@@ -95,11 +98,11 @@ struct SovereigntyListView: View {
             return sovereignties.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
         }
     }
-    
+
     // 加载主权数据
     private func loadSovereigntyData() {
         isLoading = true
-        
+
         Task {
             do {
                 try await loadSovereigntyDataInternal(forceRefresh: false)
@@ -110,11 +113,11 @@ struct SovereigntyListView: View {
                     showError = true
                 }
             }
-            
+
             isLoading = false
         }
     }
-    
+
     // 刷新主权数据
     private func refreshSovereigntyData() async {
         // 重置状态
@@ -129,17 +132,17 @@ struct SovereigntyListView: View {
             }
         }
     }
-    
+
     // 内部加载方法，避免代码重复
     private func loadSovereigntyDataInternal(forceRefresh: Bool) async throws {
         // 获取主权数据
         let sovereigntyData = try await SovereigntyDataAPI.shared.fetchSovereigntyData(
             forceRefresh: forceRefresh)
-        
+
         // 处理主权数据
         var allianceToSystems: [Int: Int] = [:]  // 联盟ID -> 星系数量
         var factionToSystems: [Int: Int] = [:]  // 派系ID -> 星系数量
-        
+
         // 统计每个联盟和派系拥有的星系数量
         for data in sovereigntyData {
             if let allianceId = data.allianceId {
@@ -149,16 +152,16 @@ struct SovereigntyListView: View {
                 factionToSystems[factionId, default: 0] += 1
             }
         }
-        
+
         // 创建主权信息列表（先不包含图标）
         var tempSovereignties: [SovereigntyInfo] = []
         var allianceIds: [Int] = []
-        
+
         // 获取联盟名称
         allianceIds = Array(allianceToSystems.keys)
         let allianceNamesWithCategories = try await UniverseAPI.shared.getNamesWithFallback(
             ids: allianceIds)
-        
+
         // 添加联盟信息（暂无图标）
         for (allianceId, systemCount) in allianceToSystems {
             if let allianceName = allianceNamesWithCategories[allianceId]?.name {
@@ -172,14 +175,14 @@ struct SovereigntyListView: View {
                     ))
             }
         }
-        
+
         // 加载派系信息
         let factionQuery = """
                 SELECT id, iconName, name 
                 FROM factions 
                 WHERE id IN (\(factionToSystems.keys.map { String($0) }.joined(separator: ",")))
             """
-        
+
         if case let .success(rows) = databaseManager.executeQuery(factionQuery) {
             for row in rows {
                 if let factionId = row["id"] as? Int,
@@ -188,7 +191,7 @@ struct SovereigntyListView: View {
                     let systemCount = factionToSystems[factionId]
                 {
                     let icon = IconManager.shared.loadImage(for: iconName)
-                    
+
                     tempSovereignties.append(
                         SovereigntyInfo(
                             id: factionId,
@@ -200,16 +203,16 @@ struct SovereigntyListView: View {
                 }
             }
         }
-        
+
         // 按星系数量排序
         tempSovereignties.sort { $0.systemCount > $1.systemCount }
-        
+
         // 更新UI显示主权列表（可能部分联盟图标尚未加载）
         await MainActor.run {
             sovereignties = tempSovereignties
-            
+
             // 开始加载图标
             iconLoader.loadIcons(for: allianceIds)
         }
     }
-} 
+}

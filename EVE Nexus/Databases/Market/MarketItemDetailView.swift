@@ -129,7 +129,7 @@ struct MarketRegionPickerView: View {
 
         // 获取所有星系ID
         let systemIDs = systems.map { Int($0.id) ?? 0 }
-        
+
         // 使用 IN 语句一次性查询所有星系信息
         let query = """
                 SELECT r.regionID, r.regionName, s.solarSystemName, s.solarSystemID
@@ -141,20 +141,23 @@ struct MarketRegionPickerView: View {
 
         if case let .success(rows) = databaseManager.executeQuery(query) {
             // 创建星系ID到星系信息的映射
-            let systemInfoMap = Dictionary(uniqueKeysWithValues: rows.compactMap { row -> (Int, (Int, String, String))? in
-                guard let systemID = row["solarSystemID"] as? Int,
-                      let regionID = row["regionID"] as? Int,
-                      let regionName = row["regionName"] as? String,
-                      let systemName = row["solarSystemName"] as? String else {
-                    return nil
-                }
-                return (systemID, (regionID, regionName, systemName))
-            })
+            let systemInfoMap = Dictionary(
+                uniqueKeysWithValues: rows.compactMap { row -> (Int, (Int, String, String))? in
+                    guard let systemID = row["solarSystemID"] as? Int,
+                        let regionID = row["regionID"] as? Int,
+                        let regionName = row["regionName"] as? String,
+                        let systemName = row["solarSystemName"] as? String
+                    else {
+                        return nil
+                    }
+                    return (systemID, (regionID, regionName, systemName))
+                })
 
             // 更新所有星系信息
             for i in 0..<systems.count {
                 if let systemID = Int(systems[i].id),
-                   let info = systemInfoMap[systemID] {
+                    let info = systemInfoMap[systemID]
+                {
                     systems[i].regionID = info.0
                     systems[i].regionName = info.1
                     systems[i].systemName = info.2

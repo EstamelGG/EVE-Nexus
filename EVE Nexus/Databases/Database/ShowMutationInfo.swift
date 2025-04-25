@@ -139,11 +139,10 @@ struct ShowMutationInfo: View {
     private func loadMutationData() {
         // 加载突变属性
         let attributesQuery = """
-                SELECT a.attribute_id, d.display_name, COALESCE(i.iconFile_new, '') as icon_filename, 
+                SELECT a.attribute_id, d.display_name, COALESCE(d.icon_filename, '') as icon_filename, 
                        a.min_value, a.max_value, d.highIsGood
                 FROM dynamic_item_attributes a
                 LEFT JOIN dogmaAttributes d ON a.attribute_id = d.attribute_id
-                LEFT JOIN iconIDs i ON d.iconID = i.icon_id
                 WHERE a.type_id = ?
                 ORDER BY d.display_name
             """

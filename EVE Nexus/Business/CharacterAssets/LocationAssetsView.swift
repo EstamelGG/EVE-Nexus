@@ -80,6 +80,12 @@ private func formatLocationFlag(_ flag: String) -> String {
         return NSLocalizedString("Location_Flag_SpecializedShipHold", comment: "")
     case "SpecializedSmallShipHold":
         return NSLocalizedString("Location_Flag_SpecializedSmallShipHold", comment: "")
+    case "StructureDeedBay":
+        return NSLocalizedString("Location_Flag_StructureDeedBay", comment: "")
+    case "Unlocked":
+        return NSLocalizedString("Location_Flag_Unlocked", comment: "")
+    case "Wardrobe":
+        return NSLocalizedString("Location_Flag_Wardrobe", comment: "")
     default:
         return flag
     }
@@ -569,17 +575,17 @@ class LocationAssetsViewModel: ObservableObject {
         case let f where f.hasPrefix("LoSlot"): return "LoSlots"
         case let f where f.hasPrefix("RigSlot"): return "RigSlots"
         case let f where f.hasPrefix("SubSystemSlot"): return "SubSystemSlots"
+        case let f where f.hasPrefix("FighterTube"): return "FighterTubes"
         default: return flag
         }
     }
 
     private let flagOrder = [
-        "Hangar", "ShipHangar", "FleetHangar",
-        "CorpSAG1", "CorpSAG2", "CorpSAG3", "CorpSAG4", "CorpSAG5", "CorpSAG6", "CorpSAG7",
-        "CorpDeliveries", "Deliveries",
         "HiSlots", "MedSlots", "LoSlots", "RigSlots", "SubSystemSlots",
-        "FighterBay", "FighterTubes", "DroneBay", "Cargo",
-        "SpecializedAmmoHold", "SpecializedCommandCenterHold", "SpecializedFuelBay",
+        "FighterBay", "FighterTubes", "DroneBay", "Cargo", "Hangar", "ShipHangar", "FleetHangar",
+        "CorpSAG1", "CorpSAG2", "CorpSAG3", "CorpSAG4", "CorpSAG5", "CorpSAG6", "CorpSAG7",
+        "CorpDeliveries", "Deliveries", "SpecializedAmmoHold", "SpecializedCommandCenterHold",
+        "SpecializedFuelBay",
         "SpecializedGasHold", "SpecializedIndustrialShipHold", "SpecializedLargeShipHold",
         "SpecializedMaterialBay", "SpecializedMediumShipHold", "SpecializedMineralHold",
         "SpecializedOreHold", "SpecializedPlanetaryCommoditiesHold", "SpecializedSalvageHold",

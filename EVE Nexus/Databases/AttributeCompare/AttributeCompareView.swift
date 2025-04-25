@@ -338,7 +338,7 @@ struct AttributeCompareDetailView: View {
     @AppStorage("showOnlyDifferences") private var showOnlyDifferences: Bool = false
 
     // 允许的顶级市场分组ID
-    private static let allowedTopMarketGroupIDs: Set<Int> = [4, 9, 157, 11, 2202, 2203, 24]
+    private static let allowedTopMarketGroupIDs: Set<Int> = [4, 9, 157, 11, 2202, 2203, 24, 955]
 
     init(databaseManager: DatabaseManager, compare: AttributeCompare) {
         self.databaseManager = databaseManager
@@ -474,9 +474,9 @@ struct AttributeCompareDetailView: View {
                 if let result = compareResult, items.count >= 2 {
                     // 合并已发布和未发布的属性
                     let allAttributes = result.publishedAttributeInfo
-//                     let allAttributes = result.publishedAttributeInfo.merging(
-//                         result.unpublishedAttributeInfo
-//                     ) { (published, _) in published }
+                    //                     let allAttributes = result.publishedAttributeInfo.merging(
+                    //                         result.unpublishedAttributeInfo
+                    //                     ) { (published, _) in published }
 
                     // 获取所有属性ID，并按数字大小排序
                     let sortedAttributeIDs = allAttributes.keys.sorted {
@@ -575,10 +575,14 @@ struct AttributeCompareDetailView: View {
         -> [String]
     {
         var attributesWithDifferences: [String] = []
+        
+        // 物品总数
+        let totalItemCount = items.count
 
         for (attributeID, values) in result.compareResult {
-            // 如果只有一个物品有这个属性，则肯定有差异
-            if values.count <= 1 {
+            // 如果不是所有物品都有这个属性，则视为有差异
+            if values.count != totalItemCount {
+                attributesWithDifferences.append(attributeID)
                 continue
             }
 
@@ -737,13 +741,11 @@ extension AttributeCompareUtil {
                     COALESCE(ta.unitID, a.unitID) as unitID,
                     a.unitName,
                     a.iconID,
-                    COALESCE(i.iconFile_new, '') as icon_filename
+                    COALESCE(a.icon_filename, '') as icon_filename
                 FROM
                     typeAttributes ta
                 LEFT JOIN
                     dogmaAttributes a ON ta.attribute_id = a.attribute_id
-                LEFT JOIN
-                    iconIDs i ON a.iconID = i.icon_id
                 WHERE
                     ta.type_id IN (\(typeIDsString))
                 ORDER BY 
@@ -849,8 +851,8 @@ extension AttributeCompareUtil {
 
         // 已发布属性信息 (有display_name的)
         var publishedAttributeInfo: [String: String] = [:]
-//         // 未发布属性信息 (只有name的)
-//         var unpublishedAttributeInfo: [String: String] = [:]
+        //         // 未发布属性信息 (只有name的)
+        //         var unpublishedAttributeInfo: [String: String] = [:]
 
         if case let .success(attributeRows) = databaseManager.executeQuery(attributeQuery) {
             for row in attributeRows {
@@ -859,17 +861,17 @@ extension AttributeCompareUtil {
                 }
 
                 let displayName = row["display_name"] as? String
-//                 let name = row["name"] as? String
+                //                 let name = row["name"] as? String
                 let attributeIDString = String(attributeID)
 
                 if let displayName = displayName, !displayName.isEmpty {
                     // 有display_name的属性放入已发布列表
                     publishedAttributeInfo[attributeIDString] = displayName
                 }
-//                 } else if let name = name {
-//                     // 只有name的属性放入未发布列表
-//                     unpublishedAttributeInfo[attributeIDString] = name
-//                 }
+                //                 } else if let name = name {
+                //                     // 只有name的属性放入未发布列表
+                //                     unpublishedAttributeInfo[attributeIDString] = name
+                //                 }
             }
         }
 
