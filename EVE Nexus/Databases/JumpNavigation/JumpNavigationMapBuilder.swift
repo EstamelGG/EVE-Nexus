@@ -136,7 +136,7 @@ class JumpNavigationHandler {
 
     // 获取所有合法星系信息（用于选择器）
     static func getAllJumpableSystems(databaseManager: DatabaseManager) -> [(
-        id: Int, name: String, security: Double
+        id: Int, name: String, security: Double, region: String
     )] {
         // 使用全局缓存数据
         JumpSystemsCache.shared.loadIfNeeded(databaseManager: databaseManager)

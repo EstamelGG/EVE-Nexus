@@ -123,7 +123,7 @@ final class CharacterPlanetaryViewModel: ObservableObject {
                     }
                 }
             } catch {
-                print("加载行星数据失败: \(error.localizedDescription)")
+                Logger.error("加载行星数据失败: \(error.localizedDescription)")
                 if !Task.isCancelled {
                     await MainActor.run {
                         self.errorMessage = error.localizedDescription

@@ -358,15 +358,19 @@ struct DatabaseListItemView: View {
                     if categoryID == 7 || categoryID == 66 {
                         HStack(spacing: 8) {
                             if let pgNeed = item.pgNeed {
-                                IconWithValueView(iconName: "pg", numericValue: pgNeed, unit: " MW")
+                                IconWithValueView(
+                                    iconName: "pg", numericValue: Int(pgNeed), unit: " MW"
+                                )
                             }
                             if let cpuNeed = item.cpuNeed {
                                 IconWithValueView(
-                                    iconName: "cpu", numericValue: cpuNeed, unit: " Tf"
+                                    iconName: "cpu", numericValue: Int(cpuNeed), unit: " Tf"
                                 )
                             }
                             if let rigCost = item.rigCost {
-                                IconWithValueView(iconName: "rigcost", numericValue: rigCost)
+                                IconWithValueView(
+                                    iconName: "rigcost", numericValue: rigCost
+                                )
                             }
                         }
                     }

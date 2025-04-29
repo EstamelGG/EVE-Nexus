@@ -61,7 +61,7 @@ class AllianceIconLoader: ObservableObject {
                 }
             } catch {
                 if !Task.isCancelled {
-                    print("加载联盟图标失败: \(error.localizedDescription)")
+                    Logger.error("加载联盟图标失败: \(error.localizedDescription)")
                     _ = await MainActor.run {
                         loadingIconIds.remove(id)
 
@@ -299,7 +299,7 @@ struct SovereigntySelectorView: View {
                 }
 
             } catch {
-                print("加载主权数据失败: \(error.localizedDescription)")
+                Logger.error("加载主权数据失败: \(error.localizedDescription)")
                 await MainActor.run {
                     isLoading = false
                 }
@@ -336,6 +336,7 @@ struct PlanetarySiteFinder: View {
     @State private var isCalculating = false
     @State private var searchResults: [SystemSearchResult] = []  // 存储搜索结果
     @State private var showResults = false  // 控制结果显示
+    @State private var showSelected = false  // 选物品时不显示右侧选中标记
     @StateObject private var databaseManager = DatabaseManager.shared
     private let resourceCalculator: PlanetaryResourceCalculator
 
@@ -518,45 +519,11 @@ struct PlanetarySiteFinder: View {
         .navigationTitle(NSLocalizedString("Main_Planetary_location_calc", comment: ""))
         .sheet(isPresented: $showProductSelector) {
             NavigationView {
-                MarketItemSelectorBaseView(
+                MarketItemSelectorIntegratedView(
                     databaseManager: databaseManager,
                     title: NSLocalizedString("Main_Planetary_Select_Product", comment: ""),
-                    content: {
-                        ForEach(
-                            MarketManager.shared.setRootGroups(
-                                MarketManager.shared.loadMarketGroups(
-                                    databaseManager: databaseManager),
-                                allowedIDs: PlanetarySiteFinder.allowedMarketGroups)
-                        ) { group in
-                            MarketItemSelectorGroupRow(
-                                group: group,
-                                allGroups: MarketManager.shared.loadMarketGroups(
-                                    databaseManager: databaseManager),
-                                databaseManager: databaseManager,
-                                existingItems: [],
-                                onItemSelected: { item in
-                                    selectedProduct = PlanetaryProduct(
-                                        typeId: item.id,
-                                        name: item.name,
-                                        icon: item.iconFileName
-                                    )
-                                    showProductSelector = false
-                                },
-                                onItemDeselected: { _ in },
-                                onDismiss: { showProductSelector = false }
-                            )
-                        }
-                    },
-                    searchQuery: { text in
-                        let groupIDsString = PlanetarySiteFinder.allowedMarketGroups.map {
-                            String($0)
-                        }.joined(separator: ",")
-                        return
-                            "t.marketGroupID IN (\(groupIDsString)) AND (t.name LIKE ? OR t.en_name LIKE ? OR t.type_id = ?)"
-                    },
-                    searchParameters: { text in
-                        ["%\(text)%", "%\(text)%", text]
-                    },
+                    allowedMarketGroups: PlanetarySiteFinder.allowedMarketGroups,
+                    allowTypeIDs: [],
                     existingItems: [],
                     onItemSelected: { item in
                         selectedProduct = PlanetaryProduct(
@@ -567,7 +534,8 @@ struct PlanetarySiteFinder: View {
                         showProductSelector = false
                     },
                     onItemDeselected: { _ in },
-                    onDismiss: { showProductSelector = false }
+                    onDismiss: { showProductSelector = false },
+                    showSelected: showSelected
                 )
                 .navigationBarTitleDisplayMode(.inline)
             }

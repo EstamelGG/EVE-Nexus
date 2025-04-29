@@ -243,7 +243,7 @@ struct MarketGroupView: View {
                 }
             },
             searchQuery: { _ in
-                let groupIDs = MarketManager.shared.getAllSubGroupIDs(
+                let groupIDs = MarketManager.shared.getAllSubGroupIDsFromID(
                     allGroups, startingFrom: group.id
                 )
                 let groupIDsString = groupIDs.sorted().map { String($0) }.joined(separator: ",")
@@ -377,9 +377,6 @@ struct MarketItemListView: View {
         metaGroupNames = databaseManager.loadMetaGroupNames(for: Array(metaGroupIDs))
     }
 }
-
-// 保持原有的MarketGroupRow和MarketGroupLabel不变
-// ... existing code ...
 
 struct MarketGroupRow: View {
     let group: MarketGroup

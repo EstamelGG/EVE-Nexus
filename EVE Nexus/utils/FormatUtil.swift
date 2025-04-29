@@ -27,17 +27,18 @@ enum FormatUtil {
 
     /// 格式化数字：支持千位分隔符，最多3位有效小数
     /// - Parameter value: 要格式化的数值
+    /// - Parameter showDigit: 是否显示小数部分
     /// - Returns: 格式化后的字符串
-    static func format(_ value: Double) -> String {
-        // 如果是整数，不显示小数部分
-        if value.truncatingRemainder(dividingBy: 1) == 0 {
+    static func format(_ value: Double, _ showDigit: Bool = true) -> String {
+        // 如果指定不显示小数部分，或者值是整数，不显示小数
+        if !showDigit || value.truncatingRemainder(dividingBy: 1) == 0 {
             formatter.maximumFractionDigits = 0
             return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.0f", value)
         }
 
-        // 对于小数，显示最多2位有效小数（去除末尾的0）
-        formatter.maximumFractionDigits = 2
-        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.2g", value)
+        // 对于小数，显示最多3位有效小数（去除末尾的0）
+        formatter.maximumFractionDigits = 3
+        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.3g", value)
     }
 
     /// 格式化数字（毫秒精度）：支持千位分隔符，最多3位有效小数

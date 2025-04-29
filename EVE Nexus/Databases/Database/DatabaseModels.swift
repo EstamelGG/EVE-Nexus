@@ -45,8 +45,8 @@ public struct DatabaseItem: Identifiable {
     public let name: String
     public let iconFileName: String
     public let categoryID: Int
-    public let pgNeed: Int?
-    public let cpuNeed: Int?
+    public let pgNeed: Double?
+    public let cpuNeed: Double?
     public let rigCost: Int?
     public let emDamage: Double?
     public let themDamage: Double?
@@ -62,8 +62,8 @@ public struct DatabaseItem: Identifiable {
     public let published: Bool
 
     public init(
-        id: Int, typeID: Int, name: String, iconFileName: String, categoryID: Int, pgNeed: Int?,
-        cpuNeed: Int?, rigCost: Int?, emDamage: Double?, themDamage: Double?, kinDamage: Double?,
+        id: Int, typeID: Int, name: String, iconFileName: String, categoryID: Int, pgNeed: Double?,
+        cpuNeed: Double?, rigCost: Int?, emDamage: Double?, themDamage: Double?, kinDamage: Double?,
         expDamage: Double?, highSlot: Int?, midSlot: Int?, lowSlot: Int?, rigSlot: Int?,
         gunSlot: Int?, missSlot: Int?, metaGroupID: Int, published: Bool
     ) {

@@ -10,8 +10,8 @@ struct DatabaseListItem: Identifiable {
     let categoryID: Int?
     let groupID: Int?
     let groupName: String?  // 添加物品组名称字段
-    let pgNeed: Int?
-    let cpuNeed: Int?
+    let pgNeed: Double?
+    let cpuNeed: Double?
     let rigCost: Int?
     let emDamage: Double?
     let themDamage: Double?
