@@ -10,8 +10,8 @@ struct DatabaseListItem: Identifiable {
     let categoryID: Int?
     let groupID: Int?
     let groupName: String?  // 添加物品组名称字段
-    let pgNeed: Int?
-    let cpuNeed: Int?
+    let pgNeed: Double?
+    let cpuNeed: Double?
     let rigCost: Int?
     let emDamage: Double?
     let themDamage: Double?
@@ -116,7 +116,9 @@ struct DatabaseListView: View {
                 }
         } else if items.isEmpty && !searchText.isEmpty {
             ContentUnavailableView {
-                Label(NSLocalizedString("Misc_Not_Found", comment: ""), systemImage: "magnifyingglass")
+                Label(
+                    NSLocalizedString("Misc_Not_Found", comment: ""), systemImage: "magnifyingglass"
+                )
             }
         } else if searchText.isEmpty && isSearchActive {
             // 添加一个可点击的半透明遮罩

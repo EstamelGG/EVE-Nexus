@@ -36,21 +36,23 @@ struct CharacterLoyaltyPointsStoreView: View {
                     .buttonStyle(.bordered)
                 }
             } else {
-                ForEach(filteredFactions) { faction in
-                    NavigationLink(destination: FactionDetailView(faction: faction)) {
-                        HStack {
-                            IconManager.shared.loadImage(for: faction.iconName)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 36)
+                Section(NSLocalizedString("Main_LP_Store_Factions", comment: "")) {
+                    ForEach(filteredFactions) { faction in
+                        NavigationLink(destination: FactionDetailView(faction: faction)) {
+                            HStack {
+                                IconManager.shared.loadImage(for: faction.iconName)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 36)
 
-                            Text(faction.name)
-                                .padding(.leading, 8)
+                                Text(faction.name)
+                                    .padding(.leading, 8)
+                            }
+                            .padding(.vertical, 2)
                         }
-                        .padding(.vertical, 2)
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
         }
         .navigationTitle(NSLocalizedString("Main_LP_Store", comment: ""))

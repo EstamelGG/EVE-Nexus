@@ -81,6 +81,7 @@ class CacheManager {
         "MarketCache",  // 市场价格细节
         "Planetary",  // 行星开发
         "CharacterOrders",  // 人物市场订单
+        "Fitting",  // 舰船配置目录
     ]
 
     // 获取缓存目录列表
@@ -495,7 +496,7 @@ struct SettingView: View {
                     action: {}
                 ) { _ in
                     AnyView(ShowImportantAttributesToggle())
-                }
+                },
             ]
         )
     }

@@ -29,8 +29,26 @@ final class WalletJournalViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published private(set) var totalIncome: Double = 0.0
     @Published private(set) var totalExpense: Double = 0.0
+    @Published var timeRange: TimeRange = .last30Days
     private var loadingTask: Task<Void, Never>?
     private var initialLoadDone = false
+
+    enum TimeRange: String, CaseIterable {
+        case last30Days = "last30Days"
+        case last7Days = "last7Days"
+        case last1Day = "last1Day"
+
+        var localizedString: String {
+            switch self {
+            case .last30Days:
+                return String(format: NSLocalizedString("Time_Days_Long", comment: ""), 30)
+            case .last7Days:
+                return String(format: NSLocalizedString("Time_Days_Long", comment: ""), 7)
+            case .last1Day:
+                return String(format: NSLocalizedString("Time_Days_Long", comment: ""), 1)
+            }
+        }
+    }
 
     private let characterId: Int
 
@@ -66,7 +84,26 @@ final class WalletJournalViewModel: ObservableObject {
         var income: Double = 0
         var expense: Double = 0
 
+        let calendar = Calendar.current
+        let now = Date()
+        let startDate: Date
+
+        switch timeRange {
+        case .last30Days:
+            startDate = calendar.date(byAdding: .day, value: -30, to: now)!
+        case .last7Days:
+            startDate = calendar.date(byAdding: .day, value: -7, to: now)!
+        case .last1Day:
+            startDate = calendar.date(byAdding: .day, value: -1, to: now)!
+        }
+
         for entry in entries {
+            guard let entryDate = dateFormatter.date(from: entry.date),
+                entryDate >= startDate
+            else {
+                continue
+            }
+
             if entry.amount > 0 {
                 income += entry.amount
             } else {
@@ -76,6 +113,12 @@ final class WalletJournalViewModel: ObservableObject {
 
         totalIncome = income
         totalExpense = expense
+    }
+
+    // 只更新总收支
+    func updateTotals() {
+        let allEntries = journalGroups.flatMap { $0.entries }
+        calculateTotals(from: allEntries)
     }
 
     func loadJournalData(forceRefresh: Bool = false) async {
@@ -225,20 +268,40 @@ struct WalletJournalView: View {
 
     var summarySection: some View {
         Section(
-            header: Text(NSLocalizedString("Summary", comment: ""))
-                .fontWeight(.bold)
-                .font(.system(size: 18))
-                .foregroundColor(.primary)
-                .textCase(.none)
+            header: HStack {
+                Text(NSLocalizedString("Summary", comment: ""))
+                    .fontWeight(.bold)
+                    .font(.system(size: 18))
+                    .foregroundColor(.primary)
+                    .textCase(.none)
+                Spacer()
+                Button(action: {
+                    switch viewModel.timeRange {
+                    case .last30Days:
+                        viewModel.timeRange = .last7Days
+                    case .last7Days:
+                        viewModel.timeRange = .last1Day
+                    case .last1Day:
+                        viewModel.timeRange = .last30Days
+                    }
+                    viewModel.updateTotals()
+                }) {
+                    Text(viewModel.timeRange.localizedString)
+                        .font(.system(size: 14))
+                        .foregroundColor(.blue)
+                }
+            }
         ) {
             // 总收入
             HStack {
                 Text(NSLocalizedString("Total Income", comment: ""))
                     .font(.system(size: 14))
                 Spacer()
-                Text("+ \(FormatUtil.format(viewModel.totalIncome)) ISK")
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(.green)
+                Text(
+                    "\(viewModel.totalIncome > 0 ? "+" : "")\(FormatUtil.format(viewModel.totalIncome, false)) ISK"
+                )
+                .font(.system(.caption, design: .monospaced))
+                .foregroundColor(viewModel.totalIncome > 0 ? .green : .secondary)
             }
 
             // 总支出
@@ -246,9 +309,22 @@ struct WalletJournalView: View {
                 Text(NSLocalizedString("Total Expense", comment: ""))
                     .font(.system(size: 14))
                 Spacer()
-                Text("- \(FormatUtil.format(viewModel.totalExpense)) ISK")
+                Text(
+                    "\(viewModel.totalExpense > 0 ? "-" : "")\(FormatUtil.format(viewModel.totalExpense, false)) ISK"
+                )
+                .font(.system(.caption, design: .monospaced))
+                .foregroundColor(viewModel.totalExpense > 0 ? .red : .secondary)
+            }
+
+            // 净收益
+            HStack {
+                Text(NSLocalizedString("Net Income", comment: ""))
+                    .font(.system(size: 14))
+                Spacer()
+                let netIncome = viewModel.totalIncome - viewModel.totalExpense
+                Text("\(FormatUtil.format(netIncome, false)) ISK")
                     .font(.system(.caption, design: .monospaced))
-                    .foregroundColor(.red)
+                    .foregroundColor(netIncome > 0 ? .green : netIncome < 0 ? .red : .secondary)
             }
         }
     }

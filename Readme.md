@@ -24,6 +24,10 @@ cd "EVE Nexus" && $(xcrun --find swift-format) -r . -i --configuration .swift-fo
 periphery scan | grep -v "/Thirdparty/" > log.txt
 ```
 
+```regexp
+(Enum|Property|Function|Initializer).*is unused
+```
+
 # 获取应用 / Get App
 
 iOS / iPadOS / macOS: [Tritanium on the App Store](https://apps.apple.com/us/app/tritanium/id6739530875)

@@ -88,7 +88,7 @@ struct EVE_NexusApp: App {
             UserDefaults.standard.synchronize()
             Logger.debug("使用已保存的语言设置: \(String(describing: selectedLanguage))")
         }
-        
+
         // 配置数据库语言，如果未设置则与应用语言保持一致
         if selectedDatabaseLanguage == nil {
             selectedDatabaseLanguage = selectedLanguage

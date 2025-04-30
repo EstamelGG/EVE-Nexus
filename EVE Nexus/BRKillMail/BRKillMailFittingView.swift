@@ -536,6 +536,26 @@ struct BRKillMailFittingView: View {
                                     maxSlots: 8,
                                     totalAngle: 104
                                 ))
+                    } else {
+                        // 显示默认高槽图标
+                        let position = calculateSlotPosition(
+                            center: center,
+                            radius: slotCenterRadius,
+                            startAngle: -52,
+                            slotIndex: index,
+                            maxSlots: 8,
+                            totalAngle: 104
+                        )
+                        // 计算从圆心到该位置的角度
+                        let angle = atan2(position.y - center.y, position.x - center.x) + .pi / 2
+
+                        IconManager.shared.loadImage(for: "highSlot")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: equipmentIconSize, height: equipmentIconSize)
+                            .opacity(0.5)
+                            .rotationEffect(Angle(radians: Double(angle)))
+                            .position(position)
                     }
                 }
 
@@ -555,6 +575,26 @@ struct BRKillMailFittingView: View {
                                     maxSlots: 8,
                                     totalAngle: 104
                                 ))
+                    } else {
+                        // 显示默认低槽图标
+                        let position = calculateSlotPosition(
+                            center: center,
+                            radius: slotCenterRadius,
+                            startAngle: 68,
+                            slotIndex: index,
+                            maxSlots: 8,
+                            totalAngle: 104
+                        )
+                        // 计算从圆心到该位置的角度
+                        let angle = atan2(position.y - center.y, position.x - center.x) + .pi / 2
+
+                        IconManager.shared.loadImage(for: "lowSlot")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: equipmentIconSize, height: equipmentIconSize)
+                            .opacity(0.5)
+                            .rotationEffect(Angle(radians: Double(angle)))
+                            .position(position)
                     }
                 }
 
@@ -574,6 +614,26 @@ struct BRKillMailFittingView: View {
                                     maxSlots: 8,
                                     totalAngle: 104
                                 ))
+                    } else {
+                        // 显示默认中槽图标
+                        let position = calculateSlotPosition(
+                            center: center,
+                            radius: slotCenterRadius,
+                            startAngle: 188,
+                            slotIndex: index,
+                            maxSlots: 8,
+                            totalAngle: 104
+                        )
+                        // 计算从圆心到该位置的角度
+                        let angle = atan2(position.y - center.y, position.x - center.x) + .pi / 2
+
+                        IconManager.shared.loadImage(for: "midSlot")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: equipmentIconSize, height: equipmentIconSize)
+                            .opacity(0.5)
+                            .rotationEffect(Angle(radians: Double(angle)))
+                            .position(position)
                     }
                 }
 
@@ -593,6 +653,26 @@ struct BRKillMailFittingView: View {
                                     maxSlots: 3,
                                     totalAngle: 76
                                 ))
+                    } else {
+                        // 显示默认改装槽图标
+                        let position = calculateSlotPosition(
+                            center: center,
+                            radius: innerSlotCenterRadius,
+                            startAngle: 142,
+                            slotIndex: index,
+                            maxSlots: 3,
+                            totalAngle: 76
+                        )
+                        // 计算从圆心到该位置的角度
+                        let angle = atan2(position.y - center.y, position.x - center.x) + .pi / 2
+
+                        IconManager.shared.loadImage(for: "rigSlot")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: equipmentIconSize, height: equipmentIconSize)
+                            .opacity(0.5)
+                            .rotationEffect(Angle(radians: Double(angle)))
+                            .position(position)
                     }
                 }
 

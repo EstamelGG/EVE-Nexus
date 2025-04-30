@@ -45,7 +45,10 @@ struct AboutView: View {
             title: NSLocalizedString("Main_About_copyright_Title", comment: ""),
             value: "Copyright.md",
             icon: "link",
-            url: URL(string: "https://raw.githubusercontent.com/EstamelGG/EVE-Nexus/refs/heads/main/Copyright.md")
+            url: URL(
+                string:
+                    "https://raw.githubusercontent.com/EstamelGG/EVE-Nexus/refs/heads/main/Copyright.md"
+            )
         ),
     ]
 

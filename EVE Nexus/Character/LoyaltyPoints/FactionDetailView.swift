@@ -1,5 +1,23 @@
 import SwiftUI
 
+struct Faction: Identifiable {
+    let id: Int
+    let name: String
+    let iconName: String
+
+    init?(from row: [String: Any]) {
+        guard let id = row["id"] as? Int,
+            let name = row["name"] as? String,
+            let iconName = row["iconName"] as? String
+        else {
+            return nil
+        }
+        self.id = id
+        self.name = name
+        self.iconName = iconName
+    }
+}
+
 struct FactionDetailView: View {
     let faction: Faction
     @State private var corporations: [Corporation] = []
@@ -37,25 +55,27 @@ struct FactionDetailView: View {
                     .buttonStyle(.bordered)
                 }
             } else {
-                ForEach(filteredCorporations) { corporation in
-                    NavigationLink(
-                        destination: CorporationLPStoreView(
-                            corporationId: corporation.id, corporationName: corporation.name
-                        )
-                    ) {
-                        HStack {
-                            IconManager.shared.loadImage(for: corporation.iconFileName)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 36, height: 36)
-                                .cornerRadius(6)
+                Section(NSLocalizedString("Main_LP_Store_Corps", comment: "")) {
+                    ForEach(filteredCorporations) { corporation in
+                        NavigationLink(
+                            destination: CorporationLPStoreView(
+                                corporationId: corporation.id, corporationName: corporation.name
+                            )
+                        ) {
+                            HStack {
+                                IconManager.shared.loadImage(for: corporation.iconFileName)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 36, height: 36)
+                                    .cornerRadius(6)
 
-                            Text(corporation.name)
-                                .padding(.leading, 8)
+                                Text(corporation.name)
+                                    .padding(.leading, 8)
+                            }
                         }
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
         }
         .navigationTitle(faction.name)

@@ -167,6 +167,7 @@ struct MarketItemSelectorBaseView<Content: View>: View {
     let onItemSelected: (DatabaseListItem) -> Void
     let onItemDeselected: (DatabaseListItem) -> Void
     let onDismiss: () -> Void
+    let showSelected: Bool  // 要不要展示已选/未选的指示图标
 
     @State private var items: [DatabaseListItem] = []
     @State private var metaGroupNames: [Int: String] = [:]  // 添加科技等级名称字典
@@ -273,17 +274,19 @@ struct MarketItemSelectorBaseView<Content: View>: View {
                                 HStack {
                                     DatabaseListItemView(
                                         item: item,
-                                        showDetails: false
+                                        showDetails: true
                                     )
 
                                     Spacer()
-
-                                    Image(
-                                        systemName: existingItems.contains(item.id)
-                                            ? "checkmark.circle.fill" : "circle"
-                                    )
-                                    .foregroundColor(
-                                        existingItems.contains(item.id) ? .accentColor : .secondary)
+                                    if showSelected {
+                                        Image(
+                                            systemName: existingItems.contains(item.id)
+                                                ? "checkmark.circle.fill" : "circle"
+                                        )
+                                        .foregroundColor(
+                                            existingItems.contains(item.id)
+                                                ? .accentColor : .secondary)
+                                    }
                                 }
                             }
                             .foregroundColor(existingItems.contains(item.id) ? .primary : .primary)
@@ -328,7 +331,9 @@ struct MarketItemSelectorBaseView<Content: View>: View {
                     }
             } else if items.isEmpty && !searchText.isEmpty {
                 ContentUnavailableView {
-                    Label(NSLocalizedString("Misc_Not_Found", comment: ""), systemImage: "magnifyingglass")
+                    Label(
+                        NSLocalizedString("Misc_Not_Found", comment: ""),
+                        systemImage: "magnifyingglass")
                 }
             } else if searchText.isEmpty && isSearchActive {
                 Color.black.opacity(0.2)
@@ -380,45 +385,26 @@ struct MarketItemSelectorBaseView<Content: View>: View {
 // 市场物品选择器视图
 struct MarketItemSelectorView: View {
     @ObservedObject var databaseManager: DatabaseManager
-    @State private var marketGroups: [MarketGroup] = []
     let existingItems: Set<Int>
     let onItemSelected: (DatabaseListItem) -> Void
     let onItemDeselected: (DatabaseListItem) -> Void
+    let showSelected: Bool
+    let allowTypeIDs: Set<Int>?  // 新增：物品ID白名单
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            MarketItemSelectorBaseView(
+            MarketItemSelectorIntegratedView(
                 databaseManager: databaseManager,
                 title: NSLocalizedString("Main_Market_Watch_List_Add_Item", comment: ""),
-                content: {
-                    ForEach(MarketManager.shared.getRootGroups(marketGroups)) { group in
-                        MarketItemSelectorGroupRow(
-                            group: group,
-                            allGroups: marketGroups,
-                            databaseManager: databaseManager,
-                            existingItems: existingItems,
-                            onItemSelected: onItemSelected,
-                            onItemDeselected: onItemDeselected,
-                            onDismiss: { dismiss() }
-                        )
-                    }
-                },
-                searchQuery: { _ in
-                    "t.marketGroupID IS NOT NULL AND (t.name LIKE ? OR t.en_name LIKE ? OR t.type_id = ?)"
-                },
-                searchParameters: { text in
-                    ["%\(text)%", "%\(text)%", "\(text)"]
-                },
+                allowedMarketGroups: [],  // 空集表示允许所有市场分组
+                allowTypeIDs: allowTypeIDs,  // 传递物品ID白名单
                 existingItems: existingItems,
                 onItemSelected: onItemSelected,
                 onItemDeselected: onItemDeselected,
-                onDismiss: { dismiss() }
+                onDismiss: { dismiss() },
+                showSelected: showSelected
             )
-            .onAppear {
-                marketGroups = MarketManager.shared.loadMarketGroups(
-                    databaseManager: databaseManager)
-            }
             .interactiveDismissDisabled()
         }
     }
@@ -429,35 +415,50 @@ struct MarketItemSelectorGroupView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let group: MarketGroup
     let allGroups: [MarketGroup]
+    let validGroups: Set<Int>  // 新增：有效的组ID集合
+    let allowTypeIDs: Set<Int>?  // 新增：物品ID白名单
     let existingItems: Set<Int>
     let onItemSelected: (DatabaseListItem) -> Void
     let onItemDeselected: (DatabaseListItem) -> Void
     let onDismiss: () -> Void
+    let showSelected: Bool
 
     var body: some View {
         MarketItemSelectorBaseView(
             databaseManager: databaseManager,
             title: group.name,
             content: {
-                ForEach(MarketManager.shared.getSubGroups(allGroups, for: group.id)) { subGroup in
+                ForEach(getValidSubGroups()) { subGroup in
                     MarketItemSelectorGroupRow(
                         group: subGroup,
                         allGroups: allGroups,
+                        validGroups: validGroups,  // 新增：传递有效组ID
+                        allowTypeIDs: allowTypeIDs,  // 新增：传递物品ID白名单
                         databaseManager: databaseManager,
                         existingItems: existingItems,
                         onItemSelected: onItemSelected,
                         onItemDeselected: onItemDeselected,
-                        onDismiss: onDismiss
+                        onDismiss: onDismiss,
+                        showSelected: showSelected
                     )
                 }
             },
             searchQuery: { _ in
-                let groupIDs = MarketManager.shared.getAllSubGroupIDs(
+                let groupIDs = MarketManager.shared.getAllSubGroupIDsFromID(
                     allGroups, startingFrom: group.id
                 )
                 let groupIDsString = groupIDs.sorted().map { String($0) }.joined(separator: ",")
-                return
-                    "t.marketGroupID IN (\(groupIDsString)) AND (t.name LIKE ? OR t.en_name LIKE ?)"
+
+                if let typeIDs = allowTypeIDs, !typeIDs.isEmpty {
+                    // 如果有物品ID白名单，添加物品ID筛选条件
+                    let typeIDsString = typeIDs.map { String($0) }.joined(separator: ",")
+                    return
+                        "t.marketGroupID IN (\(groupIDsString)) AND t.type_id IN (\(typeIDsString)) AND (t.name LIKE ? OR t.en_name LIKE ?)"
+                } else {
+                    // 否则只筛选市场分组
+                    return
+                        "t.marketGroupID IN (\(groupIDsString)) AND (t.name LIKE ? OR t.en_name LIKE ?)"
+                }
             },
             searchParameters: { text in
                 ["%\(text)%", "%\(text)%"]
@@ -465,8 +466,22 @@ struct MarketItemSelectorGroupView: View {
             existingItems: existingItems,
             onItemSelected: onItemSelected,
             onItemDeselected: onItemDeselected,
-            onDismiss: onDismiss
+            onDismiss: onDismiss,
+            showSelected: showSelected
         )
+    }
+
+    // 获取有效的子组
+    private func getValidSubGroups() -> [MarketGroup] {
+        let subGroups = MarketManager.shared.getSubGroups(allGroups, for: group.id)
+
+        // 如果没有物品ID白名单，或者白名单为空，或者有效组ID列表为空，则返回所有子组
+        if allowTypeIDs == nil || allowTypeIDs!.isEmpty || validGroups.isEmpty {
+            return subGroups
+        }
+
+        // 否则只返回在有效组ID列表中的子组
+        return subGroups.filter { validGroups.contains($0.id) }
     }
 }
 
@@ -474,44 +489,64 @@ struct MarketItemSelectorGroupView: View {
 struct MarketItemSelectorGroupRow: View {
     let group: MarketGroup
     let allGroups: [MarketGroup]
+    let validGroups: Set<Int>  // 新增：有效的组ID集合
+    let allowTypeIDs: Set<Int>?  // 新增：物品ID白名单
     let databaseManager: DatabaseManager
     let existingItems: Set<Int>
     let onItemSelected: (DatabaseListItem) -> Void
     let onItemDeselected: (DatabaseListItem) -> Void
     let onDismiss: () -> Void
+    let showSelected: Bool
 
     var body: some View {
-        if MarketManager.shared.isLeafGroup(group, in: allGroups) {
-            // 最后一级目录，显示物品列表
-            NavigationLink {
-                MarketItemSelectorItemListView(
-                    databaseManager: databaseManager,
-                    marketGroupID: group.id,
-                    title: group.name,
-                    existingItems: existingItems,
-                    onItemSelected: onItemSelected,
-                    onItemDeselected: onItemDeselected,
-                    onDismiss: onDismiss
-                )
-            } label: {
-                MarketGroupLabel(group: group)
-            }
-        } else {
-            // 非最后一级目录，显示子目录
-            NavigationLink {
-                MarketItemSelectorGroupView(
-                    databaseManager: databaseManager,
-                    group: group,
-                    allGroups: allGroups,
-                    existingItems: existingItems,
-                    onItemSelected: onItemSelected,
-                    onItemDeselected: onItemDeselected,
-                    onDismiss: onDismiss
-                )
-            } label: {
-                MarketGroupLabel(group: group)
+        if shouldShowGroup() {
+            if MarketManager.shared.isLeafGroup(group, in: allGroups) {
+                // 最后一级目录，显示物品列表
+                NavigationLink {
+                    MarketItemSelectorItemListView(
+                        databaseManager: databaseManager,
+                        marketGroupID: group.id,
+                        allowTypeIDs: allowTypeIDs,  // 新增：传递物品ID白名单
+                        title: group.name,
+                        existingItems: existingItems,
+                        onItemSelected: onItemSelected,
+                        onItemDeselected: onItemDeselected,
+                        onDismiss: onDismiss,
+                        showSelected: showSelected
+                    )
+                } label: {
+                    MarketGroupLabel(group: group)
+                }
+            } else {
+                // 非最后一级目录，显示子目录
+                NavigationLink {
+                    MarketItemSelectorGroupView(
+                        databaseManager: databaseManager,
+                        group: group,
+                        allGroups: allGroups,
+                        validGroups: validGroups,  // 新增：传递有效组ID
+                        allowTypeIDs: allowTypeIDs,  // 新增：传递物品ID白名单
+                        existingItems: existingItems,
+                        onItemSelected: onItemSelected,
+                        onItemDeselected: onItemDeselected,
+                        onDismiss: onDismiss,
+                        showSelected: showSelected
+                    )
+                } label: {
+                    MarketGroupLabel(group: group)
+                }
             }
         }
+    }
+
+    // 判断是否应该显示该组
+    private func shouldShowGroup() -> Bool {
+        // 如果没有物品ID白名单，或者该组在有效组列表中，则显示
+        if allowTypeIDs == nil || allowTypeIDs!.isEmpty || validGroups.isEmpty {
+            return true
+        }
+
+        return validGroups.contains(group.id)
     }
 }
 
@@ -519,11 +554,13 @@ struct MarketItemSelectorGroupRow: View {
 struct MarketItemSelectorItemListView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let marketGroupID: Int
+    let allowTypeIDs: Set<Int>?  // 新增：物品ID白名单
     let title: String
     let existingItems: Set<Int>
     let onItemSelected: (DatabaseListItem) -> Void
     let onItemDeselected: (DatabaseListItem) -> Void
     let onDismiss: () -> Void
+    let showSelected: Bool
 
     @State private var items: [DatabaseListItem] = []
     @State private var metaGroupNames: [Int: String] = [:]
@@ -599,17 +636,19 @@ struct MarketItemSelectorItemListView: View {
                                 HStack {
                                     DatabaseListItemView(
                                         item: item,
-                                        showDetails: false
+                                        showDetails: true
                                     )
+                                    if showSelected {
+                                        Spacer()
 
-                                    Spacer()
-
-                                    Image(
-                                        systemName: existingItems.contains(item.id)
-                                            ? "checkmark.circle.fill" : "circle"
-                                    )
-                                    .foregroundColor(
-                                        existingItems.contains(item.id) ? .accentColor : .secondary)
+                                        Image(
+                                            systemName: existingItems.contains(item.id)
+                                                ? "checkmark.circle.fill" : "circle"
+                                        )
+                                        .foregroundColor(
+                                            existingItems.contains(item.id)
+                                                ? .accentColor : .secondary)
+                                    }
                                 }
                             }
                             .foregroundColor(existingItems.contains(item.id) ? .primary : .primary)
@@ -619,7 +658,16 @@ struct MarketItemSelectorItemListView: View {
                 }
             },
             searchQuery: { _ in
-                "t.marketGroupID = ? AND (t.name LIKE ? OR t.en_name LIKE ?)"
+                var query = "t.marketGroupID = ?"
+
+                // 如果有物品ID白名单，添加物品ID筛选条件
+                if let typeIDs = allowTypeIDs, !typeIDs.isEmpty {
+                    let typeIDsString = typeIDs.map { String($0) }.joined(separator: ",")
+                    query += " AND t.type_id IN (\(typeIDsString))"
+                }
+
+                query += " AND (t.name LIKE ? OR t.en_name LIKE ?)"
+                return query
             },
             searchParameters: { text in
                 [marketGroupID, "%\(text)%", "%\(text)%"]
@@ -627,7 +675,8 @@ struct MarketItemSelectorItemListView: View {
             existingItems: existingItems,
             onItemSelected: onItemSelected,
             onItemDeselected: onItemDeselected,
-            onDismiss: onDismiss
+            onDismiss: onDismiss,
+            showSelected: showSelected
         )
         .onAppear {
             loadItems()
@@ -635,9 +684,18 @@ struct MarketItemSelectorItemListView: View {
     }
 
     private func loadItems() {
+        var whereClause = "t.marketGroupID = ?"
+        let parameters: [Any] = [marketGroupID]
+
+        // 如果有物品ID白名单，添加物品ID筛选条件
+        if let typeIDs = allowTypeIDs, !typeIDs.isEmpty {
+            let typeIDsString = typeIDs.map { String($0) }.joined(separator: ",")
+            whereClause += " AND t.type_id IN (\(typeIDsString))"
+        }
+
         items = databaseManager.loadMarketItems(
-            whereClause: "t.marketGroupID = ?",
-            parameters: [marketGroupID]
+            whereClause: whereClause,
+            parameters: parameters
         )
 
         // 加载科技等级名称
@@ -816,6 +874,7 @@ struct MarketQuickbarDetailView: View {
     @State private var saveSelection = false  // 不保存默认市场位置
     @State private var selectedRegionID: Int = 0  // 新增：选中的星域ID
     @State private var selectedRegionName: String = ""  // 新增：选中的星域名称
+    @State private var showSelected = true
 
     // 新增：订单类型枚举
     private enum OrderType: String, CaseIterable {
@@ -1016,7 +1075,9 @@ struct MarketQuickbarDetailView: View {
                         quickbar.items.removeAll { $0.typeID == item.id }
                         MarketQuickbarManager.shared.saveQuickbar(quickbar)
                     }
-                }
+                },
+                showSelected: showSelected,
+                allowTypeIDs: nil  // 不限制物品ID
             )
         }
         .sheet(isPresented: $showRegionPicker) {
@@ -1355,5 +1416,177 @@ struct MarketQuickbarDetailView: View {
             }
         }
         return (total, hasInsufficientStock)
+    }
+}
+
+// 集成版市场物品选择器视图
+struct MarketItemSelectorIntegratedView: View {
+    @ObservedObject var databaseManager: DatabaseManager
+    let title: String
+    let allowedMarketGroups: Set<Int>
+    let allowTypeIDs: Set<Int>?  // 新增：物品ID白名单
+    let existingItems: Set<Int>
+    let onItemSelected: (DatabaseListItem) -> Void
+    let onItemDeselected: (DatabaseListItem) -> Void
+    let onDismiss: () -> Void
+    let showSelected: Bool
+
+    @State private var marketGroups: [MarketGroup] = []
+    @State private var validMarketGroups: Set<Int> = []  // 新增：缓存有效的市场组ID
+
+    var body: some View {
+        MarketItemSelectorBaseView(
+            databaseManager: databaseManager,
+            title: title,
+            content: {
+                ForEach(
+                    getFilteredRootGroups()
+                ) { group in
+                    MarketItemSelectorGroupRow(
+                        group: group,
+                        allGroups: marketGroups,
+                        validGroups: validMarketGroups,  // 新增：传递有效组ID
+                        allowTypeIDs: allowTypeIDs,  // 新增：传递物品ID白名单
+                        databaseManager: databaseManager,
+                        existingItems: existingItems,
+                        onItemSelected: onItemSelected,
+                        onItemDeselected: onItemDeselected,
+                        onDismiss: onDismiss,
+                        showSelected: showSelected
+                    )
+                }
+            },
+            searchQuery: { text in
+                let groupIDsString = MarketManager.shared.getAllSubGroupIDsFromIDs(
+                    marketGroups, allowedIDs: allowedMarketGroups.isEmpty ? [] : allowedMarketGroups
+                ).map { String($0) }.joined(separator: ",")
+
+                if let typeIDs = allowTypeIDs, !typeIDs.isEmpty {
+                    // 如果有物品ID白名单，添加物品ID筛选条件
+                    let typeIDsString = typeIDs.map { String($0) }.joined(separator: ",")
+                    return
+                        "t.marketGroupID IN (\(groupIDsString)) AND t.type_id IN (\(typeIDsString)) AND (t.name LIKE ? OR t.en_name LIKE ? OR t.type_id = ?)"
+                } else {
+                    // 否则只筛选市场分组
+                    return
+                        "t.marketGroupID IN (\(groupIDsString)) AND (t.name LIKE ? OR t.en_name LIKE ? OR t.type_id = ?)"
+                }
+            },
+            searchParameters: { text in
+                ["%\(text)%", "%\(text)%", text]
+            },
+            existingItems: existingItems,
+            onItemSelected: onItemSelected,
+            onItemDeselected: onItemDeselected,
+            onDismiss: onDismiss,
+            showSelected: showSelected
+        )
+        .onAppear {
+            marketGroups = MarketManager.shared.loadMarketGroups(databaseManager: databaseManager)
+
+            // 如果有typeID白名单，计算有效的市场组
+            if let typeIDs = allowTypeIDs, !typeIDs.isEmpty {
+                Task {
+                    validMarketGroups = await calculateValidMarketGroups(typeIDs: typeIDs)
+                }
+            }
+        }
+    }
+
+    // 根据筛选条件获取根目录
+    private func getFilteredRootGroups() -> [MarketGroup] {
+        // 根据市场组ID白名单筛选初始根组
+        let initialRootGroups: [MarketGroup]
+        if allowedMarketGroups.isEmpty {
+            initialRootGroups = MarketManager.shared.getRootGroups(marketGroups)
+        } else {
+            initialRootGroups = MarketManager.shared.setRootGroups(
+                marketGroups, allowedIDs: allowedMarketGroups)
+        }
+
+        // 如果有物品ID白名单且有效组ID已计算，过滤出有效的根目录
+        let validRootGroups: [MarketGroup]
+        if allowTypeIDs != nil, !validMarketGroups.isEmpty {
+            validRootGroups = initialRootGroups.filter { validMarketGroups.contains($0.id) }
+        } else {
+            validRootGroups = initialRootGroups
+        }
+
+        // 应用剪枝逻辑，压缩只有单个子节点的顶层路径
+        return pruneTopLevelPath(validRootGroups)
+    }
+
+    // 剪枝函数：仅压缩顶层单一路径，直接返回最后一个分支的子节点
+    private func pruneTopLevelPath(_ groups: [MarketGroup]) -> [MarketGroup] {
+        // 如果有多个根组，则不需要剪枝
+        if groups.count > 1 {
+            return groups
+        }
+
+        // 空组直接返回
+        if groups.isEmpty {
+            return []
+        }
+
+        // 获取当前唯一根节点
+        let currentGroup = groups[0]
+
+        // 获取子节点
+        let subGroups = MarketManager.shared.getSubGroups(marketGroups, for: currentGroup.id)
+
+        // 过滤有效的子组（如果存在物品白名单）
+        let validSubGroups: [MarketGroup]
+        if allowTypeIDs != nil, !validMarketGroups.isEmpty {
+            validSubGroups = subGroups.filter { validMarketGroups.contains($0.id) }
+        } else {
+            validSubGroups = subGroups
+        }
+
+        // 如果没有子节点，返回当前节点
+        if validSubGroups.isEmpty {
+            return [currentGroup]
+        }
+
+        // 如果只有一个子节点，继续沿着单一路径向下剪枝
+        if validSubGroups.count == 1 {
+            return pruneTopLevelPath(validSubGroups)
+        }
+
+        // 有多个子节点，表示到达分支点，返回所有子节点而不是当前节点
+        return validSubGroups
+    }
+
+    // 计算有效的市场组ID（有物品在allowTypeIDs中的组）
+    private func calculateValidMarketGroups(typeIDs: Set<Int>) async -> Set<Int> {
+        guard !typeIDs.isEmpty else { return Set() }
+
+        let typeIDsString = typeIDs.map { String($0) }.joined(separator: ",")
+
+        // 查询所有在白名单中的物品及其市场组ID
+        let query = """
+                SELECT DISTINCT marketGroupID
+                FROM types
+                WHERE type_id IN (\(typeIDsString))
+                AND marketGroupID IS NOT NULL
+            """
+
+        var validGroupIDs = Set<Int>()
+
+        if case let .success(rows) = databaseManager.executeQuery(query) {
+            for row in rows {
+                if let groupID = row["marketGroupID"] as? Int {
+                    validGroupIDs.insert(groupID)
+
+                    // 添加所有父级组ID
+                    var currentGroup = marketGroups.first { $0.id == groupID }
+                    while let group = currentGroup, let parentID = group.parentGroupID {
+                        validGroupIDs.insert(parentID)
+                        currentGroup = marketGroups.first { $0.id == parentID }
+                    }
+                }
+            }
+        }
+
+        return validGroupIDs
     }
 }

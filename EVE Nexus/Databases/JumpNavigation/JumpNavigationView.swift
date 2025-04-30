@@ -6,6 +6,7 @@ struct JumpSystemData {
     let id: Int
     let name: String
     let security: Double
+    let region: String
     let x: Double
     let y: Double
     let z: Double
@@ -17,9 +18,10 @@ struct JumpSystemData {
         // 综合查询，获取所有满足跳跃条件的星系信息
         let query = """
                 SELECT u.solarsystem_id, s.solarSystemName, 
-                       u.system_security, u.x, u.y, u.z
+                       u.system_security, r.regionName, u.x, u.y, u.z
                 FROM universe u
                 JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
+                JOIN regions r ON r.regionID = u.region_id
                 WHERE u.hasJumpGate -- 排除没有星门的星系，一般是虫洞和GM星系
                 AND NOT u.isJSpace -- 排除虫洞星系
                 AND u.region_id NOT IN (10000019, 10000004, 10000017, 10000070) -- 排除朱庇特星域与波赫文星域
@@ -33,6 +35,7 @@ struct JumpSystemData {
                 if let id = row["solarsystem_id"] as? Int,
                     let name = row["solarSystemName"] as? String,
                     let security = row["system_security"] as? Double,
+                    let region = row["regionName"] as? String,
                     let x = row["x"] as? Double,
                     let y = row["y"] as? Double,
                     let z = row["z"] as? Double
@@ -46,6 +49,7 @@ struct JumpSystemData {
                             id: id,
                             name: name,
                             security: displaySec,
+                            region: region,
                             x: x,
                             y: y,
                             z: z
@@ -147,9 +151,11 @@ class JumpSystemsCache {
     }
 
     // 获取符合条件的星系列表（用于选择器）
-    var jumpableSystems: [(id: Int, name: String, security: Double)] {
-        return allJumpSystems.map { (id: $0.id, name: $0.name, security: $0.security) }
-            .sorted { $0.name < $1.name }
+    var jumpableSystems: [(id: Int, name: String, security: Double, region: String)] {
+        return allJumpSystems.map {
+            (id: $0.id, name: $0.name, security: $0.security, region: $0.region)
+        }
+        .sorted { $0.name < $1.name }
     }
 
     private init() {}
@@ -1068,7 +1074,7 @@ struct SystemSelectorSheet: View {
     let onlyLowSec: Bool  // 添加新参数，控制是否只显示低安全等级星系
 
     @State private var searchText: String = ""
-    @State private var systems: [(id: Int, name: String, security: Double)] = []
+    @State private var systems: [(id: Int, name: String, security: Double, region: String)] = []
     @State private var selectedSystemId: Int?  // 修改为星系ID
     @State private var isLoading = true
 
@@ -1111,8 +1117,10 @@ struct SystemSelectorSheet: View {
                                         .font(.system(.body, design: .monospaced))
 
                                     // 星系名称
-                                    Text(system.name)
+                                    Text("\(system.name) / ")
                                         .foregroundColor(.primary)
+                                        + Text(system.region)
+                                        .foregroundColor(.secondary)
 
                                     Spacer()
 
@@ -1150,7 +1158,7 @@ struct SystemSelectorSheet: View {
     }
 
     // 过滤后的星系列表
-    private var filteredSystems: [(id: Int, name: String, security: Double)] {
+    private var filteredSystems: [(id: Int, name: String, security: Double, region: String)] {
         if searchText.isEmpty {
             return systems
         } else {

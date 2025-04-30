@@ -674,7 +674,7 @@ struct AgentSearchView: View {
     // 加载特定势力的军团
     private func loadCorporationsForFaction(_ factionID: Int) {
         let query = """
-                SELECT DISTINCT c.corporation_id, c.name, c.icon_id, c.icon_filename
+                SELECT DISTINCT c.corporation_id, c.name, c.icon_filename
                 FROM agents a
                 JOIN npcCorporations c ON a.corporationID = c.corporation_id
                 WHERE c.faction_id = ?

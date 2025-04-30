@@ -225,6 +225,7 @@
 "Time_Just_Now" = "just now";
 "Time_Days_Hours" = "%dd %dh";
 "Time_Days" = "%dd";
+"Time_Days_Long" = "%d Days";
 "Time_Hours" = "%dh";
 "Time_Seconds" = "%ds";
 "Time_Hours_Minutes" = "%dh %dm";
@@ -600,6 +601,10 @@
 "Main_LP_Basic_Info" = "Basic Information";
 "Main_LP_Store" = "LP Store";
 "Main_LP_Required_Items" = "Required Items";
+"Main_LP_Store_section" = "Offers";
+"Main_LP_Store_category" = "Offers Category";
+"Main_LP_Store_Factions" = "Factions";
+"Main_LP_Store_Corps" = "Corporations";
 
 "Main_EVE_Mail_Title" = "EVE Mail";
 "Main_EVE_Mail_All" = "All Mails";
@@ -703,9 +708,10 @@
 "Main_Corporation_Wallet_Default" = "Wallet Division %d";
 
 // Wallet Journal
-"Summary" = "Summary(30d)";
+"Summary" = "Summary";
 "Total Income" = "Total Income";
 "Total Expense" = "Total Expense";
+"Net Income" = "Net Income";
 "Transaction Dates" = "Transaction Dates";
 "transactions" = "trans";
 "Common_Error" = "Error";
@@ -1440,6 +1446,7 @@
 "PI_Output_Max_Jumps" = "Max Jumps";
 "PI_Output_Search_Solar_System" = "Search Solar System";
 "PI_Output_No_Results" = "No Results Found";
+"PI_Output_No_Resources" = "No Resource Available";
 "PI_Output_Loading_Systems" = "Loading Systems...";
 "Common_Cancel" = "Cancel";
 "Planetary_System_Description" = "Select system as production center";
@@ -1471,3 +1478,22 @@
 "Recipient_Type_Corporation" = "Corporation";
 "Recipient_Type_Alliance" = "Alliance";
 "Recipient_Type_Mailing_List" = "Mailing List";
+
+"Main_Fitting" = "Fitting";
+"Main_Fitting_Simulation" = "Fitting Simulation";
+"Fitting_Local" = "Local";
+"Fitting_Online" = "In-Game";
+"Fitting_Online_Need_Login" = "Need login";
+"Fitting_Local_Text" = "Local Fittings";
+"Fitting_Online_Text" = "In-Game Fittings";
+"Fitting_Select_Ship" = "Select Ship";
+"Fitting_Select_Structure" = "Select Structure";
+"Fitting_Online_No_Data" = "No In-Game Fittings";
+"Fitting_Select_Item" = "Select Item";
+"Unnamed" = "Unnamed fit";
+"Fitting_New_Fitting" = "New Fitting";
+"Fitting_New_Ship_Fitting" = "New Ship Fitting";
+"Fitting_New_Structure_Fitting" = "New Structure Fitting";
+"Fitting_No_Local_Fitting" = "No Saved Local Fitting";
+"Fitting_Setting_Ship" = "Ship Setting";
+"Fitting_Name" = "Name of Fitting";

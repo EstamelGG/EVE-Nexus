@@ -60,7 +60,7 @@ class MarketManager {
 
     // 将指定的ID设为展示的顶级目录
     func setRootGroups(_ groups: [MarketGroup], allowedIDs: Set<Int>? = nil) -> [MarketGroup] {
-        guard let allowedIDs = allowedIDs else {
+        guard let allowedIDs = allowedIDs, !allowedIDs.isEmpty else {
             return groups.filter { $0.parentGroupID == nil }
         }
 
@@ -77,18 +77,13 @@ class MarketManager {
         return !groups.contains { $0.parentGroupID == group.id }
     }
 
-    // 根据顶级目录白名单获取所有允许的市场组ID
-    func getAllowedGroupIDs(_ groups: [MarketGroup], allowedIDs: Set<Int>) -> [Int] {
+    // 根据顶级目录白名单获取所有子目录的GroupID
+    func getAllSubGroupIDsFromIDs(_ groups: [MarketGroup], allowedIDs: Set<Int>) -> [Int] {
+        // 传入的allowedIDs可以是非顶级目录
         var result: [Int] = []
-
-        // 获取所有允许的顶级目录
-        let rootGroups = getRootGroups(groups, allowedIDs: allowedIDs)
-
-        // 递归获取所有子目录ID
-        for rootGroup in rootGroups {
-            result.append(contentsOf: getAllSubGroupIDs(groups, startingFrom: rootGroup.id))
+        for rootGroupId in allowedIDs {
+            result.append(contentsOf: getAllSubGroupIDsFromID(groups, startingFrom: rootGroupId))
         }
-
         return result
     }
 }

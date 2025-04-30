@@ -16,6 +16,7 @@ struct BRKillMailDetailView: View {
     @State private var totalValue: Double = 0
     @State private var itemInfoCache: [Int: (name: String, iconFileName: String, categoryID: Int)] =
         [:]
+    @State private var solarSystemInfo: SolarSystemInfo?
 
     var body: some View {
         List {
@@ -159,12 +160,23 @@ struct BRKillMailDetailView: View {
                                         .font(.system(.body, design: .monospaced))
                                         .foregroundColor(getSecurityColor(ssValue))
                                 }
-                                Text(sysInfo["name"] as? String ?? "")
-                                    .fontWeight(.bold)
+                                if let solarSystemInfo = solarSystemInfo {
+                                    Text(solarSystemInfo.systemName)
+                                        .fontWeight(.bold)
+                                } else {
+                                    Text(sysInfo["name"] as? String ?? "")
+                                        .fontWeight(.bold)
+                                }
                             }
-                            Text(sysInfo["region"] as? String ?? "")
-                                .foregroundColor(.secondary)
-                                .font(.caption)
+                            if let solarSystemInfo = solarSystemInfo {
+                                Text(solarSystemInfo.regionName)
+                                    .foregroundColor(.secondary)
+                                    .font(.caption)
+                            } else {
+                                Text(sysInfo["region"] as? String ?? "")
+                                    .foregroundColor(.secondary)
+                                    .font(.caption)
+                            }
                         }
                     }
                     .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
@@ -576,6 +588,16 @@ struct BRKillMailDetailView: View {
 
                 // 获取到详细数据后加载图标
                 await loadIcons(from: detail)
+
+                // 获取星系信息
+                if let sysInfo = detail["sys"] as? [String: Any],
+                    let systemId = sysInfo["id"] as? Int
+                {
+                    solarSystemInfo = await getSolarSystemInfo(
+                        solarSystemId: systemId,
+                        databaseManager: DatabaseManager.shared
+                    )
+                }
 
                 // 计算所有价值
                 if let victInfo = detail["vict"] as? [String: Any],

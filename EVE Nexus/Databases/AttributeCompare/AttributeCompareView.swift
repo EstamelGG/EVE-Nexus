@@ -118,7 +118,7 @@ class AttributeCompareManager {
 // 属性对比物品选择器视图（使用过滤的顶级市场分组）
 struct AttributeItemSelectorView: View {
     @ObservedObject var databaseManager: DatabaseManager
-    @State private var marketGroups: [MarketGroup] = []
+    @State private var showSelected = true
     let allowedTopMarketGroupIDs: Set<Int>
     let existingItems: Set<Int>
     let onItemSelected: (DatabaseListItem) -> Void
@@ -127,48 +127,17 @@ struct AttributeItemSelectorView: View {
 
     var body: some View {
         NavigationStack {
-            MarketItemSelectorBaseView(
+            MarketItemSelectorIntegratedView(
                 databaseManager: databaseManager,
                 title: NSLocalizedString("Main_Attribute_Compare_Add_Item", comment: ""),
-                content: {
-                    // 使用修改后的getRootGroups方法，直接过滤顶级目录
-                    ForEach(
-                        MarketManager.shared.getRootGroups(
-                            marketGroups, allowedIDs: allowedTopMarketGroupIDs)
-                    ) { group in
-                        MarketItemSelectorGroupRow(
-                            group: group,
-                            allGroups: marketGroups,
-                            databaseManager: databaseManager,
-                            existingItems: existingItems,
-                            onItemSelected: onItemSelected,
-                            onItemDeselected: onItemDeselected,
-                            onDismiss: { dismiss() }
-                        )
-                    }
-                },
-                searchQuery: { _ in
-                    // 获取所有允许的市场组ID
-                    let allowedGroupIDs = MarketManager.shared.getAllowedGroupIDs(
-                        marketGroups, allowedIDs: allowedTopMarketGroupIDs)
-                    let groupIDsString = allowedGroupIDs.map { String($0) }.joined(separator: ",")
-
-                    // 限制只在允许的市场组内搜索
-                    return
-                        "t.marketGroupID IN (\(groupIDsString)) AND (t.name LIKE ? OR t.en_name LIKE ? OR t.type_id = ?)"
-                },
-                searchParameters: { text in
-                    ["%\(text)%", "%\(text)%", "\(text)"]
-                },
+                allowedMarketGroups: allowedTopMarketGroupIDs,
+                allowTypeIDs: [],
                 existingItems: existingItems,
                 onItemSelected: onItemSelected,
                 onItemDeselected: onItemDeselected,
-                onDismiss: { dismiss() }
+                onDismiss: { dismiss() },
+                showSelected: showSelected
             )
-            .onAppear {
-                marketGroups = MarketManager.shared.loadMarketGroups(
-                    databaseManager: databaseManager)
-            }
             .interactiveDismissDisabled()
         }
     }
@@ -575,7 +544,7 @@ struct AttributeCompareDetailView: View {
         -> [String]
     {
         var attributesWithDifferences: [String] = []
-        
+
         // 物品总数
         let totalItemCount = items.count
 

@@ -541,6 +541,7 @@
 // 时间显示
 "Time_Days_Hours" = "%d天%d小时";
 "Time_Days" = "%d天";
+"Time_Days_Long" = "%d 天";
 "Time_Hours" = "%d小时";
 "Time_Seconds" = "%d秒";
 "Time_Hours_Minutes" = "%d小时%d分钟";
@@ -599,6 +600,10 @@
 "Main_LP_Basic_Info" = "基本信息";
 "Main_LP_Store" = "忠诚点商店";
 "Main_LP_Required_Items" = "需要的物品";
+"Main_LP_Store_section" = "可兑换物品";
+"Main_LP_Store_category" = "可兑换物品分类";
+"Main_LP_Store_Factions" = "可选势力";
+"Main_LP_Store_Corps" = "可选军团";
 
 "Main_EVE_Mail_Title" = "EVE 邮件";
 "Main_EVE_Mail_All" = "全部邮件";
@@ -699,9 +704,10 @@
 "Balance" = "余额: %@ ISK";
 
 // Wallet Journal
-"Summary" = "摘要(30天)";
+"Summary" = "摘要";
 "Total Income" = "总收入";
 "Total Expense" = "总支出";
+"Net Income" = "净收益";
 "Transaction Dates" = "交易日期";
 "transactions" = "笔交易";
 "Common_Error" = "错误";
@@ -1474,6 +1480,7 @@
 "PI_Output_Max_Jumps" = "最大跳数";
 "PI_Output_Search_Solar_System" = "搜索星系";
 "PI_Output_No_Results" = "没有搜索结果";
+"PI_Output_No_Resources" = "没有找到可用资源";
 "PI_Output_Loading_Systems" = "正在加载星系数据...";
 "Common_Cancel" = "取消";
 "Planetary_System_Description" = "选择作为生产中心的星系";
@@ -1502,3 +1509,22 @@
 "Recipient_Type_Corporation" = "军团";
 "Recipient_Type_Alliance" = "联盟";
 "Recipient_Type_Mailing_List" = "邮件列表";
+
+"Main_Fitting" = "装配";
+"Main_Fitting_Simulation" = "装配模拟";
+"Fitting_Local" = "本地";
+"Fitting_Online" = "线上";
+"Fitting_Online_Need_Login" = "需要可用的人物";
+"Fitting_Local_Text" = "本地保存的装配方案";
+"Fitting_Online_Text" = "线上保存的装配方案";
+"Fitting_Select_Ship" = "选择飞船";
+"Fitting_Select_Structure" = "选择建筑";
+"Fitting_Online_No_Data" = "无游戏内配置";
+"Fitting_Select_Item" = "选择装备";
+"Unnamed" = "未命名";
+"Fitting_New_Fitting" = "新建配置";
+"Fitting_New_Ship_Fitting" = "新建舰船配置";
+"Fitting_New_Structure_Fitting" = "新建建筑配置";
+"Fitting_No_Local_Fitting" = "没有本地保存的装配";
+"Fitting_Setting_Ship" = "舰船设置";
+"Fitting_Name" = "配置名称";

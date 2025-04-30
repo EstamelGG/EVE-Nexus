@@ -120,13 +120,15 @@ struct LPStoreGroupView: View {
 
     var body: some View {
         List {
-            ForEach(filteredOffers, id: \.offerId) { offer in
-                if let itemInfo = itemInfos[offer.typeId] {
-                    LPStoreOfferView(
-                        offer: offer,
-                        itemInfo: itemInfo,
-                        requiredItemInfos: itemInfos
-                    )
+            Section(NSLocalizedString("Main_LP_Store_section", comment: "")) {
+                ForEach(filteredOffers, id: \.offerId) { offer in
+                    if let itemInfo = itemInfos[offer.typeId] {
+                        LPStoreOfferView(
+                            offer: offer,
+                            itemInfo: itemInfo,
+                            requiredItemInfos: itemInfos
+                        )
+                    }
                 }
             }
         }
@@ -214,31 +216,33 @@ struct CorporationLPStoreView: View {
                 }
                 .listSectionSpacing(.compact)
             } else {
-                ForEach(filteredCategoryOffers, id: \.0.name) { categoryInfo, offers in
-                    NavigationLink(
-                        destination: LPStoreGroupView(
-                            categoryName: categoryInfo.name,
-                            offers: offers,
-                            itemInfos: itemInfos
-                        )
-                    ) {
-                        HStack {
-                            IconManager.shared.loadImage(for: categoryInfo.iconFileName)
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 36)
-                                .cornerRadius(6)
-                            Text(categoryInfo.name)
-                                .padding(.leading, 8)
+                Section(NSLocalizedString("Main_LP_Store_category", comment: "")) {
+                    ForEach(filteredCategoryOffers, id: \.0.name) { categoryInfo, offers in
+                        NavigationLink(
+                            destination: LPStoreGroupView(
+                                categoryName: categoryInfo.name,
+                                offers: offers,
+                                itemInfos: itemInfos
+                            )
+                        ) {
+                            HStack {
+                                IconManager.shared.loadImage(for: categoryInfo.iconFileName)
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 36)
+                                    .cornerRadius(6)
+                                Text(categoryInfo.name)
+                                    .padding(.leading, 8)
 
-                            Spacer()
-                            Text("\(offers.count)")
-                                .foregroundColor(.secondary)
+                                Spacer()
+                                Text("\(offers.count)")
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(.vertical, 2)
                         }
-                        .padding(.vertical, 2)
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
         }
         .navigationTitle(corporationName)

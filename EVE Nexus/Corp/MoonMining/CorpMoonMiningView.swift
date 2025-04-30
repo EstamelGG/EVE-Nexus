@@ -23,11 +23,10 @@ struct CorpMoonMiningView: View {
                     Spacer()
                 }
             } else if viewModel.moonExtractions.isEmpty {
-                HStack {
-                    Spacer()
-                    Text(NSLocalizedString("Misc_No_Data", comment: "Misc_No_Data"))
-                        .foregroundColor(.secondary)
-                    Spacer()
+                ContentUnavailableView {
+                    Label(
+                        NSLocalizedString("Misc_No_Data", comment: "无数据"),
+                        systemImage: "exclamationmark.triangle")
                 }
             } else {
                 if !viewModel.thisWeekExtractions.isEmpty {

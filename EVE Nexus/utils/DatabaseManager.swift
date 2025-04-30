@@ -210,8 +210,8 @@ class DatabaseManager: ObservableObject {
                 }
 
                 // 获取可选属性
-                let pgNeed = row["pg_need"] as? Int
-                let cpuNeed = row["cpu_need"] as? Int
+                let pgNeed = row["pg_need"] as? Double
+                let cpuNeed = row["cpu_need"] as? Double
                 let rigCost = row["rig_cost"] as? Int
                 let emDamage =
                     row["em_damage"] as? Double ?? (row["em_damage"] as? Int).map { Double($0) }
@@ -332,8 +332,8 @@ class DatabaseManager: ObservableObject {
                             categoryID: categoryId,
                             groupID: groupID,
                             groupName: groupName,
-                            pgNeed: row["pgNeed"] as? Int,
-                            cpuNeed: row["cpuNeed"] as? Int,
+                            pgNeed: row["pgNeed"] as? Double,
+                            cpuNeed: row["cpuNeed"] as? Double,
                             rigCost: row["rigCost"] as? Int,
                             emDamage: row["emDamage"] as? Double,
                             themDamage: row["themDamage"] as? Double,
@@ -1373,6 +1373,7 @@ class DatabaseManager: ObservableObject {
                 FROM types t
                 WHERE \(whereClause)
                 ORDER BY t.metaGroupID
+                LIMIT 100
             """
 
         if case let .success(rows) = executeQuery(query, parameters: parameters) {
@@ -1395,8 +1396,8 @@ class DatabaseManager: ObservableObject {
                     categoryID: categoryId,
                     groupID: groupID,
                     groupName: groupName,
-                    pgNeed: row["pgNeed"] as? Int,
-                    cpuNeed: row["cpuNeed"] as? Int,
+                    pgNeed: row["pgNeed"] as? Double,
+                    cpuNeed: row["cpuNeed"] as? Double,
                     rigCost: row["rigCost"] as? Int,
                     emDamage: row["emDamage"] as? Double,
                     themDamage: row["themDamage"] as? Double,

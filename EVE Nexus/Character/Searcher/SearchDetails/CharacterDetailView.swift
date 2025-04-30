@@ -604,9 +604,11 @@ struct CharacterDetailView: View {
 
         var body: some View {
             if history.isEmpty {
-                Text(NSLocalizedString("Misc_Not_Found", comment: ""))
-                    .foregroundColor(.secondary)
-                    .padding()
+                ContentUnavailableView {
+                    Label(
+                        NSLocalizedString("Misc_No_Data", comment: "无数据"),
+                        systemImage: "exclamationmark.triangle")
+                }
             } else {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     ForEach(Array(history.enumerated()), id: \.element.record_id) { index, record in

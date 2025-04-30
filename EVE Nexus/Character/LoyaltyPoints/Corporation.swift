@@ -9,8 +9,7 @@ struct Corporation: Identifiable {
     init?(from row: [String: Any]) {
         guard let corporationId = row["corporation_id"] as? Int,
             let name = row["name"] as? String,
-            let factionId = row["faction_id"] as? Int,
-            let iconFileName = row["icon_filename"] as? String
+            let factionId = row["faction_id"] as? Int
         else {
             return nil
         }
@@ -18,6 +17,8 @@ struct Corporation: Identifiable {
         id = corporationId
         self.name = name
         self.factionId = factionId
-        self.iconFileName = iconFileName.isEmpty ? "corporations_default" : iconFileName
+        self.iconFileName =
+            (row["icon_filename"] as? String)?.isEmpty == true
+            ? "corporations_default" : (row["icon_filename"] as? String ?? "corporations_default")
     }
 }
