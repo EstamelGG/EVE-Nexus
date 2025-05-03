@@ -347,6 +347,11 @@
 "Location_Flag_MedSlots" = "Medium Slots";
 "Location_Flag_LoSlots" = "Low Slots";
 "Location_Flag_RigSlots" = "Rig Slots";
+"Location_Flag_CPU" = "CPU";
+"Location_Flag_PG" = "PG";
+"Location_Flag_RigCost" = "Rig";
+"Location_Flag_Gun" = "Gun";
+"Location_Flag_Launcher" = "Launcher";
 "Location_Flag_SpecializedAmmoHold" = " Ammo Hold";
 "Location_Flag_SpecializedCommandCenterHold" = " Command Center Hold";
 "Location_Flag_SpecializedFuelBay" = " Fuel Bay";
@@ -949,6 +954,8 @@
 "Main_KM_Specialized_Holds" = " Holds";
 "Main_KM_Fleet_Hangar" = "Fleet Hangar";
 "Main_KM_Frigate_Escape_Bay" = "Frigate Escape Bay";
+
+"Main_KM_Implants" = "Implants";
 
 // Flag Names
 "LoSlot" = "Low Slot";

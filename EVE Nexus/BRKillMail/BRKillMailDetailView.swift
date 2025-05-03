@@ -239,6 +239,36 @@ struct BRKillMailDetailView: View {
                 if let victInfo = detail["vict"] as? [String: Any],
                     let items = victInfo["itms"] as? [[Int]]
                 {
+                    // 获取所有植入体
+                    let implantItems = items.filter { $0[0] == 89 && $0.count >= 4 }
+                    if !implantItems.isEmpty {
+                        Section(
+                            header: Text(NSLocalizedString("Main_KM_Implants", comment: ""))
+                                .fontWeight(.bold)
+                                .font(.system(size: 18))
+                                .foregroundColor(.primary)
+                                .textCase(.none)
+                        ) {
+                            ForEach(implantItems, id: \.self) { item in
+                                let typeId = item[1]
+                                if item[2] > 0 {  // 掉落数量
+                                    ItemRow(
+                                        typeId: typeId, quantity: item[2], isDropped: true,
+                                        itemInfoCache: itemInfoCache,
+                                        prices: detail["prices"] as? [String: Double] ?? [:]
+                                    )
+                                }
+                                if item[3] > 0 {  // 摧毁数量
+                                    ItemRow(
+                                        typeId: typeId, quantity: item[3], isDropped: false,
+                                        itemInfoCache: itemInfoCache,
+                                        prices: detail["prices"] as? [String: Double] ?? [:]
+                                    )
+                                }
+                            }
+                        }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                    }
+
                     // 高槽
                     let highSlotItems = items.filter { item in
                         (27...34).contains(item[0]) && item.count >= 4
@@ -446,6 +476,7 @@ struct BRKillMailDetailView: View {
                             && !(92...94).contains(item[0])  // 改装槽
                             && !(125...128).contains(item[0])  // 子系统槽
                             && !(159...163).contains(item[0])  // 战斗机发射管
+                            && item[0] != 89  // 植入体
                     }
 
                     // 获取所有可能的flag
@@ -582,6 +613,19 @@ struct BRKillMailDetailView: View {
             if let killId = killmail["_id"] as? Int {
                 Logger.debug("装配图: 开始加载战报ID \(killId) 的详细信息")
                 let detail = try await kbAPI.fetchKillMailDetail(killMailId: killId)
+
+                // 转换植入体为装配格式
+                if let victInfo = detail["vict"] as? [String: Any],
+                   let items = victInfo["itms"] as? [[Int]] {
+                    let convertedItems = BRKillMailUtils.shared.convertImplantsToFitting(victInfo: victInfo, items: items)
+                    var newVictInfo = victInfo
+                    newVictInfo["itms"] = convertedItems
+                    var newDetail = detail
+                    newDetail["vict"] = newVictInfo
+                    detailData = newDetail
+                } else {
+                    detailData = detail
+                }
 
                 // 一次性加载所有物品信息
                 loadAllItemInfo(from: detail)
@@ -858,6 +902,10 @@ struct BRKillMailDetailView: View {
                 }
             }
         }
+    }
+
+    private func convertImplantsToFitting(victInfo: [String: Any], items: [[Int]]) -> [[Int]] {
+        return BRKillMailUtils.shared.convertImplantsToFitting(victInfo: victInfo, items: items)
     }
 }
 

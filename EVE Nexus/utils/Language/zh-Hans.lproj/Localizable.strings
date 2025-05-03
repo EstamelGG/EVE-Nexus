@@ -324,6 +324,11 @@
 "Location_Flag_MedSlots" = "中槽";
 "Location_Flag_LoSlots" = "低槽";
 "Location_Flag_RigSlots" = "改装槽";
+"Location_Flag_CPU" = "CPU";
+"Location_Flag_PG" = "PG";
+"Location_Flag_RigCost" = "校准值";
+"Location_Flag_Gun" = "炮台";
+"Location_Flag_Launcher" = "发射器";
 "Location_Flag_SpecializedAmmoHold" = "特殊弹药仓";
 "Location_Flag_SpecializedCommandCenterHold" = "特殊指挥中心仓";
 "Location_Flag_SpecializedFuelBay" = "特殊燃料仓";
@@ -963,6 +968,8 @@
 "Main_KM_Specialized_Holds" = "特殊舱室";
 "Main_KM_Fleet_Hangar" = "舰队机库";
 "Main_KM_Frigate_Escape_Bay" = "护卫舰逃生舱";
+
+"Main_KM_Implants" = "植入体";
 
 // Flag Names
 "LoSlot" = "低槽";
