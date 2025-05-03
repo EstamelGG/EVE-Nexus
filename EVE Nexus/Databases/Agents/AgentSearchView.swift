@@ -520,7 +520,6 @@ struct AgentSearchView: View {
                     f.id as factionID, 
                     f.name as factionName, 
                     f.iconName as factionIcon,
-                    c.icon_id as corporationIconID, 
                     d.name as divisionName,
                     COALESCE(s.solarSystemName, ss.solarSystemName, 'Unknown') as sortLocation
                 FROM agents a
@@ -1157,7 +1156,7 @@ struct AgentListHierarchyView: View {
 
         // 一次性查询指定势力下的所有军团
         let query = """
-                SELECT c.corporation_id, c.name, c.icon_id, c.icon_filename
+                SELECT c.corporation_id, c.name, c.icon_filename
                 FROM npcCorporations c
                 WHERE c.faction_id = ?
                 ORDER BY c.name
@@ -1582,7 +1581,7 @@ struct AgentCellView: View {
         // 查询势力和军团信息
         let affiliationQuery = """
                 SELECT c.name as corporationName, f.name as factionName, 
-                       f.iconName as factionIcon, c.icon_id as corporationIconID,
+                       f.iconName as factionIcon,
                        c.icon_filename as corporationIcon
                 FROM npcCorporations c
                 JOIN factions f ON c.faction_id = f.id

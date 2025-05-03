@@ -6,7 +6,7 @@ enum FormatUtil {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.minimumFractionDigits = 0
-        formatter.maximumFractionDigits = 2  // 最多2位小数
+        formatter.maximumFractionDigits = 3  // 默认最大3位小数
         formatter.groupingSeparator = ","  // 千位分隔符
         formatter.groupingSize = 3
         formatter.decimalSeparator = "."
@@ -17,69 +17,101 @@ enum FormatUtil {
     private static let msFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 0
-        formatter.maximumFractionDigits = 3  // 最多3位小数（毫秒级）
-        formatter.groupingSeparator = ","  // 千位分隔符
+        formatter.minimumSignificantDigits = 1
+        formatter.maximumSignificantDigits = 6  // 允许最多6位有效数字
+        formatter.usesSignificantDigits = true  // 启用有效数字模式
+        formatter.groupingSeparator = ","
         formatter.groupingSize = 3
         formatter.decimalSeparator = "."
         return formatter
     }()
 
-    /// 格式化数字：支持千位分隔符，最多3位有效小数
-    /// - Parameter value: 要格式化的数值
-    /// - Parameter showDigit: 是否显示小数部分
+    /// 通用的数字格式化函数
+    /// - Parameters:
+    ///   - value: 要格式化的数值
+    ///   - maxFractionDigits: 最大小数位数
+    ///   - showDigit: 是否显示小数部分
     /// - Returns: 格式化后的字符串
-    static func format(_ value: Double, _ showDigit: Bool = true) -> String {
-        // 如果指定不显示小数部分，或者值是整数，不显示小数
+    /// - Example:
+    ///   ```
+    ///   formatNumber(1234.567, maxFractionDigits: 2)  // "1,234.57"
+    ///   formatNumber(1234.0, maxFractionDigits: 2)     // "1,234"
+    ///   formatNumber(1234.567, maxFractionDigits: 0)   // "1,235"
+    ///   ```
+    private static func formatNumber(_ value: Double, maxFractionDigits: Int, showDigit: Bool = true) -> String {
         if !showDigit || value.truncatingRemainder(dividingBy: 1) == 0 {
             formatter.maximumFractionDigits = 0
             return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.0f", value)
         }
-
-        // 对于小数，显示最多3位有效小数（去除末尾的0）
-        formatter.maximumFractionDigits = 3
-        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.3g", value)
+        formatter.maximumFractionDigits = maxFractionDigits
+        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.\(maxFractionDigits)f", value)
     }
 
-    /// 格式化数字（毫秒精度）：支持千位分隔符，最多3位有效小数
+    /// 通用的单位格式化函数
+    /// - Parameters:
+    ///   - value: 要格式化的数值
+    ///   - unit: 单位符号
+    ///   - threshold: 单位阈值
+    ///   - maxFractionDigits: 最大小数位数
+    /// - Returns: 格式化后的字符串
+    /// - Example:
+    ///   ```
+    ///   formatWithUnit(1500, unit: "K", threshold: 1000, maxFractionDigits: 1)  // "1.5K"
+    ///   formatWithUnit(1200, unit: "K", threshold: 1000, maxFractionDigits: 1)  // "1.2K"
+    ///   formatWithUnit(1000, unit: "K", threshold: 1000, maxFractionDigits: 1)  // "1K"
+    ///   ```
+    private static func formatWithUnit(_ value: Double, unit: String, threshold: Double, maxFractionDigits: Int) -> String {
+        if value >= threshold {
+            let formatted = value / threshold
+            if formatted.truncatingRemainder(dividingBy: 1) == 0 {
+                return String(format: "%.0f\(unit)", formatted)
+            }
+            return String(format: "%.\(maxFractionDigits)f\(unit)", formatted)
+        }
+        return formatNumber(value, maxFractionDigits: 0)
+    }
+
+    /// 格式化数字：支持千位分隔符，最多3位有效小数
+    /// - Parameters:
+    ///   - value: 要格式化的数值
+    ///   - showDigit: 是否显示小数部分
+    ///   - maxFractionDigits: 最大小数位数（默认3位）
+    /// - Returns: 格式化后的字符串
+    /// - Example:
+    ///   ```
+    ///   format(1234.567)                // "1,234.567"
+    ///   format(1234.0)                  // "1,234"
+    ///   format(1234.567, false)         // "1,235"
+    ///   format(1234.567, maxFractionDigits: 2)  // "1,234.57"
+    ///   ```
+    static func format(_ value: Double, _ showDigit: Bool = true, maxFractionDigits: Int = 3) -> String {
+        return formatNumber(value, maxFractionDigits: maxFractionDigits, showDigit: showDigit)
+    }
+
+    /// 格式化数字（毫秒精度）：支持千位分隔符，最多3位有效小数，自动去除末尾的0
     /// - Parameter value: 要格式化的数值
     /// - Returns: 格式化后的字符串
+    /// - Example:
+    ///   ```
+    ///   formatWithMillisecondPrecision(1.234)    // "1.234"
+    ///   formatWithMillisecondPrecision(1.200)    // "1.2"
+    ///   formatWithMillisecondPrecision(1.000)    // "1"
+    ///   formatWithMillisecondPrecision(0.001)    // "0.001"
+    ///   ```
     static func formatWithMillisecondPrecision(_ value: Double) -> String {
-        // 如果是整数，不显示小数部分
-        if value.truncatingRemainder(dividingBy: 1) == 0 {
-            msFormatter.maximumFractionDigits = 0
-            return msFormatter.string(from: NSNumber(value: value)) ?? String(format: "%.0f", value)
-        }
-
-        // 获取小数部分
-        let decimalPart = value - floor(value)
-
-        // 根据小数精度调整显示
-        var digits = 3
-
-        // 如果小数第3位是0，最多显示2位
-        if (decimalPart * 1000).truncatingRemainder(dividingBy: 1) == 0 {
-            // 如果小数第2位也是0，最多显示1位
-            if (decimalPart * 100).truncatingRemainder(dividingBy: 1) == 0 {
-                // 如果小数第1位也是0，不显示小数
-                if (decimalPart * 10).truncatingRemainder(dividingBy: 1) == 0 {
-                    digits = 0
-                } else {
-                    digits = 1
-                }
-            } else {
-                digits = 2
-            }
-        }
-
-        msFormatter.maximumFractionDigits = digits
-        return msFormatter.string(from: NSNumber(value: value))
-            ?? String(format: "%.\(digits)f", value)
+        return msFormatter.string(from: NSNumber(value: value)) ?? String(format: "%.3g", value)
     }
 
     /// 格式化文件大小
     /// - Parameter size: 文件大小（字节）
     /// - Returns: 格式化后的文件大小字符串
+    /// - Example:
+    ///   ```
+    ///   formatFileSize(1024)        // "1 KB"
+    ///   formatFileSize(1024 * 1024) // "1 MB"
+    ///   formatFileSize(1500)        // "1.46 KB"
+    ///   formatFileSize(999)         // "999 bytes"
+    ///   ```
     static func formatFileSize(_ size: Int64) -> String {
         let units = ["bytes", "KB", "MB", "GB"]
         var size = Double(size)
@@ -106,8 +138,16 @@ enum FormatUtil {
     }
 
     /// 格式化 ISK 货币
-    /// - Parameter isk: ISK 数值
+    /// - Parameter value: ISK 数值
     /// - Returns: 格式化后的 ISK 字符串
+    /// - Example:
+    ///   ```
+    ///   formatISK(1200)     // "1.2K ISK"
+    ///   formatISK(1200000)  // "1.2M ISK"
+    ///   formatISK(1200000000) // "1.2B ISK"
+    ///   formatISK(1200000000000) // "1.2T ISK"
+    ///   formatISK(999)      // "999 ISK"
+    ///   ```
     static func formatISK(_ value: Double) -> String {
         let trillion = 1_000_000_000_000.0
         let billion = 1_000_000_000.0
@@ -115,47 +155,30 @@ enum FormatUtil {
         let thousand = 1000.0
 
         if value >= trillion {
-            let formatted = value / trillion
-            if formatted >= 100 {
-                return String(format: "%.1fT ISK", formatted)
-            } else {
-                return String(format: "%.2fT ISK", formatted)
-            }
+            return formatWithUnit(value, unit: "T ISK", threshold: trillion, maxFractionDigits: 2)
         } else if value >= billion {
-            let formatted = value / billion
-            if formatted >= 100 {
-                return String(format: "%.1fB ISK", formatted)
-            } else {
-                return String(format: "%.2fB ISK", formatted)
-            }
+            return formatWithUnit(value, unit: "B ISK", threshold: billion, maxFractionDigits: 2)
         } else if value >= million {
-            let formatted = value / million
-            if formatted >= 100 {
-                return String(format: "%.1fM ISK", formatted)
-            } else {
-                return String(format: "%.2fM ISK", formatted)
-            }
+            return formatWithUnit(value, unit: "M ISK", threshold: million, maxFractionDigits: 2)
         } else if value >= thousand {
-            let formatted = value / thousand
-            if formatted >= 100 {
-                return String(format: "%.1fK ISK", formatted)
-            } else {
-                return String(format: "%.2fK ISK", formatted)
-            }
+            return formatWithUnit(value, unit: "K ISK", threshold: thousand, maxFractionDigits: 2)
         } else {
-            return String(format: "%.1f ISK", value)
+            return formatNumber(value, maxFractionDigits: 1) + " ISK"
         }
     }
 
     /// 格式化时间（保留毫秒精度）
     /// - Parameter milliseconds: 时间（毫秒）
     /// - Returns: 格式化后的时间字符串
+    /// - Example:
+    ///   ```
+    ///   formatTimeWithMillisecondPrecision(1000)    // "1s"
+    ///   formatTimeWithMillisecondPrecision(1500)    // "1.5s"
+    ///   formatTimeWithMillisecondPrecision(61000)   // "1m 1s"
+    ///   formatTimeWithMillisecondPrecision(3661000) // "1h 1m 1s"
+    ///   formatTimeWithMillisecondPrecision(0.5)     // "1ms"
+    ///   ```
     static func formatTimeWithMillisecondPrecision(_ milliseconds: Double) -> String {
-        // 如果值小于1毫秒，四舍五入到1毫秒
-        if milliseconds < 1 {
-            return "1ms"
-        }
-
         // 将毫秒转换为秒
         let seconds = milliseconds / 1000.0
 
@@ -204,6 +227,13 @@ enum FormatUtil {
     /// 格式化时间（保留精度版本）
     /// - Parameter totalSeconds: 总秒数（浮点数，保留原始精度）
     /// - Returns: 格式化后的时间字符串
+    /// - Example:
+    ///   ```
+    ///   formatTimeWithPrecision(1.5)    // "1.5s"
+    ///   formatTimeWithPrecision(61.5)   // "1m 1.5s"
+    ///   formatTimeWithPrecision(3661.5) // "1h 1m 1.5s"
+    ///   formatTimeWithPrecision(0.5)    // "0.5s"
+    ///   ```
     static func formatTimeWithPrecision(_ totalSeconds: Double) -> String {
         if totalSeconds < 1 {
             // 对于小于1秒的情况，保留原始精度
