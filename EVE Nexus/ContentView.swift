@@ -247,7 +247,7 @@ struct LoginButtonView: View {
                 .padding(4)
             } else {
                 ZStack {
-                    Image("aura")
+                    Image("default_char")
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 64, height: 64)

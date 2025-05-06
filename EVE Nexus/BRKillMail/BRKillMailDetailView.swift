@@ -616,8 +616,10 @@ struct BRKillMailDetailView: View {
 
                 // 转换植入体为装配格式
                 if let victInfo = detail["vict"] as? [String: Any],
-                   let items = victInfo["itms"] as? [[Int]] {
-                    let convertedItems = BRKillMailUtils.shared.convertImplantsToFitting(victInfo: victInfo, items: items)
+                    let items = victInfo["itms"] as? [[Int]]
+                {
+                    let convertedItems = BRKillMailUtils.shared.convertImplantsToFitting(
+                        victInfo: victInfo, items: items)
                     var newVictInfo = victInfo
                     newVictInfo["itms"] = convertedItems
                     var newDetail = detail
@@ -902,10 +904,6 @@ struct BRKillMailDetailView: View {
                 }
             }
         }
-    }
-
-    private func convertImplantsToFitting(victInfo: [String: Any], items: [[Int]]) -> [[Int]] {
-        return BRKillMailUtils.shared.convertImplantsToFitting(victInfo: victInfo, items: items)
     }
 }
 

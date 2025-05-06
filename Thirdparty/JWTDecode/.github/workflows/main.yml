@@ -1,0 +1,115 @@
+name: CI
+
+on:
+    pull_request:
+      types:
+        - opened
+        - synchronize
+
+permissions: {}
+
+concurrency:
+    group: ${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+env:
+    ruby: '3.3.1'
+
+jobs:
+    test:
+        name: Test on ${{ matrix.platform.os }} using Xcode ${{ matrix.xcode }}
+        runs-on: macos-13
+
+        env:
+            xcodeproj: JWTDecode.xcodeproj
+
+        strategy:
+          matrix:
+            platform: 
+              - { os: iOS, scheme: JWTDecode-iOS }
+              - { os: macOS, scheme: JWTDecode-macOS }
+              - { os: tvOS, scheme: JWTDecode-tvOS }
+            xcode: 
+              - '15.0.1'
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Set up environment
+              uses: ./.github/actions/setup
+              with:
+                ruby: ${{ env.ruby }}
+                xcode: ${{ matrix.xcode }}
+
+            - name: Run tests
+              uses: ./.github/actions/test
+              with:
+                xcode: ${{ matrix.xcode }}
+                scheme: ${{ matrix.platform.scheme }}
+                platform: ${{ matrix.platform.os }}
+
+            - name: Convert coverage report
+              if: ${{ matrix.platform.os == 'iOS' }}
+              run: bundle exec slather coverage -x --scheme ${{ matrix.platform.scheme }} ${{ env.xcodeproj }}
+
+            - name: Upload coverage report
+              if: ${{ matrix.platform.os == 'iOS' }}
+              uses: codecov/codecov-action@0565863a31f2c772f9f0395002a31e3f06189574 # pin@5.4.0
+              with:
+                token: ${{ secrets.CODECOV_TOKEN }}
+
+    test-package:
+        name: Test Swift package using Xcode ${{ matrix.xcode }}
+        runs-on: macos-13
+
+        strategy:
+          matrix:
+            xcode: 
+              - '15.0.1'
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Set up environment
+              uses: ./.github/actions/setup
+              with:
+                ruby: ${{ env.ruby }}
+                xcode: ${{ matrix.xcode }}
+
+            - name: Run tests
+              run: swift test
+
+    pod-lint:
+        name: Lint podspec using Xcode ${{ matrix.xcode }}
+        runs-on: macos-13-xlarge
+
+        strategy:
+          matrix:
+            xcode: 
+              - '15.2'
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Set up environment
+              uses: ./.github/actions/setup
+              with:
+                ruby: ${{ env.ruby }}
+                xcode: ${{ matrix.xcode }}
+
+            - name: Run pod lib lint
+              run: bundle exec pod lib lint --allow-warnings --fail-fast
+
+    swiftlint:
+        name: Lint code with SwiftLint
+        runs-on: macos-13
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Run SwiftLint
+              run: swiftlint lint --reporter github-actions-logging

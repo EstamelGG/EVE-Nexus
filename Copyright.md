@@ -19,16 +19,20 @@ The project is hosted on an open-source platform and is open to learning and con
 This application uses the following third-party libraries under their respective licenses:
 
 1. **AppAuth-iOS**  
-   License: Apache License 2.0  
+   License: Apache License 2.0
    URL: https://github.com/openid/AppAuth-iOS
 
 2. **Kingfisher**  
-   License: MIT License  
+   License: MIT License
    URL: https://github.com/onevcat/Kingfisher
 
 3. **Zip**  
-   License: MIT License  
+   License: MIT License
    URL: https://github.com/marmelroy/Zip
+
+4. **JWTDecode.swift**
+   License: MIT License
+   URL: https://github.com/auth0/JWTDecode.swift
 
 相关许可证可在源代码中找到，或访问相应项目主页。  
 License details can be found in the source code or the respective project websites.

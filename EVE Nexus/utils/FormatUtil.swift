@@ -38,13 +38,16 @@ enum FormatUtil {
     ///   formatNumber(1234.0, maxFractionDigits: 2)     // "1,234"
     ///   formatNumber(1234.567, maxFractionDigits: 0)   // "1,235"
     ///   ```
-    private static func formatNumber(_ value: Double, maxFractionDigits: Int, showDigit: Bool = true) -> String {
+    private static func formatNumber(
+        _ value: Double, maxFractionDigits: Int, showDigit: Bool = true
+    ) -> String {
         if !showDigit || value.truncatingRemainder(dividingBy: 1) == 0 {
             formatter.maximumFractionDigits = 0
             return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.0f", value)
         }
         formatter.maximumFractionDigits = maxFractionDigits
-        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.\(maxFractionDigits)f", value)
+        return formatter.string(from: NSNumber(value: value))
+            ?? String(format: "%.\(maxFractionDigits)f", value)
     }
 
     /// 通用的单位格式化函数
@@ -60,7 +63,9 @@ enum FormatUtil {
     ///   formatWithUnit(1200, unit: "K", threshold: 1000, maxFractionDigits: 1)  // "1.2K"
     ///   formatWithUnit(1000, unit: "K", threshold: 1000, maxFractionDigits: 1)  // "1K"
     ///   ```
-    private static func formatWithUnit(_ value: Double, unit: String, threshold: Double, maxFractionDigits: Int) -> String {
+    private static func formatWithUnit(
+        _ value: Double, unit: String, threshold: Double, maxFractionDigits: Int
+    ) -> String {
         if value >= threshold {
             let formatted = value / threshold
             if formatted.truncatingRemainder(dividingBy: 1) == 0 {
@@ -84,7 +89,9 @@ enum FormatUtil {
     ///   format(1234.567, false)         // "1,235"
     ///   format(1234.567, maxFractionDigits: 2)  // "1,234.57"
     ///   ```
-    static func format(_ value: Double, _ showDigit: Bool = true, maxFractionDigits: Int = 3) -> String {
+    static func format(_ value: Double, _ showDigit: Bool = true, maxFractionDigits: Int = 3)
+        -> String
+    {
         return formatNumber(value, maxFractionDigits: maxFractionDigits, showDigit: showDigit)
     }
 
