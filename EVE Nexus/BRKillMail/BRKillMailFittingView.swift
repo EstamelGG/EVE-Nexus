@@ -152,13 +152,14 @@ struct BRKillMailFittingView: View {
             let shipId = victInfo["ship"] as? Int
         {
             Logger.debug("装配图标: 开始处理击毁数据，飞船ID: \(shipId)")
-            
+
             // 获取items，如果没有则为空数组
             let items = (victInfo["itms"] as? [[Int]]) ?? []
             Logger.debug("装配图标: 装备数量: \(items.count)")
 
             // 转换植入体为装配格式
-            let convertedItems = BRKillMailUtils.shared.convertImplantsToFitting(victInfo: victInfo, items: items)
+            let convertedItems = BRKillMailUtils.shared.convertImplantsToFitting(
+                victInfo: victInfo, items: items)
             Logger.debug("装配图标: 转换后的物品数据: \(convertedItems)")
 
             // 按槽位ID分组物品，并收集所有不重复的typeId
@@ -215,10 +216,6 @@ struct BRKillMailFittingView: View {
         }
     }
 
-    private func convertImplantsToFitting(victInfo: [String: Any], items: [[Int]]) -> [[Int]] {
-        return BRKillMailUtils.shared.convertImplantsToFitting(victInfo: victInfo, items: items)
-    }
-
     // 计算每个槽位的位置
     private func calculateSlotPosition(
         center: CGPoint,
@@ -243,7 +240,7 @@ struct BRKillMailFittingView: View {
         var config = ShipSlotConfig()
 
         // 检查是否为太空舱
-        if [670, 33328].contains(typeId) { // 太空舱与金蛋的 ID 
+        if [670, 33328].contains(typeId) {  // 太空舱与金蛋的 ID
             config.highSlots = 5  // 高槽1-5用于植入体1-5
             config.mediumSlots = 5  // 中槽1-5用于植入体6-10
             if typeId == 33328 {

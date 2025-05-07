@@ -135,6 +135,7 @@
 "Misc_Calculating" = "计算中...";
 "Misc_Level" = "等级 %d";
 "Misc_Level_Short" = "%d级";
+"Misc_No_Data" = "暂无数据";
 
 // 蓝图详情
 "Blueprint_Product" = "产品";
@@ -370,7 +371,6 @@
 "Orders_Corp" = "公司";
 "Orders_No_Buy_Orders" = "没有收购订单";
 "Orders_No_Sell_Orders" = "没有出售订单";
-"Orders_No_Data" = "暂无数据";
 
 // Market Orders Time
 "Orders_Expired" = "已过期";
@@ -382,7 +382,6 @@
 
 // Market Orders Status
 "Main_Database_Loading" = "正在加载...";
-"Orders_No_Data" = "没有数据";
 
 // Industry Orders Time
 "Industry" = "工业属性";
@@ -1342,6 +1341,43 @@
 "Main_Language_Map_Search_Object_5" = "5. 物品所属目录名";
 "Main_Language_Map_Search_Object_6" = "6. 物品所属组名";
 
+"Main_Faction_War" = "势力战争";
+"Main_Section_Frontlines" = "前线";
+"Main_Section_Insurgency" = "海盗叛乱";
+"Main_contested" = "争夺中";
+"Main_uncontested" = "无人争夺";
+"Main_stable" = "稳定";
+"Main_vulnerable" = "可被攻击";
+"Main_WarZone" = "战区";
+"Main_WarAgainst" = "敌对势力";
+"Main_frontline" = "前线";
+"Main_secondline" = "指挥运作";
+"Main_thirdline" = "后备";
+"Main_system_fw_status" = "这个星系是 %@";
+"Main_Corruption_Progress" = "腐蚀进度";
+"Main_Suppression_Progress" = "镇压进度";
+"Main_Insurgency_System" = "叛乱星系";
+"Main_ByCorruption" = "按腐蚀";
+"Main_BySuppression" = "按镇压";
+"Main_ByName" = "按名称";
+"Main_Insurgency_FOB" = "前线作战基地";
+"Insurgency_info" = "介绍";
+"Insurgency_stage" = "阶段 %d";
+
+"Insurgency_info_text" = "腐蚀属性代表的是恒星系中犯罪活动的猖狂程度，而镇压属性代表的是执法程度。当这两种属性达到特定阶段时，就会产生不同效果。叛乱活动会影响这两种属性，而叛乱引发的活动会导致镇压值或腐蚀值随着克隆飞行员活动而变化。";
+
+"Insurgency_info_corr_s1" = "PvP掉率+7.5%*腐化阶段（适用于投靠海盗的飞行员）";
+"Insurgency_info_corr_s2" = "帝国警察终止巡逻，海盗团伙四处游荡";
+"Insurgency_info_corr_s3" = "叛乱蔓延到新星系";
+"Insurgency_info_corr_s4" = "跃迁速度倍增系数+2.0（适用于投靠海盗的飞行员）";
+"Insurgency_info_corr_s5" = "低安地区：允许使用炸弹和泡沫发射器。岗哨炮不可用；高安地区：攻击克隆飞行员将获得嫌犯计时器";
+
+"Insurgency_info_supp_s1" = "海盗NPC的赏金获取量和安全等级增加5%";
+"Insurgency_info_supp_s2" = "星系内国民卫队忠诚点获取量增加5%*（镇压阶段-1）";
+"Insurgency_info_supp_s3" = "星系内的腐蚀增益-30%";
+"Insurgency_info_supp_s4" = "国民卫队部队飞行员的停滞光束和扰频器范围增加10%";
+"Insurgency_info_supp_s5" = "强大的岗哨炮已部署，第四阶段之后的腐蚀已被阻止";
+
 // Region and System Search
 "Location_Filter" = "位置过滤";
 "Region_Filter" = "过滤星域";
@@ -1374,6 +1410,8 @@
 "Main_Database_Mutation_Source" = "突变来源";
 "Main_Database_Mutation_Results" = "突变产出";
 "Main_Database_Required_Mutaplasmids" = "所需突变质体";
+"Main_Database_Applicable_Blueprints" = "适用于";
+"Main_Database_Applicable_Blueprints_info" = "需要此物品的蓝图";
 
 // 跳跃导航
 "Main_Jump_Navigation" = "跳跃导航";

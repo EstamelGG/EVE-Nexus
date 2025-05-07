@@ -223,14 +223,17 @@ struct SovereigntyCell: View {
                     HStack(spacing: 4) {
                         Text(formatSystemSecurity(sovereignty.location.security))
                             .foregroundColor(getSecurityColor(sovereignty.location.security))
+                            .font(.system(.subheadline, design: .monospaced))
                         Text(sovereignty.location.systemName)
                             .fontWeight(.bold)
+                            .textSelection(.enabled)
                     }
 
                     Text(
                         "\(sovereignty.location.constellationName) / \(sovereignty.location.regionName)"
                     )
                     .foregroundColor(.secondary)
+                    .font(.caption)
                 }
                 .font(.subheadline)
             }

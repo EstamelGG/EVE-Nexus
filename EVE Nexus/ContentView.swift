@@ -247,7 +247,7 @@ struct LoginButtonView: View {
                 .padding(4)
             } else {
                 ZStack {
-                    Image("aura")
+                    Image("default_char")
                         .resizable()
                         .aspectRatio(contentMode: .fill)
                         .frame(width: 64, height: 64)
@@ -494,6 +494,8 @@ struct ContentView: View {
                             WormholeView(databaseManager: databaseManager)
                         case "incursions":
                             IncursionsView(databaseManager: databaseManager)
+                        case "faction_war":
+                            FactionWarView(databaseManager: databaseManager)
                         case "sovereignty":
                             SovereigntyView(databaseManager: databaseManager)
                         case "language_map":
@@ -826,6 +828,13 @@ struct ContentView: View {
                 RowView(
                     title: NSLocalizedString("Main_Incursions", comment: ""),
                     icon: "incursions"
+                )
+            }
+
+            NavigationLink(value: "faction_war") {
+                RowView(
+                    title: NSLocalizedString("Main_Section_Frontlines", comment: ""),
+                    icon: "factionalwarfare"
                 )
             }
 

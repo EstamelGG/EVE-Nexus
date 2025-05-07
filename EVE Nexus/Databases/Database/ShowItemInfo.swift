@@ -70,28 +70,11 @@ struct ShowItemInfo: View {
                     databaseManager: databaseManager
                 )
 
-                // 变体 Section（如果有的话）
-                let variationsCount = databaseManager.getVariationsCount(for: itemID)
-                if variationsCount > 1 {
-                    Section {
-                        NavigationLink(
-                            destination: VariationsView(
-                                databaseManager: databaseManager, typeID: itemID
-                            )
-                        ) {
-                            Text(
-                                String(
-                                    format: NSLocalizedString(
-                                        "Main_Database_Browse_Variations", comment: ""
-                                    ),
-                                    variationsCount
-                                ))
-                        }
-                    } header: {
-                        Text(NSLocalizedString("Main_Database_Variations", comment: ""))
-                            .font(.headline)
-                    }
-                }
+                // 变体 Section
+                VariationsSection(
+                    typeID: itemID,
+                    databaseManager: databaseManager
+                )
 
                 // 属性 Sections
                 AttributesView(
@@ -100,132 +83,26 @@ struct ShowItemInfo: View {
                     databaseManager: databaseManager
                 )
 
-                // 如果是技能，显示依赖该技能的物品列表
+                // 技能相关 Section
                 if let categoryID = itemDetails.categoryID,
                     categoryID == 16
                 {
-                    // 技能点数和训练时间列表
-                    SkillPointForLevelView(
-                        skillId: itemID,
-                        characterId: currentCharacterId == 0 ? nil : currentCharacterId,
-                        databaseManager: databaseManager
-                    )
-
-                    // 依赖该技能的物品列表
-                    SkillDependencySection(
-                        skillID: itemID,
+                    SkillSection(
+                        skillID: itemID, 
+                        currentCharacterId: currentCharacterId, 
                         databaseManager: databaseManager
                     )
                 }
 
-                // Industry Section
+                // 工业相关
                 IndustrySection(
                     itemID: itemID, databaseManager: databaseManager, itemDetails: itemDetails)
 
-                // 突变来源 Section
-                let mutationSource = databaseManager.getMutationSource(for: itemID)
-                if !mutationSource.sourceItems.isEmpty {
-                    // 源装备 Section
-                    Section(
-                        header: Text(
-                            NSLocalizedString("Main_Database_Mutation_Source", comment: "")
-                        ).font(.headline)
-                    ) {
-                        ForEach(mutationSource.sourceItems, id: \.typeID) { item in
-                            NavigationLink {
-                                ShowItemInfo(databaseManager: databaseManager, itemID: item.typeID)
-                            } label: {
-                                HStack {
-                                    IconManager.shared.loadImage(for: item.iconFileName)
-                                        .resizable()
-                                        .frame(width: 32, height: 32)
-                                        .cornerRadius(6)
-
-                                    Text(item.name)
-                                        .font(.body)
-                                }
-                            }
-                        }
-                    }
-
-                    // 突变质体 Section
-                    Section(
-                        header: Text(
-                            NSLocalizedString("Main_Database_Required_Mutaplasmids", comment: "")
-                        ).font(.headline)
-                    ) {
-                        ForEach(mutationSource.mutaplasmids, id: \.typeID) { mutaplasmid in
-                            NavigationLink {
-                                ShowMutationInfo(
-                                    itemID: mutaplasmid.typeID, databaseManager: databaseManager)
-                            } label: {
-                                HStack {
-                                    IconManager.shared.loadImage(for: mutaplasmid.iconFileName)
-                                        .resizable()
-                                        .frame(width: 32, height: 32)
-                                        .cornerRadius(6)
-
-                                    Text(mutaplasmid.name)
-                                        .font(.body)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // 突变结果 Section
-                let mutationResults = databaseManager.getMutationResults(for: itemID)
-                if !mutationResults.isEmpty {
-                    Section(
-                        header: Text(
-                            NSLocalizedString("Main_Database_Mutation_Results", comment: "")
-                        ).font(.headline)
-                    ) {
-                        ForEach(mutationResults, id: \.typeID) { result in
-                            NavigationLink {
-                                ShowItemInfo(
-                                    databaseManager: databaseManager, itemID: result.typeID)
-                            } label: {
-                                HStack {
-                                    IconManager.shared.loadImage(for: result.iconFileName)
-                                        .resizable()
-                                        .frame(width: 32, height: 32)
-                                        .cornerRadius(6)
-
-                                    Text(result.name)
-                                        .font(.body)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // 所需突变体 Section
-                let requiredMutaplasmids = databaseManager.getRequiredMutaplasmids(for: itemID)
-                if !requiredMutaplasmids.isEmpty {
-                    Section(
-                        header: Text(
-                            NSLocalizedString("Main_Database_Required_Mutaplasmids", comment: "")
-                        ).font(.headline)
-                    ) {
-                        ForEach(requiredMutaplasmids, id: \.typeID) { mutaplasmid in
-                            NavigationLink {
-                                ShowMutationInfo(
-                                    itemID: mutaplasmid.typeID, databaseManager: databaseManager)
-                            } label: {
-                                HStack {
-                                    IconManager.shared.loadImage(for: mutaplasmid.iconFileName)
-                                        .resizable()
-                                        .frame(width: 32, height: 32)
-                                        .cornerRadius(6)
-
-                                    Text(mutaplasmid.name)
-                                        .font(.body)
-                                }
-                            }
-                        }
-                    }
-                }
+                // 突变相关组件
+                MutationSourceItemsSection(itemID: itemID, databaseManager: databaseManager)
+                MutationSourceMutaplasmidsSection(itemID: itemID, databaseManager: databaseManager)
+                MutationResultsSection(itemID: itemID, databaseManager: databaseManager)
+                RequiredMutaplasmidsSection(itemID: itemID, databaseManager: databaseManager)
             } else {
                 Text(NSLocalizedString("Item_details_notfound", comment: ""))
                     .foregroundColor(.gray)

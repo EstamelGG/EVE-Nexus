@@ -257,7 +257,7 @@ struct ShowBluePrintInfo: View {
 
                                             Spacer()
 
-                                            Text("\(material.quantity)")
+                                            Text("\(material.quantity) \(NSLocalizedString("Misc_unit", comment: ""))")
                                                 .foregroundColor(.secondary)
                                                 .frame(alignment: .trailing)
                                         }
@@ -325,7 +325,7 @@ struct ShowBluePrintInfo: View {
                                         NSLocalizedString("Blueprint_Required_Skills", comment: ""))
                                     Spacer()
                                     Text(
-                                        "\(manufacturing.skills.count)\(NSLocalizedString("Misc_number_types", comment: ""))"
+                                        "\(manufacturing.skills.count) \(NSLocalizedString("Misc_number_types", comment: ""))"
                                     )
                                     .foregroundColor(.secondary)
                                     .frame(alignment: .trailing)
@@ -391,7 +391,7 @@ struct ShowBluePrintInfo: View {
                                         ))
                                     Spacer()
                                     Text(
-                                        "\(researchMaterial.materials.count)\(NSLocalizedString("Misc_number_types", comment: ""))"
+                                        "\(researchMaterial.materials.count) \(NSLocalizedString("Misc_number_types", comment: ""))"
                                     )
                                     .foregroundColor(.secondary)
                                     .frame(alignment: .trailing)
@@ -444,7 +444,7 @@ struct ShowBluePrintInfo: View {
                                         NSLocalizedString("Blueprint_Required_Skills", comment: ""))
                                     Spacer()
                                     Text(
-                                        "\(researchMaterial.skills.count)\(NSLocalizedString("Misc_number_types", comment: ""))"
+                                        "\(researchMaterial.skills.count) \(NSLocalizedString("Misc_number_types", comment: ""))"
                                     )
                                     .foregroundColor(.secondary)
                                     .frame(alignment: .trailing)
@@ -517,7 +517,7 @@ struct ShowBluePrintInfo: View {
 
                                             Spacer()
 
-                                            Text("\(material.quantity)")
+                                            Text("\(material.quantity) \(NSLocalizedString("Misc_unit", comment: ""))")
                                                 .foregroundColor(.secondary)
                                                 .frame(alignment: .trailing)
                                         }
@@ -532,7 +532,7 @@ struct ShowBluePrintInfo: View {
                                         ))
                                     Spacer()
                                     Text(
-                                        "\(researchTime.materials.count)\(NSLocalizedString("Misc_number_types", comment: ""))"
+                                        "\(researchTime.materials.count) \(NSLocalizedString("Misc_number_types", comment: ""))"
                                     )
                                     .foregroundColor(.secondary)
                                     .frame(alignment: .trailing)
@@ -585,7 +585,7 @@ struct ShowBluePrintInfo: View {
                                         NSLocalizedString("Blueprint_Required_Skills", comment: ""))
                                     Spacer()
                                     Text(
-                                        "\(researchTime.skills.count)\(NSLocalizedString("Misc_number_types", comment: ""))"
+                                        "\(researchTime.skills.count) \(NSLocalizedString("Misc_number_types", comment: ""))"
                                     )
                                     .foregroundColor(.secondary)
                                     .frame(alignment: .trailing)
@@ -658,7 +658,7 @@ struct ShowBluePrintInfo: View {
 
                                             Spacer()
 
-                                            Text("\(material.quantity)")
+                                            Text("\(material.quantity) \(NSLocalizedString("Misc_unit", comment: ""))")
                                                 .foregroundColor(.secondary)
                                                 .frame(alignment: .trailing)
                                         }
@@ -673,7 +673,7 @@ struct ShowBluePrintInfo: View {
                                         ))
                                     Spacer()
                                     Text(
-                                        "\(copying.materials.count)\(NSLocalizedString("Misc_number_types", comment: ""))"
+                                        "\(copying.materials.count) \(NSLocalizedString("Misc_number_types", comment: ""))"
                                     )
                                     .foregroundColor(.secondary)
                                     .frame(alignment: .trailing)
@@ -726,7 +726,7 @@ struct ShowBluePrintInfo: View {
                                         NSLocalizedString("Blueprint_Required_Skills", comment: ""))
                                     Spacer()
                                     Text(
-                                        "\(copying.skills.count)\(NSLocalizedString("Misc_number_types", comment: ""))"
+                                        "\(copying.skills.count) \(NSLocalizedString("Misc_number_types", comment: ""))"
                                     )
                                     .foregroundColor(.secondary)
                                     .frame(alignment: .trailing)
@@ -786,7 +786,7 @@ struct ShowBluePrintInfo: View {
 
                                             Spacer()
 
-                                            Text("\(material.quantity)")
+                                            Text("\(material.quantity) \(NSLocalizedString("Misc_unit", comment: ""))")
                                                 .foregroundColor(.secondary)
                                                 .frame(alignment: .trailing)
                                         }
@@ -801,7 +801,7 @@ struct ShowBluePrintInfo: View {
                                         ))
                                     Spacer()
                                     Text(
-                                        "\(invention.materials.count)\(NSLocalizedString("Misc_number_types", comment: ""))"
+                                        "\(invention.materials.count) \(NSLocalizedString("Misc_number_types", comment: ""))"
                                     )
                                     .foregroundColor(.secondary)
                                     .frame(alignment: .trailing)
@@ -854,7 +854,7 @@ struct ShowBluePrintInfo: View {
                                         NSLocalizedString("Blueprint_Required_Skills", comment: ""))
                                     Spacer()
                                     Text(
-                                        "\(invention.skills.count)\(NSLocalizedString("Misc_number_types", comment: ""))"
+                                        "\(invention.skills.count) \(NSLocalizedString("Misc_number_types", comment: ""))"
                                     )
                                     .foregroundColor(.secondary)
                                     .frame(alignment: .trailing)

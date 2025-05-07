@@ -38,7 +38,7 @@ struct CharacterLoyaltyPointsStoreView: View {
             } else {
                 Section(NSLocalizedString("Main_LP_Store_Factions", comment: "")) {
                     ForEach(filteredFactions) { faction in
-                        NavigationLink(destination: FactionDetailView(faction: faction)) {
+                        NavigationLink(destination: FactionLPDetailView(faction: faction)) {
                             HStack {
                                 IconManager.shared.loadImage(for: faction.iconName)
                                     .resizable()

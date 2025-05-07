@@ -1,0 +1,32 @@
+name: Run tests
+description: Run library tests for a given platform
+
+inputs:
+  xcode:
+    description: The version of Xcode to use
+    required: true
+
+  scheme:
+    description: The Xcode scheme to use
+    required: true
+
+  platform:
+    description: The platform to build for
+    required: true
+
+runs:
+  using: composite
+
+  steps:
+    - name: Save Xcode version
+      run: xcodebuild -version | tee .xcode-version
+      shell: bash
+
+    - name: Run tests
+      uses: mxcl/xcodebuild@5c66d0aa1072a1b1f6cfc978530bf76b3f13a24d # pin@v3.5.0
+      with:
+        xcode: ${{ inputs.xcode }}
+        scheme: ${{ inputs.scheme }}
+        platform: ${{ inputs.platform }}
+        code-coverage: true
+        verbosity: xcbeautify

@@ -37,10 +37,12 @@ struct LocationInfoView: View {
                 // 如果空间站名称以星系名开头
                 (Text(security != nil ? "\(formatSystemSecurity(security!)) " : "0.0 ")
                     .foregroundColor(security != nil ? getSecurityColor(security!) : .red)
-                    + Text(solarSystemName)
-                    .fontWeight(.bold) + Text(stationName.dropFirst(solarSystemName.count)))
+                + Text(solarSystemName)
+                    .fontWeight(.bold)
+                + Text(stationName.dropFirst(solarSystemName.count)))
                     .font(font)
                     .foregroundColor(textColor)
+                    .textSelection(.enabled)
             } else {
                 // 如果空间站名称不以星系名开头
                 (Text(security != nil ? "\(formatSystemSecurity(security!)) " : "0.0 ")
@@ -48,6 +50,7 @@ struct LocationInfoView: View {
                     + Text("\(solarSystemName) - \(stationName)"))
                     .font(font)
                     .foregroundColor(textColor)
+                    .textSelection(.enabled)
             }
         } else if let solarSystemName = solarSystemName {
             // 在太空中的场景
@@ -59,6 +62,7 @@ struct LocationInfoView: View {
                     " (\(NSLocalizedString("Character_in_space", comment: "")))"))
                 .font(font)
                 .foregroundColor(textColor)
+                .textSelection(.enabled)
         } else if let locationId = locationId {
             // 未知位置但有ID
             (Text(security != nil ? "\(formatSystemSecurity(security!)) " : "0.0 ")

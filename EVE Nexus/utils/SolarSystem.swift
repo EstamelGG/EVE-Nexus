@@ -60,8 +60,10 @@ func getSecurityColor(_ trueSec: Double) -> Color {
         return Color(red: 129 / 255, green: 216 / 255, blue: 169 / 255)  // 浅绿色
     case 0.6, 0.5:
         return Color(red: 143 / 255, green: 225 / 255, blue: 103 / 255)  // 绿色
-    case 0.4, 0.3, 0.2, 0.1:
+    case 0.4, 0.3:
         return Color(red: 208 / 255, green: 113 / 255, blue: 45 / 255)  // 橙色
+    case 0.2, 0.1:
+        return Color(red: 188 / 255, green: 17 / 255, blue: 23 / 255)  // 深红色
     case ..<0.0:
         return .red  // 负数安全等级显示为红色
     default:

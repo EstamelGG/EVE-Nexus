@@ -28,6 +28,20 @@ struct EVECharacterInfo: Codable {
     var location: SolarSystemInfo?
     var queueFinishTime: TimeInterval?  // 添加队列总剩余时间属性
 
+    // 为JWT令牌解析添加的初始化方法
+    init(
+        CharacterID: Int, CharacterName: String, ExpiresOn: String, Scopes: String,
+        TokenType: String, CharacterOwnerHash: String
+    ) {
+        self.CharacterID = CharacterID
+        self.CharacterName = CharacterName
+        self.ExpiresOn = ExpiresOn
+        self.Scopes = Scopes
+        self.TokenType = TokenType
+        self.CharacterOwnerHash = CharacterOwnerHash
+        self.refreshTokenExpired = false
+    }
+
     // 内部类型定义
     struct CurrentSkillInfo: Codable {
         let skillId: Int
@@ -117,13 +131,27 @@ struct ESIConfig: Codable {
     let clientId: String
     //    let clientSecret: String
     //    let callbackUrl: String
-    let urls: ESIUrls
+    var urls: ESIUrls
     var scopes: [String]
 
     struct ESIUrls: Codable {
         //        let authorize: String
         //        let token: String
-        let verify: String
+        // 添加JWT元数据端点
+        let jwksMetadata: String?
+
+        enum CodingKeys: String, CodingKey {
+            case jwksMetadata
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            jwksMetadata = try container.decodeIfPresent(String.self, forKey: .jwksMetadata)
+        }
+
+        init(jwksMetadata: String? = nil) {
+            self.jwksMetadata = jwksMetadata
+        }
     }
 }
 
@@ -282,7 +310,7 @@ class EVELogin {
         urls: ESIConfig.ESIUrls(
             //            authorize: EVEConfig.OAuth.authorizationEndpoint.absoluteString,
             //            token: EVEConfig.OAuth.tokenEndpoint.absoluteString,
-            verify: EVEConfig.OAuth.verifyEndpoint.absoluteString
+            jwksMetadata: EVEConfig.OAuth.jwksMetadataEndpoint.absoluteString
         ),
         scopes: []  // 将在 loadConfig 中填充
     )
@@ -419,27 +447,26 @@ class EVELogin {
     private func getCharacterInfo(token: String, forceRefresh: Bool) async throws
         -> EVECharacterInfo
     {
-        guard let config = config,
-            let verifyURL = URL(string: config.urls.verify)
-        else {
-            throw NetworkError.invalidURL
+        // 解析JWT令牌
+        if let characterInfo = JWTTokenValidator.shared.parseToken(token) {
+            Logger.info("从JWT令牌成功解析角色信息 - 角色名: \(characterInfo.CharacterName)")
+
+            // 获取角色的公开信息以更新军团和联盟ID
+            let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(
+                characterId: characterInfo.CharacterID,
+                forceRefresh: forceRefresh
+            )
+
+            var updatedCharacterInfo = characterInfo
+            updatedCharacterInfo.corporationId = publicInfo.corporation_id
+            updatedCharacterInfo.allianceId = publicInfo.alliance_id
+
+            return updatedCharacterInfo
         }
 
-        var request = URLRequest(url: verifyURL)
-        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-
-        let (data, _) = try await session.data(for: request)
-        var characterInfo = try JSONDecoder().decode(EVECharacterInfo.self, from: data)
-
-        // 获取角色的公开信息以更新军团和联盟ID
-        let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(
-            characterId: characterInfo.CharacterID,
-            forceRefresh: forceRefresh
-        )
-        characterInfo.corporationId = publicInfo.corporation_id
-        characterInfo.allianceId = publicInfo.alliance_id
-
-        return characterInfo
+        // 如果JWT解析失败
+        Logger.error("无法解析JWT令牌，请确保使用的是v2版本的OAuth端点")
+        throw NetworkError.authenticationError("无法解析JWT令牌，请确保使用的是v2版本的OAuth端点")
     }
 
     // 加载保存的角色列表
@@ -579,6 +606,12 @@ class EVELogin {
         // 初始化基本配置
         var configWithScopes = EVELogin.defaultConfig
         configWithScopes.scopes = []
+
+        // 更新jwksMetadata配置
+        configWithScopes.urls = ESIConfig.ESIUrls(
+            jwksMetadata: EVEConfig.OAuth.jwksMetadataEndpoint.absoluteString
+        )
+
         config = configWithScopes
 
         // 异步加载 scopes

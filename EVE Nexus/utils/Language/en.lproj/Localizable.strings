@@ -116,12 +116,14 @@
 "Misc_number_types" = " Items";
 "Misc_per" = "per";
 "Misc_unit" = "unit(s)";
+"Misc_Done" = "Done";
 "Misc_No_Data" = "No data";
 "Misc_Calculating" = "Calculating...";
 "Misc_Loading" = "Loading...";
 "Misc_Not_Found" = "Not found";
 "Misc_Level" = "Level %d";
 "Misc_Level_Short" = "Lv %d";
+"Misc_No_Data" = "No Data.";
 
 // Blueprint Details
 "Blueprint_Product" = "Product";
@@ -1312,6 +1314,43 @@
 "Main_Language_Map_Search_Object_5" = "5. Item Categories";
 "Main_Language_Map_Search_Object_6" = "6. Item Groups";
 
+"Main_Faction_War" = "Factional Warfare";
+"Main_Section_Frontlines" = "Frontlines";
+"Main_Section_Insurgency" = "Insurgency";
+"Main_contested" = "contested";
+"Main_uncontested" = "uncontested";
+"Main_stable" = "stable";
+"Main_vulnerable" = "vulnerable";
+"Main_WarZone" = "Warzone";
+"Main_WarAgainst" = "Hostile";
+"Main_frontline" = "Frontline";
+"Main_secondline" = "Command Operations";
+"Main_thirdline" = "Rearguard";
+"Main_system_fw_status" = "This system is a %@";
+"Main_Corruption_Progress" = "Corruption";
+"Main_Suppression_Progress" = "Suppression";
+"Main_Insurgency_System" = "Insurgencies";
+"Main_ByCorruption" = "By Corrupt";
+"Main_BySuppression" = "By Suppress";
+"Main_ByName" = "By Name";
+"Main_Insurgency_FOB" = "FOB";
+"Insurgency_info" = "Information";
+"Insurgency_stage" = "Stage %d";
+
+"Insurgency_info_text" = "Corruption represents the measure of criminal activity in a star system while Suppression represents the degree of law enforcement control. When these attributes reach specific stages, various effects may be triggered. Insurgency events make use of these attributes and activities spawned by insurgencies can cause suppression or corruption values to change in response to capsuleer activity.";
+
+"Insurgency_info_corr_s1" = "+7.5% to PVP drop rates * corruption stage (applies to pirate aligned pilots)";
+"Insurgency_info_corr_s2" = "Empire police patrols cease & pirate roaming gangs present";
+"Insurgency_info_corr_s3" = "Insurgency spreads to new systems";
+"Insurgency_info_corr_s4" = "+2.0 warp speed multiplier (applied to pirate aligned pilots)";
+"Insurgency_info_corr_s5" = "Lowsec: bomb and bubble launchers allowed. Sentry guns disabled; Hisec: attacks on capsuleers give a suspect timer";
+
+"Insurgency_info_supp_s1" = "+5% to pirate NPC bounties and security status gain";
+"Insurgency_info_supp_s2" = "+5% to militia LP gains in system * (suppression stage -1)";
+"Insurgency_info_supp_s3" = "-30% to corruption gains in system";
+"Insurgency_info_supp_s4" = "+10% bonus to webber and scrambler range for militia-aligned pilots";
+"Insurgency_info_supp_s5" = "Powerful sentry guns deployed and corruption beyond stage 4 prevented";
+
 // Region and System Search
 "Location_Filter" = "Location Filter";
 "Region_Filter" = "Filter by Region";
@@ -1341,6 +1380,8 @@
 "Main_Database_Mutation_Source" = "Mutation Source";
 "Main_Database_Mutation_Results" = "Mutation Output";
 "Main_Database_Required_Mutaplasmids" = "Required Mutaplasmids";
+"Main_Database_Applicable_Blueprints" = "Required for";
+"Main_Database_Applicable_Blueprints_info" = "Blueprints that require this item";
 
 // Jump Navigation
 "Main_Jump_Navigation" = "Jump Navigation";

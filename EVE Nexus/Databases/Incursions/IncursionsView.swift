@@ -241,6 +241,7 @@ struct IncursionCell: View {
                             Text(incursion.location.systemName)
                                 .fontWeight(.bold)
                                 .font(.subheadline)
+                                .textSelection(.enabled)
                         }
 
                         Text(

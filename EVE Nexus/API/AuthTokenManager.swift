@@ -181,9 +181,17 @@ actor AuthTokenManager: NSObject {
 
     /// 验证 access token 是否有效
     private func accessTokenNotExpired(_ authState: OIDAuthState) -> Bool {
-        guard let tokenResponse = authState.lastTokenResponse,
-            let expirationDate = tokenResponse.accessTokenExpirationDate
-        else {
+        guard let tokenResponse = authState.lastTokenResponse else {
+            return false
+        }
+
+        // 如果有ID令牌，优先使用JWT验证
+        if let idToken = tokenResponse.idToken, !idToken.isEmpty {
+            return JWTTokenValidator.shared.isTokenValid(idToken)
+        }
+
+        // 没有ID令牌或者验证失败，回退到传统方式
+        guard let expirationDate = tokenResponse.accessTokenExpirationDate else {
             return false
         }
 
@@ -194,8 +202,6 @@ actor AuthTokenManager: NSObject {
 
     /// 刷新 access token（使用 refresh token 获取新的 access token）
     private func refreshAccessToken(for characterId: Int) async throws -> String {
-        Logger.info("开始刷新 access token 流程 - 角色ID: \(characterId)")
-
         // 如果已经有正在进行的刷新任务，等待其完成
         if let existingTask = tokenRefreshTasks[characterId] {
             Logger.info("等待现有的token刷新任务完成 - 角色ID: \(characterId)")
@@ -212,8 +218,8 @@ actor AuthTokenManager: NSObject {
                 Logger.error("未找到认证状态 - 角色ID: \(characterId)")
                 throw NetworkError.authenticationError("No auth state found")
             }
-
-            Logger.info("开始执行 token 刷新 - 角色ID: \(characterId)")
+            
+            Logger.info("开始执行 access token 刷新 - 角色ID: \(characterId)")
             return try await withCheckedThrowingContinuation { continuation in
                 authState.setNeedsTokenRefresh()  // 强制刷新
                 authState.performAction { accessToken, _, error in
@@ -307,40 +313,24 @@ actor AuthTokenManager: NSObject {
 
     /// 获取 access token（如果即将过期会自动刷新）
     func getAccessToken(for characterId: Int) async throws -> String {
-        Logger.info("开始获取 access token - 角色ID: \(characterId)")
         let authState = try await getOrCreateAuthState(for: characterId)
         Logger.info(
-            "获取到 authState: \(authState), 过期时间: \(String(describing: authState.lastTokenResponse?.accessTokenExpirationDate))"
+            "获取到 access token 过期时间: \(String(describing: authState.lastTokenResponse?.accessTokenExpirationDate))"
         )
-
-        // 检查状态是否有效，如果无效则强制刷新
-        if !accessTokenNotExpired(authState) {
-            Logger.info(
-                "检测到token即将过期，当前过期时间: \(String(describing: authState.lastTokenResponse?.accessTokenExpirationDate))"
-            )
-            Logger.info("开始主动刷新 token - 角色ID: \(characterId)")
-            return try await refreshAccessToken(for: characterId)
+        
+        // 检查是否有有效的access token
+        if let tokenResponse = authState.lastTokenResponse,
+           let accessToken = tokenResponse.accessToken,
+           accessTokenNotExpired(authState) {
+            Logger.info("找到有效的 access token，直接返回 - 角色ID: \(characterId)")
+            return accessToken
         }
-
-        return try await withCheckedThrowingContinuation { continuation in
-            authState.performAction { accessToken, _, error in
-                if let error = error {
-                    Logger.error("获取 access token 失败: \(error)")
-                    continuation.resume(throwing: error)
-                } else if let accessToken = accessToken {
-                    if let lastToken = authState.lastTokenResponse?.accessToken,
-                        lastToken != accessToken
-                    {
-                        Logger.info("Token 已自动刷新 - 角色ID: \(characterId)")
-                    }
-                    Logger.info("成功获取 access token - 角色ID: \(characterId)")
-                    continuation.resume(returning: accessToken)
-                } else {
-                    Logger.error("获取 access token 失败: 无效数据")
-                    continuation.resume(throwing: NetworkError.invalidData)
-                }
-            }
-        }
+        // 如果没有有效token则刷新
+        Logger.info(
+            "检测到 access token 即将过期或已经过期，当前过期时间: \(String(describing: authState.lastTokenResponse?.accessTokenExpirationDate))"
+        )
+        Logger.info("开始主动刷新 access token - 角色ID: \(characterId)")
+        return try await refreshAccessToken(for: characterId)
     }
 
     /// 清除所有 token（包括 access token 和 refresh token）
@@ -520,7 +510,7 @@ actor AuthTokenManager: NSObject {
             parameters: [
                 "access_token": accessToken as NSString,
                 "refresh_token": refreshToken as NSString,
-                "expires_in": String(expiresIn) as NSString,
+                "expires_in": NSNumber(value: expiresIn),
                 "token_type": tokenType as NSString,
             ]
         )

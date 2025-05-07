@@ -264,6 +264,9 @@ class CharacterAssetsViewModel: ObservableObject {
 
                     // 从数据库加载物品信息
                     await loadItemInfoFromDatabase()
+                    
+                    // 在内存中填充节点名称
+                    await fillNodeNamesInMemory()
 
                     // 成功加载数据后，清除错误状态
                     self.error = nil
@@ -389,5 +392,37 @@ class CharacterAssetsViewModel: ObservableObject {
 
         // 更新搜索结果
         searchResults = results
+    }
+
+    // 在内存中填充节点名称
+    private func fillNodeNamesInMemory() async {
+        // 递归函数，填充节点及其所有子节点的名称
+        func fillNodeName(_ node: inout AssetTreeNode) {
+            // 为空间站节点填充名称
+            if node.location_type == "station" && node.name == nil {
+                node.name = stationNameCache[node.location_id]
+            }
+            
+            // 为星系节点填充名称
+            if node.location_type == "solar_system" && node.name == nil, 
+               let systemId = node.system_id {
+                node.name = solarSystemNameCache[systemId]
+            }
+            
+            // 递归处理子节点
+            if var items = node.items {
+                for i in 0..<items.count {
+                    fillNodeName(&items[i])
+                }
+                node.items = items
+            }
+        }
+        
+        // 遍历并处理所有顶层位置节点
+        for i in 0..<assetLocations.count {
+            var location = assetLocations[i]
+            fillNodeName(&location)
+            assetLocations[i] = location
+        }
     }
 }

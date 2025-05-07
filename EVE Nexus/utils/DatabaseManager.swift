@@ -1722,6 +1722,69 @@ class DatabaseManager: ObservableObject {
 
         return (sourceItems: sourceItems, mutaplasmids: mutaplasmids)
     }
+
+    // 获取可以制造指定物品的蓝图列表
+    func getBlueprintDest(for typeID: Int) -> (
+        blueprints: [(typeID: Int, name: String, iconFileName: String)],
+        groups: [(groupID: Int, name: String, iconFileName: String)]
+    ) {
+        let query = """
+                WITH blueprint_list AS (
+                    SELECT DISTINCT b.blueprintTypeID, b.blueprintTypeName, b.blueprintTypeIcon,
+                           t.groupID, t.group_name
+                    FROM (
+                        SELECT blueprintTypeID, blueprintTypeName, blueprintTypeIcon
+                        FROM blueprint_manufacturing_materials
+                        WHERE typeID = ?
+                        UNION
+                        SELECT blueprintTypeID, blueprintTypeName, blueprintTypeIcon
+                        FROM blueprint_invention_materials
+                        WHERE typeID = ?
+                    ) b
+                    LEFT JOIN types t ON b.blueprintTypeID = t.type_id AND t.published = 1
+                )
+                SELECT * FROM blueprint_list
+                ORDER BY groupID, blueprintTypeID
+            """
+
+        var blueprints: [(typeID: Int, name: String, iconFileName: String)] = []
+        var groups: [(groupID: Int, name: String, iconFileName: String)] = []
+        var seenGroups = Set<Int>()
+
+        if case let .success(rows) = executeQuery(query, parameters: [typeID, typeID]) {
+            for row in rows {
+                if let blueprintID = row["blueprintTypeID"] as? Int,
+                    let blueprintName = row["blueprintTypeName"] as? String,
+                    let blueprintIcon = row["blueprintTypeIcon"] as? String,
+                    let groupID = row["groupID"] as? Int,
+                    let groupName = row["group_name"] as? String
+                {
+                    // 添加蓝图
+                    blueprints.append(
+                        (
+                            typeID: blueprintID,
+                            name: blueprintName,
+                            iconFileName: blueprintIcon.isEmpty
+                                ? DatabaseConfig.defaultItemIcon : blueprintIcon
+                        ))
+
+                    // 如果是新的组，添加到组列表
+                    if !seenGroups.contains(groupID) {
+                        groups.append(
+                            (
+                                groupID: groupID,
+                                name: groupName,
+                                iconFileName: blueprintIcon.isEmpty
+                                    ? DatabaseConfig.defaultItemIcon : blueprintIcon
+                            ))
+                        seenGroups.insert(groupID)
+                    }
+                }
+            }
+        }
+
+        return (blueprints: blueprints, groups: groups)
+    }
 }
 
 // 虫洞信息结构体

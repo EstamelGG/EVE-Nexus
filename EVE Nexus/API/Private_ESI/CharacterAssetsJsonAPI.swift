@@ -43,14 +43,14 @@ public struct AssetTreeNode: Codable {
     let location_type: String
     let location_flag: String
     let quantity: Int
-    let name: String?
+    var name: String?
     let icon_name: String?
     let is_singleton: Bool
     let is_blueprint_copy: Bool?
     let system_id: Int?  // 星系ID
     let region_id: Int?  // 星域ID
     let security_status: Double?  // 星系安全等级
-    let items: [AssetTreeNode]?
+    var items: [AssetTreeNode]?
 }
 
 // 多语言系统信息

@@ -18,7 +18,7 @@ struct Faction: Identifiable {
     }
 }
 
-struct FactionDetailView: View {
+struct FactionLPDetailView: View {
     let faction: Faction
     @State private var corporations: [Corporation] = []
     @State private var isLoading = true
