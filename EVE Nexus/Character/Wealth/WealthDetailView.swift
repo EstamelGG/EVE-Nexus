@@ -102,7 +102,7 @@ struct WealthDetailView: View {
                     Section(header: Text(NSLocalizedString("Wealth_Detail_HasPrice", comment: "")))
                     {
                         ForEach(
-                            valuedItems.sorted(by: { $0.totalValue > $1.totalValue }), id: \.typeId
+                            valuedItems.sorted(by: { $0.totalValue > $1.totalValue }), id: \.orderId
                         ) { item in
                             if let itemInfo = getItemInfo(typeId: item.typeId) {
                                 NavigationLink {

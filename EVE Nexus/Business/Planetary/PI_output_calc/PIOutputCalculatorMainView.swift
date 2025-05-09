@@ -808,7 +808,7 @@ struct PIOutputCalculatorView: View {
     private func loadP0ResourcesImpl(for systemIds: [Int], completion: @escaping (Set<Int>) -> Void)
     {
         DispatchQueue.global(qos: .userInitiated).async {
-            // 查询系统内的行星数量
+            // 查询星系内的行星数量
             let query = """
                     SELECT 
                         solarsystem_id,

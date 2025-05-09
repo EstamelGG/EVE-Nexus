@@ -253,7 +253,7 @@ struct AssetItemView: View {
                     HStack(spacing: 4) {
                         if let itemInfo = itemInfo {
                             Text(itemInfo.name).lineLimit(1)
-                            if showCustomName, let customName = node.name {
+                            if showCustomName, let customName = node.name, node.items != nil, !customName.isEmpty, customName != "None" {
                                 Text("[\(customName)]")
                                     .foregroundColor(.secondary)
                                     .lineLimit(1)

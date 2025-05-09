@@ -68,7 +68,7 @@
 "Main_Market_Orders" = "市场订单";
 "Main_Contracts" = "合同列表";
 "Main_Market_Transactions" = "交易记录";
-"Main_Wallet_Journal" = "钱包日志";
+"Main_Wallet_Journal" = "钱包流水";
 "Main_Industry_Jobs" = "工业任务";
 "Main_Other" = "其他";
 "Main_Unzipping_Icons" = "释放图片资源...";
@@ -402,7 +402,7 @@
 "Contract_Type_courier" = "运输";
 "Contract_Type_auction" = "拍卖";
 "Contract_Type_unknown" = "未知";
-// 钱包日志加载状态
+// 钱包流水加载状态
 "Contract_Loading_Fetching" = "正在获取第%d页合同日志";
 "Contract_Loading_Complete" = "加载完成";
 // Contract Status
@@ -1177,8 +1177,8 @@
 "Main_Language_Map_Prefix_Match" = "前缀匹配";
 "Main_Language_Map_Fuzzy_Match" = "模糊匹配";
 
-// 钱包日志加载状态
-"Wallet_Loading_Fetching" = "正在获取第%d页钱包日志";
+// 钱包流水加载状态
+"Wallet_Loading_Fetching" = "正在获取第%d页钱包流水";
 "Wallet_Loading_Complete" = "加载完成";
 
 // MARK: - ESI状态
@@ -1353,7 +1353,7 @@
 "Main_frontline" = "前线";
 "Main_secondline" = "指挥运作";
 "Main_thirdline" = "后备";
-"Main_system_fw_status" = "这个星系是 %@";
+"Main_system_fw_status" = "这个星系是 ";
 "Main_Corruption_Progress" = "腐蚀进度";
 "Main_Suppression_Progress" = "镇压进度";
 "Main_Insurgency_System" = "叛乱星系";
@@ -1363,6 +1363,7 @@
 "Main_Insurgency_FOB" = "前线作战基地";
 "Insurgency_info" = "介绍";
 "Insurgency_stage" = "阶段 %d";
+"Misc_No_Insurgency" = "读取数据失败，请刷新重试";
 
 "Insurgency_info_text" = "腐蚀属性代表的是恒星系中犯罪活动的猖狂程度，而镇压属性代表的是执法程度。当这两种属性达到特定阶段时，就会产生不同效果。叛乱活动会影响这两种属性，而叛乱引发的活动会导致镇压值或腐蚀值随着克隆飞行员活动而变化。";
 

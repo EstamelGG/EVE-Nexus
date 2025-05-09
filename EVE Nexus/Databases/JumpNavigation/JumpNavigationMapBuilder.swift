@@ -33,7 +33,7 @@ class JumpNavigationHandler {
         progressUpdate?(
             NSLocalizedString("Jump_Navigation_Processing_System_Data", comment: ""), 0.01)
 
-        // 创建系统数据的简化版本，仅包含计算所需的字段
+        // 创建星系数据的简化版本，仅包含计算所需的字段
         let filteredSystems = jumpSystems.map { system in
             (solarsystem_id: system.id, x: system.x, y: system.y, z: system.z, sec: system.security)
         }

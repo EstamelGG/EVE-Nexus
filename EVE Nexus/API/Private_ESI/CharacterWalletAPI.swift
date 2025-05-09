@@ -57,7 +57,7 @@ class CharacterWalletAPI {
         let remainingMinutes = Int(remainingTime / 60)
         let remainingSeconds = Int(remainingTime.truncatingRemainder(dividingBy: 60))
 
-        let dataType = isJournal ? "钱包日志" : "钱包交易记录"
+        let dataType = isJournal ? "钱包流水" : "钱包交易记录"
         Logger.debug("\(dataType)下次刷新剩余时间: \(remainingMinutes)分\(remainingSeconds)秒")
 
         return timeInterval > queryInterval
@@ -218,7 +218,7 @@ class CharacterWalletAPI {
         return Double(stringValue) ?? 0.0
     }
 
-    // 从数据库获取钱包日志
+    // 从数据库获取钱包流水
     private func getWalletJournalFromDB(characterId: Int) -> [[String: Any]]? {
         let query = """
                 SELECT id, amount, balance, context_id, context_id_type,
@@ -238,11 +238,11 @@ class CharacterWalletAPI {
         return nil
     }
 
-    // 保存钱包日志到数据库
+    // 保存钱包流水到数据库
     private func saveWalletJournalToDB(characterId: Int, entries: [[String: Any]]) -> Bool {
         // 如果没有条目需要保存，直接返回成功
         if entries.isEmpty {
-            Logger.info("没有钱包日志需要保存")
+            Logger.info("没有钱包流水需要保存")
             return true
         }
 
@@ -253,7 +253,7 @@ class CharacterWalletAPI {
                 checkQuery, parameters: [characterId]
             )
         else {
-            Logger.error("查询现有钱包日志失败")
+            Logger.error("查询现有钱包流水失败")
             return false
         }
 
@@ -267,11 +267,11 @@ class CharacterWalletAPI {
 
         // 如果没有新记录，直接返回成功
         if newEntries.isEmpty {
-            Logger.info("无需新增钱包日志")
+            Logger.info("无需新增钱包流水")
             return true
         }
 
-        Logger.info("准备插入\(newEntries.count)条新钱包日志记录")
+        Logger.info("准备插入\(newEntries.count)条新钱包流水记录")
 
         // 开始事务
         _ = CharacterDatabaseManager.shared.executeQuery("BEGIN TRANSACTION")
@@ -318,13 +318,13 @@ class CharacterWalletAPI {
                 parameters.append(contentsOf: params)
             }
 
-            Logger.debug("执行批量插入钱包日志，批次大小: \(currentBatch.count), 参数数量: \(parameters.count)")
+            Logger.debug("执行批量插入钱包流水，批次大小: \(currentBatch.count), 参数数量: \(parameters.count)")
 
             // 执行批量插入
             if case let .error(message) = CharacterDatabaseManager.shared.executeQuery(
                 insertSQL, parameters: parameters
             ) {
-                Logger.error("批量插入钱包日志失败: \(message)")
+                Logger.error("批量插入钱包流水失败: \(message)")
                 success = false
                 break
             }
@@ -333,16 +333,16 @@ class CharacterWalletAPI {
         // 根据执行结果提交或回滚事务
         if success {
             _ = CharacterDatabaseManager.shared.executeQuery("COMMIT")
-            Logger.info("成功插入\(newEntries.count)条钱包日志到数据库")
+            Logger.info("成功插入\(newEntries.count)条钱包流水到数据库")
             return true
         } else {
             _ = CharacterDatabaseManager.shared.executeQuery("ROLLBACK")
-            Logger.error("保存钱包日志失败，执行回滚")
+            Logger.error("保存钱包流水失败，执行回滚")
             return false
         }
     }
 
-    // 获取钱包日志
+    // 获取钱包流水
     func getWalletJournal(characterId: Int, forceRefresh: Bool = false) async throws
         -> String?
     {
@@ -363,15 +363,15 @@ class CharacterWalletAPI {
 
         // 如果数据为空、强制刷新或达到查询间隔，则从网络获取
         if isEmpty || forceRefresh || shouldRefreshData(characterId: characterId, isJournal: true) {
-            Logger.debug("钱包日志为空或需要刷新，从网络获取数据")
+            Logger.debug("钱包流水为空或需要刷新，从网络获取数据")
             let journalData = try await fetchJournalFromServer(characterId: characterId)
             if !saveWalletJournalToDB(characterId: characterId, entries: journalData) {
-                Logger.error("保存钱包日志到数据库失败")
+                Logger.error("保存钱包流水到数据库失败")
             }
             // 更新最后查询时间
             updateLastQueryTime(characterId: characterId, isJournal: true)
         } else {
-            Logger.debug("使用数据库中的钱包日志数据")
+            Logger.debug("使用数据库中的钱包流水数据")
         }
 
         // 从数据库获取数据并返回
@@ -384,7 +384,7 @@ class CharacterWalletAPI {
         return nil
     }
 
-    // 从服务器获取钱包日志
+    // 从服务器获取钱包流水
     private func fetchJournalFromServer(characterId: Int) async throws -> [[String: Any]] {
         let baseUrlString =
             "https://esi.evetech.net/latest/characters/\(characterId)/wallet/journal/?datasource=tranquility"
@@ -405,11 +405,11 @@ class CharacterWalletAPI {
                 return entries
             },
             progressCallback: { page in
-                Logger.debug("正在获取第 \(page) 页钱包日志数据")
+                Logger.debug("正在获取第 \(page) 页钱包流水数据")
             }
         )
 
-        Logger.info("钱包日志获取完成，共\(journalEntries.count)条记录")
+        Logger.info("钱包流水获取完成，共\(journalEntries.count)条记录")
         return journalEntries
     }
 

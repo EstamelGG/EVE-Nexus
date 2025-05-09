@@ -92,7 +92,7 @@ class PIResourceCache {
     private var schematicCache: [Int: (outputValue: Int, inputTypeIds: [Int], inputValues: [Int])] =
         [:]
 
-    // 系统信息缓存
+    // 星系信息缓存
     private var systemInfoCache: [Int: (name: String, security: Double, region: String)] = [:]
 
     // 私有初始化方法
@@ -184,7 +184,7 @@ class PIResourceCache {
         return schematicCache[resourceId]
     }
 
-    // 获取系统信息
+    // 获取星系信息
     func getSystemInfo(for systemId: Int) -> (name: String, security: Double, region: String)? {
         if let cachedInfo = systemInfoCache[systemId] {
             return cachedInfo

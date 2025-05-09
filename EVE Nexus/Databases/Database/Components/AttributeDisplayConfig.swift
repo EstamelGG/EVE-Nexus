@@ -249,7 +249,7 @@ enum AttributeDisplayConfig {
     // 判断属性组是否应该显示
     static func shouldShowGroup(_ groupId: Int) -> Bool {
         // 首先检查组是否被显式隐藏
-        if activeHiddenGroups.contains(groupId) {
+        if activeHiddenGroups.contains(groupId) && showImportantOnly {
             return false
         }
         return true
@@ -261,20 +261,24 @@ enum AttributeDisplayConfig {
     ) -> Bool {
         // 如果是抗性属性，不单独显示
         if isResistanceAttribute(attributeID) {
+            Logger.info("是抗性属性，不单独显示")
             return false
         }
 
-        // 如果属性在隐藏列表中，不显示
-        if activeHiddenAttributes.contains(attributeID) {
+        // 如果属性在隐藏列表中，且开启了仅显示重要属性模式，则不显示
+        if activeHiddenAttributes.contains(attributeID) && showImportantOnly {
+            Logger.info("属性在隐藏列表中，且开启了仅显示重要属性模式，则不显示")
             return false
         }
 
         // 如果开启了仅显示重要属性模式，则只显示有displayName的属性
         if showImportantOnly {
+            Logger.info("开启了仅显示重要属性模式，则只显示有displayName的属性")
             return attribute.displayName != nil && !attribute.name.isEmpty
         }
 
         // 在完整模式下，显示所有有name的属性
+        Logger.info("完整模式下，显示所有有name的属性:\(attribute.name)")
         return !attribute.name.isEmpty
     }
 

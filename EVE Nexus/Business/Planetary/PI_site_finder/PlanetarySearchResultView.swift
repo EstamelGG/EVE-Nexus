@@ -11,7 +11,7 @@ class PlanetarySearchResultViewModel: ObservableObject {
     @Published var allianceNames: [Int: String] = [:]
     @Published var factionNames: [Int: String] = [:]
 
-    // 跟踪正在加载的系统
+    // 跟踪正在加载的星系
     @Published var loadingSystemIcons: Set<Int> = []
 
     // 主权映射
@@ -53,17 +53,17 @@ class PlanetarySearchResultViewModel: ObservableObject {
         allianceToSystems.removeAll()
         factionToSystems.removeAll()
 
-        // 为每个系统ID查找主权信息并建立映射
+        // 为每个星系ID查找主权信息并建立映射
         for systemId in systemIds {
             if let systemData = sovereigntyData.first(where: { $0.systemId == systemId }) {
-                // 标记系统正在加载图标
+                // 标记星系正在加载图标
                 loadingSystemIcons.insert(systemId)
 
-                // 建立联盟到系统的映射
+                // 建立联盟到星系的映射
                 if let allianceId = systemData.allianceId {
                     allianceToSystems[allianceId, default: []].append(systemId)
                 }
-                // 建立派系到系统的映射
+                // 建立派系到星系的映射
                 else if let factionId = systemData.factionId {
                     factionToSystems[factionId, default: []].append(systemId)
                 } else {
@@ -103,7 +103,7 @@ class PlanetarySearchResultViewModel: ObservableObject {
                             // 保存图标到缓存
                             self.allianceIcons[allianceId] = Image(uiImage: uiImage)
 
-                            // 更新所有使用这个联盟图标的系统的加载状态
+                            // 更新所有使用这个联盟图标的星系的加载状态
                             for systemId in systems {
                                 self.loadingSystemIcons.remove(systemId)
                             }
@@ -145,7 +145,7 @@ class PlanetarySearchResultViewModel: ObservableObject {
                             factionNames[factionId] = name
                         }
 
-                        // 更新所有使用这个派系图标的系统的加载状态
+                        // 更新所有使用这个派系图标的星系的加载状态
                         for systemId in systems {
                             loadingSystemIcons.remove(systemId)
                         }
@@ -171,17 +171,17 @@ class PlanetarySearchResultViewModel: ObservableObject {
         }
     }
 
-    // 获取系统的主权信息
+    // 获取星系的主权信息
     func getSovereigntyForSystem(_ systemId: Int) -> SovereigntyData? {
         return sovereigntyData.first(where: { $0.systemId == systemId })
     }
 
-    // 检查系统是否正在加载图标
+    // 检查星系是否正在加载图标
     func isLoadingIconForSystem(_ systemId: Int) -> Bool {
         return loadingSystemIcons.contains(systemId)
     }
 
-    // 获取系统的图标
+    // 获取星系的图标
     func getIconForSystem(_ systemId: Int) -> Image? {
         if let sovereignty = getSovereigntyForSystem(systemId) {
             if let allianceId = sovereignty.allianceId {
@@ -193,7 +193,7 @@ class PlanetarySearchResultViewModel: ObservableObject {
         return nil
     }
 
-    // 获取系统的拥有者名称
+    // 获取星系的拥有者名称
     func getOwnerNameForSystem(_ systemId: Int) -> String? {
         if let sovereignty = getSovereigntyForSystem(systemId) {
             if let allianceId = sovereignty.allianceId {
@@ -215,7 +215,7 @@ class PlanetarySearchResultViewModel: ObservableObject {
 struct PlanetarySearchResultView: View {
     let results: [SystemSearchResult]
     @StateObject private var viewModel = PlanetarySearchResultViewModel()
-    @State private var systemNames: [Int: String] = [:]  // 存储系统ID到系统名称的映射
+    @State private var systemNames: [Int: String] = [:]  // 存储星系ID到名称的映射
     @State private var resourceInfo: [Int: (name: String, iconFileName: String)] = [:]  // 存储资源ID到名称和图标的映射
 
     var body: some View {
@@ -396,7 +396,7 @@ struct PlanetarySearchResultView: View {
 
     // 加载星系名称
     private func loadSystemNames(forAdditionalResources results: [SystemSearchResult]) {
-        // 收集所有需要获取名称的系统ID
+        // 收集所有需要获取名称的星系ID
         var systemIds: Set<Int> = []
         for result in results {
             for systemId in result.additionalResources.keys {
@@ -408,7 +408,7 @@ struct PlanetarySearchResultView: View {
             return
         }
 
-        // 查询系统名称
+        // 查询星系名称
         let query = """
                 SELECT solarSystemID, solarSystemName 
                 FROM solarsystems 
@@ -439,7 +439,7 @@ struct PlanetarySearchResultView: View {
         for result in results {
             // 添加本地资源ID
             resourceIds.formUnion(result.availableResources.keys)
-            // 添加相邻系统资源ID
+            // 添加相邻星系资源ID
             for (_, info) in result.additionalResources {
                 resourceIds.insert(info.resourceId)
             }
@@ -481,7 +481,7 @@ struct PlanetarySearchResultView: View {
         return resourceInfo[resourceId]?.name ?? "未知资源"
     }
 
-    // 将相邻系统资源按resourceId分组
+    // 将相邻星系资源按resourceId分组
     private func groupAdditionalResourcesByType(
         _ additionalResources: [Int: (resourceId: Int, jumps: Int)]
     ) -> [(resourceId: Int, systems: [(systemId: Int, jumps: Int)])] {

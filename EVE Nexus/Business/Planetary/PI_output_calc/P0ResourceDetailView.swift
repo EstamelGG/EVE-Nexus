@@ -75,7 +75,7 @@ struct P0ResourceDetailView: View {
         isLoading = true
 
         DispatchQueue.global(qos: .userInitiated).async {
-            // 查询系统内的行星数量
+            // 查询星系内的行星数量
             let query = """
                     SELECT 
                         s.solarSystemID,

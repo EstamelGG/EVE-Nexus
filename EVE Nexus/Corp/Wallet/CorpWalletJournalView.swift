@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 军团钱包日志条目模型
+// 军团钱包流水条目模型
 struct CorpWalletJournalEntry: Codable, Identifiable {
     let id: Int64
     let amount: Double
@@ -15,7 +15,7 @@ struct CorpWalletJournalEntry: Codable, Identifiable {
     let context_id_type: String?
 }
 
-// 按日期分组的钱包日志
+// 按日期分组的钱包流水
 struct CorpWalletJournalGroup: Identifiable {
     let id = UUID()
     let date: Date
@@ -211,7 +211,7 @@ final class CorpWalletJournalViewModel: ObservableObject {
                 }
 
             } catch {
-                Logger.error("加载军团钱包日志失败: \(error.localizedDescription)")
+                Logger.error("加载军团钱包流水失败: \(error.localizedDescription)")
                 if !Task.isCancelled {
                     await MainActor.run {
                         self.errorMessage = error.localizedDescription
@@ -227,7 +227,7 @@ final class CorpWalletJournalViewModel: ObservableObject {
     }
 }
 
-// 特定日期的军团钱包日志详情视图
+// 特定日期的军团钱包流水详情视图
 struct CorpWalletJournalDayDetailView: View {
     let group: CorpWalletJournalGroup
     @State private var displayedEntries: [CorpWalletJournalEntry] = []
@@ -443,7 +443,7 @@ struct CorpWalletJournalView: View {
     }
 }
 
-// 钱包日志条目行视图
+// 钱包流水条目行视图
 struct CorpWalletJournalEntryRow: View {
     let entry: CorpWalletJournalEntry
     @AppStorage("selectedLanguage") private var selectedLanguage: String?

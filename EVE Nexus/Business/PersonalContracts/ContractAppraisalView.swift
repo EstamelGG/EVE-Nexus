@@ -323,7 +323,7 @@ struct ContractAppraisalView: View {
 
         // 默认使用吉他(Jita)市场
         let regionID = 10_000_002  // The Forge (Jita所在星域)
-        let systemID = 30_000_142  // Jita系统ID
+        let systemID = 30_000_142  // Jita星系ID
 
         // 合并相同type_id的物品数量
         var itemsDict: [Int: Int64] = [:]

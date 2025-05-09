@@ -61,12 +61,14 @@ struct ValuedItem {
     let quantity: Int
     let value: Double
     let totalValue: Double
+    let orderId: Int64
 
-    init(typeId: Int, quantity: Int, value: Double) {
+    init(typeId: Int, quantity: Int, value: Double, orderId: Int64) {
         self.typeId = typeId
         self.quantity = quantity
         self.value = value
         totalValue = Double(quantity) * value
+        self.orderId = orderId
     }
 }
 
@@ -340,7 +342,7 @@ class CharacterWealthViewModel: ObservableObject {
 
                 // 转换为ValuedItem，排序，并只取前20个
                 valuedAssets = itemStats.map { typeId, stats in
-                    ValuedItem(typeId: typeId, quantity: stats.quantity, value: stats.value)
+                    ValuedItem(typeId: typeId, quantity: stats.quantity, value: stats.value, orderId: 0)
                 }
                 .sorted { $0.totalValue > $1.totalValue }
                 .prefix(20)
@@ -380,7 +382,7 @@ class CharacterWealthViewModel: ObservableObject {
             // 转换为ValuedItem，排序，并只取前20个
             valuedImplants = implantIds.compactMap { implantId in
                 guard let price = marketPrices[implantId] else { return nil }
-                return ValuedItem(typeId: implantId, quantity: 1, value: price)
+                return ValuedItem(typeId: implantId, quantity: 1, value: price, orderId: 0)
             }
             .sorted { $0.totalValue > $1.totalValue }
             .prefix(20)
@@ -404,12 +406,13 @@ class CharacterWealthViewModel: ObservableObject {
             ), let jsonData = jsonString.data(using: .utf8) {
                 let orders = try JSONDecoder().decode([CharacterMarketOrder].self, from: jsonData)
 
-                // 转换为ValuedItem，排序，并只取前20个
+                // 转换为ValuedItem，按每个订单的总价值排序，并只取前20个
                 valuedOrders = orders.map { order in
                     ValuedItem(
                         typeId: Int(order.typeId),
                         quantity: order.volumeRemain,
-                        value: order.price
+                        value: order.price,
+                        orderId: order.orderId
                     )
                 }
                 .sorted { $0.totalValue > $1.totalValue }

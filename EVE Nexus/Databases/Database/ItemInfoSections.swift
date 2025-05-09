@@ -321,20 +321,18 @@ struct SkillSection: View {
     let databaseManager: DatabaseManager
     
     var body: some View {
-        VStack(spacing: 0) {
-            // 技能点数和训练时间列表
-            SkillPointForLevelView(
-                skillId: skillID,
-                characterId: currentCharacterId == 0 ? nil : currentCharacterId,
-                databaseManager: databaseManager
-            )
-            
-            // 依赖该技能的物品列表
-            SkillDependencySection(
-                skillID: skillID,
-                databaseManager: databaseManager
-            )
-        }
+        // 技能点数和训练时间列表
+        SkillPointForLevelView(
+            skillId: skillID,
+            characterId: currentCharacterId == 0 ? nil : currentCharacterId,
+            databaseManager: databaseManager
+        )
+        
+        // 依赖该技能的物品列表
+        SkillDependencySection(
+            skillID: skillID,
+            databaseManager: databaseManager
+        )
     }
 }
 

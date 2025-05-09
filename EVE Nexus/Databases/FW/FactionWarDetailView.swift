@@ -3,10 +3,10 @@ import SwiftUI
 // MARK: - 常量定义
 
 struct FactionColors {
-    static let caldari = Color(red: 0.4, green: 0.6, blue: 0.8)  // 浅蓝色
-    static let minmatar = Color(red: 0.8, green: 0.4, blue: 0.4)  // 浅红色
-    static let amarr = Color(red: 0.8, green: 0.7, blue: 0.4)    // 浅黄色
-    static let gallente = Color(red: 0.4, green: 0.8, blue: 0.4)  // 浅绿色
+    static let caldari = Color(red: 0/255, green: 172/255, blue: 209/255)    // 卡达里蓝
+    static let minmatar = Color(red: 254/255, green: 55/255, blue: 67/255)   // 米玛塔尔红
+    static let amarr = Color(red: 205/255, green: 146/255, blue: 59/255)     // 艾玛金
+    static let gallente = Color(red: 55/255, green: 186/255, blue: 91/255)   // 盖伦特绿
     
     static func color(for factionId: Int) -> Color {
         switch factionId {
@@ -20,10 +20,10 @@ struct FactionColors {
     
     static func enemyColor(for factionId: Int) -> Color {
         switch factionId {
-        case 500001: return gallente  // 加达里的敌人是盖伦特
-        case 500002: return amarr     // 米玛塔尔的敌人是艾玛
-        case 500003: return minmatar  // 艾玛的敌人是米玛塔尔
-        case 500004: return caldari   // 盖伦特的敌人是加达里
+        case 500001: return gallente
+        case 500002: return amarr
+        case 500003: return minmatar
+        case 500004: return caldari
         default: return .gray.opacity(0.5)
         }
     }
@@ -117,7 +117,7 @@ final class FactionWarDetailViewModel: ObservableObject {
                 war.faction_id == faction.id ? war.against_id : war.faction_id
             }
             
-            // 检查系统是否属于当前势力或其敌对势力
+            // 检查星系是否属于当前势力或其敌对势力
             return system.system.owner_faction_id == faction.id ||
                    system.system.occupier_faction_id == faction.id ||
                    enemyFactionIds.contains(system.system.owner_faction_id) ||
@@ -185,7 +185,7 @@ final class FactionWarDetailViewModel: ObservableObject {
             errorMessage = nil
             
             do {
-                Logger.info("开始获取FW系统数据")
+                Logger.info("开始获取FW星系数据")
                 let (systems, _) = try await FWAPI.shared.fetchFWData(forceRefresh: forceRefresh)
                 
                 if Task.isCancelled { return }
@@ -246,7 +246,7 @@ final class FactionWarDetailViewModel: ObservableObject {
                 self.isLoading = false
                 
             } catch {
-                Logger.error("加载FW系统数据失败: \(error)")
+                Logger.error("加载FW星系数据失败: \(error)")
                 if !Task.isCancelled {
                     self.errorMessage = error.localizedDescription
                     self.isLoading = false
@@ -277,7 +277,7 @@ final class FactionWarDetailViewModel: ObservableObject {
                     
                     if Task.isCancelled { return }
                     
-                    // 更新所有相关系统的图标
+                    // 更新所有相关星系的图标
                     for system in preparedSystems {
                         await MainActor.run {
                             // 如果是占领者，设置occupierIcon
@@ -299,7 +299,7 @@ final class FactionWarDetailViewModel: ObservableObject {
             }
             iconLoadingTasks[factionId] = task
             
-            // 设置相关系统的加载状态
+            // 设置相关星系的加载状态
             for system in preparedSystems {
                 if system.system.occupier_faction_id == factionId {
                     system.isLoadingOccupierIcon = true
@@ -328,13 +328,13 @@ struct FWSystemCell: View {
             ZStack(alignment: .center) {
                 // 背景圆环 - 使用占领者势力颜色
                 Circle()
-                    .stroke(FactionColors.color(for: system.system.occupier_faction_id).opacity(0.6), lineWidth: 4)
+                    .stroke(FactionColors.color(for: system.system.occupier_faction_id), lineWidth: 4)
                     .frame(width: 56, height: 56)
                 
                 // 进度圆环 - 使用敌人势力颜色
                 Circle()
                     .trim(from: 0, to: CGFloat(system.system.victory_points) / CGFloat(system.system.victory_points_threshold))
-                    .stroke(FactionColors.enemyColor(for: system.system.occupier_faction_id), lineWidth: 4)
+                    .stroke(FactionColors.enemyColor(for: system.system.occupier_faction_id), lineWidth: 5)
                     .frame(width: 56, height: 56)
                     .rotationEffect(.degrees(-90))
                 
@@ -388,9 +388,13 @@ struct FWSystemCell: View {
                             .font(.caption)
                     }
                 }
-                Text(String(format: NSLocalizedString("Main_system_fw_status", comment: ""), system.systemType.localizedString))
+                Text(NSLocalizedString("Main_system_fw_status", comment: ""))
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.secondary) +
+                Text(system.systemType.localizedString)
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(system.systemType == .frontline ? .red : .secondary)
             }
             
             Spacer()

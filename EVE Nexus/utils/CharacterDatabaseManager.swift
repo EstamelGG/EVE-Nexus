@@ -190,7 +190,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                 );
                 CREATE INDEX IF NOT EXISTS idx_mail_lists_character_id ON mail_lists(character_id);
 
-                -- 钱包日志表
+                -- 钱包流水表
                 CREATE TABLE IF NOT EXISTS wallet_journal (
                     id INTEGER NOT NULL,
                     character_id INTEGER NOT NULL,
@@ -210,7 +210,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                     PRIMARY KEY (character_id, id)
                 );
 
-                -- 军团钱包日志表
+                -- 军团钱包流水表
                 CREATE TABLE IF NOT EXISTS corp_wallet_journal (
                     id INTEGER NOT NULL,
                     corporation_id INTEGER NOT NULL,

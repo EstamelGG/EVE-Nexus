@@ -172,7 +172,7 @@ struct PIResourceChainView: View {
         let systemId = centerSystemId ?? systemIds.first
         guard let systemId = systemId else { return }
 
-        // 使用缓存类获取系统信息
+        // 使用缓存类获取星系信息
         if let systemInfo = PIResourceCache.shared.getSystemInfo(for: systemId) {
             self.systemInfo = (
                 name: systemInfo.name, security: systemInfo.security, region: systemInfo.region

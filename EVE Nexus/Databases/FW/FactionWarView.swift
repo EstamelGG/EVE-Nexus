@@ -107,7 +107,7 @@ final class FactionWarViewModel: ObservableObject {
                 // 获取邻居星系数据
                 self.systemNeighbours = await FWAPI.shared.getSystemNeighbours()
                 
-                // 计算所有系统状态
+                // 计算所有星系状态
                 await FWSystemStateManager.shared.calculateSystemStates(
                     systems: systems,
                     wars: wars,
@@ -222,13 +222,17 @@ struct FactionWarView: View {
                 }
                 
                 // 海盗势力部分
-                if !viewModel.pirateFactions.isEmpty {
-                    Section {
+                Section {
+                    if viewModel.pirateFactions.isEmpty {
+                        Text(NSLocalizedString("Misc_No_Insurgency", comment: ""))
+                            .foregroundColor(.gray)
+                    } else {
                         ForEach(viewModel.pirateFactions) { faction in
                             NavigationLink {
                                 InsurgencyView(
                                     campaigns: viewModel.insurgencyCampaigns.filter { $0.pirateFaction.id == faction.id },
-                                    databaseManager: databaseManager
+                                    databaseManager: databaseManager,
+                                    factionName: faction.name
                                 )
                             } label: {
                                 HStack {
@@ -242,10 +246,10 @@ struct FactionWarView: View {
                                 }
                             }
                         }
-                    } header: {
-                        Text(NSLocalizedString("Main_Section_Insurgency", comment: ""))
-                            .font(.headline)
                     }
+                } header: {
+                    Text(NSLocalizedString("Main_Section_Insurgency", comment: ""))
+                        .font(.headline)
                 }
             }
         }

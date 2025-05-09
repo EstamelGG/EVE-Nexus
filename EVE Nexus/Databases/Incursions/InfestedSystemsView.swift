@@ -32,7 +32,7 @@ class InfestedSystemsViewModel: ObservableObject {
     private var allianceToSystems: [Int: [SystemInfo]] = [:]
     private var factionToSystems: [Int: [SystemInfo]] = [:]
 
-    // 修改缓存结构，只缓存系统ID
+    // 修改缓存结构，只缓存星系ID
     private static var systemIdsCache: Set<Int> = []
 
     static func clearCache() {
@@ -108,11 +108,11 @@ class InfestedSystemsViewModel: ObservableObject {
                 systemInfo.allianceId = systemData.allianceId
                 systemInfo.factionId = systemData.factionId
 
-                // 建立联盟到系统的映射
+                // 建立联盟到星系的映射
                 if let allianceId = systemData.allianceId {
                     allianceToSystems[allianceId, default: []].append(systemInfo)
                 }
-                // 建立派系到系统的映射
+                // 建立派系到星系的映射
                 if let factionId = systemData.factionId {
                     factionToSystems[factionId, default: []].append(systemInfo)
                 }
@@ -158,7 +158,7 @@ class InfestedSystemsViewModel: ObservableObject {
                         )
 
                         Logger.debug("联盟图标加载成功: \(allianceId)")
-                        // 更新所有使用这个联盟图标的系统
+                        // 更新所有使用这个联盟图标的星系
                         for system in systems {
                             system.icon = Image(uiImage: allianceImage)
                         }
@@ -176,14 +176,14 @@ class InfestedSystemsViewModel: ObservableObject {
                         Logger.error("加载联盟图标失败: \(allianceId), error: \(error)")
                     }
 
-                    // 更新所有相关系统的加载状态
+                    // 更新所有相关星系的加载状态
                     for system in systems {
                         system.isLoadingIcon = false
                     }
                 }
             }
             loadingTasks[allianceId] = task
-            // 设置所有相关系统的加载状态
+            // 设置所有相关星系的加载状态
             for system in systems {
                 system.isLoadingIcon = true
             }
@@ -202,7 +202,7 @@ class InfestedSystemsViewModel: ObservableObject {
                 {
                     let icon = IconManager.shared.loadImage(for: iconName)
                     let factionName = row["name"] as? String
-                    // 更新所有使用这个派系图标的系统
+                    // 更新所有使用这个派系图标的星系
                     for system in systems {
                         system.icon = icon
                         system.allianceName = factionName
@@ -211,7 +211,7 @@ class InfestedSystemsViewModel: ObservableObject {
                 } else {
                     Logger.error("派系图标加载失败: \(factionId)")
                 }
-                // 更新所有相关系统的加载状态
+                // 更新所有相关星系的加载状态
                 for system in systems {
                     system.isLoadingIcon = false
                 }

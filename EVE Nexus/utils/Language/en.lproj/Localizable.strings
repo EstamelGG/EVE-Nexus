@@ -1089,7 +1089,7 @@
 "Contract_Show_Auction" = "Show Auction Contracts";
 "Contract_Settings" = "Contract Settings";
 "Contract_Done" = "Done";
-// 钱包日志加载状态
+// 钱包流水加载状态
 "Contract_Loading_Fetching" = "Fetching page %d";
 "Contract_Loading_Complete" = "Complete";
 "Contract_Total_Count" = "Total %d contracts";
@@ -1326,7 +1326,7 @@
 "Main_frontline" = "Frontline";
 "Main_secondline" = "Command Operations";
 "Main_thirdline" = "Rearguard";
-"Main_system_fw_status" = "This system is a %@";
+"Main_system_fw_status" = "This system is a ";
 "Main_Corruption_Progress" = "Corruption";
 "Main_Suppression_Progress" = "Suppression";
 "Main_Insurgency_System" = "Insurgencies";
@@ -1336,6 +1336,7 @@
 "Main_Insurgency_FOB" = "FOB";
 "Insurgency_info" = "Information";
 "Insurgency_stage" = "Stage %d";
+"Misc_No_Insurgency" = "No data, refresh required";
 
 "Insurgency_info_text" = "Corruption represents the measure of criminal activity in a star system while Suppression represents the degree of law enforcement control. When these attributes reach specific stages, various effects may be triggered. Insurgency events make use of these attributes and activities spawned by insurgencies can cause suppression or corruption values to change in response to capsuleer activity.";
 

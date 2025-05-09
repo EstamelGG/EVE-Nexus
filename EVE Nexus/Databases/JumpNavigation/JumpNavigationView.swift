@@ -11,7 +11,7 @@ struct JumpSystemData {
     let y: Double
     let z: Double
 
-    // 静态方法：从数据库加载所有跳跃系统数据
+    // 静态方法：从数据库加载所有跳跃星系数据
     static func loadAllJumpSystems(databaseManager: DatabaseManager) -> [JumpSystemData] {
         var systems: [JumpSystemData] = []
 
@@ -106,7 +106,7 @@ class JumpSystemsCache {
         }
     }
 
-    // 获取所有系统ID到名称的映射
+    // 获取所有星系ID到名称的映射
     var systemIdToName: [Int: String] {
         var result: [Int: String] = [:]
         for system in allJumpSystems {
@@ -115,7 +115,7 @@ class JumpSystemsCache {
         return result
     }
 
-    // 获取所有系统ID到英文名称的映射
+    // 获取所有星系ID到英文名称的映射
     var systemIdToEnName: [Int: String] {
         var result: [Int: String] = [:]
         // 查询数据库获取英文名称
@@ -141,7 +141,7 @@ class JumpSystemsCache {
         return result
     }
 
-    // 获取所有系统ID到安全等级的映射
+    // 获取所有星系ID到安全等级的映射
     var systemIdToSecurity: [Int: Double] {
         var result: [Int: Double] = [:]
         for system in allJumpSystems {

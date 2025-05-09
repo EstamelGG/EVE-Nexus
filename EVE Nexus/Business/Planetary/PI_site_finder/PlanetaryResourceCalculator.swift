@@ -387,7 +387,7 @@ class PlanetaryResourceCalculator {
                         visited.insert(neighborId)
                         let nextJumps = jumps + 1
 
-                        // 确保下一跳系统不超过最大跳数限制
+                        // 确保下一跳星系不超过最大跳数限制
                         if nextJumps <= maxJumps {
                             queue.append((neighborId, nextJumps))
                             neighborSystemIds.insert(neighborId)
@@ -468,7 +468,7 @@ class PlanetaryResourceCalculator {
                                             )
                                         } else if let jumps = systemJumps[neighborId] {
                                             Logger.debug(
-                                                "忽略距离超出限制的系统 \(neighborId) 距离为 \(jumps) 跳，最大允许跳数: \(maxJumps)"
+                                                "忽略距离超出限制的星系 \(neighborId) 距离为 \(jumps) 跳，最大允许跳数: \(maxJumps)"
                                             )
                                         }
                                     }

@@ -166,9 +166,11 @@ struct ShowPlanetaryInfo: View {
                     }
                 }
             }
+            IndustrySection(
+                    itemID: itemID, databaseManager: databaseManager, itemDetails: itemDetails)
         }
         .listStyle(.insetGrouped)
-        .navigationTitle("Info")
+        .navigationTitle(NSLocalizedString("Item_Info", comment: ""))
         .onAppear {
             itemDetails = databaseManager.getItemDetails(for: itemID)
             loadPlanetaryData()

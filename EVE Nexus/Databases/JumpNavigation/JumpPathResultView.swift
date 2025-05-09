@@ -89,7 +89,7 @@ struct JumpPathResultView: View {
         .listStyle(.insetGrouped)
         .navigationTitle(NSLocalizedString("Jump_Navigation_Calculate", comment: ""))
         .onAppear {
-            // 收集所有路径中涉及的系统ID
+            // 收集所有路径中涉及的星系ID
             let systemIds = getAllSystemIds()
             viewModel.loadSovereigntyData(forSystemIds: systemIds)
 
@@ -131,7 +131,7 @@ struct JumpPathResultView: View {
         }
     }
 
-    // 收集所有路径中涉及的系统ID
+    // 收集所有路径中涉及的星系ID
     private func getAllSystemIds() -> [Int] {
         var systemIds: [Int] = []
 
@@ -223,7 +223,7 @@ class JumpResultViewModel: ObservableObject {
     @Published var allianceNames: [Int: String] = [:]
     @Published var factionNames: [Int: String] = [:]
 
-    // 跟踪正在加载的系统
+    // 跟踪正在加载的星系
     @Published var loadingSystemIcons: Set<Int> = []
 
     // 主权映射
@@ -265,17 +265,17 @@ class JumpResultViewModel: ObservableObject {
         allianceToSystems.removeAll()
         factionToSystems.removeAll()
 
-        // 为每个系统ID查找主权信息并建立映射
+        // 为每个星系ID查找主权信息并建立映射
         for systemId in systemIds {
             if let systemData = sovereigntyData.first(where: { $0.systemId == systemId }) {
-                // 标记系统正在加载图标
+                // 标记星系正在加载图标
                 loadingSystemIcons.insert(systemId)
 
-                // 建立联盟到系统的映射
+                // 建立联盟到星系的映射
                 if let allianceId = systemData.allianceId {
                     allianceToSystems[allianceId, default: []].append(systemId)
                 }
-                // 建立派系到系统的映射
+                // 建立派系到星系的映射
                 else if let factionId = systemData.factionId {
                     factionToSystems[factionId, default: []].append(systemId)
                 } else {
@@ -315,7 +315,7 @@ class JumpResultViewModel: ObservableObject {
                             // 保存图标到缓存
                             self.allianceIcons[allianceId] = Image(uiImage: uiImage)
 
-                            // 更新所有使用这个联盟图标的系统的加载状态
+                            // 更新所有使用这个联盟图标的星系的加载状态
                             for systemId in systems {
                                 self.loadingSystemIcons.remove(systemId)
                             }
@@ -357,7 +357,7 @@ class JumpResultViewModel: ObservableObject {
                             factionNames[factionId] = name
                         }
 
-                        // 更新所有使用这个派系图标的系统的加载状态
+                        // 更新所有使用这个派系图标的星系的加载状态
                         for systemId in systems {
                             loadingSystemIcons.remove(systemId)
                         }
@@ -383,17 +383,17 @@ class JumpResultViewModel: ObservableObject {
         }
     }
 
-    // 获取系统的主权信息
+    // 获取星系的主权信息
     func getSovereigntyForSystem(_ systemId: Int) -> SovereigntyData? {
         return sovereigntyData.first(where: { $0.systemId == systemId })
     }
 
-    // 检查系统是否正在加载图标
+    // 检查星系是否正在加载图标
     func isLoadingIconForSystem(_ systemId: Int) -> Bool {
         return loadingSystemIcons.contains(systemId)
     }
 
-    // 获取系统的图标
+    // 获取星系的图标
     func getIconForSystem(_ systemId: Int) -> Image? {
         if let sovereignty = getSovereigntyForSystem(systemId) {
             if let allianceId = sovereignty.allianceId {
@@ -405,7 +405,7 @@ class JumpResultViewModel: ObservableObject {
         return nil
     }
 
-    // 获取系统的拥有者名称
+    // 获取星系的拥有者名称
     func getOwnerNameForSystem(_ systemId: Int) -> String? {
         if let sovereignty = getSovereigntyForSystem(systemId) {
             if let allianceId = sovereignty.allianceId {

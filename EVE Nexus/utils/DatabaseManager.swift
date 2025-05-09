@@ -1361,8 +1361,8 @@ class DatabaseManager: ObservableObject {
     }
 
     // 加载市场物品的通用查询
-    func loadMarketItems(whereClause: String, parameters: [Any]) -> [DatabaseListItem] {
-        let query = """
+    func loadMarketItems(whereClause: String, parameters: [Any], limit: Int = 0) -> [DatabaseListItem] {
+        var query = """
                 SELECT t.type_id as id, t.name, t.published, t.icon_filename as iconFileName,
                        t.categoryID, t.groupID, t.metaGroupID, t.marketGroupID,
                        t.pg_need as pgNeed, t.cpu_need as cpuNeed, t.rig_cost as rigCost,
@@ -1373,9 +1373,10 @@ class DatabaseManager: ObservableObject {
                 FROM types t
                 WHERE \(whereClause)
                 ORDER BY t.metaGroupID
-                LIMIT 100
             """
-
+        if limit > 0 {
+            query.append(" LIMIT \(limit)")
+        }
         if case let .success(rows) = executeQuery(query, parameters: parameters) {
             return rows.compactMap { row in
                 guard let id = row["id"] as? Int,

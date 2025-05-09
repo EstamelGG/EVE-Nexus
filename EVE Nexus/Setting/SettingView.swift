@@ -82,7 +82,7 @@ class CacheManager {
         "Planetary",  // 行星开发
         "CharacterOrders",  // 人物市场订单
         // "Fitting",  // 舰船配置目录
-        "FW", // 势力战争
+        "fw", // 势力战争
     ]
 
     // 获取缓存目录列表

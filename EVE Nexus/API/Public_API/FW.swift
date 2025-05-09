@@ -205,6 +205,12 @@ class FWAPI {
     private func loadInsurgencyFromCache() -> [InsurgencyCampaign]? {
         guard let cachePath = getInsurgencyCachePath() else { return nil }
         
+        // 检查文件是否存在
+        guard FileManager.default.fileExists(atPath: cachePath.path) else {
+            Logger.warning("缓存文件不存在，将在线加载。")
+            return nil
+        }
+        
         do {
             let data = try Data(contentsOf: cachePath)
             let cached = try JSONDecoder().decode(CachedData<[InsurgencyCampaign]>.self, from: data)
@@ -269,15 +275,15 @@ class FWAPI {
         return campaigns
     }
 
-    /// 同时获取FW系统数据和战争数据
+    /// 同时获取FW星系数据和战争数据
     /// - Parameter forceRefresh: 是否强制刷新
-    /// - Returns: 包含系统数据和战争数据的元组
+    /// - Returns: 包含星系数据和战争数据的元组
     func fetchFWData(forceRefresh: Bool = false) async throws -> (systems: [FWSystem], wars: [FWWar]) {
         // 如果不是强制刷新，尝试从缓存获取
         if !forceRefresh {
             if let cachedSystems: [FWSystem] = loadFromCache("systems"),
                let cachedWars: [FWWar] = loadFromCache("wars") {
-                Logger.info("使用缓存的FW数据 - 系统: \(cachedSystems.count)个, 战争: \(cachedWars.count)场")
+                Logger.info("使用缓存的FW数据 - 星系: \(cachedSystems.count)个, 战争: \(cachedWars.count)场")
                 return (cachedSystems, cachedWars)
             }
         }
@@ -291,7 +297,7 @@ class FWAPI {
         // 等待两个任务完成
         let (systems, wars) = try await (systemsTask, warsTask)
 
-        Logger.info("成功获取FW数据 - 系统: \(systems.count)个, 战争: \(wars.count)场")
+        Logger.info("成功获取FW数据 - 星系: \(systems.count)个, 战争: \(wars.count)场")
 
         return (systems, wars)
     }
@@ -300,12 +306,12 @@ class FWAPI {
         // 如果不是强制刷新，尝试从缓存获取
         if !forceRefresh {
             if let cached: [FWSystem] = loadFromCache("systems") {
-                Logger.info("使用缓存的FW系统数据，共\(cached.count)个系统")
+                Logger.info("使用缓存的FW星系数据，共\(cached.count)个星系")
                 return cached
             }
         }
 
-        Logger.info("从网络获取FW系统数据，强制刷新: \(forceRefresh)")
+        Logger.info("从网络获取FW星系数据，强制刷新: \(forceRefresh)")
 
         // 构建URL
         let urlString = "https://esi.evetech.net/latest/fw/systems/?datasource=tranquility"
@@ -320,7 +326,7 @@ class FWAPI {
         // 保存到缓存
         saveToCache(systems, type: "systems")
 
-        Logger.info("成功获取FW系统数据，共\(systems.count)个系统")
+        Logger.info("成功获取FW星系数据，共\(systems.count)个星系")
 
         return systems
     }

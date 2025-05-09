@@ -10,7 +10,7 @@ import Foundation
 // 节点结构，用于A*算法
 struct PathNode: Hashable {
     let systemId: Int
-    var parent: Int?  // 父节点系统ID
+    var parent: Int?  // 父节点星系ID
     var g: Double = 0  // 起点到当前点的实际代价
     var h: Double = 0  // 当前点到终点的估计代价
     var distance: Double = 0  // 从父节点到当前节点的距离
@@ -48,7 +48,7 @@ struct PathResult {
 }
 
 class JumpPathFinder {
-    // 保存星系间的跳跃连接，键为源系统ID，值为可跳跃的目标系统及距离
+    // 保存星系间的跳跃连接，键为源星系ID，值为可跳跃的目标星系及距离
     private var jumpConnections: [Int: [JumpConnection]] = [:]
     // 保存星系ID到名称的映射，用于显示
     private var systemIdToName: [Int: String] = [:]
@@ -326,7 +326,7 @@ class JumpPathFinder {
             for connection in connections {
                 let neighborId = connection.destId
 
-                // 跳过已经处理过的节点和需要避开的系统
+                // 跳过已经处理过的节点和需要避开的星系
                 if closedSet.contains(neighborId) || avoidSystems.contains(neighborId) {
                     continue
                 }

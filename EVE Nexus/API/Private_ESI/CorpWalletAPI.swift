@@ -218,12 +218,12 @@ class CorpWalletAPI {
         }
     }
 
-    /// 从服务器获取军团钱包日志
+    /// 从服务器获取军团钱包流水
     /// - Parameters:
     ///   - characterId: 角色ID
     ///   - division: 部门编号
     ///   - progressCallback: 加载进度回调
-    /// - Returns: 钱包日志数组
+    /// - Returns: 钱包流水数组
     private func fetchCorpJournalFromServer(
         characterId: Int,
         corporationId: Int,
@@ -254,11 +254,11 @@ class CorpWalletAPI {
         )
     }
 
-    /// 从数据库获取军团钱包日志
+    /// 从数据库获取军团钱包流水
     /// - Parameters:
     ///   - corporationId: 军团ID
     ///   - division: 部门编号
-    /// - Returns: 钱包日志数组
+    /// - Returns: 钱包流水数组
     /// 只取近30天的数据
     private func getCorpWalletJournalFromDB(corporationId: Int, division: Int) -> [[String: Any]]? {
         let query = """
@@ -279,7 +279,7 @@ class CorpWalletAPI {
         return nil
     }
 
-    /// 保存军团钱包日志到数据库
+    /// 保存军团钱包流水到数据库
     /// - Parameters:
     ///   - corporationId: 军团ID
     ///   - division: 部门编号
@@ -296,7 +296,7 @@ class CorpWalletAPI {
                 checkQuery, parameters: [corporationId, division]
             )
         else {
-            Logger.error("查询现有军团钱包日志失败")
+            Logger.error("查询现有军团钱包流水失败")
             return false
         }
 
@@ -309,7 +309,7 @@ class CorpWalletAPI {
         }
 
         if newEntries.isEmpty {
-            Logger.info("无需新增军团钱包日志")
+            Logger.info("无需新增军团钱包流水")
             return true
         }
 
@@ -360,13 +360,13 @@ class CorpWalletAPI {
                 parameters.append(contentsOf: params)
             }
 
-            Logger.debug("执行批量插入军团钱包日志，批次大小: \(currentBatch.count), 参数数量: \(parameters.count)")
+            Logger.debug("执行批量插入军团钱包流水，批次大小: \(currentBatch.count), 参数数量: \(parameters.count)")
 
             // 执行批量插入
             if case let .error(message) = CharacterDatabaseManager.shared.executeQuery(
                 insertSQL, parameters: parameters
             ) {
-                Logger.error("批量插入军团钱包日志失败: \(message)")
+                Logger.error("批量插入军团钱包流水失败: \(message)")
                 success = false
                 break
             }
@@ -375,16 +375,16 @@ class CorpWalletAPI {
         // 根据执行结果提交或回滚事务
         if success {
             _ = CharacterDatabaseManager.shared.executeQuery("COMMIT")
-            Logger.info("新增\(newEntries.count)条军团钱包日志到数据库")
+            Logger.info("新增\(newEntries.count)条军团钱包流水到数据库")
             return true
         } else {
             _ = CharacterDatabaseManager.shared.executeQuery("ROLLBACK")
-            Logger.error("保存军团钱包日志失败，执行回滚")
+            Logger.error("保存军团钱包流水失败，执行回滚")
             return false
         }
     }
 
-    /// 获取军团钱包日志（公开方法）
+    /// 获取军团钱包流水（公开方法）
     /// - Parameters:
     ///   - characterId: 角色ID
     ///   - division: 部门编号
@@ -423,7 +423,7 @@ class CorpWalletAPI {
 
         // 3. 如果数据为空或强制刷新，则从网络获取
         if isEmpty || forceRefresh {
-            Logger.debug("军团钱包日志为空或需要刷新，从网络获取数据")
+            Logger.debug("军团钱包流水为空或需要刷新，从网络获取数据")
             let journalData = try await fetchCorpJournalFromServer(
                 characterId: characterId,
                 corporationId: corporationId,
@@ -433,10 +433,10 @@ class CorpWalletAPI {
             if !saveCorpWalletJournalToDB(
                 corporationId: corporationId, division: division, entries: journalData
             ) {
-                Logger.error("保存军团钱包日志到数据库失败")
+                Logger.error("保存军团钱包流水到数据库失败")
             }
         } else {
-            Logger.debug("使用数据库中的军团钱包日志数据")
+            Logger.debug("使用数据库中的军团钱包流水数据")
         }
 
         // 4. 从数据库获取数据并返回

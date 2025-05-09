@@ -219,7 +219,7 @@ struct StructureSearchView {
                 // 批量获取空间站信息
                 let stationsInfo = try loadStationsInfo(stationIds: Array(allStationIds))
 
-                // 收集所有空间站的系统ID和类型ID
+                // 收集所有空间站的星系ID和类型ID
                 let systemIds = stationsInfo.map { $0.systemId }
                 let typeIds = Array(Set(stationsInfo.map { $0.typeId }))
 
@@ -271,7 +271,7 @@ struct StructureSearchView {
             // 计算合适的批次大小：最小1，最大10，默认为总数的1/5
             let batchSize = min(max(structureIds.count / 5, 1), 10)
             Logger.info("batchSize: \(batchSize)")
-            // 收集所有建筑物的系统ID和类型ID
+            // 收集所有建筑物的星系ID和类型ID
             var allSystemIds: [Int] = []
             var allTypeIds: [Int] = []
             var structureInfos: [(id: Int, name: String, typeId: Int, systemId: Int)] = []

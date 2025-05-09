@@ -87,6 +87,11 @@ class MarketManager {
         return result
     }
 
+    // 获取指定父组ID的直接子组ID（不包括子组的子组）
+    func getChildGroupIDs(_ groups: [MarketGroup], parentGroupID: Int) -> [Int] {
+        return getSubGroups(groups, for: parentGroupID).map { $0.id }
+    }
+
     // 递归获取所有子组ID（包括当前组ID）
     func getAllSubGroupIDsFromID(_ allGroups: [MarketGroup], startingFrom groupID: Int) -> [Int] {
         var result = [groupID]

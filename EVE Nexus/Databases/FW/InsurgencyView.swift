@@ -119,11 +119,15 @@ struct InsurgencySystemCell: View {
                 }
             }
             
-            // 第二行：系统类型
+            // 第二行：星系类型
             if let state = FWSystemStateManager.shared.getSystemState(for: systemInfo.id) {
-                Text(String(format: NSLocalizedString("Main_system_fw_status", comment: ""), state.systemType.localizedString))
+                Text(NSLocalizedString("Main_system_fw_status", comment: ""))
                     .font(.caption)
-                    .foregroundColor(.secondary)
+                    .foregroundColor(.secondary) +
+                Text(state.systemType.localizedString)
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(state.systemType == .frontline ? .red : .secondary)
             }
         }
         .padding(.vertical, 4)
@@ -133,6 +137,7 @@ struct InsurgencySystemCell: View {
 struct InsurgencyView: View {
     let campaigns: [InsurgencyCampaign]
     let databaseManager: DatabaseManager
+    let factionName: String
     @State private var originSystemInfo: [Int: FWSystemInfo] = [:]
     @State private var insurgencySystemInfo: [Int: FWSystemInfo] = [:]
     @State private var sortType: SortType = .corruption
@@ -357,7 +362,7 @@ struct InsurgencyView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(NSLocalizedString("Main_Section_Insurgency", comment: ""))
+        .navigationTitle(factionName)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
