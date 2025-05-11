@@ -218,7 +218,7 @@ actor AuthTokenManager: NSObject {
                 Logger.error("未找到认证状态 - 角色ID: \(characterId)")
                 throw NetworkError.authenticationError("No auth state found")
             }
-            
+
             Logger.info("开始执行 access token 刷新 - 角色ID: \(characterId)")
             return try await withCheckedThrowingContinuation { continuation in
                 authState.setNeedsTokenRefresh()  // 强制刷新
@@ -317,11 +317,12 @@ actor AuthTokenManager: NSObject {
         Logger.info(
             "获取到 access token 过期时间: \(String(describing: authState.lastTokenResponse?.accessTokenExpirationDate))"
         )
-        
+
         // 检查是否有有效的access token
         if let tokenResponse = authState.lastTokenResponse,
-           let accessToken = tokenResponse.accessToken,
-           accessTokenNotExpired(authState) {
+            let accessToken = tokenResponse.accessToken,
+            accessTokenNotExpired(authState)
+        {
             Logger.info("找到有效的 access token，直接返回 - 角色ID: \(characterId)")
             return accessToken
         }

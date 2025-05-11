@@ -253,7 +253,9 @@ struct AssetItemView: View {
                     HStack(spacing: 4) {
                         if let itemInfo = itemInfo {
                             Text(itemInfo.name).lineLimit(1)
-                            if showCustomName, let customName = node.name, node.items != nil, !customName.isEmpty, customName != "None" {
+                            if showCustomName, let customName = node.name, node.items != nil,
+                                !customName.isEmpty, customName != "None"
+                            {
                                 Text("[\(customName)]")
                                     .foregroundColor(.secondary)
                                     .lineLimit(1)
@@ -627,9 +629,9 @@ class LocationAssetsViewModel: ObservableObject {
         // 查询所有物品的名称
         if !typeIds.isEmpty {
             let query = """
-                    SELECT type_id, name
-                    FROM types
-                    WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
+                    SELECT t.type_id, t.name, t.zh_name, t.en_name
+                    FROM types t
+                    WHERE t.type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
                 """
 
             if case let .success(rows) = databaseManager.executeQuery(query) {
@@ -638,25 +640,30 @@ class LocationAssetsViewModel: ObservableObject {
                 // 先收集所有的名称
                 for row in rows {
                     if let typeId = row["type_id"] as? Int,
-                        let name = row["name"] as? String
+                        let name = row["name"] as? String,
+                        let zh_name = row["zh_name"] as? String,
+                        let en_name = row["en_name"] as? String
                     {
                         typeIdToName[typeId] = name
-                    }
-                }
 
-                // 然后为每个节点创建ItemInfo
-                for (typeId, nodes) in typeIdToNodes {
-                    if let name = typeIdToName[typeId] {
-                        // 一般情况下，对于相同的type_id，我们只需要存储一个ItemInfo
-                        // 我们默认使用第一个非蓝图复制品节点的图标（如果有的话）
-                        let nonBPCNode =
-                            nodes.first { node in
-                                !(node.is_blueprint_copy ?? false)
-                            } ?? nodes.first
+                        // 为每个节点创建ItemInfo
+                        if let nodes = typeIdToNodes[typeId] {
+                            // 一般情况下，对于相同的type_id，我们只需要存储一个ItemInfo
+                            // 我们默认使用第一个非蓝图复制品节点的图标（如果有的话）
+                            let nonBPCNode =
+                                nodes.first { node in
+                                    !(node.is_blueprint_copy ?? false)
+                                } ?? nodes.first
 
-                        if let node = nonBPCNode {
-                            let iconName = node.icon_name ?? DatabaseConfig.defaultItemIcon
-                            itemInfoCache[typeId] = ItemInfo(name: name, iconFileName: iconName)
+                            if let node = nonBPCNode {
+                                let iconName = node.icon_name ?? DatabaseConfig.defaultItemIcon
+                                itemInfoCache[typeId] = ItemInfo(
+                                    name: name,
+                                    zh_name: zh_name,
+                                    en_name: en_name,
+                                    iconFileName: iconName
+                                )
+                            }
                         }
                     }
                 }

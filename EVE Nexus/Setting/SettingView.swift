@@ -82,7 +82,7 @@ class CacheManager {
         "Planetary",  // 行星开发
         "CharacterOrders",  // 人物市场订单
         // "Fitting",  // 舰船配置目录
-        "fw", // 势力战争
+        "fw",  // 势力战争
     ]
 
     // 获取缓存目录列表
@@ -260,7 +260,7 @@ struct SettingView: View {
     @State private var showingCleanCacheAlert = false
     @State private var showingDeleteIconsAlert = false
     @State private var showingLanguageView = false
-    @State private var cacheSize: String = "Calc..."
+    @State private var cacheSize: String = NSLocalizedString("Misc_Calculating", comment: "")
     @ObservedObject var databaseManager: DatabaseManager
     @State private var isCleaningCache = false
     @State private var isReextractingIcons = false
@@ -268,7 +268,6 @@ struct SettingView: View {
     @State private var loadingState: LoadingState = .processing
     @State private var showingLoadingView = false
     @State private var settingGroups: [SettingGroup] = []
-    @State private var showingLogViewer = false
     @State private var showResetDatabaseAlert = false
     @State private var showResetDatabaseSuccessAlert = false
     @State private var showingESIStatusView = false
@@ -605,9 +604,6 @@ struct SettingView: View {
         .listStyle(.insetGrouped)
         .navigationDestination(isPresented: $showingLanguageView) {
             SelectLanguageView(databaseManager: databaseManager)
-        }
-        .navigationDestination(isPresented: $showingLogViewer) {
-            LogViewer()
         }
         .navigationDestination(isPresented: $showingESIStatusView) {
             ESIStatusView()

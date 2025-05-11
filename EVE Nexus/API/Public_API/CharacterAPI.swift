@@ -165,7 +165,7 @@ final class CharacterAPI: @unchecked Sendable {
         }
 
         let urlString =
-            "https://esi.evetech.net/latest/characters/\(characterId)/?datasource=tranquility"
+            "https://esi.evetech.net/latest/characters/\(characterId)/?datasource=tranquility"  // 该接口缓存期较长 7 天，仅记录不重要信息
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
@@ -175,15 +175,15 @@ final class CharacterAPI: @unchecked Sendable {
 
         // 获取最新的联盟和公司信息
         do {
-            let affiliations = try await CharacterAffiliationAPI.shared.fetchAffiliations(
+            let affiliations = try await CharacterAffiliationAPI.shared.fetchAffiliations(  // 该接口缓存期较短，用于获取最新的人物军团和联盟信息
                 characterIds: [characterId])
             if let affiliation = affiliations.first {
                 // 更新联盟和公司信息
                 info = CharacterPublicInfo(
-                    alliance_id: affiliation.alliance_id,
+                    alliance_id: affiliation.alliance_id,  // 使用缓存期较短的数据
                     birthday: info.birthday,
                     bloodline_id: info.bloodline_id,
-                    corporation_id: affiliation.corporation_id,
+                    corporation_id: affiliation.corporation_id,  // 使用缓存期较短的数据
                     faction_id: info.faction_id,
                     gender: info.gender,
                     name: info.name,

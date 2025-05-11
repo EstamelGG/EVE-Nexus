@@ -70,6 +70,15 @@ struct ValuedItem {
         totalValue = Double(quantity) * value
         self.orderId = orderId
     }
+
+    // 返回用于标识的ID
+    var identifier: AnyHashable {
+        if orderId != 0 {
+            return AnyHashable(orderId)  // 对于订单，使用orderId
+        } else {
+            return AnyHashable(typeId)  // 对于其他类型，使用typeId
+        }
+    }
 }
 
 @MainActor
@@ -342,7 +351,8 @@ class CharacterWealthViewModel: ObservableObject {
 
                 // 转换为ValuedItem，排序，并只取前20个
                 valuedAssets = itemStats.map { typeId, stats in
-                    ValuedItem(typeId: typeId, quantity: stats.quantity, value: stats.value, orderId: 0)
+                    ValuedItem(
+                        typeId: typeId, quantity: stats.quantity, value: stats.value, orderId: 0)
                 }
                 .sorted { $0.totalValue > $1.totalValue }
                 .prefix(20)
@@ -406,12 +416,12 @@ class CharacterWealthViewModel: ObservableObject {
             ), let jsonData = jsonString.data(using: .utf8) {
                 let orders = try JSONDecoder().decode([CharacterMarketOrder].self, from: jsonData)
 
-                // 转换为ValuedItem，按每个订单的总价值排序，并只取前20个
+                // 转换为ValuedItem，使用订单价格计算价值
                 valuedOrders = orders.map { order in
                     ValuedItem(
                         typeId: Int(order.typeId),
                         quantity: order.volumeRemain,
-                        value: order.price,
+                        value: order.price,  // 使用订单价格
                         orderId: order.orderId
                     )
                 }

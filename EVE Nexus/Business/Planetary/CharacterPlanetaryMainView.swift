@@ -193,18 +193,7 @@ struct CharacterPlanetaryView: View {
                         Section(
                             header: Text(NSLocalizedString("Main_Planetary_of_Mine", comment: ""))
                         ) {
-                            HStack {
-                                Spacer()
-                                VStack(spacing: 8) {
-                                    Image(systemName: "doc.text")
-                                        .font(.system(size: 30))
-                                        .foregroundColor(.gray)
-                                    Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                                        .foregroundColor(.gray)
-                                }
-                                .padding()
-                                Spacer()
-                            }
+                            NoDataSection()
                         }
                     } else {
                         Section(

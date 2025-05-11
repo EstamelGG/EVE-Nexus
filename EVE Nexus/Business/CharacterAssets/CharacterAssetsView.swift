@@ -194,18 +194,7 @@ struct CharacterAssetsView: View {
             // 搜索结果为空的提示
             if !searchText.isEmpty && viewModel.searchResults.isEmpty && !viewModel.isLoading {
                 Section {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 8) {
-                            Image(systemName: "doc.text")
-                                .font(.system(size: 30))
-                                .foregroundColor(.gray)
-                            Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                                .foregroundColor(.gray)
-                        }
-                        .padding()
-                        Spacer()
-                    }
+                    NoDataSection()
                 }
             }
             // 显示错误信息

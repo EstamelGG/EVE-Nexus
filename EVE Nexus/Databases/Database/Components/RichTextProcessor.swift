@@ -59,9 +59,9 @@ struct RichTextView: View {
                 .presentationDetents([.fraction(0.85)])  // 设置为屏幕高度的85%
                 .presentationDragIndicator(.visible)  // 显示拖动指示器
             }
-            .alert("Open Link", isPresented: $showingURLAlert) {
-                Button("Cancel", role: .cancel) {}
-                Button("Yes") {
+            .alert(NSLocalizedString("Misc_OpenLink", comment: ""), isPresented: $showingURLAlert) {
+                Button(NSLocalizedString("Common_Cancel", comment: ""), role: .cancel) {}
+                Button(NSLocalizedString("Misc_Yes", comment: "")) {
                     if let url = urlToConfirm {
                         UIApplication.shared.open(url)
                     }

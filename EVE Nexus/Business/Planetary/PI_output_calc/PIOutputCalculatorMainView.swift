@@ -133,7 +133,7 @@ struct PIOutputCalculatorView: View {
                     HStack {
                         Spacer()
                         ProgressView()
-                        Text(NSLocalizedString("PI_Output_Calculating", comment: "计算中..."))
+                        Text(NSLocalizedString("Misc_Calculating", comment: "计算中..."))
                             .foregroundColor(.gray)
                             .padding(.leading, 8)
                         Spacer()

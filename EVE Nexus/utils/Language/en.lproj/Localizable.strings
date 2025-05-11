@@ -43,7 +43,6 @@
 "Main_Market_Current_Price" = "Current Price";
 "Main_Market_Price_History" = "Price History";
 "Main_Market_Show_market_orders" = "Show market orders";
-"Main_Market_Choose_Region" = "Choose region";
 "Main_Market_WH_info" = "Info of wormhole";
 "Main_Market_WH_Details" = "Details";
 "Main_Market_WH_MaxStableTime" = "Maximum Stable Time";
@@ -59,7 +58,6 @@
 "Contract_Days_To_Complete" = "Days to Complete";
 "Select_Item" = "Select Item";
 "Main_Market" = "Region Market";
-"Main_Market_Watch_List" = "Market Watch List";
 "Main_Market_Watch_List_Empty" = "No watched items";
 "Main_Market_Watch_List_Add" = "Add Watch List";
 "Main_Market_Watch_List_Name" = "List Name";
@@ -74,7 +72,9 @@
 "Main_Market_Orders" = "Market Orders";
 "Main_Contracts" = "Contracts";
 "Main_Market_Transactions" = "Market Transactions";
+"Main_Market_Transactions_short" = "Transactions";
 "Main_Wallet_Journal" = "Wallet Journal";
+"Main_Wallet_Journal_short" = "Journal";
 "Main_Industry_Jobs" = "Industry Jobs";
 "Main_Other" = "Other";
 "Main_Unzipping_Icons" = "Unzipping Icons...";
@@ -109,7 +109,10 @@
 
 "Misc_true" = "True";
 "Misc_false" = "False";
+"Misc_Yes" = "Yes";
+"Misc_No" = "No";
 "Misc_back" = "Back";
+"Misc_All" = "All";
 "Misc_number_item" = "×";
 "Misc_number_item_x" = "×";
 "Misc_number_point" = "points";
@@ -117,13 +120,17 @@
 "Misc_per" = "per";
 "Misc_unit" = "unit(s)";
 "Misc_Done" = "Done";
-"Misc_No_Data" = "No data";
 "Misc_Calculating" = "Calculating...";
 "Misc_Loading" = "Loading...";
 "Misc_Not_Found" = "Not found";
 "Misc_Level" = "Level %d";
 "Misc_Level_Short" = "Lv %d";
 "Misc_No_Data" = "No Data.";
+"Misc_Clear" = "Clear";
+"Misc_Filter" = "Filter";
+"Misc_OpenLink" = "Open Link";
+"Misc_InAll" = "All";
+"Misc_Need" = "Need";
 
 // Blueprint Details
 "Blueprint_Product" = "Product";
@@ -387,13 +394,17 @@
 "Main_Market_Transactions_Unit_Price" = "Unit Price";
 "Main_Market_Transactions_Quantity" = "Quantity";
 "Main_Market_Transactions_Total" = "Total";
+"Wallet_Transaction_Type" = "Type";
+"Wallet_Transaction_Category" = "Category";
+"Wallet_Income" = "Income";
+"Wallet_Expense" = "Expense";
+"Wallet_Partial_Data_Notice" = "Too many records, only showing partial transaction journal.";
 
 // Market Orders
 "Orders_Remaining" = "remaining";
 "Orders_Buy" = "Buy";
 "Orders_Sell" = "Sell";
 "Orders_Corp" = "Corp";
-"Orders_No_Data" = "No Data.";
 "Orders_No_Buy_Orders" = "No Buy Orders";
 "Orders_No_Sell_Orders" = "No Sell Orders";
 
@@ -546,11 +557,13 @@
 "Main_Skills_Time_Remaining" = "Remaining: %@";
 "Main_Skills_Time_Required" = "Required: %@";
 "Main_Skills_Categories" = "Skill Categories";
-"Main_Skills_Not_Injected" = "Not Injected";
+"Main_Skills_Not_Injected" = "Uninjected";
 "Main_Skills_Completed" = "Completed";
+"Main_Skills_Trainable" = "Trainable";
 "Main_Skills_Paused" = "Paused";
 "Main_Skills_Running" = "Running";
 "Main_Skills_Empty" = "Empty Queue";
+"Main_Skills_number" = "Skills";
 
 // Time Format
 "Time_Days_Hours_Minutes" = "%dd %dh %dm";
@@ -594,7 +607,6 @@
 
 // Wealth Detail View
 "Wealth_Detail_Title" = "%@ Est. (Top 20)";
-"Wealth_Detail_NoData" = "No Data";
 "Wealth_Detail_Loading" = "Loading...";
 "Wealth_Detail_MarketPrice" = "Market Price";
 "Wealth_Detail_Quantity" = "Quantity";
@@ -1051,8 +1063,8 @@
 "Corp_Structure_Time_Format_Hours" = "%d hours later";
 "Corp_Structure_Time_Format_Minutes" = "%d minutes later";
 
-"Main_Planetary" = "Planetary Interaction";
-"Main_Planetary_Title" = "Planetary Interaction";
+"Main_Planetary" = "Planetary Industry";
+"Main_Planetary_Title" = "Planetary Industry";
 "Main_Planetary_No_Planets" = "No Planets";
 "Main_Planetary_Unknown_Planet" = "Unknown Planet";
 "Main_Planetary_Unknown_Type" = "Unknown Type";
@@ -1118,7 +1130,6 @@
 // Structure Access
 "Structure_No_Access" = "No Access Structure";
 
-"Main_Corporation_Members_Sort" = "Sort By";
 "Main_Corporation_Members_Sort_By_Name" = "Character Name";
 "Main_Corporation_Members_Sort_By_Title" = "Title";
 "Main_Corporation_Members_Sort_By_System" = "Current System";
@@ -1191,7 +1202,7 @@
 "ESI_Tag_Mail" = "Mail";
 "ESI_Tag_Market" = "Market";
 "ESI_Tag_Opportunities" = "Opportunities";
-"ESI_Tag_PlanetaryInteraction" = "Planetary Interaction";
+"ESI_Tag_PlanetaryInteraction" = "Planetary Industry";
 "ESI_Tag_Routes" = "Routes";
 "ESI_Tag_Search" = "Search";
 "ESI_Tag_Skills" = "Skills";
@@ -1500,7 +1511,6 @@
 "Common_Cancel" = "Cancel";
 "Planetary_System_Description" = "Select system as production center";
 
-"PI_Output_Calculating" = "Calc...";
 "PI_Output_View_Systems" = "Show Systems";
 "PI_Output_Systems_List" = "Available Systems";
 "PI_Output_Start_System" = "Base System";

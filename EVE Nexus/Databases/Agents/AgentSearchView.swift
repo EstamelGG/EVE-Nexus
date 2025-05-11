@@ -1222,7 +1222,8 @@ struct AgentListHierarchyView: View {
             for agent in searchResults {
                 if !uniqueDivisions.contains(agent.divisionID) {
                     uniqueDivisions.insert(agent.divisionID)
-                    let divisionName = divisionNames[agent.divisionID] ?? "unknown"
+                    let divisionName =
+                        divisionNames[agent.divisionID] ?? NSLocalizedString("Unknown", comment: "")
                     let iconName = divisionIcons[agent.divisionID] ?? "not_found"
                     divisionsList.append((agent.divisionID, divisionName, iconName))
                 }
@@ -1670,12 +1671,12 @@ struct RegionSearchView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
-    @State private var regions: [(Int, String)] = []
+    @State private var regions: [(Int, String, String, String)] = []  // ID, 名称, 英文名, 中文名
     @State private var isLoading = true
     @Binding var selectedRegionID: Int?
     @Binding var selectedRegionName: String?
     @State private var isSearchActive = false
-    @State private var sectionedRegions: [String: [(Int, String)]] = [:]
+    @State private var sectionedRegions: [String: [(Int, String, String, String)]] = [:]
     @State private var sectionTitles: [String] = []
 
     var body: some View {
@@ -1716,7 +1717,8 @@ struct RegionSearchView: View {
                                 !regionsInSection.isEmpty
                             {
                                 Section(header: Text(sectionTitle).id(sectionTitle)) {
-                                    ForEach(regionsInSection, id: \.0) { regionID, regionName in
+                                    ForEach(regionsInSection, id: \.0) {
+                                        regionID, regionName, regionName_en, regionName_zh in
                                         Button(action: {
                                             selectedRegionID = regionID
                                             selectedRegionName = regionName
@@ -1761,11 +1763,15 @@ struct RegionSearchView: View {
 
     // 更新分组数据
     private func updateSections() {
-        var filteredData: [(Int, String)] = regions
+        var filteredData: [(Int, String, String, String)] = regions
 
         // 如果有搜索文本，过滤数据
         if !searchText.isEmpty {
-            filteredData = regions.filter { $0.1.localizedCaseInsensitiveContains(searchText) }
+            filteredData = regions.filter { region in
+                region.1.localizedCaseInsensitiveContains(searchText)  // 原始名称
+                    || region.2.localizedCaseInsensitiveContains(searchText)  // 英文名
+                    || region.3.localizedCaseInsensitiveContains(searchText)  // 中文名
+            }
         }
 
         // 按首字母分组
@@ -1819,7 +1825,7 @@ struct RegionSearchView: View {
         isLoading = true
 
         let query = """
-                SELECT regionID, regionName
+                SELECT regionID, regionName, regionName_en, regionName_zh
                 FROM regions
                 WHERE regionID < 11000000
             """
@@ -1827,11 +1833,13 @@ struct RegionSearchView: View {
         if case let .success(rows) = databaseManager.executeQuery(query) {
             regions = rows.compactMap { row in
                 guard let regionID = row["regionID"] as? Int,
-                    let regionName = row["regionName"] as? String
+                    let regionName = row["regionName"] as? String,
+                    let regionName_en = row["regionName_en"] as? String,
+                    let regionName_zh = row["regionName_zh"] as? String
                 else {
                     return nil
                 }
-                return (regionID, regionName)
+                return (regionID, regionName, regionName_en, regionName_zh)
             }
 
             // 初始化分组数据
@@ -1847,12 +1855,12 @@ struct SolarSystemSearchView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
-    @State private var solarSystems: [(Int, String, Double)] = []  // ID, 名称, 安全等级
+    @State private var solarSystems: [(Int, String, String, String, Double)] = []  // ID, 名称, 英文名, 中文名, 安全等级
     @State private var isLoading = true
     @Binding var selectedSolarSystemID: Int?
     @Binding var selectedSolarSystemName: String?
     @State private var isSearchActive = false
-    var regionID: Int?  // 可选的星域ID，用于过滤星系
+    var regionID: Int?
 
     var body: some View {
         VStack {
@@ -1888,7 +1896,8 @@ struct SolarSystemSearchView: View {
                     }
 
                     // 过滤并显示星系列表
-                    ForEach(filteredSystems, id: \.0) { systemID, systemName, security in
+                    ForEach(filteredSystems, id: \.0) {
+                        systemID, systemName, systemName_en, systemName_zh, security in
                         Button(action: {
                             selectedSolarSystemID = systemID
                             selectedSolarSystemName = systemName
@@ -1928,14 +1937,17 @@ struct SolarSystemSearchView: View {
     }
 
     // 过滤后的星系列表
-    private var filteredSystems: [(Int, String, Double)] {
-        var result: [(Int, String, Double)]
+    private var filteredSystems: [(Int, String, String, String, Double)] {
+        var result: [(Int, String, String, String, Double)]
         if searchText.isEmpty {
             result = solarSystems
         } else {
-            result = solarSystems.filter { $0.1.localizedCaseInsensitiveContains(searchText) }
+            result = solarSystems.filter { system in
+                system.1.localizedCaseInsensitiveContains(searchText)  // 原始名称
+                    || system.2.localizedCaseInsensitiveContains(searchText)  // 英文名
+                    || system.3.localizedCaseInsensitiveContains(searchText)  // 中文名
+            }
         }
-        // 对结果进行本地化排序，使用localizedStandardCompare以正确处理混合字符排序
         return result.sorted { $0.1.localizedStandardCompare($1.1) == .orderedAscending }
     }
 
@@ -1944,7 +1956,7 @@ struct SolarSystemSearchView: View {
         isLoading = true
 
         var query = """
-                SELECT s.solarSystemID, s.solarSystemName, s.security_status
+                SELECT s.solarSystemID, s.solarSystemName, s.solarSystemName_en, s.solarSystemName_zh, s.security_status
                 FROM solarsystems s
                 JOIN universe u ON s.solarSystemID = u.solarsystem_id
                 WHERE u.region_id < 11000000
@@ -1952,25 +1964,23 @@ struct SolarSystemSearchView: View {
 
         var parameters: [Any] = []
 
-        // 如果指定了星域ID，则只加载该星域内的星系
         if let regionID = regionID {
             query += " AND u.region_id = ?"
             parameters.append(regionID)
         }
 
-        // 不在SQL中排序，而是在内存中进行本地化排序
-
         if case let .success(rows) = databaseManager.executeQuery(query, parameters: parameters) {
             solarSystems = rows.compactMap { row in
                 guard let systemID = row["solarSystemID"] as? Int,
                     let systemName = row["solarSystemName"] as? String,
+                    let systemName_en = row["solarSystemName_en"] as? String,
+                    let systemName_zh = row["solarSystemName_zh"] as? String,
                     let security = row["security_status"] as? Double
                 else {
                     return nil
                 }
-                return (systemID, systemName, security)
+                return (systemID, systemName, systemName_en, systemName_zh, security)
             }
-            // 在内存中进行本地化排序，使用localizedStandardCompare以正确处理混合字符排序
             solarSystems.sort { $0.1.localizedStandardCompare($1.1) == .orderedAscending }
         }
 

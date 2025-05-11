@@ -1361,7 +1361,9 @@ class DatabaseManager: ObservableObject {
     }
 
     // 加载市场物品的通用查询
-    func loadMarketItems(whereClause: String, parameters: [Any], limit: Int = 0) -> [DatabaseListItem] {
+    func loadMarketItems(whereClause: String, parameters: [Any], limit: Int = 0)
+        -> [DatabaseListItem]
+    {
         var query = """
                 SELECT t.type_id as id, t.name, t.published, t.icon_filename as iconFileName,
                        t.categoryID, t.groupID, t.metaGroupID, t.marketGroupID,

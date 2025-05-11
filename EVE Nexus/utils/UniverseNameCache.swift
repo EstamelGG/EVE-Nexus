@@ -8,7 +8,9 @@ actor UniverseNameCache {
 
     private init() {}
 
-    func setName(_ name: String, for id: Int, category: String = "unknown") {
+    func setName(
+        _ name: String, for id: Int, category: String = NSLocalizedString("Unknown", comment: "")
+    ) {
         // 更新内存缓存
         memoryCache[id] = name
 

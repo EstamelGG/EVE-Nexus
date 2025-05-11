@@ -88,7 +88,9 @@ class NetworkManager: NSObject, @unchecked Sendable {
         // 添加基本请求头
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue("tranquility", forHTTPHeaderField: "datasource")
-        request.setValue("Tritanium_by_EstamelGG_Github_v\(AppConfiguration.Version.fullVersion)", forHTTPHeaderField: "User-Agent")
+        request.setValue(
+            "Tritanium_by_EstamelGG_Github_v\(AppConfiguration.Version.fullVersion)",
+            forHTTPHeaderField: "User-Agent")
 
         // 如果是 POST 请求且有请求体，设置 Content-Type
         if method == "POST" && body != nil {
@@ -110,7 +112,9 @@ class NetworkManager: NSObject, @unchecked Sendable {
         }
 
         return try await retrier.execute(noRetryKeywords: noRetryKeywords, timeouts: timeouts) {
-            Logger.info("HTTP \(method) Request to: \(url), User-Agent: \(String(describing: request.value(forHTTPHeaderField: "User-Agent")))")
+            Logger.info(
+                "HTTP \(method) Request to: \(url), User-Agent: \(String(describing: request.value(forHTTPHeaderField: "User-Agent")))"
+            )
 
             // 使用Task.detached确保在后台线程执行，并设置合适的QoS
             return try await Task.detached(priority: .userInitiated) {

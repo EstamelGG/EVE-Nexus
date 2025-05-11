@@ -13,12 +13,11 @@ struct InsurgencySystemCell: View {
     let systemInfo: FWSystemInfo
     let insurgency: Insurgency
     let factionIconMap: [Int: String]
-    @Environment(\.horizontalSizeClass) private var horizontalSizeClass
-    
+
     private var hasEnoughWidth: Bool {
-        DeviceUtils.screenWidth >= 428 // 只在屏幕宽度大于等于 428 时显示额外信息
+        DeviceUtils.screenWidth >= 428  // 只在屏幕宽度大于等于 428 时显示额外信息
     }
-    
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             // 第一行：星系信息、腐蚀信息、镇压信息
@@ -31,8 +30,9 @@ struct InsurgencySystemCell: View {
                             .font(.system(.subheadline, design: .monospaced))
                         // 添加势力图标，仅在屏幕宽度足够时显示
                         if hasEnoughWidth,
-                           let occupierFactionId = insurgency.solarSystem.occupierFactionId,
-                           let iconName = factionIconMap[occupierFactionId] {
+                            let occupierFactionId = insurgency.solarSystem.occupierFactionId,
+                            let iconName = factionIconMap[occupierFactionId]
+                        {
                             IconManager.shared.loadImage(for: iconName)
                                 .resizable()
                                 .frame(width: 24, height: 24)
@@ -42,7 +42,7 @@ struct InsurgencySystemCell: View {
                             .fontWeight(.bold)
                             .textSelection(.enabled)
                     }
-                    
+
                     if hasEnoughWidth {
                         Text("\(systemInfo.constellationName) / \(systemInfo.regionName)")
                             .foregroundColor(.secondary)
@@ -53,9 +53,9 @@ struct InsurgencySystemCell: View {
                             .font(.caption)
                     }
                 }
-                
+
                 Spacer()
-                
+
                 // 腐蚀状态
                 HStack(spacing: 8) {
                     ZStack {
@@ -63,20 +63,25 @@ struct InsurgencySystemCell: View {
                         Circle()
                             .stroke(Color(.gray).opacity(0.2), lineWidth: 2)
                             .frame(width: 32, height: 32)
-                        
+
                         // 进度填充
                         Circle()
                             .trim(from: 0, to: CGFloat(insurgency.corruptionPercentage / 100.0))
-                            .stroke(Color(red: 142/255, green: 243/255, blue: 13/255), lineWidth: 2)
+                            .stroke(
+                                Color(red: 142 / 255, green: 243 / 255, blue: 13 / 255),
+                                lineWidth: 2
+                            )
                             .frame(width: 32, height: 32)
                             .rotationEffect(.degrees(-90))
-                        
+
                         // 腐蚀图标
-                        IconManager.shared.loadImage(for: "corruption_\(insurgency.corruptionState)")
-                            .resizable()
-                            .frame(width: 24, height: 24)
+                        IconManager.shared.loadImage(
+                            for: "corruption_\(insurgency.corruptionState)"
+                        )
+                        .resizable()
+                        .frame(width: 24, height: 24)
                     }
-                    
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text("\(insurgency.corruptionState)/5")
                             .foregroundColor(.secondary)
@@ -86,7 +91,7 @@ struct InsurgencySystemCell: View {
                             .font(.system(.caption, design: .monospaced))
                     }
                 }
-                
+
                 // 镇压状态
                 HStack(spacing: 8) {
                     ZStack {
@@ -94,20 +99,22 @@ struct InsurgencySystemCell: View {
                         Circle()
                             .stroke(Color(.gray).opacity(0.2), lineWidth: 2)
                             .frame(width: 32, height: 32)
-                        
+
                         // 进度填充
                         Circle()
                             .trim(from: 0, to: CGFloat(insurgency.suppressionPercentage / 100.0))
                             .stroke(Color.blue, lineWidth: 2)
                             .frame(width: 32, height: 32)
                             .rotationEffect(.degrees(-90))
-                        
+
                         // 镇压图标
-                        IconManager.shared.loadImage(for: "suppression_\(insurgency.suppressionState)")
-                            .resizable()
-                            .frame(width: 24, height: 24)
+                        IconManager.shared.loadImage(
+                            for: "suppression_\(insurgency.suppressionState)"
+                        )
+                        .resizable()
+                        .frame(width: 24, height: 24)
                     }
-                    
+
                     VStack(alignment: .leading, spacing: 2) {
                         Text("\(insurgency.suppressionState)/5")
                             .foregroundColor(.secondary)
@@ -118,13 +125,13 @@ struct InsurgencySystemCell: View {
                     }
                 }
             }
-            
+
             // 第二行：星系类型
             if let state = FWSystemStateManager.shared.getSystemState(for: systemInfo.id) {
                 Text(NSLocalizedString("Main_system_fw_status", comment: ""))
                     .font(.caption)
-                    .foregroundColor(.secondary) +
-                Text(state.systemType.localizedString)
+                    .foregroundColor(.secondary)
+                    + Text(state.systemType.localizedString)
                     .font(.caption)
                     .fontWeight(.bold)
                     .foregroundColor(state.systemType == .frontline ? .red : .secondary)
@@ -143,27 +150,31 @@ struct InsurgencyView: View {
     @State private var sortType: SortType = .corruption
     @State private var searchText = ""
     @State private var isSearchActive = false
-    @State private var systemNameCache: [Int: (en: String, zh: String)] = [:]
+    @State private var systemNameCache: [Int: (name: String, name_en: String, name_zh: String)] =
+        [:]
     @State private var factionIconMap: [Int: String] = [:]
     @State private var isInfoSheetPresented = false
-    
+    @Environment(\.colorScheme) private var colorScheme
+
     private var hasEnoughWidth: Bool {
-        DeviceUtils.screenWidth >= 428 // 只在屏幕宽度大于等于 428 时显示额外信息
+        DeviceUtils.screenWidth >= 428  // 只在屏幕宽度大于等于 428 时显示额外信息
     }
-    
+
     enum SortType {
         case corruption
         case suppression
         case name
-        
+
         var localizedString: String {
             switch self {
-            case .corruption: return NSLocalizedString("Main_ByCorruption", comment: "Main_ByCorruption")
-            case .suppression: return NSLocalizedString("Main_BySuppression", comment: "Main_BySuppression")
+            case .corruption:
+                return NSLocalizedString("Main_ByCorruption", comment: "Main_ByCorruption")
+            case .suppression:
+                return NSLocalizedString("Main_BySuppression", comment: "Main_BySuppression")
             case .name: return NSLocalizedString("Main_ByName", comment: "Main_ByName")
             }
         }
-        
+
         mutating func next() {
             switch self {
             case .corruption: self = .suppression
@@ -172,7 +183,7 @@ struct InsurgencyView: View {
             }
         }
     }
-    
+
     // 计算腐败进度
     private func calculateCorruptionProgress() -> (current: Int, total: Int) {
         let totalThreshold = campaigns.reduce(0) { $0 + $1.corruptionThresHold }
@@ -181,7 +192,7 @@ struct InsurgencyView: View {
             .count
         return (completedCount, totalThreshold)
     }
-    
+
     // 计算镇压进度
     private func calculateSuppressionProgress() -> (current: Int, total: Int) {
         let totalThreshold = campaigns.reduce(0) { $0 + $1.suppressionThresHold }
@@ -190,16 +201,30 @@ struct InsurgencyView: View {
             .count
         return (completedCount, totalThreshold)
     }
-    
+
     var filteredInsurgencies: [Insurgency] {
         let allInsurgencies = campaigns.flatMap { $0.insurgencies }
-        
+
         if searchText.isEmpty {
             switch sortType {
             case .corruption:
-                return allInsurgencies.sorted { $0.corruptionPercentage > $1.corruptionPercentage }
+                return allInsurgencies.sorted { insurgency1, insurgency2 in
+                    if insurgency1.corruptionPercentage != insurgency2.corruptionPercentage {
+                        return insurgency1.corruptionPercentage > insurgency2.corruptionPercentage
+                    }
+                    let name1 = insurgencySystemInfo[insurgency1.solarSystem.id]?.name ?? ""
+                    let name2 = insurgencySystemInfo[insurgency2.solarSystem.id]?.name ?? ""
+                    return name1.localizedStandardCompare(name2) == .orderedAscending
+                }
             case .suppression:
-                return allInsurgencies.sorted { $0.suppressionPercentage > $1.suppressionPercentage }
+                return allInsurgencies.sorted { insurgency1, insurgency2 in
+                    if insurgency1.suppressionPercentage != insurgency2.suppressionPercentage {
+                        return insurgency1.suppressionPercentage > insurgency2.suppressionPercentage
+                    }
+                    let name1 = insurgencySystemInfo[insurgency1.solarSystem.id]?.name ?? ""
+                    let name2 = insurgencySystemInfo[insurgency2.solarSystem.id]?.name ?? ""
+                    return name1.localizedStandardCompare(name2) == .orderedAscending
+                }
             case .name:
                 return allInsurgencies.sorted { insurgency1, insurgency2 in
                     let name1 = insurgencySystemInfo[insurgency1.solarSystem.id]?.name ?? ""
@@ -208,22 +233,38 @@ struct InsurgencyView: View {
                 }
             }
         }
-        
+
         // 在内存中搜索匹配的星系
-        let matchingSystemIds = Set(systemNameCache.filter { _, names in
-            names.en.localizedCaseInsensitiveContains(searchText) ||
-            names.zh.localizedCaseInsensitiveContains(searchText)
-        }.keys)
-        
+        let matchingSystemIds = Set(
+            systemNameCache.filter { _, names in
+                names.name_en.localizedCaseInsensitiveContains(searchText)
+                    || names.name.localizedCaseInsensitiveContains(searchText)
+                    || names.name_zh.localizedCaseInsensitiveContains(searchText)
+            }.keys)
+
         let filtered = allInsurgencies.filter { insurgency in
             matchingSystemIds.contains(insurgency.solarSystem.id)
         }
-        
+
         switch sortType {
         case .corruption:
-            return filtered.sorted { $0.corruptionPercentage > $1.corruptionPercentage }
+            return filtered.sorted { insurgency1, insurgency2 in
+                if insurgency1.corruptionPercentage != insurgency2.corruptionPercentage {
+                    return insurgency1.corruptionPercentage > insurgency2.corruptionPercentage
+                }
+                let name1 = insurgencySystemInfo[insurgency1.solarSystem.id]?.name ?? ""
+                let name2 = insurgencySystemInfo[insurgency2.solarSystem.id]?.name ?? ""
+                return name1.localizedStandardCompare(name2) == .orderedAscending
+            }
         case .suppression:
-            return filtered.sorted { $0.suppressionPercentage > $1.suppressionPercentage }
+            return filtered.sorted { insurgency1, insurgency2 in
+                if insurgency1.suppressionPercentage != insurgency2.suppressionPercentage {
+                    return insurgency1.suppressionPercentage > insurgency2.suppressionPercentage
+                }
+                let name1 = insurgencySystemInfo[insurgency1.solarSystem.id]?.name ?? ""
+                let name2 = insurgencySystemInfo[insurgency2.solarSystem.id]?.name ?? ""
+                return name1.localizedStandardCompare(name2) == .orderedAscending
+            }
         case .name:
             return filtered.sorted { insurgency1, insurgency2 in
                 let name1 = insurgencySystemInfo[insurgency1.solarSystem.id]?.name ?? ""
@@ -232,7 +273,7 @@ struct InsurgencyView: View {
             }
         }
     }
-    
+
     var body: some View {
         List {
             if let firstCampaign = campaigns.first {
@@ -243,17 +284,20 @@ struct InsurgencyView: View {
                             // 左侧海盗图标
                             let factionId = firstCampaign.pirateFaction.id
                             let query = "SELECT id, name, iconName FROM factions WHERE id = ?"
-                            if case let .success(rows) = databaseManager.executeQuery(query, parameters: [factionId]),
-                               let row = rows.first,
-                               let iconName = row["iconName"] as? String {
+                            if case let .success(rows) = databaseManager.executeQuery(
+                                query, parameters: [factionId]),
+                                let row = rows.first,
+                                let iconName = row["iconName"] as? String
+                            {
                                 IconManager.shared.loadImage(for: iconName)
                                     .resizable()
                                     .frame(width: 64, height: 64)
                                     .cornerRadius(4)
                             }
-                            
+
                             // 右侧星系信息
-                            if let systemInfo = originSystemInfo[firstCampaign.originSolarSystem.id] {
+                            if let systemInfo = originSystemInfo[firstCampaign.originSolarSystem.id]
+                            {
                                 VStack(alignment: .leading, spacing: 4) {
                                     HStack(spacing: 4) {
                                         Text(formatSystemSecurity(systemInfo.security))
@@ -263,11 +307,13 @@ struct InsurgencyView: View {
                                             .fontWeight(.bold)
                                             .textSelection(.enabled)
                                     }
-                                    
+
                                     if hasEnoughWidth {
-                                        Text("\(systemInfo.constellationName) / \(systemInfo.regionName)")
-                                            .foregroundColor(.secondary)
-                                            .font(.caption)
+                                        Text(
+                                            "\(systemInfo.constellationName) / \(systemInfo.regionName)"
+                                        )
+                                        .foregroundColor(.secondary)
+                                        .font(.caption)
                                     } else {
                                         Text(systemInfo.regionName)
                                             .foregroundColor(.secondary)
@@ -276,39 +322,47 @@ struct InsurgencyView: View {
                                 }
                             }
                         }
-                        
+
                         // 腐蚀进度
                         HStack(spacing: 12) {
-                            IconManager.shared.loadImage(for: "corruption_5")
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                    .cornerRadius(4)
+                            IconManager.shared.loadImage(for: "corruption")
+                                .resizable()
+                                .frame(width: 32, height: 32)
+                                .cornerRadius(4)
+                                .brightness(colorScheme == .dark ? 0.3 : 0)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(NSLocalizedString("Main_Corruption_Progress", comment: ""))
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                                 let corruption = calculateCorruptionProgress()
-                                ProgressView(value: Double(corruption.current), total: Double(corruption.total))
-                                    .tint(Color(red: 142/255, green: 243/255, blue: 13/255))
+                                ProgressView(
+                                    value: Double(corruption.current),
+                                    total: Double(corruption.total)
+                                )
+                                .tint(Color(red: 142 / 255, green: 243 / 255, blue: 13 / 255))
                                 Text("\(corruption.current)/\(corruption.total)")
                                     .foregroundColor(.secondary)
                                     .font(.system(.caption, design: .monospaced))
                             }
                         }
-                        
+
                         // 镇压进度
-                        HStack{
-                            IconManager.shared.loadImage(for: "suppression_5")
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                    .cornerRadius(4)
+                        HStack {
+                            IconManager.shared.loadImage(for: "suppression")
+                                .resizable()
+                                .frame(width: 32, height: 32)
+                                .cornerRadius(4)
+                                .brightness(colorScheme == .dark ? 0.3 : 0)
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(NSLocalizedString("Main_Suppression_Progress", comment: ""))
                                     .font(.subheadline)
                                     .foregroundColor(.secondary)
                                 let suppression = calculateSuppressionProgress()
-                                ProgressView(value: Double(suppression.current), total: Double(suppression.total))
-                                    .tint(.blue)
+                                ProgressView(
+                                    value: Double(suppression.current),
+                                    total: Double(suppression.total)
+                                )
+                                .tint(.blue)
                                 Text("\(suppression.current)/\(suppression.total)")
                                     .foregroundColor(.secondary)
                                     .font(.system(.caption, design: .monospaced))
@@ -320,7 +374,7 @@ struct InsurgencyView: View {
                     Text(NSLocalizedString("Main_Insurgency_FOB", comment: ""))
                         .font(.headline)
                 }
-                
+
                 Section {
                     if filteredInsurgencies.isEmpty {
                         HStack {
@@ -338,7 +392,9 @@ struct InsurgencyView: View {
                     } else {
                         ForEach(filteredInsurgencies, id: \.solarSystem.id) { insurgency in
                             if let systemInfo = insurgencySystemInfo[insurgency.solarSystem.id] {
-                                InsurgencySystemCell(systemInfo: systemInfo, insurgency: insurgency, factionIconMap: factionIconMap)
+                                InsurgencySystemCell(
+                                    systemInfo: systemInfo, insurgency: insurgency,
+                                    factionIconMap: factionIconMap)
                             }
                         }
                     }
@@ -382,7 +438,7 @@ struct InsurgencyView: View {
                         Text(NSLocalizedString("Insurgency_info", comment: ""))
                             .font(.headline)
                     }
-                    
+
                     Section {
                         HStack(spacing: 8) {
                             IconManager.shared.loadImage(for: "corruption_1")
@@ -396,7 +452,7 @@ struct InsurgencyView: View {
                         HStack(spacing: 8) {
                             IconManager.shared.loadImage(for: "suppression_1")
                                 .resizable()
-                                .frame(width: 40, height: 40)   
+                                .frame(width: 40, height: 40)
                                 .cornerRadius(4)
                             Text(NSLocalizedString("Insurgency_info_supp_s1", comment: ""))
                                 .font(.body)
@@ -406,7 +462,7 @@ struct InsurgencyView: View {
                         Text(String(format: NSLocalizedString("Insurgency_stage", comment: ""), 1))
                             .font(.headline)
                     }
-                    
+
                     Section {
                         HStack(spacing: 8) {
                             IconManager.shared.loadImage(for: "corruption_2")
@@ -430,7 +486,7 @@ struct InsurgencyView: View {
                         Text(String(format: NSLocalizedString("Insurgency_stage", comment: ""), 2))
                             .font(.headline)
                     }
-                    
+
                     Section {
                         HStack(spacing: 8) {
                             IconManager.shared.loadImage(for: "corruption_3")
@@ -454,7 +510,7 @@ struct InsurgencyView: View {
                         Text(String(format: NSLocalizedString("Insurgency_stage", comment: ""), 3))
                             .font(.headline)
                     }
-                    
+
                     Section {
                         HStack(spacing: 8) {
                             IconManager.shared.loadImage(for: "corruption_4")
@@ -478,7 +534,7 @@ struct InsurgencyView: View {
                         Text(String(format: NSLocalizedString("Insurgency_stage", comment: ""), 4))
                             .font(.headline)
                     }
-                    
+
                     Section {
                         HStack(spacing: 8) {
                             IconManager.shared.loadImage(for: "corruption_5")
@@ -523,51 +579,65 @@ struct InsurgencyView: View {
         .task {
             // 获取所有需要查询的星系ID
             let originSystemIds = campaigns.map { $0.originSolarSystem.id }
-            let insurgencySystemIds = campaigns.flatMap { $0.insurgencies }.map { $0.solarSystem.id }
-            
+            let insurgencySystemIds = campaigns.flatMap { $0.insurgencies }.map {
+                $0.solarSystem.id
+            }
+
             // 一次性获取所有星系信息
             let originSystemInfoMap = await getBatchSolarSystemInfo(
                 solarSystemIds: originSystemIds,
                 databaseManager: databaseManager
             )
-            
+
             let insurgencySystemInfoMap = await getBatchSolarSystemInfo(
                 solarSystemIds: insurgencySystemIds,
                 databaseManager: databaseManager
             )
-            
+
             // 预加载所有星系的中英文名称
             let allSystemIds = Set(originSystemIds + insurgencySystemIds)
-            let query = "SELECT solarSystemID, solarSystemName, solarSystemName_en FROM solarsystems WHERE solarSystemID IN (\(String(repeating: "?,", count: allSystemIds.count).dropLast()))"
-            if case let .success(rows) = databaseManager.executeQuery(query, parameters: Array(allSystemIds)) {
-                systemNameCache = Dictionary(uniqueKeysWithValues: rows.compactMap { row in
-                    guard let id = row["solarSystemID"] as? Int,
-                          let name = row["solarSystemName"] as? String,
-                          let nameEn = row["solarSystemName_en"] as? String else {
-                        return nil
-                    }
-                    return (id, (en: nameEn, zh: name))
-                })
-            }
-            
-            // 获取所有不重复的占领势力ID
-            let occupierFactionIds = Set(campaigns.flatMap { $0.insurgencies }
-                .compactMap { $0.solarSystem.occupierFactionId })
-            
-            // 一次性查询所有势力图标
-            if !occupierFactionIds.isEmpty {
-                let factionQuery = "SELECT id, iconName FROM factions WHERE id IN (\(String(repeating: "?,", count: occupierFactionIds.count).dropLast()))"
-                if case let .success(factionRows) = databaseManager.executeQuery(factionQuery, parameters: Array(occupierFactionIds)) {
-                    factionIconMap = Dictionary(uniqueKeysWithValues: factionRows.compactMap { row in
-                        guard let id = row["id"] as? Int,
-                              let iconName = row["iconName"] as? String else {
+            let query =
+                "SELECT solarSystemID, solarSystemName, solarSystemName_en, solarSystemName_zh FROM solarsystems WHERE solarSystemID IN (\(String(repeating: "?,", count: allSystemIds.count).dropLast()))"
+            if case let .success(rows) = databaseManager.executeQuery(
+                query, parameters: Array(allSystemIds))
+            {
+                systemNameCache = Dictionary(
+                    uniqueKeysWithValues: rows.compactMap { row in
+                        guard let id = row["solarSystemID"] as? Int,
+                            let name = row["solarSystemName"] as? String,
+                            let nameEn = row["solarSystemName_en"] as? String,
+                            let nameZh = row["solarSystemName_zh"] as? String
+                        else {
                             return nil
                         }
-                        return (id, iconName)
+                        return (id, (name: name, name_en: nameEn, name_zh: nameZh))
                     })
+            }
+
+            // 获取所有不重复的占领势力ID
+            let occupierFactionIds = Set(
+                campaigns.flatMap { $0.insurgencies }
+                    .compactMap { $0.solarSystem.occupierFactionId })
+
+            // 一次性查询所有势力图标
+            if !occupierFactionIds.isEmpty {
+                let factionQuery =
+                    "SELECT id, iconName FROM factions WHERE id IN (\(String(repeating: "?,", count: occupierFactionIds.count).dropLast()))"
+                if case let .success(factionRows) = databaseManager.executeQuery(
+                    factionQuery, parameters: Array(occupierFactionIds))
+                {
+                    factionIconMap = Dictionary(
+                        uniqueKeysWithValues: factionRows.compactMap { row in
+                            guard let id = row["id"] as? Int,
+                                let iconName = row["iconName"] as? String
+                            else {
+                                return nil
+                            }
+                            return (id, iconName)
+                        })
                 }
             }
-            
+
             // 更新星系信息
             for (id, info) in originSystemInfoMap {
                 originSystemInfo[id] = FWSystemInfo(
@@ -578,7 +648,7 @@ struct InsurgencyView: View {
                     regionName: info.regionName
                 )
             }
-            
+
             for (id, info) in insurgencySystemInfoMap {
                 insurgencySystemInfo[id] = FWSystemInfo(
                     id: id,
@@ -601,7 +671,8 @@ private func formatPercentage(_ value: Double) -> String {
         return formatted.hasSuffix(".0%") ? String(format: "%.1f%%", value) : formatted
     } else if value >= 1 {
         let formatted = String(format: "%.1f%%", value)
-        return formatted.hasSuffix(".0%") ? String(format: "%.1f %%", value) : String(format: "%.1f %%", value)
+        return formatted.hasSuffix(".0%")
+            ? String(format: "%.1f %%", value) : String(format: "%.1f %%", value)
     } else {
         return String(format: "%.2f%%", value)
     }

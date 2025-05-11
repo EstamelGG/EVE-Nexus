@@ -30,6 +30,8 @@ struct AssetSearchResult: Identifiable {
 // 物品信息结构体
 struct ItemInfo {
     let name: String
+    let zh_name: String
+    let en_name: String
     let iconFileName: String
 }
 
@@ -158,19 +160,23 @@ class CharacterAssetsViewModel: ObservableObject {
 
         // 构建查询语句，获取物品名称
         let query = """
-                SELECT type_id, name
-                FROM types
-                WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
+                SELECT t.type_id, t.name, t.zh_name, t.en_name
+                FROM types t
+                WHERE t.type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
             """
 
         if case let .success(rows) = databaseManager.executeQuery(query) {
             for row in rows {
                 if let typeId = row["type_id"] as? Int,
-                    let name = row["name"] as? String
+                    let name = row["name"] as? String,
+                    let zh_name = row["zh_name"] as? String,
+                    let en_name = row["en_name"] as? String
                 {
                     // 保存到物品信息缓存
                     itemInfoCache[typeId] = ItemInfo(
                         name: name,
+                        zh_name: zh_name,
+                        en_name: en_name,
                         iconFileName: DatabaseConfig.defaultItemIcon  // 默认图标，实际使用时会从节点获取
                     )
                 }
@@ -193,7 +199,12 @@ class CharacterAssetsViewModel: ObservableObject {
 
             // 创建一个包含正确图标的ItemInfo
             let iconName = node.icon_name ?? itemInfo.iconFileName
-            let updatedItemInfo = ItemInfo(name: itemInfo.name, iconFileName: iconName)
+            let updatedItemInfo = ItemInfo(
+                name: itemInfo.name,
+                zh_name: itemInfo.zh_name,
+                en_name: itemInfo.en_name,
+                iconFileName: iconName
+            )
 
             results.append(
                 AssetSearchResult(
@@ -264,7 +275,7 @@ class CharacterAssetsViewModel: ObservableObject {
 
                     // 从数据库加载物品信息
                     await loadItemInfoFromDatabase()
-                    
+
                     // 在内存中填充节点名称
                     await fillNodeNamesInMemory()
 
@@ -372,10 +383,14 @@ class CharacterAssetsViewModel: ObservableObject {
 
         // 使用缓存的物品信息进行搜索，而不是查询数据库
         var matchingTypeIds: [Int: ItemInfo] = [:]
+        let lowercasedQuery = query.lowercased()
 
         // 在缓存中查找匹配搜索条件的物品
         for (typeId, itemInfo) in itemInfoCache {
-            if itemInfo.name.lowercased().contains(query.lowercased()) {
+            // 搜索中英文名称
+            if itemInfo.zh_name.lowercased().contains(lowercasedQuery)
+                || itemInfo.en_name.lowercased().contains(lowercasedQuery)
+            {
                 matchingTypeIds[typeId] = itemInfo
             }
         }
@@ -402,13 +417,14 @@ class CharacterAssetsViewModel: ObservableObject {
             if node.location_type == "station" && node.name == nil {
                 node.name = stationNameCache[node.location_id]
             }
-            
+
             // 为星系节点填充名称
-            if node.location_type == "solar_system" && node.name == nil, 
-               let systemId = node.system_id {
+            if node.location_type == "solar_system" && node.name == nil,
+                let systemId = node.system_id
+            {
                 node.name = solarSystemNameCache[systemId]
             }
-            
+
             // 递归处理子节点
             if var items = node.items {
                 for i in 0..<items.count {
@@ -417,7 +433,7 @@ class CharacterAssetsViewModel: ObservableObject {
                 node.items = items
             }
         }
-        
+
         // 遍历并处理所有顶层位置节点
         for i in 0..<assetLocations.count {
             var location = assetLocations[i]

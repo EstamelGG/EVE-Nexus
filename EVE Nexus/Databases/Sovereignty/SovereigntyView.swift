@@ -282,18 +282,7 @@ struct SovereigntyView: View {
                     .frame(maxWidth: .infinity)
             } else if viewModel.preparedCampaigns.isEmpty {
                 Section {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 8) {
-                            Image(systemName: "doc.text")
-                                .font(.system(size: 30))
-                                .foregroundColor(.gray)
-                            Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                                .foregroundColor(.gray)
-                        }
-                        .padding()
-                        Spacer()
-                    }
+                    NoDataSection()
                 }
             } else {
                 ForEach(Array(viewModel.groupedCampaigns.keys.sorted()), id: \.self) { regionName in

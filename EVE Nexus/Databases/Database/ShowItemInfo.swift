@@ -88,8 +88,8 @@ struct ShowItemInfo: View {
                     categoryID == 16
                 {
                     SkillSection(
-                        skillID: itemID, 
-                        currentCharacterId: currentCharacterId, 
+                        skillID: itemID,
+                        currentCharacterId: currentCharacterId,
                         databaseManager: databaseManager
                     )
                 }

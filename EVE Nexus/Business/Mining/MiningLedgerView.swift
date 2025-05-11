@@ -235,20 +235,8 @@ struct MiningLedgerView: View {
                     .frame(maxWidth: .infinity)
             } else if viewModel.monthGroups.isEmpty {
                 Section {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 4) {
-                            Image(systemName: "doc.text")
-                                .font(.system(size: 30))
-                                .foregroundColor(.gray)
-                            Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                                .foregroundColor(.gray)
-                        }
-                        .padding()
-                        Spacer()
-                    }
+                    NoDataSection()
                 }
-                .listSectionSpacing(.compact)
             } else {
                 ForEach(viewModel.monthGroups) { group in
                     Section {

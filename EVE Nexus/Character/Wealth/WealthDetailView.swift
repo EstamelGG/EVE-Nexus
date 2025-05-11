@@ -102,7 +102,8 @@ struct WealthDetailView: View {
                     Section(header: Text(NSLocalizedString("Wealth_Detail_HasPrice", comment: "")))
                     {
                         ForEach(
-                            valuedItems.sorted(by: { $0.totalValue > $1.totalValue }), id: \.orderId
+                            valuedItems.sorted(by: { $0.totalValue > $1.totalValue }),
+                            id: \.identifier
                         ) { item in
                             if let itemInfo = getItemInfo(typeId: item.typeId) {
                                 NavigationLink {
@@ -173,7 +174,7 @@ struct WealthDetailView: View {
                 if valuedItems.isEmpty && (wealthType != .assets || itemsWithoutPrice.isEmpty) {
                     HStack {
                         Spacer()
-                        Text(NSLocalizedString("Wealth_Detail_NoData", comment: ""))
+                        Text(NSLocalizedString("Misc_No_Data", comment: ""))
                             .foregroundColor(.secondary)
                         Spacer()
                     }

@@ -153,6 +153,38 @@ struct CharacterDetailView: View {
                     .padding(.vertical, 4)
                 }
 
+                // 添加外部链接按钮
+                Section {
+                    Button(action: {
+                        if let url = URL(string: "https://evewho.com/character/\(characterId)") {
+                            UIApplication.shared.open(url)
+                        }
+                    }) {
+                        HStack {
+                            Text("Eve Who")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Image(systemName: "arrow.up.right.square")
+                                .foregroundColor(.blue)
+                        }
+                    }
+
+                    Button(action: {
+                        if let url = URL(string: "https://zkillboard.com/character/\(characterId)/")
+                        {
+                            UIApplication.shared.open(url)
+                        }
+                    }) {
+                        HStack {
+                            Text("zKillboard")
+                                .foregroundColor(.primary)
+                            Spacer()
+                            Image(systemName: "arrow.up.right.square")
+                                .foregroundColor(.blue)
+                        }
+                    }
+                }
+
                 // 添加Picker组件
                 Section {
                     Picker(selection: $selectedTab, label: Text("")) {
@@ -454,7 +486,7 @@ struct CharacterDetailView: View {
         var body: some View {
             VStack {
                 if let targetCharacter = targetCharacter {
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 4) {
                         // 个人声望
                         VStack(alignment: .leading, spacing: 8) {
                             Text(NSLocalizedString("Personal Standings", comment: ""))
@@ -498,7 +530,7 @@ struct CharacterDetailView: View {
                         Divider()
 
                         // 军团声望
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 4) {
                             Text(NSLocalizedString("Corporation Standings", comment: ""))
                                 .font(.headline)
                                 .padding(.bottom, 4)
@@ -550,7 +582,7 @@ struct CharacterDetailView: View {
                             Divider()
 
                             // 联盟声望
-                            VStack(alignment: .leading, spacing: 8) {
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text(NSLocalizedString("Alliance Standings", comment: ""))
                                     .font(.headline)
                                     .padding(.bottom, 4)
@@ -647,7 +679,8 @@ struct CharacterDetailView: View {
         let corporationId: Int
         let startDate: Date
         let endDate: Date?
-        @State private var corporationInfo: (name: String, icon: UIImage?)?
+        @State private var corporationInfo:
+            (name: String, icon: UIImage?, allianceName: String?, allianceIcon: UIImage?)?
 
         var body: some View {
             HStack(spacing: 6) {
@@ -655,11 +688,11 @@ struct CharacterDetailView: View {
                 if let icon = corporationInfo?.icon {
                     Image(uiImage: icon)
                         .resizable()
-                        .frame(width: 24, height: 24)
+                        .frame(width: 32, height: 32)
                         .cornerRadius(3)
                 } else {
                     Color.gray
-                        .frame(width: 24, height: 24)
+                        .frame(width: 32, height: 32)
                         .cornerRadius(3)
                 }
 
@@ -667,8 +700,25 @@ struct CharacterDetailView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     // 军团名称
                     Text(corporationInfo?.name ?? NSLocalizedString("Misc_Loading", comment: ""))
+                        .textSelection(.enabled)
                         .font(.system(size: 12))
                         .lineLimit(1)
+
+                    // 联盟信息
+                    if let allianceName = corporationInfo?.allianceName {
+                        HStack(spacing: 4) {
+                            if let allianceIcon = corporationInfo?.allianceIcon {
+                                Image(uiImage: allianceIcon)
+                                    .resizable()
+                                    .frame(width: 16, height: 16)
+                                    .cornerRadius(2)
+                            }
+                            Text(allianceName)
+                                .font(.system(size: 11))
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
 
                     // 时间信息
                     HStack(spacing: 4) {
@@ -693,10 +743,35 @@ struct CharacterDetailView: View {
             if let corpInfo = try? await CorporationAPI.shared.fetchCorporationInfo(
                 corporationId: corporationId)
             {
-                let corpIcon = try? await CorporationAPI.shared.fetchCorporationLogo(
+                // 并发加载军团图标和联盟信息
+                async let corpIconTask = CorporationAPI.shared.fetchCorporationLogo(
                     corporationId: corporationId)
+
+                var allianceName: String?
+                var allianceIcon: UIImage?
+
+                // 如果军团有联盟，加载联盟信息
+                if let allianceId = corpInfo.alliance_id {
+                    if let allianceNames = try? await UniverseAPI.shared.getNamesWithFallback(ids: [
+                        allianceId
+                    ]),
+                        let name = allianceNames[allianceId]?.name
+                    {
+                        allianceName = name
+                        allianceIcon = try? await AllianceAPI.shared.fetchAllianceLogo(
+                            allianceID: allianceId)
+                    }
+                }
+
+                let corpIcon = try? await corpIconTask
+
                 await MainActor.run {
-                    self.corporationInfo = (name: corpInfo.name, icon: corpIcon)
+                    self.corporationInfo = (
+                        name: corpInfo.name,
+                        icon: corpIcon,
+                        allianceName: allianceName,
+                        allianceIcon: allianceIcon
+                    )
                 }
             }
         }

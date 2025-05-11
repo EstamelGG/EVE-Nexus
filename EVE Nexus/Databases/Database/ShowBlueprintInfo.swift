@@ -257,9 +257,11 @@ struct ShowBluePrintInfo: View {
 
                                             Spacer()
 
-                                            Text("\(material.quantity) \(NSLocalizedString("Misc_unit", comment: ""))")
-                                                .foregroundColor(.secondary)
-                                                .frame(alignment: .trailing)
+                                            Text(
+                                                "\(material.quantity) \(NSLocalizedString("Misc_unit", comment: ""))"
+                                            )
+                                            .foregroundColor(.secondary)
+                                            .frame(alignment: .trailing)
                                         }
                                     }
                                 }
@@ -517,9 +519,11 @@ struct ShowBluePrintInfo: View {
 
                                             Spacer()
 
-                                            Text("\(material.quantity) \(NSLocalizedString("Misc_unit", comment: ""))")
-                                                .foregroundColor(.secondary)
-                                                .frame(alignment: .trailing)
+                                            Text(
+                                                "\(material.quantity) \(NSLocalizedString("Misc_unit", comment: ""))"
+                                            )
+                                            .foregroundColor(.secondary)
+                                            .frame(alignment: .trailing)
                                         }
                                     }
                                 }
@@ -658,9 +662,11 @@ struct ShowBluePrintInfo: View {
 
                                             Spacer()
 
-                                            Text("\(material.quantity) \(NSLocalizedString("Misc_unit", comment: ""))")
-                                                .foregroundColor(.secondary)
-                                                .frame(alignment: .trailing)
+                                            Text(
+                                                "\(material.quantity) \(NSLocalizedString("Misc_unit", comment: ""))"
+                                            )
+                                            .foregroundColor(.secondary)
+                                            .frame(alignment: .trailing)
                                         }
                                     }
                                 }
@@ -786,9 +792,11 @@ struct ShowBluePrintInfo: View {
 
                                             Spacer()
 
-                                            Text("\(material.quantity) \(NSLocalizedString("Misc_unit", comment: ""))")
-                                                .foregroundColor(.secondary)
-                                                .frame(alignment: .trailing)
+                                            Text(
+                                                "\(material.quantity) \(NSLocalizedString("Misc_unit", comment: ""))"
+                                            )
+                                            .foregroundColor(.secondary)
+                                            .frame(alignment: .trailing)
                                         }
                                     }
                                 }

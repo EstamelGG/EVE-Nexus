@@ -43,7 +43,7 @@ struct CorpWalletDivisionDetails: View {
     let characterId: Int
     let division: Int
     let divisionName: String
-    @State private var selectedTab = 0
+    @State private var selectedTab: WalletTab = .journal
     @StateObject private var viewModel: CorpWalletDivisionViewModel
 
     init(characterId: Int, division: Int, divisionName: String) {
@@ -62,10 +62,10 @@ struct CorpWalletDivisionDetails: View {
         VStack(spacing: 0) {
             // 顶部选择器
             Picker("", selection: $selectedTab) {
-                Text(NSLocalizedString("Main_Wallet_Journal", comment: ""))
-                    .tag(0)
-                Text(NSLocalizedString("Main_Market_Transactions", comment: ""))
-                    .tag(1)
+                Text(NSLocalizedString("Main_Wallet_Journal_short", comment: ""))
+                    .tag(WalletTab.journal)
+                Text(NSLocalizedString("Main_Market_Transactions_short", comment: ""))
+                    .tag(WalletTab.transactions)
             }
             .pickerStyle(.segmented)
             .padding(.horizontal)
@@ -74,10 +74,13 @@ struct CorpWalletDivisionDetails: View {
             // 内容视图
             TabView(selection: $selectedTab) {
                 CorpWalletJournalView(viewModel: viewModel.journalViewModel)
-                    .tag(0)
+                    .tag(WalletTab.journal)
 
-                CorpWalletTransactionsView(viewModel: viewModel.transactionsViewModel)
-                    .tag(1)
+                CorpWalletTransactionsView(
+                    viewModel: viewModel.transactionsViewModel,
+                    selectedTab: $selectedTab
+                )
+                .tag(WalletTab.transactions)
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .ignoresSafeArea(edges: .bottom)

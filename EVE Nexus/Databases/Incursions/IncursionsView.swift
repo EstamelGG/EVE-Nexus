@@ -278,18 +278,7 @@ struct IncursionsView: View {
                         .frame(maxWidth: .infinity)
                 } else if viewModel.preparedIncursions.isEmpty {
                     Section {
-                        HStack {
-                            Spacer()
-                            VStack(spacing: 8) {
-                                Image(systemName: "doc.text")
-                                    .font(.system(size: 30))
-                                    .foregroundColor(.gray)
-                                Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            Spacer()
-                        }
+                        NoDataSection()
                     }
                 } else {
                     ForEach(viewModel.preparedIncursions) { incursion in

@@ -188,7 +188,8 @@ struct MarketBaseView<Content: View>: View {
         let whereClause = searchQuery(text)
         let parameters = searchParameters(text)
 
-        items = databaseManager.loadMarketItems(whereClause: whereClause, parameters: parameters, limit: 100)
+        items = databaseManager.loadMarketItems(
+            whereClause: whereClause, parameters: parameters, limit: 100)
         isShowingSearchResults = true
 
         isLoading = false

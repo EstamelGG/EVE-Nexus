@@ -3,6 +3,8 @@ import SwiftUI
 // 订单物品信息模型
 struct OrderItemInfo {
     let name: String
+    let enName: String
+    let zhName: String
     let iconFileName: String
 }
 
@@ -19,6 +21,7 @@ final class CharacterOrdersViewModel: ObservableObject {
     @Published private(set) var locationInfoCache: [Int64: OrderLocationInfo] = [:]
     @Published var showBuyOrders = false
     @Published private(set) var isDataReady = false
+    @Published var searchText = ""  // 添加搜索文本状态
 
     // 添加一个标志，表示是否已经开始加载数据
     private var hasStartedLoading = false
@@ -30,6 +33,16 @@ final class CharacterOrdersViewModel: ObservableObject {
     var filteredOrders: [CharacterMarketOrder] {
         orders
             .filter { $0.isBuyOrder ?? false == showBuyOrders }
+            .filter { order in
+                if searchText.isEmpty {
+                    return true
+                }
+                if let itemInfo = itemInfoCache[order.typeId] {
+                    return itemInfo.enName.localizedCaseInsensitiveContains(searchText)
+                        || itemInfo.zhName.localizedCaseInsensitiveContains(searchText)
+                }
+                return false
+            }
             .sorted { $0.orderId > $1.orderId }
     }
 
@@ -128,7 +141,7 @@ final class CharacterOrdersViewModel: ObservableObject {
         let typeIds = Set(orders.map { $0.typeId })
         if !typeIds.isEmpty {
             let query = """
-                    SELECT type_id, name, icon_filename
+                    SELECT type_id, name, en_name, zh_name, icon_filename
                     FROM types
                     WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
                 """
@@ -137,10 +150,14 @@ final class CharacterOrdersViewModel: ObservableObject {
                 for row in rows {
                     if let typeIdInt = (row["type_id"] as? NSNumber)?.int64Value,
                         let name = row["name"] as? String,
+                        let enName = row["en_name"] as? String,
+                        let zhName = row["zh_name"] as? String,
                         let iconFileName = row["icon_filename"] as? String
                     {
                         itemInfoCache[typeIdInt] = OrderItemInfo(
                             name: name,
+                            enName: enName,
+                            zhName: zhName,
                             iconFileName: iconFileName
                         )
                     }
@@ -185,7 +202,8 @@ struct CharacterOrdersView: View {
                     itemInfoCache: viewModel.itemInfoCache,
                     locationInfoCache: viewModel.locationInfoCache,
                     isLoading: viewModel.isLoading,
-                    isDataReady: viewModel.isDataReady
+                    isDataReady: viewModel.isDataReady,
+                    searchText: $viewModel.searchText
                 )
                 .tag(false)
 
@@ -194,7 +212,8 @@ struct CharacterOrdersView: View {
                     itemInfoCache: viewModel.itemInfoCache,
                     locationInfoCache: viewModel.locationInfoCache,
                     isLoading: viewModel.isLoading,
-                    isDataReady: viewModel.isDataReady
+                    isDataReady: viewModel.isDataReady,
+                    searchText: $viewModel.searchText
                 )
                 .tag(true)
             }
@@ -227,6 +246,11 @@ struct CharacterOrdersView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Market_Orders", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
+        .searchable(
+            text: $viewModel.searchText,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
+        )
     }
 
     // 订单列表视图
@@ -236,6 +260,7 @@ struct CharacterOrdersView: View {
         let locationInfoCache: [Int64: OrderLocationInfo]
         let isLoading: Bool
         let isDataReady: Bool
+        @Binding var searchText: String
 
         var body: some View {
             List {
@@ -251,18 +276,7 @@ struct CharacterOrdersView: View {
                     .listSectionSpacing(.compact)
                 } else if orders.isEmpty {
                     Section {
-                        HStack {
-                            Spacer()
-                            VStack(spacing: 4) {
-                                Image(systemName: "doc.text")
-                                    .font(.system(size: 30))
-                                    .foregroundColor(.gray)
-                                Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                                    .foregroundColor(.gray)
-                            }
-                            .padding()
-                            Spacer()
-                        }
+                        NoDataSection()
                     }
                     .listSectionSpacing(.compact)
                 } else {

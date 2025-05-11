@@ -778,21 +778,7 @@ struct PersonalContractsView: View {
     }
 
     private var emptyView: some View {
-        Section {
-            HStack {
-                Spacer()
-                VStack(spacing: 4) {
-                    Image(systemName: "doc.text")
-                        .font(.system(size: 30))
-                        .foregroundColor(.gray)
-                    Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                        .foregroundColor(.gray)
-                }
-                .padding()
-                Spacer()
-            }
-        }
-        .listSectionSpacing(.compact)
+        NoDataSection()
     }
 }
 

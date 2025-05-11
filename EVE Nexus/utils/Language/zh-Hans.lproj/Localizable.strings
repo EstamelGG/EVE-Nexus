@@ -48,7 +48,6 @@
 "Main_Market_Current_Price" = "当前售价";
 "Main_Market_Price_History" = "历史价格";
 "Main_Market_Show_market_orders" = "查看市场订单";
-"Main_Market_Choose_Region" = "选择星域";
 "Main_Market_WH_info" = "虫洞信息";
 "Main_Market_WH_Details" = "详细信息";
 "Main_Market_WH_MaxStableTime" = "最大稳定时间";
@@ -58,7 +57,6 @@
 "Main_Market_WH_Size" = "尺寸类型";
 "Select_Item" = "选择项目";
 "Main_Market" = "星域市场";
-"Main_Market_Watch_List" = "市场关注列表";
 "Main_Agents" = "代理人";
 "Main_WH" = "虫洞";
 "Main_Incursions" = "入侵";
@@ -68,7 +66,9 @@
 "Main_Market_Orders" = "市场订单";
 "Main_Contracts" = "合同列表";
 "Main_Market_Transactions" = "交易记录";
+"Main_Market_Transactions_short" = "交易记录";
 "Main_Wallet_Journal" = "钱包流水";
+"Main_Wallet_Journal_short" = "钱包流水";
 "Main_Industry_Jobs" = "工业任务";
 "Main_Other" = "其他";
 "Main_Unzipping_Icons" = "释放图片资源...";
@@ -125,7 +125,10 @@
 
 "Misc_true" = "是";
 "Misc_false" = "否";
+"Misc_Yes" = "是";
+"Misc_No" = "否";
 "Misc_back" = "返回";
+"Misc_All" = "全部";
 "Misc_number_item" = "个";
 "Misc_number_item_x" = "×";
 "Misc_number_point" = "点";
@@ -135,7 +138,11 @@
 "Misc_Calculating" = "计算中...";
 "Misc_Level" = "等级 %d";
 "Misc_Level_Short" = "%d级";
-"Misc_No_Data" = "暂无数据";
+"Misc_Clear" = "清除";
+"Misc_Filter" = "过滤";
+"Misc_OpenLink" = "打开链接";
+"Misc_InAll" = "总计";
+"Misc_Need" = "缺少";
 
 // 蓝图详情
 "Blueprint_Product" = "产品";
@@ -363,6 +370,11 @@
 "Main_Market_Transactions_Unit_Price" = "单价";
 "Main_Market_Transactions_Quantity" = "数量";
 "Main_Market_Transactions_Total" = "总额";
+"Wallet_Transaction_Type" = "收入 & 支出";
+"Wallet_Transaction_Category" = "日志类型";
+"Wallet_Income" = "收入";
+"Wallet_Expense" = "支出";
+"Wallet_Partial_Data_Notice" = "由于数据量较大,仅显示最近30天的部分流水记录";
 
 // Market Orders
 "Orders_Remaining" = "剩余";
@@ -538,9 +550,11 @@
 "Main_Skills_Categories" = "技能目录";
 "Main_Skills_Not_Injected" = "未吸收";
 "Main_Skills_Completed" = "已完成";
+"Main_Skills_Trainable" = "可训练";
 "Main_Skills_Paused" = "暂停";
 "Main_Skills_Running" = "进行中";
 "Main_Skills_Empty" = "空队列";
+"Main_Skills_number" = "个技能";
 
 // 时间显示
 "Time_Days_Hours" = "%d天%d小时";
@@ -590,7 +604,6 @@
 
 // 财富详情
 "Wealth_Detail_Title" = "%@估价 (前20名)";
-"Wealth_Detail_NoData" = "暂无数据";
 "Wealth_Detail_Loading" = "加载中...";
 "Wealth_Detail_MarketPrice" = "市场价格";
 "Wealth_Detail_Quantity" = "数量";
@@ -716,7 +729,6 @@
 "transactions" = "笔交易";
 "Common_Error" = "错误";
 "Net Balance" = "净收入";
-"Orders_No_Data" = "暂无数据";
 "Load More" = "加载更多";
 
 // 最优属性分配
@@ -1143,7 +1155,6 @@
 // Structure Access
 "Structure_No_Access" = "无权限建筑物";
 
-"Main_Corporation_Members_Sort" = "排序";
 "Main_Corporation_Members_Sort_By_Name" = "按人名";
 "Main_Corporation_Members_Sort_By_Title" = "按称号";
 "Main_Corporation_Members_Sort_By_System" = "按星系";
@@ -1531,7 +1542,6 @@
 "Common_Cancel" = "取消";
 "Planetary_System_Description" = "选择作为生产中心的星系";
 
-"PI_Output_Calculating" = "计算中...";
 "PI_Output_View_Systems" = "查看可用星系";
 "PI_Output_Systems_List" = "可用星系列表";
 "PI_Output_Start_System" = "中心星系";

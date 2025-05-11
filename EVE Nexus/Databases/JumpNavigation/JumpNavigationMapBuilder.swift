@@ -19,13 +19,22 @@ class JumpNavigationHandler {
     static func getNearbySystems(
         databaseManager: DatabaseManager, progressUpdate: ((String, Double) -> Void)? = nil
     ) -> [[String: Any]] {
+        // 加载所有跳跃星系数据
+        let jumpSystems = JumpSystemData.loadAllJumpSystems(databaseManager: databaseManager)
+
+        // 调用使用预加载星系数据的方法
+        return getNearbySystems(preloadedSystems: jumpSystems, progressUpdate: progressUpdate)
+    }
+
+    // 获取所有符合条件的星系对，使用预加载的星系数据
+    static func getNearbySystems(
+        preloadedSystems: [JumpSystemData], progressUpdate: ((String, Double) -> Void)? = nil
+    ) -> [[String: Any]] {
         // 通知进度：开始查询 - 执行SQL和星系过滤占进度1%
         progressUpdate?("Jump_Navigation_Preparing_Jump_Data", 0.005)
 
-        // 使用全局缓存的星系数据
-        // 确保星系数据已加载
-        JumpSystemsCache.shared.loadIfNeeded(databaseManager: databaseManager)
-        let jumpSystems = JumpSystemsCache.shared.allJumpSystems
+        // 使用传入的预加载星系数据
+        let jumpSystems = preloadedSystems
 
         var nearbyPairs: [[String: Any]] = []
 
@@ -116,13 +125,23 @@ class JumpNavigationHandler {
         }
     }
 
-    // 处理跳跃导航数据
+    // 处理跳跃导航数据，可以使用预加载的星系数据
     static func processJumpNavigationData(
-        databaseManager: DatabaseManager, progressUpdate: ((String, Double) -> Void)? = nil
+        databaseManager: DatabaseManager,
+        preloadedSystems: [JumpSystemData]? = nil,
+        progressUpdate: ((String, Double) -> Void)? = nil
     ) {
         // 获取结果
-        let results = getNearbySystems(
-            databaseManager: databaseManager, progressUpdate: progressUpdate)
+        let results: [[String: Any]]
+        if let preloadedSystems = preloadedSystems {
+            // 使用预加载的星系数据
+            results = getNearbySystems(
+                preloadedSystems: preloadedSystems, progressUpdate: progressUpdate)
+        } else {
+            // 使用常规方法加载星系数据
+            results = getNearbySystems(
+                databaseManager: databaseManager, progressUpdate: progressUpdate)
+        }
 
         // 通知进度：保存数据 - 保存文件占进度1%
         progressUpdate?(NSLocalizedString("Jump_Navigation_Save_Jump_Map", comment: ""), 0.99)
@@ -132,14 +151,5 @@ class JumpNavigationHandler {
 
         // 通知处理完成
         progressUpdate?(NSLocalizedString("Misc_Done", comment: ""), 1.0)
-    }
-
-    // 获取所有合法星系信息（用于选择器）
-    static func getAllJumpableSystems(databaseManager: DatabaseManager) -> [(
-        id: Int, name: String, security: Double, region: String
-    )] {
-        // 使用全局缓存数据
-        JumpSystemsCache.shared.loadIfNeeded(databaseManager: databaseManager)
-        return JumpSystemsCache.shared.jumpableSystems
     }
 }

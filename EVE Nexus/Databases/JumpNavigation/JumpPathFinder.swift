@@ -55,11 +55,14 @@ class JumpPathFinder {
     // 添加星系ID到安全等级的映射
     private var systemIdToSecurity: [Int: Double] = [:]
 
-    // 初始化函数，加载跳跃连接数据
-    init(databaseManager: DatabaseManager) {
+    // 添加一个新的初始化方法，接收预加载的星系数据
+    init(databaseManager: DatabaseManager, preloadedSystems: [JumpSystemData]) {
         loadJumpMap()
-        loadSystemNames(databaseManager: databaseManager)
-        loadSystemSecurity(databaseManager: databaseManager)
+        // 使用预加载的星系数据
+        systemIdToName = JumpSystemData.getSystemIdToNameMap(from: preloadedSystems)
+        systemIdToSecurity = JumpSystemData.getSystemIdToSecurityMap(from: preloadedSystems)
+
+        Logger.info("已使用预加载的星系数据: \(preloadedSystems.count) 个星系")
     }
 
     // 从JSON文件加载跳跃地图数据
@@ -109,24 +112,6 @@ class JumpPathFinder {
             jumpConnections[sourceId] = []
         }
         jumpConnections[sourceId]?.append(connection)
-    }
-
-    // 加载星系名称信息
-    private func loadSystemNames(databaseManager: DatabaseManager) {
-        // 使用全局缓存的星系数据
-        JumpSystemsCache.shared.loadIfNeeded(databaseManager: databaseManager)
-        systemIdToName = JumpSystemsCache.shared.systemIdToName
-
-        Logger.info("已加载星系名称: \(systemIdToName.count) 个星系")
-    }
-
-    // 加载星系安全等级信息
-    private func loadSystemSecurity(databaseManager: DatabaseManager) {
-        // 使用全局缓存的星系数据
-        JumpSystemsCache.shared.loadIfNeeded(databaseManager: databaseManager)
-        systemIdToSecurity = JumpSystemsCache.shared.systemIdToSecurity
-
-        Logger.info("已加载星系安全等级: \(systemIdToSecurity.count) 个星系")
     }
 
     // 检查星系是否满足安全等级要求

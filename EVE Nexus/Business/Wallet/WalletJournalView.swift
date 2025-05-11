@@ -30,8 +30,27 @@ final class WalletJournalViewModel: ObservableObject {
     @Published private(set) var totalIncome: Double = 0.0
     @Published private(set) var totalExpense: Double = 0.0
     @Published var timeRange: TimeRange = .last30Days
+    @Published var selectedRefType: String? = nil
+    @Published var selectedTransactionType: TransactionType? = nil
+    @Published var showFilterSheet = false
+    @Published private(set) var totalEntries: Int = 0
+    @Published private(set) var isPartialData: Bool = false
     private var loadingTask: Task<Void, Never>?
     private var initialLoadDone = false
+
+    enum TransactionType {
+        case income
+        case expense
+
+        var localizedString: String {
+            switch self {
+            case .income:
+                return NSLocalizedString("Wallet_Income", comment: "")
+            case .expense:
+                return NSLocalizedString("Wallet_Expense", comment: "")
+            }
+        }
+    }
 
     enum TimeRange: String, CaseIterable {
         case last30Days = "last30Days"
@@ -156,6 +175,23 @@ final class WalletJournalViewModel: ObservableObject {
 
                 if Task.isCancelled { return }
 
+                // 检查数据量
+                totalEntries = entries.count
+
+                // 检查是否只显示部分数据
+                if totalEntries >= 9500 {
+                    // 获取最久远的记录日期
+                    if let oldestEntry = entries.min(by: { $0.date < $1.date }),
+                        let oldestDate = dateFormatter.date(from: oldestEntry.date)
+                    {
+                        let calendar = Calendar.current
+                        let now = Date()
+                        let days =
+                            calendar.dateComponents([.day], from: oldestDate, to: now).day ?? 0
+                        isPartialData = days < 30
+                    }
+                }
+
                 // 计算总收支
                 calculateTotals(from: entries)
 
@@ -200,6 +236,37 @@ final class WalletJournalViewModel: ObservableObject {
 
         // 等待任务完成
         await loadingTask?.value
+    }
+
+    // 获取所有可用的 ref_type
+    var availableRefTypes: [String] {
+        let allTypes = journalGroups.flatMap { $0.entries }.map { $0.ref_type }
+        return Array(Set(allTypes)).sorted()
+    }
+
+    // 获取过滤后的日志组
+    var filteredJournalGroups: [WalletJournalGroup] {
+        return journalGroups.map { group in
+            let filteredEntries = group.entries.filter { entry in
+                // 首先检查交易类型（收入/支出）
+                if let transactionType = selectedTransactionType {
+                    switch transactionType {
+                    case .income:
+                        if entry.amount <= 0 { return false }
+                    case .expense:
+                        if entry.amount >= 0 { return false }
+                    }
+                }
+
+                // 然后检查 ref_type
+                if let selectedType = selectedRefType {
+                    if entry.ref_type != selectedType { return false }
+                }
+
+                return true
+            }
+            return WalletJournalGroup(date: group.date, entries: filteredEntries)
+        }.filter { !$0.entries.isEmpty }
     }
 }
 
@@ -253,6 +320,7 @@ struct WalletJournalDayDetailView: View {
 
 struct WalletJournalView: View {
     @StateObject private var viewModel: WalletJournalViewModel
+    @AppStorage("selectedLanguage") private var selectedLanguage: String?
 
     private let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -329,6 +397,100 @@ struct WalletJournalView: View {
         }
     }
 
+    private func formatRefType(_ refType: String) -> String {
+        let lowercaseRefType = refType.lowercased()
+        let language = selectedLanguage == "zh-Hans" ? "zh" : "en"
+
+        // 使用新的处理方法获取本地化名称
+        return LocalizationManager.shared.processEntryTypeName(
+            for: lowercaseRefType, esiText: refType, language: language)
+    }
+
+    // 添加过滤视图组件
+    private var filterView: some View {
+        NavigationView {
+            List {
+                Section(header: Text(NSLocalizedString("Wallet_Transaction_Type", comment: ""))) {
+                    Button(action: {
+                        viewModel.selectedTransactionType = nil
+                    }) {
+                        HStack {
+                            Text(NSLocalizedString("Misc_All", comment: ""))
+                                .foregroundColor(.primary)
+                            Spacer()
+                            if viewModel.selectedTransactionType == nil {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+
+                    Button(action: {
+                        viewModel.selectedTransactionType = .income
+                    }) {
+                        HStack {
+                            Text(WalletJournalViewModel.TransactionType.income.localizedString)
+                                .foregroundColor(.primary)
+                            Spacer()
+                            if viewModel.selectedTransactionType == .income {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+
+                    Button(action: {
+                        viewModel.selectedTransactionType = .expense
+                    }) {
+                        HStack {
+                            Text(WalletJournalViewModel.TransactionType.expense.localizedString)
+                                .foregroundColor(.primary)
+                            Spacer()
+                            if viewModel.selectedTransactionType == .expense {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                }
+
+                Section(header: Text(NSLocalizedString("Wallet_Transaction_Category", comment: "")))
+                {
+                    Button(action: {
+                        viewModel.selectedRefType = nil
+                    }) {
+                        HStack {
+                            Text(NSLocalizedString("Misc_All", comment: ""))
+                                .foregroundColor(.primary)
+                            Spacer()
+                            if viewModel.selectedRefType == nil {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+
+                    ForEach(viewModel.availableRefTypes, id: \.self) { refType in
+                        Button(action: {
+                            viewModel.selectedRefType = refType
+                        }) {
+                            HStack {
+                                Text(formatRefType(refType))
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                if viewModel.selectedRefType == refType {
+                                    Image(systemName: "checkmark")
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle(NSLocalizedString("Misc_Filter", comment: ""))
+            .navigationBarItems(
+                trailing: Button(NSLocalizedString("Misc_Done", comment: "")) {
+                    viewModel.showFilterSheet = false
+                }
+            )
+        }
+    }
+
     var body: some View {
         List {
             if viewModel.isLoading {
@@ -336,43 +498,50 @@ struct WalletJournalView: View {
                     .frame(maxWidth: .infinity)
             } else if viewModel.journalGroups.isEmpty {
                 Section {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 8) {
-                            Image(systemName: "doc.text")
-                                .font(.system(size: 30))
-                                .foregroundColor(.gray)
-                            Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                                .foregroundColor(.gray)
-                        }
-                        .padding()
-                        Spacer()
-                    }
+                    NoDataSection()
                 }
             } else {
                 summarySection
 
-                Section(
-                    header: Text(NSLocalizedString("Transaction Dates", comment: ""))
-                        .fontWeight(.bold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
-                ) {
-                    ForEach(viewModel.journalGroups) { group in
-                        NavigationLink(destination: WalletJournalDayDetailView(group: group)) {
+                if viewModel.filteredJournalGroups.isEmpty {
+                    Section {
+                        NoDataSection()
+                    }
+                } else {
+                    Section(
+                        header: Text(NSLocalizedString("Transaction Dates", comment: ""))
+                            .fontWeight(.bold)
+                            .font(.system(size: 18))
+                            .foregroundColor(.primary)
+                            .textCase(.none)
+                    ) {
+                        ForEach(viewModel.filteredJournalGroups) { group in
+                            NavigationLink(destination: WalletJournalDayDetailView(group: group)) {
+                                HStack {
+                                    Text(displayDateFormatter.string(from: group.date))
+                                        .font(.system(size: 16))
+
+                                    Spacer()
+
+                                    Text(
+                                        "\(group.entries.count) \(NSLocalizedString("transactions", comment: ""))"
+                                    )
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    }
+
+                    if viewModel.isPartialData {
+                        Section {
                             HStack {
-                                Text(displayDateFormatter.string(from: group.date))
-                                    .font(.system(size: 16))
-
                                 Spacer()
-
-                                // 显示当日交易数量
-                                Text(
-                                    "\(group.entries.count) \(NSLocalizedString("transactions", comment: ""))"
-                                )
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                                Text(NSLocalizedString("Wallet_Partial_Data_Notice", comment: ""))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                                Spacer()
                             }
                         }
                     }
@@ -384,6 +553,31 @@ struct WalletJournalView: View {
             await viewModel.loadJournalData(forceRefresh: true)
         }
         .navigationTitle(NSLocalizedString("Main_Wallet_Journal", comment: ""))
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                HStack(spacing: 16) {
+                    if viewModel.selectedRefType != nil || viewModel.selectedTransactionType != nil
+                    {
+                        Button(action: {
+                            viewModel.selectedRefType = nil
+                            viewModel.selectedTransactionType = nil
+                        }) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .foregroundColor(.red)
+                        }
+                    }
+
+                    Button(action: {
+                        viewModel.showFilterSheet = true
+                    }) {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $viewModel.showFilterSheet) {
+            filterView
+        }
     }
 }
 

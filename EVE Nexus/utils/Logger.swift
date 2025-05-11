@@ -13,7 +13,7 @@ class Logger {
 
     // 日志长度限制
     private static var maxDebugLogLength = 2000  // debug日志最大长度
-    private static var maxInfoLogLength = 2000  // info日志最大长度
+    private static var maxInfoLogLength = 200000  // info日志最大长度
 
     private init() {
         dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss.SSS"
@@ -153,50 +153,6 @@ class Logger {
     static func fault(_ message: String) {
         os_log("%{public}@", type: .fault, message)
         shared.writeToFile(message, type: .fault)
-    }
-
-    // 获取所有日志文件
-    static func getAllLogFiles() -> [URL] {
-        let logPath = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(
-            "Logs")
-        guard
-            let files = try? FileManager.default.contentsOfDirectory(
-                at: logPath,
-                includingPropertiesForKeys: [.creationDateKey],
-                options: .skipsHiddenFiles
-            )
-        else {
-            return []
-        }
-
-        return files.filter { $0.pathExtension == "log" }
-            .sorted { file1, file2 -> Bool in
-                let date1 =
-                    try? file1.resourceValues(forKeys: [.creationDateKey]).creationDate
-                    ?? Date.distantPast
-                let date2 =
-                    try? file2.resourceValues(forKeys: [.creationDateKey]).creationDate
-                    ?? Date.distantPast
-                return date1! > date2!
-            }
-    }
-
-    // 清除所有日志文件
-    static func clearAllLogs() {
-        let logPath = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent(
-            "Logs")
-        do {
-            let files = try FileManager.default.contentsOfDirectory(
-                at: logPath, includingPropertiesForKeys: nil
-            )
-            for file in files where file.pathExtension == "log" {
-                try? FileManager.default.removeItem(at: file)
-            }
-        } catch {
-            os_log(
-                "Failed to clear log files: %{public}@", type: .error, error.localizedDescription
-            )
-        }
     }
 
     // 截断消息到指定长度

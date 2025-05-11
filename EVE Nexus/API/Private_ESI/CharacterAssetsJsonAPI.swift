@@ -462,7 +462,8 @@ public class CharacterAssetsJsonAPI {
         var processedLocations = 0
         for locationId in topLocations {
             if let items = locationMap[locationId] {
-                let locationType = items.first?.location_type ?? "unknown"
+                let locationType =
+                    items.first?.location_type ?? NSLocalizedString("Unknown", comment: "")
 
                 // 更新进度 - 获取位置详情
                 processedLocations += 1
@@ -685,7 +686,8 @@ public class CharacterAssetsJsonAPI {
                 let endIndex = min(currentIndex + concurrentLimit, locationArray.count)
                 for locationId in locationArray[currentIndex..<endIndex] {
                     if let items = locationMap[locationId] {
-                        let locationType = items.first?.location_type ?? "unknown"
+                        let locationType =
+                            items.first?.location_type ?? NSLocalizedString("Unknown", comment: "")
                         group.addTask {
                             let info = try await self.fetchLocationInfo(
                                 locationId: locationId,
@@ -735,7 +737,8 @@ public class CharacterAssetsJsonAPI {
                     locationId, locationName, iconName, typeId, securityStatus, systemId, regionId
                 ) in group {
                     if let items = locationMap[locationId] {
-                        let locationType = items.first?.location_type ?? "unknown"
+                        let locationType =
+                            items.first?.location_type ?? NSLocalizedString("Unknown", comment: "")
 
                         // 根据位置类型决定是否存储名称
                         // 对于空间站和星系，不存储名称（从游戏数据库查询）

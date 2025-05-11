@@ -167,7 +167,7 @@ struct ShowPlanetaryInfo: View {
                 }
             }
             IndustrySection(
-                    itemID: itemID, databaseManager: databaseManager, itemDetails: itemDetails)
+                itemID: itemID, databaseManager: databaseManager, itemDetails: itemDetails)
         }
         .listStyle(.insetGrouped)
         .navigationTitle(NSLocalizedString("Item_Info", comment: ""))

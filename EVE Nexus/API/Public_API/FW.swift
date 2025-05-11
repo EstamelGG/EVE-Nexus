@@ -115,7 +115,7 @@ class FWAPI {
     private let cacheDuration: TimeInterval = 15 * 60  // 15分钟缓存
     private let insurgencyCacheDuration: TimeInterval = 5 * 60  // 5分钟缓存
     private var systemNeighbours: SystemNeighbours = [:]
-    
+
     private init() {
         loadNeighboursData()
     }
@@ -123,11 +123,12 @@ class FWAPI {
     // MARK: - 私有方法
 
     private func loadNeighboursData() {
-        guard let url = Bundle.main.url(forResource: "neighbours_data", withExtension: "json") else {
+        guard let url = Bundle.main.url(forResource: "neighbours_data", withExtension: "json")
+        else {
             Logger.error("找不到neighbours_data.json文件")
             return
         }
-        
+
         do {
             let data = try Data(contentsOf: url)
             let decoder = JSONDecoder()
@@ -156,13 +157,14 @@ class FWAPI {
     private func loadFromCache<T: Codable>(_ type: String) -> T? {
         let cacheKey = getCacheKey(for: type)
         guard let cachedData = UserDefaults.standard.data(forKey: cacheKey),
-              let cached = try? JSONDecoder().decode(CachedData<T>.self, from: cachedData),
-              cached.timestamp.addingTimeInterval(cacheDuration) > Date()
+            let cached = try? JSONDecoder().decode(CachedData<T>.self, from: cachedData),
+            cached.timestamp.addingTimeInterval(cacheDuration) > Date()
         else {
             return nil
         }
 
-        let remainingTime = Int((cached.timestamp.addingTimeInterval(cacheDuration).timeIntervalSince(Date())) / 60)
+        let remainingTime = Int(
+            (cached.timestamp.addingTimeInterval(cacheDuration).timeIntervalSince(Date())) / 60)
         Logger.info("使用缓存的FW \(type)数据，剩余时间: \(remainingTime)分钟")
         return cached.data
     }
@@ -170,7 +172,7 @@ class FWAPI {
     private func saveToCache<T: Codable>(_ data: T, type: String) {
         let cacheKey = getCacheKey(for: type)
         let cachedData = CachedData(data: data, timestamp: Date())
-        
+
         do {
             let encodedData = try JSONEncoder().encode(cachedData)
             UserDefaults.standard.set(encodedData, forKey: cacheKey)
@@ -183,12 +185,14 @@ class FWAPI {
     // 叛乱数据缓存相关方法
     private func getInsurgencyCachePath() -> URL? {
         let fileManager = FileManager.default
-        guard let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first else {
+        guard
+            let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first
+        else {
             return nil
         }
-        
+
         let fwDirectory = documentsPath.appendingPathComponent("fw", isDirectory: true)
-        
+
         // 如果目录不存在，创建它
         if !fileManager.fileExists(atPath: fwDirectory.path) {
             do {
@@ -198,38 +202,40 @@ class FWAPI {
                 return nil
             }
         }
-        
+
         return fwDirectory.appendingPathComponent("insurgency.json")
     }
 
     private func loadInsurgencyFromCache() -> [InsurgencyCampaign]? {
         guard let cachePath = getInsurgencyCachePath() else { return nil }
-        
+
         // 检查文件是否存在
         guard FileManager.default.fileExists(atPath: cachePath.path) else {
             Logger.warning("缓存文件不存在，将在线加载。")
             return nil
         }
-        
+
         do {
             let data = try Data(contentsOf: cachePath)
             let cached = try JSONDecoder().decode(CachedData<[InsurgencyCampaign]>.self, from: data)
-            
+
             if cached.timestamp.addingTimeInterval(insurgencyCacheDuration) > Date() {
-                let remainingTime = Int((cached.timestamp.addingTimeInterval(insurgencyCacheDuration).timeIntervalSince(Date())) / 60)
+                let remainingTime = Int(
+                    (cached.timestamp.addingTimeInterval(insurgencyCacheDuration).timeIntervalSince(
+                        Date())) / 60)
                 Logger.info("使用缓存的叛乱数据，剩余时间: \(remainingTime)分钟")
                 return cached.data
             }
         } catch {
             Logger.error("读取叛乱缓存失败: \(error)")
         }
-        
+
         return nil
     }
 
     private func saveInsurgencyToCache(_ campaigns: [InsurgencyCampaign]) {
         guard let cachePath = getInsurgencyCachePath() else { return }
-        
+
         do {
             let cachedData = CachedData(data: campaigns, timestamp: Date())
             let encodedData = try JSONEncoder().encode(cachedData)
@@ -278,11 +284,14 @@ class FWAPI {
     /// 同时获取FW星系数据和战争数据
     /// - Parameter forceRefresh: 是否强制刷新
     /// - Returns: 包含星系数据和战争数据的元组
-    func fetchFWData(forceRefresh: Bool = false) async throws -> (systems: [FWSystem], wars: [FWWar]) {
+    func fetchFWData(forceRefresh: Bool = false) async throws -> (
+        systems: [FWSystem], wars: [FWWar]
+    ) {
         // 如果不是强制刷新，尝试从缓存获取
         if !forceRefresh {
             if let cachedSystems: [FWSystem] = loadFromCache("systems"),
-               let cachedWars: [FWWar] = loadFromCache("wars") {
+                let cachedWars: [FWWar] = loadFromCache("wars")
+            {
                 Logger.info("使用缓存的FW数据 - 星系: \(cachedSystems.count)个, 战争: \(cachedWars.count)场")
                 return (cachedSystems, cachedWars)
             }
@@ -360,4 +369,3 @@ class FWAPI {
         return wars
     }
 }
-

@@ -741,7 +741,7 @@ struct LocationView: View {
                     .font(.caption)
             }
         } else {
-            Text(NSLocalizedString("Main_Loading", comment: ""))
+            Text(NSLocalizedString("Misc_Loading", comment: ""))
                 .font(.caption)
                 .foregroundColor(.gray)
                 .onAppear {
@@ -903,47 +903,9 @@ struct SortMenuView: View {
                 }
             }
         } label: {
-            HStack(spacing: 4) {
-                Text(NSLocalizedString("Main_Corporation_Members_Sort", comment: ""))
-                    .foregroundColor(.blue)
-                Image(systemName: "arrow.up.arrow.down")
-                    .foregroundColor(.blue)
-            }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            Image(systemName: "arrow.up.arrow.down")
+                .foregroundColor(.blue)
         }
-    }
-}
-
-// MARK: - Search Bar View
-
-struct SearchBarView: View {
-    @Binding var text: String
-
-    var body: some View {
-        HStack {
-            Image(systemName: "magnifyingglass")
-                .foregroundColor(.gray)
-
-            TextField(
-                NSLocalizedString("Main_Corporation_Members_Search_Placeholder", comment: ""),
-                text: $text
-            )
-            .textFieldStyle(PlainTextFieldStyle())
-
-            if !text.isEmpty {
-                Button(action: {
-                    text = ""
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .foregroundColor(.gray)
-                }
-            }
-        }
-        .padding(8)
-        .background(Color(.systemGray6))
-        .cornerRadius(10)
-        .padding(.horizontal)
     }
 }
 
@@ -963,9 +925,6 @@ struct CorpMemberListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            SearchBarView(text: $viewModel.searchText)
-                .padding(.vertical, 8)
-
             List {
                 // 特别关注部分
                 if !viewModel.isLoading {
@@ -998,8 +957,33 @@ struct CorpMemberListView: View {
                         .padding()
                         .listRowBackground(Color.clear)
                     } else {
-                        ForEach(viewModel.members) { member in
-                            MemberRowView(member: member, viewModel: viewModel)
+                        let filteredMembers = viewModel.members
+                        if filteredMembers.isEmpty {
+                            Section {
+                                HStack {
+                                    Spacer()
+                                    VStack(spacing: 8) {
+                                        Image(systemName: "person.3")
+                                            .font(.system(size: 30))
+                                            .foregroundColor(.gray)
+                                        Text(
+                                            viewModel.searchText.isEmpty
+                                                ? NSLocalizedString(
+                                                    "Main_Corporation_Members_No_Data", comment: "")
+                                                : NSLocalizedString(
+                                                    "Main_Corporation_Members_No_Search_Results",
+                                                    comment: "")
+                                        )
+                                        .foregroundColor(.gray)
+                                    }
+                                    .padding()
+                                    Spacer()
+                                }
+                            }
+                        } else {
+                            ForEach(filteredMembers) { member in
+                                MemberRowView(member: member, viewModel: viewModel)
+                            }
                         }
                     }
                 } header: {
@@ -1056,6 +1040,11 @@ struct CorpMemberListView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_Corporation_Members_Title", comment: ""))
+        .searchable(
+            text: $viewModel.searchText,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: NSLocalizedString("Main_Corporation_Members_Search_Placeholder", comment: "")
+        )
         .refreshable {
             viewModel.loadMembers(forceRefresh: true)
         }
@@ -1094,108 +1083,111 @@ struct FavoriteMembersView: View {
     @ObservedObject var viewModel: CorpMemberListViewModel
 
     var body: some View {
-        VStack(spacing: 0) {
-            SearchBarView(text: $viewModel.searchText)
-                .padding(.vertical, 8)
-
-            List {
-                Section {
-                    if viewModel.isLoading {
-                        HStack {
-                            Spacer()
-                            VStack {
-                                ProgressView()
-                                    .padding(.bottom, 4)
-                                Text(
-                                    NSLocalizedString(
-                                        "Main_Corporation_Members_Loading", comment: ""
-                                    )
+        List {
+            Section {
+                if viewModel.isLoading {
+                    HStack {
+                        Spacer()
+                        VStack {
+                            ProgressView()
+                                .padding(.bottom, 4)
+                            Text(
+                                NSLocalizedString(
+                                    "Main_Corporation_Members_Loading", comment: ""
                                 )
-                                .foregroundColor(.gray)
-                            }
-                            Spacer()
+                            )
+                            .foregroundColor(.gray)
                         }
-                        .padding()
-                        .listRowBackground(Color.clear)
-                    } else if let error = viewModel.error {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(NSLocalizedString("Main_Corporation_Members_Error", comment: ""))
-                                .font(.headline)
-                                .foregroundColor(.red)
-                            Text(error.localizedDescription)
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                            Button(action: {
-                                viewModel.loadMembers(forceRefresh: true)
-                            }) {
-                                Text(
-                                    NSLocalizedString(
-                                        "Main_Corporation_Members_Refresh", comment: ""
-                                    ))
+                        Spacer()
+                    }
+                    .padding()
+                    .listRowBackground(Color.clear)
+                } else if let error = viewModel.error {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(NSLocalizedString("Main_Corporation_Members_Error", comment: ""))
+                            .font(.headline)
+                            .foregroundColor(.red)
+                        Text(error.localizedDescription)
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                        Button(action: {
+                            viewModel.loadMembers(forceRefresh: true)
+                        }) {
+                            Text(
+                                NSLocalizedString(
+                                    "Main_Corporation_Members_Refresh", comment: ""
+                                ))
+                        }
+                        .padding(.top, 4)
+                    }
+                } else {
+                    let filteredMembers = viewModel.getFilteredPinnedMembers()
+
+                    if filteredMembers.isEmpty {
+                        Section {
+                            HStack {
+                                Spacer()
+                                VStack(spacing: 8) {
+                                    Image(systemName: "star")
+                                        .font(.system(size: 30))
+                                        .foregroundColor(.gray)
+                                    Text(
+                                        viewModel.searchText.isEmpty
+                                            ? NSLocalizedString(
+                                                "Main_Corporation_Members_No_Favorites", comment: ""
+                                            )
+                                            : NSLocalizedString(
+                                                "Main_Corporation_Members_No_Search_Results",
+                                                comment: "")
+                                    )
+                                    .foregroundColor(.gray)
+                                }
+                                .padding()
+                                Spacer()
                             }
-                            .padding(.top, 4)
                         }
                     } else {
-                        let filteredMembers = viewModel.getFilteredPinnedMembers()
-
-                        if filteredMembers.isEmpty {
-                            if viewModel.searchText.isEmpty {
-                                Text(
-                                    NSLocalizedString(
-                                        "Main_Corporation_Members_No_Favorites", comment: ""
-                                    )
-                                )
-                                .foregroundColor(.gray)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                .padding()
-                            } else {
-                                Text(
-                                    NSLocalizedString(
-                                        "Main_Corporation_Members_No_Search_Results", comment: ""
-                                    )
-                                )
-                                .foregroundColor(.gray)
-                                .frame(maxWidth: .infinity, alignment: .center)
-                                .padding()
-                            }
-                        } else {
-                            ForEach(filteredMembers) { member in
-                                MemberRowView(member: member, viewModel: viewModel)
-                            }
+                        ForEach(filteredMembers) { member in
+                            MemberRowView(member: member, viewModel: viewModel)
                         }
                     }
-                } header: {
-                    if !viewModel.isLoading && viewModel.error == nil {
-                        let totalCount = viewModel.pinnedMembers.count
-                        let filteredCount = viewModel.getFilteredPinnedMembersCount()
-                        if viewModel.searchText.isEmpty {
-                            Text(
-                                String(
+                }
+            } header: {
+                if !viewModel.isLoading && viewModel.error == nil {
+                    let totalCount = viewModel.pinnedMembers.count
+                    let filteredCount = viewModel.getFilteredPinnedMembersCount()
+                    if viewModel.searchText.isEmpty {
+                        Text(
+                            String(
+                                format: NSLocalizedString(
+                                    "Main_Corporation_Members_Favorites_Total", comment: ""
+                                ),
+                                totalCount
+                            ))
+                    } else {
+                        Text(
+                            String(
+                                format: NSLocalizedString(
+                                    "Main_Corporation_Members_Favorites_Total", comment: ""
+                                ),
+                                totalCount
+                            ) + " · "
+                                + String(
                                     format: NSLocalizedString(
-                                        "Main_Corporation_Members_Favorites_Total", comment: ""
+                                        "Main_Corporation_Members_Filtered_Total", comment: ""
                                     ),
-                                    totalCount
+                                    filteredCount
                                 ))
-                        } else {
-                            Text(
-                                String(
-                                    format: NSLocalizedString(
-                                        "Main_Corporation_Members_Favorites_Total", comment: ""
-                                    ),
-                                    totalCount
-                                ) + " · "
-                                    + String(
-                                        format: NSLocalizedString(
-                                            "Main_Corporation_Members_Filtered_Total", comment: ""
-                                        ),
-                                        filteredCount
-                                    ))
-                        }
                     }
                 }
             }
         }
         .navigationTitle(NSLocalizedString("Main_Corporation_Members_Favorites_Title", comment: ""))
+        .searchable(
+            text: $viewModel.searchText,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: NSLocalizedString("Main_Corporation_Members_Search_Placeholder", comment: "")
+        )
         .refreshable {
             viewModel.loadMembers(forceRefresh: true)
         }

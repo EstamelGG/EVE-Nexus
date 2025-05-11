@@ -5,6 +5,8 @@ import SwiftUI
 struct Region: Identifiable {
     let id: Int
     let name: String
+    let nameEn: String
+    let nameZh: String
 }
 
 struct MarketItemBasicInfoView: View {
@@ -63,6 +65,8 @@ struct MarketRegionPickerView: View {
         var regionID: Int?
         var regionName: String?
         var systemName: String?  // 添加星系名称字段
+        var systemNameEn: String?  // 添加英文星系名称
+        var systemNameZh: String?  // 添加中文星系名称
     }
 
     private var unpinnedRegions: [Region] {
@@ -74,7 +78,7 @@ struct MarketRegionPickerView: View {
     // 加载星域数据
     private func loadRegions() {
         let query = """
-                SELECT r.regionID, r.regionName
+                SELECT r.regionID, r.regionName, r.regionName_en, r.regionName_zh
                 FROM regions r
                 WHERE r.regionID < 11000000
             """
@@ -82,12 +86,14 @@ struct MarketRegionPickerView: View {
         if case let .success(rows) = databaseManager.executeQuery(query) {
             allRegions = rows.compactMap { row in
                 guard let id = row["regionID"] as? Int,
-                    let nameLocal = row["regionName"] as? String
+                    let nameLocal = row["regionName"] as? String,
+                    let nameEn = row["regionName_en"] as? String,
+                    let nameZh = row["regionName_zh"] as? String
                 else {
                     return nil
                 }
                 let name = nameLocal
-                return Region(id: id, name: name)
+                return Region(id: id, name: name, nameEn: nameEn, nameZh: nameZh)
             }
 
             // 对星域名称进行排序
@@ -132,7 +138,8 @@ struct MarketRegionPickerView: View {
 
         // 使用 IN 语句一次性查询所有星系信息
         let query = """
-                SELECT r.regionID, r.regionName, s.solarSystemName, s.solarSystemID
+                SELECT r.regionID, r.regionName, s.solarSystemName, s.solarSystemID, 
+                s.solarSystemName_en, s.solarSystemName_zh
                 FROM universe u
                 JOIN regions r ON u.region_id = r.regionID
                 JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
@@ -142,15 +149,20 @@ struct MarketRegionPickerView: View {
         if case let .success(rows) = databaseManager.executeQuery(query) {
             // 创建星系ID到星系信息的映射
             let systemInfoMap = Dictionary(
-                uniqueKeysWithValues: rows.compactMap { row -> (Int, (Int, String, String))? in
+                uniqueKeysWithValues: rows.compactMap {
+                    row -> (Int, (Int, String, String, String, String))? in
                     guard let systemID = row["solarSystemID"] as? Int,
                         let regionID = row["regionID"] as? Int,
                         let regionName = row["regionName"] as? String,
-                        let systemName = row["solarSystemName"] as? String
+                        let systemName = row["solarSystemName"] as? String,
+                        let systemNameEn = row["solarSystemName_en"] as? String,
+                        let systemNameZh = row["solarSystemName_zh"] as? String
                     else {
                         return nil
                     }
-                    return (systemID, (regionID, regionName, systemName))
+                    return (
+                        systemID, (regionID, regionName, systemName, systemNameEn, systemNameZh)
+                    )
                 })
 
             // 更新所有星系信息
@@ -161,6 +173,8 @@ struct MarketRegionPickerView: View {
                     systems[i].regionID = info.0
                     systems[i].regionName = info.1
                     systems[i].systemName = info.2
+                    systems[i].systemNameEn = info.3
+                    systems[i].systemNameZh = info.4
                 }
             }
         }
@@ -174,8 +188,23 @@ struct MarketRegionPickerView: View {
 
         // 如果有搜索文本，过滤数据
         if !searchText.isEmpty {
-            filteredData = unpinnedRegions.filter {
-                $0.name.localizedCaseInsensitiveContains(searchText)
+            filteredData = unpinnedRegions.filter { region in
+                // 搜索名称、英文名称和中文名称
+                let nameMatch = region.name.localizedCaseInsensitiveContains(searchText)
+                let nameEnMatch = region.nameEn.localizedCaseInsensitiveContains(searchText)
+                let nameZhMatch = region.nameZh.localizedCaseInsensitiveContains(searchText)
+
+                // 检查该星域是否有常见星系，如果有则同时搜索星系名称
+                let systemMatch = commonSystems.contains { system in
+                    system.regionID == region.id
+                        && (system.systemName?.localizedCaseInsensitiveContains(searchText) ?? false
+                            || system.systemNameEn?.localizedCaseInsensitiveContains(searchText)
+                                ?? false
+                            || system.systemNameZh?.localizedCaseInsensitiveContains(searchText)
+                                ?? false)
+                }
+
+                return nameMatch || nameEnMatch || nameZhMatch || systemMatch
             }
         }
 
@@ -413,13 +442,6 @@ struct RegionRow: View {
                 onSelect()
             }
         }
-    }
-}
-
-extension Collection {
-    /// 安全的下标访问
-    subscript(safe index: Index) -> Element? {
-        return indices.contains(index) ? self[index] : nil
     }
 }
 

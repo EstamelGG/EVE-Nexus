@@ -2,15 +2,24 @@ import SwiftUI
 
 struct JumpPathResultView: View {
     let pathResult: PathResult
-    let systemIdToName: [Int: String]
-    let systemIdToSecurity: [Int: Double]
+    let allJumpSystems: [JumpSystemData]
     let shipEnName: String
     let jdcLevel: Int
-    let systemIdToEnName: [Int: String]
     let startPointId: Int?
     let waypointIds: [Int]
     let avoidSystemIds: [Int]
     let avoidIncursions: Bool
+
+    // 内部计算的映射，按需使用
+    private var systemIdToName: [Int: String] {
+        JumpSystemData.getSystemIdToNameMap(from: allJumpSystems)
+    }
+    private var systemIdToSecurity: [Int: Double] {
+        JumpSystemData.getSystemIdToSecurityMap(from: allJumpSystems)
+    }
+    private var systemIdToEnName: [Int: String] {
+        JumpSystemData.getSystemIdToEnNameMap(from: allJumpSystems)
+    }
 
     // 添加入侵星系缓存
     @State private var incursionSystems: Set<Int> = []

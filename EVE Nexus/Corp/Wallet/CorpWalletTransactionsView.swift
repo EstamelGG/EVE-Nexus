@@ -1,5 +1,11 @@
 import SwiftUI
 
+// 添加WalletTab枚举
+enum WalletTab {
+    case journal
+    case transactions
+}
+
 // 军团交易记录条目模型
 struct CorpWalletTransactionEntry: Codable, Identifiable {
     let client_id: Int
@@ -28,6 +34,7 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
     @Published private(set) var transactionGroups: [CorpWalletTransactionGroup] = []
     @Published var isLoading = true
     @Published var errorMessage: String?
+    @Published var searchText = ""  // 添加搜索文本状态
     private var initialLoadDone = false
 
     private let characterId: Int
@@ -68,40 +75,40 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
 
     // 批量加载所有物品信息
     private func loadAllItemInfo(for typeIds: [Int]) {
-        // 如果没有需要加载的物品，直接返回
-        if typeIds.isEmpty {
-            return
-        }
+        if typeIds.isEmpty { return }
 
-        // 构建查询参数
         let placeholders = Array(repeating: "?", count: typeIds.count).joined(separator: ",")
         let query =
-            "SELECT type_id, name, icon_filename FROM types WHERE type_id IN (\(placeholders))"
+            "SELECT type_id, name, en_name, zh_name, icon_filename FROM types WHERE type_id IN (\(placeholders))"
 
-        // 执行批量查询
-        let result = databaseManager.executeQuery(
-            query, parameters: typeIds.map { $0 as Any }
-        )
+        let result = databaseManager.executeQuery(query, parameters: typeIds.map { $0 as Any })
 
         if case let .success(rows) = result {
             for row in rows {
                 if let typeId = row["type_id"] as? Int,
                     let name = row["name"] as? String,
+                    let enName = row["en_name"] as? String,
+                    let zhName = row["zh_name"] as? String,
                     let iconFileName = row["icon_filename"] as? String
                 {
-                    // 更新缓存
                     itemInfoCache[typeId] = TransactionItemInfo(
-                        name: name, iconFileName: iconFileName)
+                        name: name,
+                        enName: enName,
+                        zhName: zhName,
+                        iconFileName: iconFileName
+                    )
                 }
             }
         }
 
-        // 为未找到的物品ID设置默认值
+        // 为未找到的物品设置默认值
         for typeId in typeIds {
             if itemInfoCache[typeId] == nil {
-                Logger.warning("未能加载物品信息: \(typeId)")
                 itemInfoCache[typeId] = TransactionItemInfo(
-                    name: "Unknown Item", iconFileName: DatabaseConfig.defaultItemIcon
+                    name: "Unknown Item",
+                    enName: "Unknown Item",
+                    zhName: "未知物品",
+                    iconFileName: DatabaseConfig.defaultItemIcon
                 )
             }
         }
@@ -216,6 +223,24 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
         // 等待任务完成
         await loadingTask?.value
     }
+
+    // 修改过滤后的交易记录计算属性,返回按日期分组的过滤结果
+    var filteredTransactionGroups: [CorpWalletTransactionGroup] {
+        if searchText.isEmpty {
+            return transactionGroups
+        }
+
+        return transactionGroups.map { group in
+            let filteredEntries = group.entries.filter { entry in
+                if let itemInfo = itemInfoCache[entry.type_id] {
+                    return itemInfo.enName.localizedCaseInsensitiveContains(searchText)
+                        || itemInfo.zhName.localizedCaseInsensitiveContains(searchText)
+                }
+                return false
+            }
+            return CorpWalletTransactionGroup(date: group.date, entries: filteredEntries)
+        }.filter { !$0.entries.isEmpty }
+    }
 }
 
 // 特定日期的交易记录详情视图
@@ -269,6 +294,7 @@ struct CorpWalletTransactionDayDetailView: View {
 
 struct CorpWalletTransactionsView: View {
     @ObservedObject var viewModel: CorpWalletTransactionsViewModel
+    @Binding var selectedTab: WalletTab
 
     private let displayDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -279,65 +305,86 @@ struct CorpWalletTransactionsView: View {
     }()
 
     var body: some View {
-        List {
-            if viewModel.isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
-            } else if viewModel.transactionGroups.isEmpty {
-                Section {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 8) {
-                            Image(systemName: "doc.text")
-                                .font(.system(size: 30))
-                                .foregroundColor(.gray)
-                            Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                                .foregroundColor(.gray)
+        VStack(spacing: 0) {
+            // 搜索框
+            if selectedTab == .transactions {
+                HStack {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.gray.opacity(0.6))
+                    TextField(
+                        NSLocalizedString("Main_Database_Search", comment: ""),
+                        text: $viewModel.searchText
+                    )
+                    .textFieldStyle(.plain)
+                    .foregroundColor(.primary)
+                    if !viewModel.searchText.isEmpty {
+                        Button(action: {
+                            viewModel.searchText = ""
+                        }) {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.gray.opacity(0.6))
                         }
-                        .padding()
-                        Spacer()
                     }
                 }
-                .listSectionSpacing(.compact)
-            } else {
-                Section(
-                    header: Text(NSLocalizedString("Transaction Dates", comment: ""))
-                        .fontWeight(.bold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
-                ) {
-                    ForEach(viewModel.transactionGroups) { group in
-                        NavigationLink(
-                            destination: CorpWalletTransactionDayDetailView(
-                                group: group, viewModel: viewModel)
-                        ) {
-                            HStack {
-                                Text(displayDateFormatter.string(from: group.date))
-                                    .font(.system(size: 16))
+                .padding(.horizontal, 8)
+                .padding(.vertical, 6)
+                .background(Color(.systemGray5))
+                .cornerRadius(10)
+                .padding(.horizontal)
+                .padding(.vertical, 8)
+            }
 
-                                Spacer()
+            List {
+                if viewModel.isLoading {
+                    HStack {
+                        Spacer()
+                        ProgressView()
+                            .progressViewStyle(.circular)
+                        Spacer()
+                    }
+                } else if viewModel.transactionGroups.isEmpty {
+                    Section {
+                        NoDataSection()
+                    }
+                } else {
+                    Section {
+                        if viewModel.filteredTransactionGroups.isEmpty {
+                            NoDataSection()
+                        } else {
+                            ForEach(viewModel.filteredTransactionGroups) { group in
+                                NavigationLink(
+                                    destination: CorpWalletTransactionDayDetailView(
+                                        group: group,
+                                        viewModel: viewModel
+                                    )
+                                ) {
+                                    HStack {
+                                        Text(displayDateFormatter.string(from: group.date))
+                                            .font(.system(size: 16))
 
-                                // 显示买入和卖出数量
-                                let buyCount = group.entries.filter { $0.is_buy }.count
-                                let sellCount = group.entries.filter { !$0.is_buy }.count
-                                Text(
-                                    "\(NSLocalizedString("Main_Market_Transactions_Buy", comment: "")): \(buyCount), \(NSLocalizedString("Main_Market_Transactions_Sell", comment: "")): \(sellCount)"
-                                )
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                                        Spacer()
+
+                                        let buyCount = group.entries.filter { $0.is_buy }.count
+                                        let sellCount = group.entries.filter { !$0.is_buy }.count
+                                        Text(
+                                            "\(NSLocalizedString("Main_Market_Transactions_Buy", comment: "")): \(buyCount), \(NSLocalizedString("Main_Market_Transactions_Sell", comment: "")): \(sellCount)"
+                                        )
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    }
+                                    .padding(.vertical, 4)
+                                }
                             }
-                            .padding(.vertical, 4)
                         }
                     }
                 }
             }
+            .listStyle(.insetGrouped)
+            .refreshable {
+                await viewModel.loadTransactionData(forceRefresh: true)
+            }
         }
-        .listStyle(.insetGrouped)
-        .refreshable {
-            await viewModel.loadTransactionData(forceRefresh: true)
-        }
-        .navigationTitle(NSLocalizedString("Main_Market_Transactions", comment: ""))
+        .opacity(selectedTab == .transactions ? 1 : 0)  // 控制整个视图的显示/隐藏
     }
 }
 

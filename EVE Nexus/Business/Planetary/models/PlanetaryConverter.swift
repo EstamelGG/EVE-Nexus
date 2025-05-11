@@ -428,12 +428,12 @@ class PlanetaryConverter {
         let result = DatabaseManager.shared.executeQuery(query, parameters: [typeId])
 
         if case let .success(rows) = result, let row = rows.first {
-            let name = row["name"] as? String ?? "Unknown"
+            let name = row["name"] as? String ?? NSLocalizedString("Unknown", comment: "")
             let volume = row["volume"] as? Double ?? 1.0
             return (name: name, volume: volume)
         }
 
-        return (name: "Unknown", volume: 1.0)
+        return (name: NSLocalizedString("Unknown", comment: ""), volume: 1.0)
     }
 
     /// 获取配方

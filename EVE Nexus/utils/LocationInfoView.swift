@@ -37,9 +37,9 @@ struct LocationInfoView: View {
                 // 如果空间站名称以星系名开头
                 (Text(security != nil ? "\(formatSystemSecurity(security!)) " : "0.0 ")
                     .foregroundColor(security != nil ? getSecurityColor(security!) : .red)
-                + Text(solarSystemName)
+                    + Text(solarSystemName)
                     .fontWeight(.bold)
-                + Text(stationName.dropFirst(solarSystemName.count)))
+                    + Text(stationName.dropFirst(solarSystemName.count)))
                     .font(font)
                     .foregroundColor(textColor)
                     .textSelection(.enabled)

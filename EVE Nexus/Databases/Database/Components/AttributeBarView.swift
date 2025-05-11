@@ -369,36 +369,8 @@ struct AttributesView: View {
     var body: some View {
         ForEach(sortedGroups) { group in
             if group.id == 8 {
-                // 技能要求组
-                let requirements = SkillTreeManager.shared.getDeduplicatedSkillRequirements(
-                    for: typeID, databaseManager: databaseManager
-                )
-                if !requirements.isEmpty {
-                    let totalPoints = requirements.reduce(0) { total, skill in
-                        guard let multiplier = skill.timeMultiplier,
-                            skill.level > 0 && skill.level <= SkillTreeManager.levelBasePoints.count
-                        else {
-                            return total
-                        }
-                        let points = Int(
-                            Double(SkillTreeManager.levelBasePoints[skill.level - 1]) * multiplier)
-                        return total + points
-                    }
-                    Section(
-                        header: Text("\(group.name) (\(FormatUtil.format(Double(totalPoints))) SP)")
-                            .font(.headline)
-                    ) {
-                        ForEach(requirements, id: \.skillID) { requirement in
-                            SkillRequirementRow(
-                                skillID: requirement.skillID,
-                                level: requirement.level,
-                                timeMultiplier: requirement.timeMultiplier,
-                                databaseManager: databaseManager
-                            )
-                        }
-                        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                    }
-                }
+                SkillRequirementsView(
+                    typeID: typeID, groupName: group.name, databaseManager: databaseManager)
             } else {
                 AttributeGroupView(
                     group: group,

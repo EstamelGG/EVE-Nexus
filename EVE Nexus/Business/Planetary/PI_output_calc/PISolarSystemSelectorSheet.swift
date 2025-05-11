@@ -8,7 +8,11 @@ struct PISolarSystemSelectorSheet: View {
     let currentSelection: Int?
 
     @State private var searchText: String = ""
-    @State private var systems: [(id: Int, name: String, security: Double, region: String)] = []
+    @State private var systems:
+        [(
+            id: Int, name: String, name_en: String, name_zh: String, security: Double,
+            region: String
+        )] = []
     @State private var selectedSystemId: Int?
     @State private var isLoading = true
 
@@ -89,12 +93,21 @@ struct PISolarSystemSelectorSheet: View {
     }
 
     // 过滤后的星系列表
-    private var filteredSystems: [(id: Int, name: String, security: Double, region: String)] {
+    private var filteredSystems:
+        [(
+            id: Int, name: String, name_en: String, name_zh: String, security: Double,
+            region: String
+        )]
+    {
         if searchText.isEmpty {
             return systems
         } else {
-            return systems.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
-                .sorted { $0.name < $1.name }
+            return systems.filter { system in
+                system.name.localizedCaseInsensitiveContains(searchText)
+                    || system.name_en.localizedCaseInsensitiveContains(searchText)
+                    || system.name_zh.localizedCaseInsensitiveContains(searchText)
+            }
+            .sorted { $0.name < $1.name }
         }
     }
 
@@ -103,11 +116,17 @@ struct PISolarSystemSelectorSheet: View {
         isLoading = true
 
         DispatchQueue.global(qos: .userInitiated).async {
-            var loadedSystems: [(id: Int, name: String, security: Double, region: String)] = []
+            var loadedSystems:
+                [(
+                    id: Int, name: String, name_en: String, name_zh: String, security: Double,
+                    region: String
+                )] = []
 
-            // 查询所有星系
+            // 查询所有星系，包含中英文名称
             let query = """
-                    SELECT s.solarSystemID, s.solarSystemName, u.system_security, r.regionName 
+                    SELECT s.solarSystemID, s.solarSystemName, 
+                           s.solarSystemName_en, s.solarSystemName_zh, 
+                           u.system_security, r.regionName 
                     FROM solarsystems s
                     JOIN universe u ON s.solarSystemID = u.solarsystem_id
                     JOIN regions r ON r.regionID = u.region_id
@@ -121,9 +140,19 @@ struct PISolarSystemSelectorSheet: View {
                         let security = row["system_security"] as? Double,
                         let regionName = row["regionName"] as? String
                     {
+                        // 获取中英文名称，如果不存在则使用默认名称
+                        let solarSystemName_en =
+                            row["solarSystemName_en"] as? String ?? solarSystemName
+                        let solarSystemName_zh =
+                            row["solarSystemName_zh"] as? String ?? solarSystemName
+
                         loadedSystems.append(
                             (
-                                id: solarSystemID, name: solarSystemName, security: security,
+                                id: solarSystemID,
+                                name: solarSystemName,
+                                name_en: solarSystemName_en,
+                                name_zh: solarSystemName_zh,
+                                security: security,
                                 region: regionName
                             ))
                     }

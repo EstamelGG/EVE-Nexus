@@ -30,6 +30,7 @@ public enum WalletLoadingProgress {
 
 @MainActor
 final class CorpWalletJournalViewModel: ObservableObject {
+    @AppStorage("selectedLanguage") private var selectedLanguage: String?
     @Published private(set) var journalGroups: [CorpWalletJournalGroup] = []
     @Published var isLoading = true
     @Published var errorMessage: String?
@@ -37,7 +38,56 @@ final class CorpWalletJournalViewModel: ObservableObject {
     @Published private(set) var totalExpense: Double = 0.0
     @Published var loadingProgress: WalletLoadingProgress?
     @Published var timeRange: TimeRange = .last30Days
+    @Published var showFilter = false
+    @Published var selectedRefType: String? = nil
+    @Published var selectedTransactionType: TransactionType? = nil
     private var initialLoadDone = false
+    @Published private(set) var totalEntries: Int = 0
+    @Published private(set) var isPartialData: Bool = false
+
+    enum TransactionType {
+        case income
+        case expense
+    }
+
+    var filteredJournalGroups: [CorpWalletJournalGroup] {
+        return journalGroups.map { group in
+            let filteredEntries = group.entries.filter { entry in
+                // 首先检查交易类型（收入/支出）
+                if let transactionType = selectedTransactionType {
+                    switch transactionType {
+                    case .income:
+                        if entry.amount <= 0 { return false }
+                    case .expense:
+                        if entry.amount >= 0 { return false }
+                    }
+                }
+
+                // 然后检查 ref_type
+                if let selectedType = selectedRefType {
+                    if entry.ref_type != selectedType { return false }
+                }
+
+                return true
+            }
+            return CorpWalletJournalGroup(date: group.date, entries: filteredEntries)
+        }.filter { !$0.entries.isEmpty }
+    }
+
+    // 获取所有可用的交易类型
+    var availableRefTypes: [String] {
+        let allRefTypes = Set(journalGroups.flatMap { $0.entries }.map { $0.ref_type })
+        return Array(allRefTypes).sorted()
+    }
+
+    // 获取交易类型的本地化名称
+    func getLocalizedRefType(_ refType: String) -> String {
+        return LocalizationManager.shared.processEntryTypeName(
+            for: refType.lowercased(),
+            esiText: refType,
+            language: selectedLanguage == "zh-Hans" ? "zh" : "en"
+        )
+    }
 
     enum TimeRange: String, CaseIterable {
         case last30Days = "last30Days"
@@ -172,6 +222,23 @@ final class CorpWalletJournalViewModel: ObservableObject {
 
                 if Task.isCancelled { return }
 
+                // 检查数据量
+                totalEntries = entries.count
+
+                // 检查是否只显示部分数据
+                if totalEntries >= 9500 {
+                    // 获取最久远的记录日期
+                    if let oldestEntry = entries.min(by: { $0.date < $1.date }),
+                        let oldestDate = dateFormatter.date(from: oldestEntry.date)
+                    {
+                        let calendar = Calendar.current
+                        let now = Date()
+                        let days =
+                            calendar.dateComponents([.day], from: oldestDate, to: now).day ?? 0
+                        isPartialData = days < 30
+                    }
+                }
+
                 // 计算总收支
                 calculateTotals(from: entries)
 
@@ -286,6 +353,98 @@ struct CorpWalletJournalView: View {
         return formatter
     }()
 
+    var filterView: some View {
+        NavigationView {
+            List {
+                Section(header: Text(NSLocalizedString("Wallet_Transaction_Type", comment: ""))) {
+                    Button(action: {
+                        viewModel.selectedTransactionType = nil
+                    }) {
+                        HStack {
+                            Text(NSLocalizedString("Misc_All", comment: ""))
+                                .foregroundColor(.primary)
+                            Spacer()
+                            if viewModel.selectedTransactionType == nil {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+
+                    Button(action: {
+                        viewModel.selectedTransactionType = .income
+                    }) {
+                        HStack {
+                            Text(WalletJournalViewModel.TransactionType.income.localizedString)
+                                .foregroundColor(.primary)
+                            Spacer()
+                            if viewModel.selectedTransactionType == .income {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+
+                    Button(action: {
+                        viewModel.selectedTransactionType = .expense
+                    }) {
+                        HStack {
+                            Text(WalletJournalViewModel.TransactionType.expense.localizedString)
+                                .foregroundColor(.primary)
+                            Spacer()
+                            if viewModel.selectedTransactionType == .expense {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                }
+
+                Section(header: Text(NSLocalizedString("Wallet_Transaction_Category", comment: "")))
+                {
+                    Button(action: {
+                        viewModel.selectedRefType = nil
+                    }) {
+                        HStack {
+                            Text(NSLocalizedString("Misc_All", comment: ""))
+                                .foregroundColor(.primary)
+                            Spacer()
+                            if viewModel.selectedRefType == nil {
+                                Image(systemName: "checkmark")
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+
+                    ForEach(viewModel.availableRefTypes, id: \.self) { refType in
+                        Button(action: {
+                            viewModel.selectedRefType = refType
+                        }) {
+                            HStack {
+                                Text(viewModel.getLocalizedRefType(refType))
+                                    .foregroundColor(.primary)
+                                Spacer()
+                                if viewModel.selectedRefType == refType {
+                                    Image(systemName: "checkmark")
+                                        .foregroundColor(.blue)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle(NSLocalizedString("Misc_Filter", comment: ""))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(NSLocalizedString("Misc_Done", comment: "")) {
+                        viewModel.showFilter = false
+                    }
+                }
+            }
+        }
+    }
+
     var summarySection: some View {
         Section(
             header: HStack {
@@ -393,43 +552,52 @@ struct CorpWalletJournalView: View {
                 }
             } else if viewModel.journalGroups.isEmpty {
                 Section {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 8) {
-                            Image(systemName: "doc.text")
-                                .font(.system(size: 30))
-                                .foregroundColor(.gray)
-                            Text(NSLocalizedString("Orders_No_Data", comment: ""))
-                                .foregroundColor(.gray)
-                        }
-                        .padding()
-                        Spacer()
-                    }
+                    NoDataSection()
                 }
             } else {
                 summarySection
 
-                Section(
-                    header: Text(NSLocalizedString("Transaction Dates", comment: ""))
-                        .fontWeight(.bold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
-                ) {
-                    ForEach(viewModel.journalGroups) { group in
-                        NavigationLink(destination: CorpWalletJournalDayDetailView(group: group)) {
+                if viewModel.filteredJournalGroups.isEmpty {
+                    Section {
+                        NoDataSection()
+                    }
+                } else {
+                    Section(
+                        header: Text(NSLocalizedString("Transaction Dates", comment: ""))
+                            .fontWeight(.bold)
+                            .font(.system(size: 18))
+                            .foregroundColor(.primary)
+                            .textCase(.none)
+                    ) {
+                        ForEach(viewModel.filteredJournalGroups) { group in
+                            NavigationLink(
+                                destination: CorpWalletJournalDayDetailView(group: group)
+                            ) {
+                                HStack {
+                                    Text(displayDateFormatter.string(from: group.date))
+                                        .font(.system(size: 16))
+
+                                    Spacer()
+
+                                    Text(
+                                        "\(group.entries.count) \(NSLocalizedString("transactions", comment: ""))"
+                                    )
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                    }
+
+                    if viewModel.isPartialData {
+                        Section {
                             HStack {
-                                Text(displayDateFormatter.string(from: group.date))
-                                    .font(.system(size: 16))
-
                                 Spacer()
-
-                                // 显示当日交易数量
-                                Text(
-                                    "\(group.entries.count) \(NSLocalizedString("transactions", comment: ""))"
-                                )
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                                Text(NSLocalizedString("Wallet_Partial_Data_Notice", comment: ""))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                                Spacer()
                             }
                         }
                     }
@@ -439,6 +607,31 @@ struct CorpWalletJournalView: View {
         .listStyle(.insetGrouped)
         .refreshable {
             await viewModel.loadJournalData(forceRefresh: true)
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                HStack(spacing: 16) {
+                    if viewModel.selectedRefType != nil || viewModel.selectedTransactionType != nil
+                    {
+                        Button(action: {
+                            viewModel.selectedRefType = nil
+                            viewModel.selectedTransactionType = nil
+                        }) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                                .foregroundColor(.red)
+                        }
+                    }
+
+                    Button(action: {
+                        viewModel.showFilter = true
+                    }) {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: $viewModel.showFilter) {
+            filterView
         }
     }
 }

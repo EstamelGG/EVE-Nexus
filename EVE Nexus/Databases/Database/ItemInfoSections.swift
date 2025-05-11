@@ -20,11 +20,13 @@ struct IndustrySection: View {
                 } else {
                     nil
                 }
-        
+
         // 获取可以制造该物品的蓝图列表
         let blueprintDest = databaseManager.getBlueprintDest(for: itemID)
 
-        if materials != nil || blueprintID != nil || sourceMaterials != nil || !blueprintDest.blueprints.isEmpty {
+        if materials != nil || blueprintID != nil || sourceMaterials != nil
+            || !blueprintDest.blueprints.isEmpty
+        {
             Section(header: Text(NSLocalizedString("Industry", comment: "")).font(.headline)) {
                 // 蓝图按钮
                 if let blueprintID = blueprintID,
@@ -62,7 +64,10 @@ struct IndustrySection: View {
                                 .frame(width: 32, height: 32)
                                 .cornerRadius(6)
                             VStack(alignment: .leading) {
-                                Text(NSLocalizedString("Main_Database_Applicable_Blueprints", comment: ""))
+                                Text(
+                                    NSLocalizedString(
+                                        "Main_Database_Applicable_Blueprints", comment: "")
+                                )
                                 .font(.system(size: 16))
                                 .foregroundColor(.primary)
                                 Text(
@@ -74,8 +79,10 @@ struct IndustrySection: View {
                                 .foregroundColor(.gray)
                             }
                             Spacer()
-                            Text("\(blueprintDest.blueprints.count) \(NSLocalizedString("Misc_number_types", comment: ""))")
-                                .foregroundColor(.secondary)
+                            Text(
+                                "\(blueprintDest.blueprints.count) \(NSLocalizedString("Misc_number_types", comment: ""))"
+                            )
+                            .foregroundColor(.secondary)
                         }
                     }
                 }
@@ -103,10 +110,12 @@ struct IndustrySection: View {
 
                                     Spacer()
 
-                                    Text("\(material.outputQuantity) \(NSLocalizedString("Misc_unit", comment: ""))")
-                                        .font(.body)
-                                        .foregroundColor(.secondary)
-                                        .frame(alignment: .trailing)
+                                    Text(
+                                        "\(material.outputQuantity) \(NSLocalizedString("Misc_unit", comment: ""))"
+                                    )
+                                    .font(.body)
+                                    .foregroundColor(.secondary)
+                                    .frame(alignment: .trailing)
                                 }
                             }
                         }
@@ -192,8 +201,12 @@ struct IndustrySection: View {
 struct BlueprintDestView: View {
     let itemID: Int
     let databaseManager: DatabaseManager
-    let blueprintDest: (blueprints: [(typeID: Int, name: String, iconFileName: String)], groups: [(groupID: Int, name: String, iconFileName: String)])
-    
+    let blueprintDest:
+        (
+            blueprints: [(typeID: Int, name: String, iconFileName: String)],
+            groups: [(groupID: Int, name: String, iconFileName: String)]
+        )
+
     var body: some View {
         if blueprintDest.blueprints.count <= 50 {
             // 直接显示蓝图列表
@@ -251,7 +264,7 @@ struct BlueprintGroupView: View {
     let groupName: String
     let databaseManager: DatabaseManager
     let itemID: Int
-    
+
     var body: some View {
         let (blueprints, _) = databaseManager.getBlueprintDest(for: itemID)
         let groupBlueprints = blueprints.filter { blueprint in
@@ -260,7 +273,7 @@ struct BlueprintGroupView: View {
             }
             return false
         }
-        
+
         List {
             ForEach(groupBlueprints, id: \.typeID) { blueprint in
                 NavigationLink {
@@ -288,7 +301,7 @@ struct BlueprintGroupView: View {
 struct VariationsSection: View {
     let typeID: Int
     let databaseManager: DatabaseManager
-    
+
     var body: some View {
         let variationsCount = databaseManager.getVariationsCount(for: typeID)
         if variationsCount > 1 {
@@ -319,7 +332,7 @@ struct SkillSection: View {
     let skillID: Int
     let currentCharacterId: Int
     let databaseManager: DatabaseManager
-    
+
     var body: some View {
         // 技能点数和训练时间列表
         SkillPointForLevelView(
@@ -327,7 +340,7 @@ struct SkillSection: View {
             characterId: currentCharacterId == 0 ? nil : currentCharacterId,
             databaseManager: databaseManager
         )
-        
+
         // 依赖该技能的物品列表
         SkillDependencySection(
             skillID: skillID,
@@ -340,7 +353,7 @@ struct SkillSection: View {
 struct MutationSourceItemsSection: View {
     let itemID: Int
     let databaseManager: DatabaseManager
-    
+
     var body: some View {
         let mutationSource = databaseManager.getMutationSource(for: itemID)
         if !mutationSource.sourceItems.isEmpty {
@@ -373,7 +386,7 @@ struct MutationSourceItemsSection: View {
 struct MutationSourceMutaplasmidsSection: View {
     let itemID: Int
     let databaseManager: DatabaseManager
-    
+
     var body: some View {
         let mutationSource = databaseManager.getMutationSource(for: itemID)
         if !mutationSource.sourceItems.isEmpty && !mutationSource.mutaplasmids.isEmpty {
@@ -407,7 +420,7 @@ struct MutationSourceMutaplasmidsSection: View {
 struct MutationResultsSection: View {
     let itemID: Int
     let databaseManager: DatabaseManager
-    
+
     var body: some View {
         let mutationResults = databaseManager.getMutationResults(for: itemID)
         if !mutationResults.isEmpty {
@@ -441,7 +454,7 @@ struct MutationResultsSection: View {
 struct RequiredMutaplasmidsSection: View {
     let itemID: Int
     let databaseManager: DatabaseManager
-    
+
     var body: some View {
         let requiredMutaplasmids = databaseManager.getRequiredMutaplasmids(for: itemID)
         if !requiredMutaplasmids.isEmpty {

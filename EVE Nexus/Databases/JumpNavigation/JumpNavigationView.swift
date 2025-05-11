@@ -5,6 +5,8 @@ import SwiftUI
 struct JumpSystemData {
     let id: Int
     let name: String
+    let nameEN: String
+    let nameZH: String
     let security: Double
     let region: String
     let x: Double
@@ -15,9 +17,9 @@ struct JumpSystemData {
     static func loadAllJumpSystems(databaseManager: DatabaseManager) -> [JumpSystemData] {
         var systems: [JumpSystemData] = []
 
-        // 综合查询，获取所有满足跳跃条件的星系信息
+        // 综合查询，获取所有满足跳跃条件的星系信息，包括英文名和中文名
         let query = """
-                SELECT u.solarsystem_id, s.solarSystemName, 
+                SELECT u.solarsystem_id, s.solarSystemName, s.solarSystemName_en, s.solarSystemName_zh,
                        u.system_security, r.regionName, u.x, u.y, u.z
                 FROM universe u
                 JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
@@ -34,12 +36,15 @@ struct JumpSystemData {
             for row in rows {
                 if let id = row["solarsystem_id"] as? Int,
                     let name = row["solarSystemName"] as? String,
+                    let nameEN = row["solarSystemName_en"] as? String,
                     let security = row["system_security"] as? Double,
                     let region = row["regionName"] as? String,
                     let x = row["x"] as? Double,
                     let y = row["y"] as? Double,
                     let z = row["z"] as? Double
                 {
+                    // 获取中文名，如果为nil则使用英文名
+                    let nameZH = (row["solarSystemName_zh"] as? String) ?? nameEN
 
                     // 计算显示安全等级
                     let displaySec = calculateDisplaySecurity(security)
@@ -48,6 +53,8 @@ struct JumpSystemData {
                         JumpSystemData(
                             id: id,
                             name: name,
+                            nameEN: nameEN,
+                            nameZH: nameZH,
                             security: displaySec,
                             region: region,
                             x: x,
@@ -55,20 +62,6 @@ struct JumpSystemData {
                             z: z
                         )
                     )
-
-                    // 只添加实际显示安全等级小于0.5的星系
-                    //                    if displaySec < 0.5 {
-                    //                        systems.append(
-                    //                            JumpSystemData(
-                    //                                id: id,
-                    //                                name: name,
-                    //                                security: displaySec,
-                    //                                x: x,
-                    //                                y: y,
-                    //                                z: z
-                    //                            )
-                    //                        )
-                    //                    }
                 }
             }
             Logger.info("跳跃星系数据加载完成：符合条件的星系数量为 \(systems.count)")
@@ -78,6 +71,43 @@ struct JumpSystemData {
 
         return systems
     }
+
+    // 获取所有星系ID到名称的映射
+    static func getSystemIdToNameMap(from systems: [JumpSystemData]) -> [Int: String] {
+        var result: [Int: String] = [:]
+        for system in systems {
+            result[system.id] = system.name
+        }
+        return result
+    }
+
+    // 获取所有星系ID到英文名称的映射
+    static func getSystemIdToEnNameMap(from systems: [JumpSystemData]) -> [Int: String] {
+        var result: [Int: String] = [:]
+        for system in systems {
+            result[system.id] = system.nameEN
+        }
+        return result
+    }
+
+    // 获取所有星系ID到安全等级的映射
+    static func getSystemIdToSecurityMap(from systems: [JumpSystemData]) -> [Int: Double] {
+        var result: [Int: Double] = [:]
+        for system in systems {
+            result[system.id] = system.security
+        }
+        return result
+    }
+
+    // 获取符合条件的星系列表（用于选择器）
+    static func getJumpableSystems(from systems: [JumpSystemData]) -> [(
+        id: Int, name: String, security: Double, region: String
+    )] {
+        return systems.map {
+            (id: $0.id, name: $0.name, security: $0.security, region: $0.region)
+        }
+        .sorted { $0.name < $1.name }
+    }
 }
 
 // 飞船数据结构
@@ -85,80 +115,10 @@ struct Ship: Identifiable {
     let id: Int
     let name: String
     let enName: String
+    let zhName: String  // 添加中文名称
     let iconFilename: String
     let groupId: Int
     let groupName: String
-}
-
-// 添加一个全局变量，用于缓存所有跳跃星系数据
-class JumpSystemsCache {
-    static let shared = JumpSystemsCache()
-
-    private(set) var allJumpSystems: [JumpSystemData] = []
-    private var isLoaded = false
-
-    // 懒加载方法
-    func loadIfNeeded(databaseManager: DatabaseManager) {
-        if !isLoaded {
-            allJumpSystems = JumpSystemData.loadAllJumpSystems(databaseManager: databaseManager)
-            isLoaded = true
-            Logger.info("JumpSystemsCache: 初始化加载了 \(allJumpSystems.count) 个星系")
-        }
-    }
-
-    // 获取所有星系ID到名称的映射
-    var systemIdToName: [Int: String] {
-        var result: [Int: String] = [:]
-        for system in allJumpSystems {
-            result[system.id] = system.name
-        }
-        return result
-    }
-
-    // 获取所有星系ID到英文名称的映射
-    var systemIdToEnName: [Int: String] {
-        var result: [Int: String] = [:]
-        // 查询数据库获取英文名称
-        let query = """
-                SELECT solarSystemID, solarSystemName_en
-                FROM solarsystems
-                WHERE solarSystemID IN (\(allJumpSystems.map { String($0.id) }.joined(separator: ",")))
-            """
-
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(query) {
-            for row in rows {
-                if let systemId = row["solarSystemID"] as? Int,
-                    let enName = row["solarSystemName_en"] as? String
-                {
-                    result[systemId] = enName
-                }
-            }
-            Logger.info("已加载 \(result.count) 个星系的英文名称")
-        } else {
-            Logger.error("加载星系英文名称失败")
-        }
-
-        return result
-    }
-
-    // 获取所有星系ID到安全等级的映射
-    var systemIdToSecurity: [Int: Double] {
-        var result: [Int: Double] = [:]
-        for system in allJumpSystems {
-            result[system.id] = system.security
-        }
-        return result
-    }
-
-    // 获取符合条件的星系列表（用于选择器）
-    var jumpableSystems: [(id: Int, name: String, security: Double, region: String)] {
-        return allJumpSystems.map {
-            (id: $0.id, name: $0.name, security: $0.security, region: $0.region)
-        }
-        .sorted { $0.name < $1.name }
-    }
-
-    private init() {}
 }
 
 struct JumpNavigationView: View {
@@ -177,12 +137,9 @@ struct JumpNavigationView: View {
     @State private var avoidSystemIds: [Int] = []  // 修改为星系ID数组
     @State private var avoidIncursionSystems: Bool = true  // 添加避开入侵星系状态
 
-    // 添加星系名称映射
-    @State private var systemIdToName: [Int: String] = [:]
-    @State private var systemIdToEnName: [Int: String] = [:]
-
-    // 添加飞船数据状态
-    @State private var ships: [Int: [Ship]]
+    // 保存所有跳跃星系数据和飞船数据
+    private var allJumpSystems: [JumpSystemData]
+    private var ships: [Int: [Ship]]
 
     // Sheet控制状态
     @State private var showingShipSelector = false
@@ -193,10 +150,6 @@ struct JumpNavigationView: View {
     // 添加结果相关状态
     @State private var pathResults: [PathResult] = []
     @State private var showingPathResults = false
-    @State private var systemIdToSecurity: [Int: Double] = [:]
-
-    // 添加状态变量来控制数据加载
-    @State private var hasLoadedSystemNames = false
 
     // 添加状态变量来控制计算按钮状态
     @State private var isCalculating = false
@@ -206,20 +159,15 @@ struct JumpNavigationView: View {
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
 
-        // 初始化加载跳跃星系数据
-        JumpSystemsCache.shared.loadIfNeeded(databaseManager: databaseManager)
+        // 直接加载所有跳跃星系数据
+        let allJumpSystems = JumpSystemData.loadAllJumpSystems(databaseManager: databaseManager)
+        self.allJumpSystems = allJumpSystems
 
         // 在初始化时就加载飞船数据
-        _ships = State(initialValue: JumpNavigationView.loadShips(databaseManager: databaseManager))
-
-        // 使用缓存的星系数据
-        _systemIdToName = State(initialValue: JumpSystemsCache.shared.systemIdToName)
-        _systemIdToSecurity = State(initialValue: JumpSystemsCache.shared.systemIdToSecurity)
-        _systemIdToEnName = State(initialValue: JumpSystemsCache.shared.systemIdToEnName)
-        _hasLoadedSystemNames = State(initialValue: !JumpSystemsCache.shared.systemIdToName.isEmpty)
+        self.ships = JumpNavigationView.loadShips(databaseManager: databaseManager)
 
         Logger.info(
-            "JumpNavigationView初始化完成，已加载飞船数据和\(JumpSystemsCache.shared.systemIdToName.count)个星系名称")
+            "JumpNavigationView初始化完成，已加载飞船数据和\(allJumpSystems.count)个星系名称")
     }
 
     var body: some View {
@@ -272,13 +220,11 @@ struct JumpNavigationView: View {
                 NavigationView {
                     JumpPathResultView(
                         pathResult: mergePathResults(pathResults),
-                        systemIdToName: systemIdToName,
-                        systemIdToSecurity: systemIdToSecurity,
+                        allJumpSystems: allJumpSystems,
                         shipEnName: ships.values.flatMap({ $0 }).first(where: {
                             $0.id == selectedShip
                         })?.enName ?? "",
                         jdcLevel: JDCLv,
-                        systemIdToEnName: systemIdToEnName,
                         startPointId: startPointId,
                         waypointIds: waypointIds,
                         avoidSystemIds: avoidSystemIds,
@@ -301,6 +247,7 @@ struct JumpNavigationView: View {
                 title: NSLocalizedString("Jump_Navigation_Select_Start", comment: ""),
                 currentSelection: startPointId,
                 onlyLowSec: false,  // 起点可以选择所有星系
+                jumpSystems: allJumpSystems,
                 onSelect: { systemId in
                     startPointId = systemId
                     showingStartPointSelector = false
@@ -315,6 +262,7 @@ struct JumpNavigationView: View {
                 title: NSLocalizedString("Jump_Navigation_Add_Waypoint", comment: ""),
                 currentSelection: waypointIds.last,
                 onlyLowSec: true,  // 路径点只能选择低安全等级星系
+                jumpSystems: allJumpSystems,
                 onSelect: { systemId in
                     waypointIds.append(systemId)
                     showingWaypointSelector = false
@@ -328,6 +276,8 @@ struct JumpNavigationView: View {
             SystemSelectorSheet(
                 title: NSLocalizedString("Jump_Navigation_Add_Avoid", comment: ""),
                 currentSelection: nil,
+                onlyLowSec: true,  // 路径点只能选择低安全等级星系
+                jumpSystems: allJumpSystems,
                 onSelect: { systemId in
                     if !avoidSystemIds.contains(systemId) {
                         avoidSystemIds.append(systemId)
@@ -586,9 +536,6 @@ struct JumpNavigationView: View {
         let shipTypeId = selectedShip
         Logger.info("所选飞船ID: \(shipTypeId)")
 
-        // 获取星系ID映射（星系名称到ID的映射）
-        var systemNameToIdMap: [String: Int] = [:]
-
         // 在后台线程加载星系ID
         Task {
             Logger.info("开始加载所有可跳跃星系")
@@ -630,34 +577,6 @@ struct JumpNavigationView: View {
                 }
             }
 
-            // 使用JumpNavigationHandler获取所有可跳跃星系
-            let allSystems = JumpNavigationHandler.getAllJumpableSystems(
-                databaseManager: self.databaseManager)
-            Logger.info("加载完成，总共加载了 \(allSystems.count) 个可跳跃星系")
-
-            // 创建名称到ID的映射
-            for system in allSystems {
-                systemNameToIdMap[system.name] = system.id
-            }
-
-            // 获取起点和路径点的ID
-            let startSystemId: Int? = self.startPointId
-            var waypointIds: [Int] = []
-
-            for waypoint in self.waypointIds {
-                if let id = systemNameToIdMap[self.getSystemName(waypoint)] {
-                    waypointIds.append(id)
-                }
-            }
-
-            // 获取规避星系的ID
-            var avoidSystemIds: [Int] = []
-            for avoidSystem in self.avoidSystemIds {
-                if let id = systemNameToIdMap[self.getSystemName(avoidSystem)] {
-                    avoidSystemIds.append(id)
-                }
-            }
-
             // 在主线程中记录数据
             await MainActor.run {
                 // 记录参数信息
@@ -670,32 +589,28 @@ struct JumpNavigationView: View {
                     Logger.info("入侵星系数量: \(incursionSystems.count)")
                 }
 
-                if let startId = startSystemId {
+                if let startId = self.startPointId {
                     Logger.info("起点星系ID: \(startId), 名称: \(self.getSystemName(startId))")
                     Logger.info(
-                        "路径点: \(waypointIds.map { "\($0)(\(self.getSystemName($0)))" }.joined(separator: ", "))"
+                        "路径点: \(self.waypointIds.map { "\($0)(\(self.getSystemName($0)))" }.joined(separator: ", "))"
                     )
-                } else {
-                    Logger.error("起点星系ID无效")
-                }
 
-                // 如果有规避星系，也记录下来
-                if !avoidSystemIds.isEmpty {
-                    Logger.info(
-                        "避开星系: \(avoidSystemIds.map { "\($0)(\(self.getSystemName($0)))" }.joined(separator: ", "))"
-                    )
-                } else {
-                    Logger.info("没有手动规避星系")
-                }
+                    // 如果有规避星系，也记录下来
+                    if !self.avoidSystemIds.isEmpty {
+                        Logger.info(
+                            "避开星系: \(self.avoidSystemIds.map { "\($0)(\(self.getSystemName($0)))" }.joined(separator: ", "))"
+                        )
+                    } else {
+                        Logger.info("没有手动规避星系")
+                    }
 
-                // 执行实际路径计算
-                if let startId = startSystemId {
+                    // 执行实际路径计算
                     self.performPathFinding(
                         startSystemId: startId,
-                        waypointIds: waypointIds,
+                        waypointIds: self.waypointIds,
                         shipTypeId: shipTypeId,
                         skillLevel: self.JDCLv,
-                        avoidSystems: avoidSystemIds,
+                        avoidSystems: self.avoidSystemIds,
                         avoidIncursions: self.avoidIncursionSystems,
                         incursionSystems: incursionSystems
                     )
@@ -721,9 +636,10 @@ struct JumpNavigationView: View {
 
         // 在后台线程执行路径寻找
         DispatchQueue.global(qos: .userInitiated).async {
-            // 初始化路径寻找器
-            let pathFinder = JumpPathFinder(databaseManager: self.databaseManager)
-            Logger.info("初始化路径寻找器完成")
+            // 初始化路径寻找器，使用预加载的星系数据
+            let pathFinder = JumpPathFinder(
+                databaseManager: self.databaseManager, preloadedSystems: self.allJumpSystems)
+            Logger.info("初始化路径寻找器完成，使用预加载的星系数据")
 
             // 执行A*寻路
             Logger.info("开始从 \(startSystemId) 到 \(waypointIds) 的路径计算")
@@ -740,30 +656,12 @@ struct JumpNavigationView: View {
             )
             Logger.info("路径计算完成，获得 \(results.count) 个路径段")
 
-            // 获取星系ID到名称的映射，用于显示路径信息
-            Logger.info("加载星系名称和安全等级信息")
-            let systems = JumpNavigationHandler.getAllJumpableSystems(
-                databaseManager: self.databaseManager)
-            var systemIdToName: [Int: String] = [:]
-            var systemIdToSecurity: [Int: Double] = [:]
-
-            for system in systems {
-                systemIdToName[system.id] = system.name
-                systemIdToSecurity[system.id] = system.security
-            }
-
-            // 确保有英文名称映射
-            var systemIdToEnName: [Int: String] = [:]
-            if self.systemIdToEnName.isEmpty {
-                Logger.info("获取英文名称映射")
-                systemIdToEnName = JumpSystemsCache.shared.systemIdToEnName
-            } else {
-                systemIdToEnName = self.systemIdToEnName
-            }
-
             // 在主线程更新UI
             DispatchQueue.main.async {
                 Logger.info("路径计算完成，更新UI显示结果")
+
+                // 创建一个星系ID到名称的映射，用于日志记录
+                let systemNames = JumpSystemData.getSystemIdToNameMap(from: self.allJumpSystems)
 
                 // 记录每个路径段的详细信息
                 for (index, result) in results.enumerated() {
@@ -771,14 +669,11 @@ struct JumpNavigationView: View {
                     Logger.info("  跳跃次数: \(result.path.count - 1)")
                     Logger.info("  总距离: \(result.totalDistance)光年")
                     Logger.info(
-                        "  星系路径: \(result.path.map { "\($0)(\(systemIdToName[$0] ?? "未知"))" }.joined(separator: " -> "))"
+                        "  星系路径: \(result.path.map { "\($0)(\(systemNames[$0] ?? "未知"))" }.joined(separator: " -> "))"
                     )
                 }
 
                 self.pathResults = results
-                self.systemIdToName = systemIdToName
-                self.systemIdToSecurity = systemIdToSecurity
-                self.systemIdToEnName = systemIdToEnName
                 self.showingPathResults = true
                 self.progressMessage = ""
                 self.isCalculating = false
@@ -817,6 +712,7 @@ struct JumpNavigationView: View {
                 Logger.info("开始处理跳跃导航数据")
                 JumpNavigationHandler.processJumpNavigationData(
                     databaseManager: self.databaseManager,
+                    preloadedSystems: self.allJumpSystems,  // 使用预加载的星系数据
                     progressUpdate: { message, progress in
                         // 在主线程更新UI
                         DispatchQueue.main.async {
@@ -879,6 +775,7 @@ struct JumpNavigationView: View {
             Logger.info("开始重新处理跳跃导航数据")
             JumpNavigationHandler.processJumpNavigationData(
                 databaseManager: self.databaseManager,
+                preloadedSystems: self.allJumpSystems,  // 使用预加载的星系数据
                 progressUpdate: { message, progress in
                     // 在主线程更新UI
                     DispatchQueue.main.async {
@@ -991,7 +888,7 @@ struct JumpNavigationView: View {
         // 遍历所有船只找到匹配的ID
         for (_, shipGroup) in ships {
             if let ship = shipGroup.first(where: { $0.id == selectedShip }) {
-                return "\(ship.name) (\(ship.enName))"
+                return ship.name
             }
         }
 
@@ -1003,7 +900,13 @@ struct JumpNavigationView: View {
         guard let id = id else {
             return NSLocalizedString("Jump_Navigation_Select_Start", comment: "")
         }
-        return systemIdToName[id] ?? NSLocalizedString("Jump_Navigation_Select_Start", comment: "")
+
+        // 通过星系ID查找对应星系
+        if let system = allJumpSystems.first(where: { $0.id == id }) {
+            return system.name
+        }
+
+        return NSLocalizedString("Jump_Navigation_Select_Start", comment: "")
     }
 
     // 加载飞船数据
@@ -1013,7 +916,7 @@ struct JumpNavigationView: View {
 
         // 查询所有可跳跃的飞船
         let query = """
-            SELECT t.type_id, t.name, t.en_name, 
+            SELECT t.type_id, t.name, t.en_name, t.zh_name, 
                                g.group_id, g.name as groupName, t.icon_filename 
                         FROM types t
                         JOIN groups g ON t.groupID  = g.group_id
@@ -1040,10 +943,14 @@ struct JumpNavigationView: View {
                     continue
                 }
 
+                // 获取中文名称，如果为nil则使用英文名称
+                let typeNameZH = (row["zh_name"] as? String) ?? typeNameEN
+
                 let ship = Ship(
                     id: typeId,
                     name: typeName,
                     enName: typeNameEN,
+                    zhName: typeNameZH,
                     iconFilename: iconFileName,
                     groupId: groupId,
                     groupName: groupName
@@ -1072,16 +979,21 @@ struct SystemSelectorSheet: View {
     let onCancel: () -> Void
     let currentSelection: Int?  // 修改为星系ID
     let onlyLowSec: Bool  // 添加新参数，控制是否只显示低安全等级星系
+    let jumpSystems: [JumpSystemData]  // 添加已加载的星系数据参数
 
     @State private var searchText: String = ""
     @State private var systems: [(id: Int, name: String, security: Double, region: String)] = []
     @State private var selectedSystemId: Int?  // 修改为星系ID
     @State private var isLoading = true
 
+    // 添加一个从ID到原始星系数据的映射索引，避免每次搜索都要重复查找
+    @State private var systemIdToOriginalSystem: [Int: JumpSystemData] = [:]
+
     init(
         title: String,
         currentSelection: Int? = nil,
         onlyLowSec: Bool = false,  // 添加新参数，默认为false
+        jumpSystems: [JumpSystemData],  // 添加已加载的星系数据参数
         onSelect: @escaping (Int) -> Void,
         onCancel: @escaping () -> Void
     ) {
@@ -1090,6 +1002,7 @@ struct SystemSelectorSheet: View {
         self.onCancel = onCancel
         self.currentSelection = currentSelection
         self.onlyLowSec = onlyLowSec
+        self.jumpSystems = jumpSystems
         _selectedSystemId = State(initialValue: currentSelection)
     }
 
@@ -1162,8 +1075,19 @@ struct SystemSelectorSheet: View {
         if searchText.isEmpty {
             return systems
         } else {
-            return systems.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
-                .sorted { $0.name < $1.name }
+            // 使用已创建的索引快速访问原始数据
+            return systems.filter { system in
+                if system.name.localizedCaseInsensitiveContains(searchText) {
+                    return true
+                }
+
+                if let originalSystem = systemIdToOriginalSystem[system.id] {
+                    return originalSystem.nameEN.localizedCaseInsensitiveContains(searchText)
+                        || originalSystem.nameZH.localizedCaseInsensitiveContains(searchText)
+                }
+
+                return false
+            }.sorted { $0.name < $1.name }
         }
     }
 
@@ -1171,17 +1095,22 @@ struct SystemSelectorSheet: View {
     private func loadSystems() {
         isLoading = true
 
-        // 使用全局缓存的星系数据
+        // 使用传入的星系数据而不是重新加载
         DispatchQueue.global(qos: .userInitiated).async {
-            let loadedSystems = JumpSystemsCache.shared.jumpableSystems
+            // 获取所有可跳跃星系
+            let loadedSystems = JumpSystemData.getJumpableSystems(from: jumpSystems)
 
             // 根据onlyLowSec参数过滤星系
             let filteredSystems =
                 onlyLowSec ? loadedSystems.filter { $0.security < 0.5 } : loadedSystems
 
+            // 创建ID到原始数据的映射，用于优化搜索
+            let idToSystem = Dictionary(uniqueKeysWithValues: jumpSystems.map { ($0.id, $0) })
+
             // 在主线程更新UI
             DispatchQueue.main.async {
                 systems = filteredSystems.sorted { $0.name < $1.name }
+                systemIdToOriginalSystem = idToSystem
                 isLoading = false
             }
         }
@@ -1249,6 +1178,8 @@ struct ShipSelectorView: View {
         for (groupId, groupShips) in ships {
             let filteredGroupShips = groupShips.filter { ship in
                 ship.name.localizedCaseInsensitiveContains(searchText)
+                    || ship.enName.localizedCaseInsensitiveContains(searchText)
+                    || ship.zhName.localizedCaseInsensitiveContains(searchText)
             }
             if !filteredGroupShips.isEmpty {
                 filtered[groupId] = filteredGroupShips
