@@ -355,9 +355,11 @@ final class PersonalContractsViewModel: ObservableObject {
 struct PersonalContractsView: View {
     @StateObject private var viewModel: PersonalContractsViewModel
     @State private var showSettings = false
+    @State private var showFilterMenu = false  // 添加过滤菜单状态
 
     // 使用@AppStorage并使用动态key
     @AppStorage("") private var showActiveOnly: Bool = false
+    @AppStorage("") private var showAttentionOnly: Bool = false
     @AppStorage("") private var showCourierContracts: Bool = true
     @AppStorage("") private var showItemExchangeContracts: Bool = true
     @AppStorage("") private var showAuctionContracts: Bool = true
@@ -379,6 +381,7 @@ struct PersonalContractsView: View {
 
         // 初始化@AppStorage的key
         _showActiveOnly = AppStorage(wrappedValue: false, "showActiveOnly_\(characterId)")
+        _showAttentionOnly = AppStorage(wrappedValue: false, "showAttentionOnly_\(characterId)")
         _showCourierContracts = AppStorage(
             wrappedValue: true, "showCourierContracts_\(characterId)"
         )
@@ -438,7 +441,17 @@ struct PersonalContractsView: View {
                         || (contract.type == "item_exchange" && showItemExchangeContracts)
                         || (contract.type == "auction" && showAuctionContracts)
 
-                    let showByStatus = !showActiveOnly || contract.status == "outstanding"
+                    let showByStatus: Bool
+                    if showAttentionOnly {
+                        // 只显示需要注意的状态
+                        showByStatus = ["rejected", "failed", "reversed"].contains(contract.status)
+                    } else if showActiveOnly {
+                        // 只显示活跃状态
+                        showByStatus = contract.status == "outstanding"
+                    } else {
+                        // 显示所有状态
+                        showByStatus = true
+                    }
 
                     return showByType && showByStatus
                 }
@@ -628,8 +641,17 @@ struct PersonalContractsView: View {
                                                 && showItemExchangeContracts)
                                             || (contract.type == "auction" && showAuctionContracts)
 
-                                        let showByStatus =
-                                            !showActiveOnly || contract.status == "outstanding"
+                                        let showByStatus: Bool
+                                        if showAttentionOnly {
+                                            // 只显示需要注意的状态
+                                            showByStatus = ["rejected", "failed", "reversed"].contains(contract.status)
+                                        } else if showActiveOnly {
+                                            // 只显示活跃状态
+                                            showByStatus = contract.status == "outstanding"
+                                        } else {
+                                            // 显示所有状态
+                                            showByStatus = true
+                                        }
 
                                         return showByType && showByStatus
                                     }.count
@@ -705,9 +727,6 @@ struct PersonalContractsView: View {
 
                     if !courierMode {
                         Section {
-                            Toggle(isOn: $showActiveOnly) {
-                                Text(NSLocalizedString("Contract_Show_Active_Only", comment: ""))
-                            }
                             Toggle(isOn: $showCourierContracts) {
                                 Text(NSLocalizedString("Contract_Show_Courier", comment: ""))
                             }
@@ -717,6 +736,8 @@ struct PersonalContractsView: View {
                             Toggle(isOn: $showAuctionContracts) {
                                 Text(NSLocalizedString("Contract_Show_Auction", comment: ""))
                             }
+                        } header: {
+                            Text(NSLocalizedString("Contract_Type_Filter", comment: ""))
                         }
                     }
 
@@ -753,6 +774,49 @@ struct PersonalContractsView: View {
         .navigationTitle(NSLocalizedString("Main_Contracts", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Menu {     
+                    Button(action: {
+                        showActiveOnly = false
+                        showAttentionOnly = false
+                    }) {
+                        HStack {
+                            Text(NSLocalizedString("Contract_Show_All_Status", comment: ""))
+                            if (!showActiveOnly && !showAttentionOnly) {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                    Divider()
+                    Button(action: {
+                        showActiveOnly = true
+                        showAttentionOnly = false
+                    }) {
+                        HStack {
+                            Text(NSLocalizedString("Contract_Show_Active_Only", comment: ""))
+                            if showActiveOnly {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                    
+                    Button(action: {
+                        showAttentionOnly = true
+                        showActiveOnly = false
+                    }) {
+                        HStack {
+                            Text(NSLocalizedString("Contract_Show_Attention_Only", comment: ""))
+                            if showAttentionOnly {
+                                Image(systemName: "checkmark")
+                            }
+                        }
+                    }
+                    
+                } label: {
+                    Image(systemName: "line.3.horizontal.decrease.circle")
+                }
+            }
+            
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
                     showSettings = true

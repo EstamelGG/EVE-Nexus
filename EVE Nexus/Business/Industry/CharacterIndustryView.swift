@@ -16,28 +16,37 @@ class CharacterIndustryViewModel: ObservableObject {
 
     private let characterId: Int
     private let databaseManager: DatabaseManager
-    private var updateTask: Task<Void, Never>?
+    private var updateTask: Task<Void, Never>?  // 用于更新currentTime的任务
     private var loadingTask: Task<Void, Never>?
     private var initialLoadDone = false
+    private var cachedJobs: [IndustryJob]? = nil  // 缓存工业项目数据
 
     init(characterId: Int, databaseManager: DatabaseManager = DatabaseManager()) {
         self.characterId = characterId
         self.databaseManager = databaseManager
+        
+        // 在初始化时立即加载一次数据
+        Task {
+            await loadJobs()
+        }
+        
+        // 启动定时更新currentTime的任务
+        startUpdateTask()
     }
 
     deinit {
         updateTask?.cancel()
         loadingTask?.cancel()
     }
-
-    // 启动更新任务
+    
+    // 启动更新当前时间的任务
     private func startUpdateTask() {
         stopUpdateTask()  // 确保先停止已有的任务
 
         updateTask = Task { @MainActor in
             while !Task.isCancelled {
                 self.currentTime = Date()  // 更新当前时间，触发UI刷新
-                try? await Task.sleep(nanoseconds: 5_000_000_000)  // 5秒
+                try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1秒
             }
         }
     }
@@ -57,15 +66,15 @@ class CharacterIndustryViewModel: ObservableObject {
 
         // 首先筛选出进行中和未交付的任务
         let activeJobs = jobs.filter { job in
-            (job.status == "active" && job.end_date > Date())  // 正在进行中
+            (job.status == "active" && job.end_date > currentTime)  // 正在进行中
                 || job.status == "ready"  // 已完成但未交付
-                || (job.status == "active" && job.end_date <= Date())  // 已完成但状态未更新
+                || (job.status == "active" && job.end_date <= currentTime)  // 已完成但状态未更新
         }
 
         if !activeJobs.isEmpty {
             let sortedActiveJobs = activeJobs.sorted {
-                let isActive1 = $0.status == "active" && $0.end_date > Date()
-                let isActive2 = $1.status == "active" && $1.end_date > Date()
+                let isActive1 = $0.status == "active" && $0.end_date > currentTime
+                let isActive2 = $1.status == "active" && $1.end_date > currentTime
                 if isActive1 != isActive2 {
                     return isActive1
                 }
@@ -125,10 +134,7 @@ class CharacterIndustryViewModel: ObservableObject {
 
             do {
                 // 加载数据
-                let jobs = try await CharacterIndustryAPI.shared.fetchIndustryJobs(
-                    characterId: characterId,
-                    forceRefresh: forceRefresh
-                )
+                let jobs = try await fetchJobs(forceRefresh: forceRefresh)
 
                 if Task.isCancelled { return }
 
@@ -143,7 +149,6 @@ class CharacterIndustryViewModel: ObservableObject {
                 if Task.isCancelled { return }
 
                 groupJobsByDate()
-                startUpdateTask()
 
                 self.isLoading = false
                 self.initialLoadDone = true
@@ -159,6 +164,26 @@ class CharacterIndustryViewModel: ObservableObject {
 
         // 等待任务完成
         await loadingTask?.value
+    }
+    
+    // 封装获取数据逻辑，处理缓存
+    private func fetchJobs(forceRefresh: Bool = false) async throws -> [IndustryJob] {
+        // 如果不是强制刷新且有缓存，直接返回缓存
+        if !forceRefresh, let cached = cachedJobs {
+            Logger.info("使用内存缓存的工业项目数据 - 角色ID: \(characterId)")
+            return cached
+        }
+        
+        // 从API获取数据
+        let jobs = try await CharacterIndustryAPI.shared.fetchIndustryJobs(
+            characterId: characterId,
+            forceRefresh: forceRefresh
+        )
+        
+        // 更新缓存
+        self.cachedJobs = jobs
+        
+        return jobs
     }
 
     private func loadItemNames() async {
@@ -241,11 +266,8 @@ struct CharacterIndustryView: View {
         let vm = CharacterIndustryViewModel(
             characterId: characterId, databaseManager: databaseManager)
         _viewModel = StateObject(wrappedValue: vm)
-
-        // 在初始化时立即启动数据加载
-        Task {
-            await vm.loadJobs()
-        }
+        
+        // ViewModel已在其init方法中启动数据加载，此处无需重复加载
     }
 
     // 格式化日期显示

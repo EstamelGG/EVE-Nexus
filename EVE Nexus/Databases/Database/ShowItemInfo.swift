@@ -16,7 +16,7 @@ struct ShowItemInfo: View {
     @State private var attributeGroups: [AttributeGroup] = []
 
     private func buildTraitsText(
-        roleBonuses: [Trait], typeBonuses: [Trait], databaseManager: DatabaseManager
+        roleBonuses: [Trait], typeBonuses: [Trait], miscBonuses: [Trait] = [], databaseManager: DatabaseManager
     ) -> String {
         var text = ""
 
@@ -25,11 +25,11 @@ struct ShowItemInfo: View {
             text += "- <b>\(NSLocalizedString("Main_Database_Role_Bonuses", comment: ""))</b>\n"
             text +=
                 roleBonuses
-                .map { "• \($0.content)" }
+                .map { " • \($0.content)" }
                 .joined(separator: "\n")
         }
 
-        if !roleBonuses.isEmpty && !typeBonuses.isEmpty {
+        if !roleBonuses.isEmpty && (!typeBonuses.isEmpty || !miscBonuses.isEmpty) {
             text += "\n\n"
         }
 
@@ -49,7 +49,7 @@ struct ShowItemInfo: View {
                         groupedBonuses[skill]?.sorted(by: { $0.importance < $1.importance }) ?? []
                     text +=
                         bonuses
-                        .map { "• \($0.content)" }
+                        .map { " • \($0.content)" }
                         .joined(separator: "\n")
 
                     if skill != sortedSkills.last {
@@ -57,6 +57,20 @@ struct ShowItemInfo: View {
                     }
                 }
             }
+        }
+        
+        // 如果有Type Bonuses同时也有Misc Bonuses，添加分隔符
+        if !typeBonuses.isEmpty && !miscBonuses.isEmpty {
+            text += "\n\n"
+        }
+        
+        // Misc Bonuses
+        if !miscBonuses.isEmpty {
+            text += "- <b>\(NSLocalizedString("Main_Database_Misc_Bonuses", comment: ""))</b>\n"
+            text +=
+                miscBonuses
+                .map { $0.content.hasPrefix("<b><u>") ? "-- \($0.content)" : " • \($0.content)" }
+                .joined(separator: "\n")
         }
 
         return text.isEmpty ? "" : text
@@ -126,6 +140,7 @@ struct ShowItemInfo: View {
                 let traitText = buildTraitsText(
                     roleBonuses: traitGroup.roleBonuses,
                     typeBonuses: traitGroup.typeBonuses,
+                    miscBonuses: traitGroup.miscBonuses,
                     databaseManager: databaseManager
                 )
 

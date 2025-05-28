@@ -108,10 +108,12 @@ public struct Trait {
 public struct TraitGroup {
     public let roleBonuses: [Trait]
     public let typeBonuses: [Trait]
+    public let miscBonuses: [Trait]
 
-    public init(roleBonuses: [Trait], typeBonuses: [Trait]) {
+    public init(roleBonuses: [Trait], typeBonuses: [Trait], miscBonuses: [Trait] = []) {
         self.roleBonuses = roleBonuses
         self.typeBonuses = typeBonuses
+        self.miscBonuses = miscBonuses
     }
 }
 
@@ -125,6 +127,7 @@ public struct ItemDetails {
     public let categoryID: Int?
     public let roleBonuses: [Trait]?
     public let typeBonuses: [Trait]?
+    public let miscBonuses: [Trait]?
     public let typeId: Int
     public let groupID: Int?
     public let volume: Double?
@@ -137,6 +140,7 @@ public struct ItemDetails {
         name: String, description: String, iconFileName: String, groupName: String,
         categoryID: Int? = nil,
         categoryName: String, roleBonuses: [Trait]? = [], typeBonuses: [Trait]? = [],
+        miscBonuses: [Trait]? = [],
         typeId: Int, groupID: Int?, volume: Double? = nil, repackagedVolume: Double? = nil,
         capacity: Double? = nil,
         mass: Double? = nil,
@@ -150,6 +154,7 @@ public struct ItemDetails {
         self.categoryID = categoryID
         self.roleBonuses = roleBonuses
         self.typeBonuses = typeBonuses
+        self.miscBonuses = miscBonuses
         self.typeId = typeId
         self.groupID = groupID
         self.volume = volume

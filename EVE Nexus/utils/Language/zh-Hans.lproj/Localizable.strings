@@ -6,7 +6,6 @@
   
 */
 
-"App_Language" = "zh";
 "Main_Home" = "首页";
 "Main_Character" = "人物";
 "Main_Character_Sheet" = "人物表单";
@@ -14,10 +13,14 @@
 "Main_Jump_Clones_Available" = "跳跃克隆可用: ";
 "Main_Skills" = "技能";
 "Main_Skills_Ponits" = "$num SP";
-"Main_Skills_Queue" = "队列长度：$num ($day天$hour时$minutes分)";
-"Main_Skills_Queue_Training" = "训练中: $num个技能 ($day天$hour时$minutes分)";
-"Main_Skills_Queue_Paused" = "已暂停: $num个技能";
+// 技能队列倒计时
+"Main_Skills_Queue_Training_Days" = "训练中: %d个技能(%d天%d小时%d分)";
+"Main_Skills_Queue_Training_Hours" = "训练中: %d个技能(%d小时%d分%d秒)";
+"Main_Skills_Queue_Training_Minutes" = "训练中: %d个技能(%d分%d秒)";
+"Main_Skills_Queue_Paused" = "已暂停: %d个技能";
+"Main_Skills_Queue_Complete" = "已完成";
 "Main_Skills_Queue_Empty" = "技能队列为空";
+
 "Main_EVE_Mail" = "EVE 邮件";
 "Main_Calendar" = "日历";
 "Main_Wealth" = "个人财产";
@@ -26,8 +29,6 @@
 "Main_Databases" = "数据";
 "Main_Database" = "数据库";
 "Main_Database_title" = "数据库";
-"Main_Database_nothing_found" = "无数据";
-"DatabaseName" = "item_db_zh";
 "Main_Database_unpublished" = "未发布";
 "Main_Database_published" = "已发布";
 "Main_Database_Search" = "搜索";
@@ -39,6 +40,7 @@
 "Main_Database_Item_info_Reprocess" = "精炼产出";
 "Main_Database_Source" = "精炼来源";
 "Main_Database_Role_Bonuses" = "特有加成";
+"Main_Database_Misc_Bonuses" = "其他加成";
 "Main_Database_Bonuses_Per_Level" = "每级技能加成";
 "Main_Database_Required_By" = "技能等级适用于";
 "Main_Database_NPC_Scene" = "NPC";
@@ -85,7 +87,6 @@
 "Main_Setting_Light" = "浅色";
 "Main_Setting_Auto" = "跟随系统";
 "Main_Setting_Select_Language" = "选择语言";
-"Main_Setting_SwitchLanguageConfirmation" = "需要重新加载APP以切换语言.";
 "Main_Setting_Clean_Cache" = "清理缓存";
 "Main_Setting_Clean_Cache_Title" = "清理缓存";
 "Main_Setting_Clean_Cache_Message" = "这将清理应用缓存，包括网络缓存和临时文件。是否确认？";
@@ -96,7 +97,6 @@
 "Main_Setting_Cancel" = "取消";
 "Main_Setting_Clean" = "清理";
 "Main_Setting_Reset" = "重置";
-"Main_Setting_Cache_Total_Count" = "\n总数量：%d 项";
 "Main_Setting_Cache_Details" = "各项统计: ";
 "Main_Setting_Cache_Item_Format" = "%@: %@ (%d 项)";
 "Main_Setting_Cache_Type_Network" = "网络缓存";
@@ -114,8 +114,6 @@
 "Main_Setting_Cache_Expired" = "已过期";
 
 "Main_About" = "关于";
-"Main_About_Title" = "关于";
-"Main_About_Version" = "应用版本";
 "Main_About_Database_Version" = "数据库版本";
 "Main_About_Author" = "作者";
 "Main_About_Github" = "Github";
@@ -146,7 +144,6 @@
 
 // 蓝图详情
 "Blueprint_Product" = "产品";
-"Blueprint_Invention_Product" = "发明产出";
 "Blueprint_Success_Rate" = "成功率: %d%%";
 "Time_Year" = "年";
 "Time_Month" = "月";
@@ -179,9 +176,7 @@
 "Planet_Detail_Last_Update" = "行星布局提交于";
 
 // 物品信息
-"Item_Info_Blueprint" = "蓝图";
 "Blueprint_Source" = "发明来源";
-"Setting_Cache" = "缓存";
 "Item_Basic_Info" = "基础信息";
 "Container_Basic_Info" = "容器";
 "Item_Volume" = "体积";
@@ -288,7 +283,6 @@
 "Main_Setting_Logs_Level_Warning" = "警告";
 "Main_Setting_Logs_Level_Error" = "错误";
 "Main_Setting_Logs_Level_Fault" = "故障";
-"Main_Setting_Delete" = "删除";
 "Main_Setting_Logs_Search_Placeholder" = "搜索日志内容...";
 "Main_Setting_Logs_Search_No_Results" = "未找到匹配内容";
 
@@ -535,7 +529,11 @@
 "Main_Jump_Clones_Ready" = "下次跳跃：现在";
 "Main_Jump_Clones_Cooldown" = "下次跳跃：%d小时后";
 "Main_Jump_Clones_Cooldown_Hours_Minutes" = "下次跳跃：%d小时%d分钟后";
+"Main_Jump_Clones_Cooldown_Hours_Seconds" = "下次跳跃：%d小时%d秒后";
+"Main_Jump_Clones_Cooldown_Hours_Minutes_Seconds" = "下次跳跃：%d小时%d分钟%d秒后";
 "Main_Jump_Clones_Cooldown_Minutes" = "下次跳跃：%d分钟后";
+"Main_Jump_Clones_Cooldown_Minutes_Seconds" = "下次跳跃：%d分%d秒后";
+"Main_Jump_Clones_Cooldown_Seconds" = "下次跳跃：%d秒后";
 "Character_Never" = "从未";
 
 // Skills View
@@ -621,6 +619,7 @@
 "Main_LP_Store_category" = "可兑换物品分类";
 "Main_LP_Store_Factions" = "可选势力";
 "Main_LP_Store_Corps" = "可选军团";
+"LP_Store_Loading_Progress" = "正在加载LP商店数据 (%d/%d)";
 
 "Main_EVE_Mail_Title" = "EVE 邮件";
 "Main_EVE_Mail_All" = "全部邮件";
@@ -773,11 +772,13 @@
 
 // 搜索页面
 "Main_Search_Title" = "搜索";
+"Main_Contact_Search" = "社交搜索";
 "Main_Search_Placeholder" = "输入搜索内容...";
 "Main_Search_Type_Character" = "人物";
 "Main_Search_Type_Corporation" = "军团";
 "Main_Search_Type_Alliance" = "联盟";
 "Main_Search_Type_Structure" = "建筑";
+"Main_Search_Too_Short" = "关键词太短";
 "Main_No_Corp" = "无军团";
 "Main_No_Alliance" = "无联盟";
 "Main_No_Title" = "无头衔";
@@ -1137,11 +1138,15 @@
 "Contract_Display_300" = "300个合同";
 "Contract_Display_500" = "500个合同";
 "Contract_Display_Unlimited" = "无限制（不推荐）";
+"Contract_Status_Filter" = "过滤状态";
+"Contract_Type_Filter" = "过滤类型";
 
 "Contract_Courier_Mode" = "快递模式";
 "Contract_Courier_Mode_Description" = "仅显示未决的快递合同，按路线分组";
 "Contract_Route_Format" = "%@ → %@";
-"Contract_Show_Active_Only" = "仅显示未决合同";
+"Contract_Show_Active_Only" = "未决合同";
+"Contract_Show_Attention_Only" = "需要注意";
+"Contract_Show_All_Status" = "全部";
 
 // Contract Courier Mode Text
 "Contract_Courier_Active_Count" = "%d个待处理合同";
@@ -1584,3 +1589,4 @@
 "Fitting_No_Local_Fitting" = "没有本地保存的装配";
 "Fitting_Setting_Ship" = "舰船设置";
 "Fitting_Name" = "配置名称";
+

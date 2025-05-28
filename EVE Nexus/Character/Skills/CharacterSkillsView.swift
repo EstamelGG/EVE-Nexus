@@ -254,10 +254,7 @@ struct CharacterSkillsView: View {
     private var skillQueueSection: some View {
         Section {
             if skillQueue.isEmpty {
-                Text(
-                    NSLocalizedString("Main_Skills_Queue_Empty", comment: "").replacingOccurrences(
-                        of: "$num", with: "0")
-                )
+                Text(NSLocalizedString("Main_Skills_Queue_Empty", comment: ""))
                 .foregroundColor(.secondary)
             } else {
                 ForEach(activeSkills) { item in

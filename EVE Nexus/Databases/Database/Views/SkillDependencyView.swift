@@ -68,7 +68,7 @@ struct SkillDependencySection: View {
 
     // 获取等级对应的图标名称
     private func getIconForLevel(_ level: Int) -> String {
-        return "skill_lv_\(level + 1)"
+        return "skill_lv_\(level)"
     }
 
     var body: some View {

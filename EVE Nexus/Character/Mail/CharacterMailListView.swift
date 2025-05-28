@@ -1,152 +1,113 @@
 import SwiftUI
 
-// 全局头像缓存
-actor CharacterPortraitCache {
-    static let shared = CharacterPortraitCache()
-    private var cache: [String: UIImage] = [:]
-
-    private init() {}
-
-    func image(for characterId: Int, size: Int) -> UIImage? {
-        return cache["\(characterId)_\(size)"]
-    }
-
-    func setImage(_ image: UIImage, for characterId: Int, size: Int) {
-        cache["\(characterId)_\(size)"] = image
-    }
-}
-
+// 全局头像加载器
 @MainActor
-class CharacterPortraitViewModel: ObservableObject {
-    @Published var image: UIImage?
-    @Published var isLoading = false
-    @Published var isCorporation = false
-    @Published var error: Error?
-
-    let characterId: Int
-    let size: Int
-
-    init(characterId: Int, size: Int) {
-        self.characterId = characterId
-        self.size = size
-    }
-
-    func loadImage() async {
-        // 先检查缓存
-        if let cachedImage = await CharacterPortraitCache.shared.image(for: characterId, size: size)
-        {
-            image = cachedImage
+class CharacterPortraitLoader: ObservableObject {
+    static let shared = CharacterPortraitLoader()
+    
+    @Published private(set) var portraits: [String: UIImage] = [:]
+    @Published private(set) var isCorporation: [String: Bool] = [:]
+    private var loadingTasks: [String: Task<Void, Never>] = [:]
+    
+    private init() {}
+    
+    func loadPortrait(for characterId: Int, size: Int) {
+        let key = "\(characterId)_\(size)"
+        
+        // 如果已经在加载中或已加载完成，直接返回
+        if loadingTasks[key] != nil || portraits[key] != nil {
             return
         }
-
-        // 如果缓存中没有，则开始加载
-        isLoading = true
-
-        // 使用defer确保在函数结束时重置isLoading状态
-        defer {
-            isLoading = false
-        }
-
-        do {
-            // 检查任务是否已取消
-            try Task.checkCancellation()
-
-            // 尝试获取角色头像
+        
+        // 创建新的加载任务
+        let task = Task {
             do {
+                // 尝试获取角色头像
                 let portrait = try await CharacterAPI.shared.fetchCharacterPortrait(
-                    characterId: characterId, size: size, catchImage: false
+                    characterId: characterId,
+                    size: size,
+                    catchImage: false
                 )
-
-                // 再次检查任务是否已取消
-                try Task.checkCancellation()
-
-                // 保存到缓存
-                await CharacterPortraitCache.shared.setImage(portrait, for: characterId, size: size)
-                image = portrait
-                Logger.info(
-                    "成功获取并缓存角色头像 - 角色ID: \(characterId), 大小: \(size), 数据大小: \(portrait.jpegData(compressionQuality: 1.0)?.count ?? 0) bytes"
-                )
-                return
-            } catch {
-                // 检查任务是否已取消
-                try Task.checkCancellation()
-
-                if error is CancellationError {
-                    throw error
+                
+                await MainActor.run {
+                    self.portraits[key] = portrait
+                    self.isCorporation[key] = false
                 }
-
-                Logger.info("获取角色头像失败，尝试获取军团头像 - ID: \(characterId)")
-
+                
+                Logger.info("成功加载角色头像 - ID: \(characterId), 大小: \(size)")
+            } catch {
                 // 如果获取角色头像失败，尝试获取军团头像
-                let corpLogo = try await CorporationAPI.shared.fetchCorporationLogo(
-                    corporationId: characterId, size: size
-                )
-
-                // 再次检查任务是否已取消
-                try Task.checkCancellation()
-
-                // 保存到缓存
-                await CharacterPortraitCache.shared.setImage(corpLogo, for: characterId, size: size)
-                image = corpLogo
-                isCorporation = true
-                Logger.info("成功获取并缓存军团头像 - 军团ID: \(characterId), 大小: \(size)")
-            }
-        } catch {
-            if error is CancellationError {
-                Logger.debug("加载头像任务被取消 - ID: \(characterId)")
-            } else {
-                Logger.error("加载头像失败（角色和军团都失败）: \(error)")
-                self.error = error
+                do {
+                    let corpLogo = try await CorporationAPI.shared.fetchCorporationLogo(
+                        corporationId: characterId,
+                        size: size
+                    )
+                    
+                    await MainActor.run {
+                        self.portraits[key] = corpLogo
+                        self.isCorporation[key] = true
+                    }
+                    
+                    Logger.info("成功加载军团头像 - ID: \(characterId), 大小: \(size)")
+                } catch {
+                    Logger.error("加载头像失败（角色和军团都失败）: \(error)")
+                }
             }
         }
+        
+        loadingTasks[key] = task
+    }
+    
+    func cancelAllTasks() {
+        loadingTasks.values.forEach { $0.cancel() }
+        loadingTasks.removeAll()
+    }
+    
+    func getPortrait(for characterId: Int, size: Int) -> UIImage? {
+        return portraits["\(characterId)_\(size)"]
+    }
+    
+    func isCorporationPortrait(for characterId: Int, size: Int) -> Bool {
+        return isCorporation["\(characterId)_\(size)"] ?? false
     }
 }
 
+// 头像视图
 struct CharacterPortrait: View {
     let characterId: Int
     let size: CGFloat
     let displaySize: CGFloat
     let cornerRadius: CGFloat
-    @StateObject private var viewModel: CharacterPortraitViewModel
-
+    @StateObject private var portraitLoader = CharacterPortraitLoader.shared
+    
     init(characterId: Int, size: CGFloat, displaySize: CGFloat? = nil, cornerRadius: CGFloat = 6) {
         self.characterId = characterId
         self.size = size
         self.displaySize = displaySize ?? size
         self.cornerRadius = cornerRadius
-        // 始终使用64尺寸的图片
-        _viewModel = StateObject(
-            wrappedValue: CharacterPortraitViewModel(characterId: characterId, size: 64))
     }
-
+    
     var body: some View {
         ZStack {
-            if let image = viewModel.image {
+            if let image = portraitLoader.getPortrait(for: characterId, size: Int(size)) {
                 Image(uiImage: image)
                     .resizable()
                     .aspectRatio(contentMode: .fill)
                     .frame(width: displaySize, height: displaySize)
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
                     .overlay(
-                        viewModel.isCorporation
+                        portraitLoader.isCorporationPortrait(for: characterId, size: Int(size))
                             ? RoundedRectangle(cornerRadius: cornerRadius)
                                 .stroke(Color.gray.opacity(0.3), lineWidth: 1)
                             : nil
                     )
-            } else if viewModel.isLoading {
+            } else {
                 ProgressView()
                     .frame(width: displaySize, height: displaySize)
-            } else {
-                Image("default_char")
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: displaySize, height: displaySize)
-                    .foregroundColor(.gray)
-                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             }
         }
-        .task {
-            await viewModel.loadImage()
+        .onAppear {
+            portraitLoader.loadPortrait(for: characterId, size: Int(size))
         }
     }
 }

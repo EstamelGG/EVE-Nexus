@@ -65,6 +65,9 @@ class MainViewModel: ObservableObject {
     @Published var cloneJumpStatus: String = NSLocalizedString(
         "Main_Jump_Clones_Available", comment: ""
     )
+    @Published var cloneCooldownEndDate: Date? = nil  // 克隆冷却结束时间
+    @Published var skillQueueEndDate: Date? = nil     // 技能队列完成时间
+    @Published var skillQueueCount: Int = 0           // 技能队列中的技能数量
     @Published var isRefreshing = false
     @Published var loadingState: LoadingState = .idle
     @Published var lastError: RefreshError?
@@ -78,8 +81,6 @@ class MainViewModel: ObservableObject {
     // MARK: - Private Properties
 
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
-    private var cloneCooldownEndDate: Date?  // 缓存冷却结束时间
-    private var refreshTimer: Timer?  // 定时器
     private var cloneCooldownPeriod: TimeInterval {
         guard let character = selectedCharacter else { return Constants.baseCloneCooldown }
 
@@ -144,79 +145,18 @@ class MainViewModel: ObservableObject {
 
                 if timeSinceLastJump >= cloneCooldownPeriod {
                     cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
-                    stopTimer()
+                    cloneCooldownEndDate = nil
                 } else {
-                    // 计算并缓存冷却完成时间
+                    // 计算并缓存冷却完成时间，但不使用定时器更新
                     cloneCooldownEndDate = jumpDate.addingTimeInterval(cloneCooldownPeriod)
-                    updateCloneStatusDisplay()
-                    startTimer()
+                    // 设置基本状态，具体倒计时由CloneCountdownView组件处理
+                    cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Available", comment: "")
                 }
             }
         } else {
             cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
-            stopTimer()
+            cloneCooldownEndDate = nil
         }
-    }
-
-    @MainActor
-    private func updateCloneStatusDisplay() {
-        guard let endDate = cloneCooldownEndDate else {
-            cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
-            return
-        }
-
-        let now = Date()
-        let remainingTime = endDate.timeIntervalSince(now)
-
-        if remainingTime <= 0 {
-            cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
-            stopTimer()
-            return
-        }
-
-        // 转换为小时和分钟
-        let hours = Int(remainingTime) / 3600
-        let minutes = (Int(remainingTime) % 3600) / 60
-
-        if hours > 0 {
-            if minutes > 0 {
-                cloneJumpStatus = String(
-                    format: NSLocalizedString(
-                        "Main_Jump_Clones_Cooldown_Hours_Minutes", comment: ""
-                    ), hours, minutes
-                )
-            } else {
-                cloneJumpStatus = String(
-                    format: NSLocalizedString("Main_Jump_Clones_Cooldown", comment: ""), hours
-                )
-            }
-        } else {
-            cloneJumpStatus = String(
-                format: NSLocalizedString("Main_Jump_Clones_Cooldown_Minutes", comment: ""), minutes
-            )
-        }
-    }
-
-    @MainActor
-    private func startTimer() {
-        stopTimer()
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 5.0, repeats: true) { [weak self] _ in
-            Task { @MainActor in
-                self?.updateCloneStatusDisplay()
-            }
-        }
-    }
-
-    @MainActor
-    private func stopTimer() {
-        refreshTimer?.invalidate()
-        refreshTimer = nil
-    }
-
-    deinit {
-        // 直接在deinit中停止定时器，不使用异步调用
-        refreshTimer?.invalidate()
-        refreshTimer = nil
     }
 
     private func updateSkillPoints(_ totalSP: Int?) {
@@ -234,29 +174,6 @@ class MainViewModel: ObservableObject {
         let hours = (seconds % Constants.secondsInDay) / Constants.secondsInHour
         let minutes = (seconds % Constants.secondsInHour) / Constants.secondsInMinute
         return (days, hours, minutes)
-    }
-
-    private func updateQueueStatus(length: Int?, finishTime: TimeInterval?) {
-        if let qLength = length {
-            if let time = finishTime {
-                let components = formatTimeComponents(seconds: Int(time))
-                characterStats.queueStatus = NSLocalizedString(
-                    "Main_Skills_Queue_Training", comment: ""
-                )
-                .replacingOccurrences(of: "$num", with: "\(qLength)")
-                .replacingOccurrences(of: "$day", with: "\(components.days)")
-                .replacingOccurrences(of: "$hour", with: "\(components.hours)")
-                .replacingOccurrences(of: "$minutes", with: "\(components.minutes)")
-            } else {
-                characterStats.queueStatus = NSLocalizedString(
-                    "Main_Skills_Queue_Paused", comment: ""
-                )
-                .replacingOccurrences(of: "$num", with: "\(qLength)")
-            }
-        } else {
-            characterStats.queueStatus = NSLocalizedString("Main_Skills_Queue_Empty", comment: "")
-                .replacingOccurrences(of: "$num", with: "0")
-        }
     }
 
     private func updateWalletBalance(_ balance: Double?) {
@@ -277,6 +194,27 @@ class MainViewModel: ObservableObject {
         )
         updateSkillPoints(skillsResponse.total_sp)
 
+        // 更新技能队列数量
+        skillQueueCount = queue.count
+        
+        // 更新技能队列结束时间
+        if let lastSkill = queue.last, let remainingTime = lastSkill.remainingTime, remainingTime > 0 {
+            skillQueueEndDate = Date().addingTimeInterval(remainingTime)
+        } else if !queue.isEmpty {
+            // 检查是否有正在训练的技能
+            let trainingSkill = queue.first(where: { $0.isCurrentlyTraining })
+            if trainingSkill != nil {
+                // 有正在训练的技能但没有明确结束时间，设置一个短暂的结束时间
+                skillQueueEndDate = Date().addingTimeInterval(60) // 1分钟
+            } else {
+                // 有技能但没有正在训练的
+                skillQueueEndDate = nil
+            }
+        } else {
+            // 队列为空
+            skillQueueEndDate = nil
+        }
+
         cache.skillQueue = queue.map { skill in
             QueuedSkill(
                 skill_id: skill.skill_id,
@@ -286,10 +224,6 @@ class MainViewModel: ObservableObject {
                 isCurrentlyTraining: skill.isCurrentlyTraining
             )
         }
-        updateQueueStatus(
-            length: queue.count,
-            finishTime: queue.last?.remainingTime
-        )
     }
 
     private func retryOperation<T>(

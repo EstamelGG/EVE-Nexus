@@ -1461,16 +1461,21 @@ struct MarketItemSelectorIntegratedView: View {
                 let groupIDsString = MarketManager.shared.getAllSubGroupIDsFromIDs(
                     marketGroups, allowedIDs: allowedMarketGroups.isEmpty ? [] : allowedMarketGroups
                 ).map { String($0) }.joined(separator: ",")
+                
+                var groupIDsStringIn = "IS NOT NULL"
+                if !groupIDsString.isEmpty {
+                    groupIDsStringIn = "IN (\(groupIDsString))"
+                }
 
                 if let typeIDs = allowTypeIDs, !typeIDs.isEmpty {
                     // 如果有物品ID白名单，添加物品ID筛选条件
                     let typeIDsString = typeIDs.map { String($0) }.joined(separator: ",")
                     return
-                        "t.marketGroupID IN (\(groupIDsString)) AND t.type_id IN (\(typeIDsString)) AND (t.name LIKE ? OR t.en_name LIKE ? OR t.type_id = ?)"
+                        "t.marketGroupID \(groupIDsStringIn) AND t.type_id IN (\(typeIDsString)) AND (t.name LIKE ? OR t.en_name LIKE ? OR t.type_id = ?)"
                 } else {
                     // 否则只筛选市场分组
                     return
-                        "t.marketGroupID IN (\(groupIDsString)) AND (t.name LIKE ? OR t.en_name LIKE ? OR t.type_id = ?)"
+                        "t.marketGroupID \(groupIDsStringIn) AND (t.name LIKE ? OR t.en_name LIKE ? OR t.type_id = ?)"
                 }
             },
             searchParameters: { text in

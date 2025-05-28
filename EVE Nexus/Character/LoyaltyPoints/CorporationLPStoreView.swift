@@ -7,6 +7,8 @@ struct CategoryInfo {
 
 struct LPStoreItemInfo {
     let name: String
+    let enName: String
+    let zhName: String
     let iconFileName: String
     let categoryName: String
     let categoryId: Int
@@ -95,39 +97,38 @@ struct LPStoreGroupView: View {
 
     private var filteredOffers: [LPStoreOffer] {
         if searchText.isEmpty {
-            return sortedOffers
+            return offers
         } else {
-            return sortedOffers.filter { offer in
+            return offers.filter { offer in
                 if let itemInfo = itemInfos[offer.typeId] {
-                    return itemInfo.name.localizedCaseInsensitiveContains(searchText)
+                    return itemInfo.name.localizedCaseInsensitiveContains(searchText) ||
+                           itemInfo.enName.localizedCaseInsensitiveContains(searchText) ||
+                           itemInfo.zhName.localizedCaseInsensitiveContains(searchText)
                 }
                 return false
             }
         }
     }
 
-    private var sortedOffers: [LPStoreOffer] {
-        offers.sorted { offer1, offer2 in
-            if offer1.typeId != offer2.typeId {
-                return offer1.typeId < offer2.typeId
-            }
-            if offer1.lpCost != offer2.lpCost {
-                return offer1.lpCost < offer2.lpCost
-            }
-            return offer1.iskCost < offer2.iskCost
-        }
-    }
-
     var body: some View {
         List {
             Section(NSLocalizedString("Main_LP_Store_section", comment: "")) {
-                ForEach(filteredOffers, id: \.offerId) { offer in
-                    if let itemInfo = itemInfos[offer.typeId] {
-                        LPStoreOfferView(
-                            offer: offer,
-                            itemInfo: itemInfo,
-                            requiredItemInfos: itemInfos
-                        )
+                if !searchText.isEmpty && filteredOffers.isEmpty {
+                    HStack {
+                        Spacer()
+                        Text(NSLocalizedString("Main_Search_No_Results", comment: ""))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                    }
+                } else {
+                    ForEach(filteredOffers, id: \.offerId) { offer in
+                        if let itemInfo = itemInfos[offer.typeId] {
+                            LPStoreOfferView(
+                                offer: offer,
+                                itemInfo: itemInfo,
+                                requiredItemInfos: itemInfos
+                            )
+                        }
                     }
                 }
             }
@@ -141,39 +142,48 @@ struct LPStoreGroupView: View {
     }
 }
 
+struct CategoryOffers {
+    let category: CategoryInfo
+    var offers: [LPStoreOffer]
+}
+
 struct CorporationLPStoreView: View {
     let corporationId: Int
     let corporationName: String
     @State private var offers: [LPStoreOffer] = []
     @State private var itemInfos: [Int: LPStoreItemInfo] = [:]
-    @State private var categoryInfos: [String: CategoryInfo] = [:]
+    @State private var categoryInfos: [Int: CategoryInfo] = [:]
+    @State private var categoryOffers: [CategoryOffers] = []
     @State private var isLoading = true
     @State private var error: Error?
     @State private var hasLoadedData = false
     @State private var searchText = ""
 
-    private var filteredCategoryOffers: [(CategoryInfo, [LPStoreOffer])] {
-        let groups = Dictionary(grouping: offers) { offer in
-            itemInfos[offer.typeId]?.categoryName ?? ""
+    private var filteredOffers: [LPStoreOffer] {
+        if searchText.isEmpty {
+            return []
         }
-
-        let filtered = groups.compactMap { name, offers -> (CategoryInfo, [LPStoreOffer])? in
-            guard let categoryInfo = categoryInfos[name] else { return nil }
-
-            if searchText.isEmpty {
-                return (categoryInfo, offers)
-            } else {
-                let filteredOffers = offers.filter { offer in
-                    if let itemInfo = itemInfos[offer.typeId] {
-                        return itemInfo.name.localizedCaseInsensitiveContains(searchText)
-                    }
-                    return false
+        
+        var matchedOffers: [LPStoreOffer] = []
+        for category in categoryOffers {
+            let filteredOffers = category.offers.filter { offer in
+                if let itemInfo = itemInfos[offer.typeId] {
+                    return itemInfo.name.localizedCaseInsensitiveContains(searchText) ||
+                           itemInfo.enName.localizedCaseInsensitiveContains(searchText) ||
+                           itemInfo.zhName.localizedCaseInsensitiveContains(searchText)
                 }
-                return filteredOffers.isEmpty ? nil : (categoryInfo, filteredOffers)
+                return false
             }
-        }.sorted { $0.0.name < $1.0.name }
-
-        return filtered
+            matchedOffers.append(contentsOf: filteredOffers)
+        }
+        
+        return matchedOffers.sorted { offer1, offer2 in
+            if let info1 = itemInfos[offer1.typeId],
+               let info2 = itemInfos[offer2.typeId] {
+                return info1.name.localizedStandardCompare(info2.name) == .orderedAscending
+            }
+            return false
+        }
     }
 
     var body: some View {
@@ -205,32 +215,58 @@ struct CorporationLPStoreView: View {
                 }
                 .listSectionSpacing(.compact)
             } else {
-                Section(NSLocalizedString("Main_LP_Store_category", comment: "")) {
-                    ForEach(filteredCategoryOffers, id: \.0.name) { categoryInfo, offers in
-                        NavigationLink(
-                            destination: LPStoreGroupView(
-                                categoryName: categoryInfo.name,
-                                offers: offers,
-                                itemInfos: itemInfos
-                            )
-                        ) {
+                if !searchText.isEmpty {
+                    if filteredOffers.isEmpty {
+                        Section {
                             HStack {
-                                IconManager.shared.loadImage(for: categoryInfo.iconFileName)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 36)
-                                    .cornerRadius(6)
-                                Text(categoryInfo.name)
-                                    .padding(.leading, 8)
-
                                 Spacer()
-                                Text("\(offers.count)")
+                                Text(NSLocalizedString("Main_Search_No_Results", comment: ""))
                                     .foregroundColor(.secondary)
+                                Spacer()
                             }
-                            .padding(.vertical, 2)
+                        }
+                    } else {
+                        Section(NSLocalizedString("Main_Search_Results", comment: "")) {
+                            ForEach(filteredOffers, id: \.offerId) { offer in
+                                if let itemInfo = itemInfos[offer.typeId] {
+                                    LPStoreOfferView(
+                                        offer: offer,
+                                        itemInfo: itemInfo,
+                                        requiredItemInfos: itemInfos
+                                    )
+                                }
+                            }
+                            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                } else {
+                    Section(NSLocalizedString("Main_LP_Store_category", comment: "")) {
+                        ForEach(categoryOffers, id: \.category.name) { category in
+                            NavigationLink(
+                                destination: LPStoreGroupView(
+                                    categoryName: category.category.name,
+                                    offers: category.offers,
+                                    itemInfos: itemInfos
+                                )
+                            ) {
+                                HStack {
+                                    IconManager.shared.loadImage(for: category.category.iconFileName)
+                                        .resizable()
+                                        .scaledToFit()
+                                        .frame(width: 36)
+                                        .cornerRadius(6)
+                                    Text(category.category.name)
+                                        .padding(.leading, 8)
+
+                                    Spacer()
+                                    Text("\(category.offers.count)")
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(.vertical, 2)
+                            }
+                        }
+                        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                    }
                 }
             }
         }
@@ -260,7 +296,7 @@ struct CorporationLPStoreView: View {
 
         do {
             // 1. 获取所有商品
-            offers = try await LPStoreAPI.shared.fetchLPStoreOffers(
+            offers = try await LPStoreAPI.shared.fetchCorporationLPStoreOffers(
                 corporationId: corporationId,
                 forceRefresh: forceRefresh
             )
@@ -274,18 +310,20 @@ struct CorporationLPStoreView: View {
 
             // 3. 一次性查询所有物品信息
             let query = """
-                    SELECT type_id, name, icon_filename, bpc_icon_filename, category_name, categoryID
+                    SELECT type_id, name, en_name, zh_name, icon_filename, bpc_icon_filename, category_name, categoryID
                     FROM types
                     WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
                 """
 
             if case let .success(rows) = DatabaseManager.shared.executeQuery(query) {
                 var infos: [Int: LPStoreItemInfo] = [:]
-                var categoryNames = Set<String>()
+                var categoryIds = Set<Int>()
 
                 for row in rows {
                     if let typeId = row["type_id"] as? Int,
                         let name = row["name"] as? String,
+                        let enName = row["en_name"] as? String,
+                        let zhName = row["zh_name"] as? String,
                         let iconFileName = row["icon_filename"] as? String,
                         let categoryName = row["category_name"] as? String,
                         let categoryId = row["categoryID"] as? Int
@@ -301,32 +339,35 @@ struct CorporationLPStoreView: View {
 
                         infos[typeId] = LPStoreItemInfo(
                             name: name,
+                            enName: enName,
+                            zhName: zhName,
                             iconFileName: finalIconFileName,
                             categoryName: categoryName,
                             categoryId: categoryId
                         )
-                        categoryNames.insert(categoryName)
+                        categoryIds.insert(categoryId)
                     }
                 }
                 itemInfos = infos
 
                 // 4. 获取分类信息
-                if !categoryNames.isEmpty {
+                if !categoryIds.isEmpty {
                     let categoryQuery = """
-                            SELECT name, icon_filename
+                            SELECT category_id, name, icon_filename
                             FROM categories
-                            WHERE name IN (\(categoryNames.sorted().map { "'\($0)'" }.joined(separator: ",")))
+                            WHERE category_id IN (\(categoryIds.sorted().map { String($0) }.joined(separator: ",")))
                         """
 
                     if case let .success(categoryRows) = DatabaseManager.shared.executeQuery(
                         categoryQuery)
                     {
-                        var categories: [String: CategoryInfo] = [:]
+                        var categories: [Int: CategoryInfo] = [:]
                         for row in categoryRows {
-                            if let name = row["name"] as? String,
+                            if let categoryId = row["category_id"] as? Int,
+                                let name = row["name"] as? String,
                                 let iconFileName = row["icon_filename"] as? String
                             {
-                                categories[name] = CategoryInfo(
+                                categories[categoryId] = CategoryInfo(
                                     name: name,
                                     iconFileName: iconFileName.isEmpty ? "not_found" : iconFileName
                                 )
@@ -335,6 +376,29 @@ struct CorporationLPStoreView: View {
                         categoryInfos = categories
                     }
                 }
+
+                // 5. 按目录组织物品
+                var categoryOffersDict: [Int: [LPStoreOffer]] = [:]
+                for offer in offers {
+                    if let categoryId = itemInfos[offer.typeId]?.categoryId {
+                        categoryOffersDict[categoryId, default: []].append(offer)
+                    }
+                }
+
+                // 6. 转换为数组并排序
+                categoryOffers = categoryOffersDict.compactMap { id, offers in
+                    guard let categoryInfo = categoryInfos[id] else { return nil }
+                    return CategoryOffers(
+                        category: categoryInfo,
+                        offers: offers.sorted { offer1, offer2 in
+                            if let info1 = itemInfos[offer1.typeId],
+                               let info2 = itemInfos[offer2.typeId] {
+                                return info1.name.localizedStandardCompare(info2.name) == .orderedAscending
+                            }
+                            return false
+                        }
+                    )
+                }.sorted { $0.category.name.localizedStandardCompare($1.category.name) == .orderedAscending }
             }
 
             isLoading = false

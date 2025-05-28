@@ -1255,59 +1255,58 @@ class DatabaseManager: ObservableObject {
     }
 
     func getTraits(for typeID: Int) -> TraitGroup? {
-        let roleQuery = """
-                SELECT importance, content
+        let query = """
+                SELECT importance, content, skill, bonus_type
                 FROM traits
-                WHERE typeid = ? AND bonus_type = 'roleBonuses'
-                ORDER BY importance
-            """
-
-        let typeQuery = """
-                SELECT importance, content, skill
-                FROM traits
-                WHERE typeid = ? AND bonus_type = 'typeBonuses'
-                ORDER BY skill, importance
+                WHERE typeid = ? AND bonus_type IN ('roleBonuses', 'typeBonuses', 'miscBonuses')
+                ORDER BY bonus_type, skill, importance
             """
 
         var roleBonuses: [Trait] = []
         var typeBonuses: [Trait] = []
+        var miscBonuses: [Trait] = []
 
-        // 获取 Role Bonuses
-        if case let .success(rows) = executeQuery(roleQuery, parameters: [typeID]) {
-            for row in rows {
-                if let importance = row["importance"] as? Int,
-                    let content = row["content"] as? String
-                {
-                    roleBonuses.append(
-                        Trait(
-                            content: content,
-                            importance: importance,
-                            skill: nil,
-                            bonusType: "roleBonuses"
-                        ))
-                }
-            }
-        }
-
-        // 获取 Type Bonuses
-        if case let .success(rows) = executeQuery(typeQuery, parameters: [typeID]) {
+        if case let .success(rows) = executeQuery(query, parameters: [typeID]) {
             for row in rows {
                 if let importance = row["importance"] as? Int,
                     let content = row["content"] as? String,
-                    let skill = row["skill"] as? Int
+                    let bonusType = row["bonus_type"] as? String
                 {
-                    typeBonuses.append(
-                        Trait(
-                            content: content,
-                            importance: importance,
-                            skill: skill,
-                            bonusType: "typeBonuses"
-                        ))
+                    switch bonusType {
+                    case "roleBonuses":
+                        roleBonuses.append(
+                            Trait(
+                                content: content,
+                                importance: importance,
+                                skill: nil,
+                                bonusType: bonusType
+                            ))
+                    case "typeBonuses":
+                        if let skill = row["skill"] as? Int {
+                            typeBonuses.append(
+                                Trait(
+                                    content: content,
+                                    importance: importance,
+                                    skill: skill,
+                                    bonusType: bonusType
+                                ))
+                        }
+                    case "miscBonuses":
+                        miscBonuses.append(
+                            Trait(
+                                content: content,
+                                importance: importance,
+                                skill: nil,
+                                bonusType: bonusType
+                            ))
+                    default:
+                        break
+                    }
                 }
             }
         }
 
-        return TraitGroup(roleBonuses: roleBonuses, typeBonuses: typeBonuses)
+        return TraitGroup(roleBonuses: roleBonuses, typeBonuses: typeBonuses, miscBonuses: miscBonuses)
     }
 
     // 获取所有需要特定技能的物品及其需求等级

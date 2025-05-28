@@ -101,6 +101,9 @@ struct SkillRequirementsView: View {
     let groupName: String
     @ObservedObject var databaseManager: DatabaseManager
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
+    
+    // 存储所有技能等级的字典
+    @State private var characterSkills: [Int: Int] = [:]
 
     private var requirements: [(skillID: Int, level: Int, timeMultiplier: Double?)] {
         SkillTreeManager.shared.getDeduplicatedSkillRequirements(
@@ -160,15 +163,20 @@ struct SkillRequirementsView: View {
         }
     }
 
-    // 获取当前技能等级
+    // 获取当前技能等级 - 从预加载的数据中获取
     private func getCurrentSkillLevel(for skillID: Int) -> Int {
+        return characterSkills[skillID] ?? -1
+    }
+    
+    // 加载所有技能等级
+    private func loadAllSkills() {
         if currentCharacterId == 0 {
-            return 0
+            characterSkills = [:]
+            return
         }
-
-        // 从 character_skills 表获取技能数据
+        
         let skillsQuery = "SELECT skills_data FROM character_skills WHERE character_id = ?"
-
+        
         guard
             case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
                 skillsQuery, parameters: [currentCharacterId]),
@@ -176,24 +184,24 @@ struct SkillRequirementsView: View {
             let skillsJson = row["skills_data"] as? String,
             let data = skillsJson.data(using: .utf8)
         else {
-            return 0
+            characterSkills = [:]
+            return
         }
-
+        
         do {
             let decoder = JSONDecoder()
             let skillsResponse = try decoder.decode(CharacterSkillsResponse.self, from: data)
-
-            // 查找指定技能的等级
-            if let skill = skillsResponse.skills.first(where: { $0.skill_id == skillID }) {
-                return skill.trained_skill_level
-            } else {
-                return -1
+            
+            // 将所有技能映射到字典中
+            var skillsDict = [Int: Int]()
+            for skill in skillsResponse.skills {
+                skillsDict[skill.skill_id] = skill.trained_skill_level
             }
+            characterSkills = skillsDict
         } catch {
             Logger.error("解析技能数据失败: \(error)")
+            characterSkills = [:]
         }
-
-        return 0
     }
 
     var body: some View {
@@ -222,6 +230,9 @@ struct SkillRequirementsView: View {
                     )
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+            }
+            .onAppear {
+                loadAllSkills()
             }
         }
     }

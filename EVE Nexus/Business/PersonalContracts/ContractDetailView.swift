@@ -265,7 +265,7 @@ struct ContractDetailView: View {
     // 根据状态返回对应的颜色
     private func getStatusColor(_ status: String) -> Color {
         switch status {
-        case "deleted":
+        case "deleted", "cancelled":
             return .secondary
         case "rejected", "failed", "reversed":
             return .red

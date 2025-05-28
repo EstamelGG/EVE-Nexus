@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import Kingfisher
 
 // MARK: - 数据模型
 
@@ -157,6 +158,15 @@ class CacheManager {
 
         Logger.info("目录缓存清理完成，共删除 \(totalFilesRemoved) 个文件")
     }
+    
+    // 清理头像加载器缓存
+    private func clearPortraitLoaderCaches() {
+        // 清理 Kingfisher 的内存缓存和磁盘缓存
+        KingfisherManager.shared.cache.clearMemoryCache()
+        KingfisherManager.shared.cache.clearDiskCache()
+        
+        Logger.info("头像加载器缓存清理完成")
+    }
 
     // 清理所有缓存
     func clearAllCaches() async {
@@ -206,8 +216,13 @@ class CacheManager {
 
         // 8. 清理建筑物缓存
         await UniverseStructureAPI.shared.clearCache()
+        
+        // 9. 清理头像加载器缓存
+        await MainActor.run {
+            clearPortraitLoaderCaches()
+        }
 
-        // 9. 清理 URL Session 缓存
+        // 10. 清理 URL Session 缓存
         await clearURLSessionCacheAsync()
 
         Logger.info("所有缓存清理完成")

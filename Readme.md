@@ -32,6 +32,12 @@ periphery scan | grep -v "/Thirdparty/" > log.txt
 (Enum|Property|Function|Initializer).*is unused
 ```
 
+# 未被定义的strings
+
+```bash
+swift run LocalizableChecker "/EVE-Nexus/EVE Nexus/utils/Language/en.lproj/Localizable.strings" "/EVE-Nexus/EVE Nexus" 2 --extensions swift
+```
+
 # 获取应用 / Get App
 
 iOS / iPadOS / macOS: [Tritanium on the App Store](https://apps.apple.com/us/app/tritanium/id6739530875)

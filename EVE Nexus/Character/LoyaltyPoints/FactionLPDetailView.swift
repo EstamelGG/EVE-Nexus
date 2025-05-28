@@ -3,59 +3,86 @@ import SwiftUI
 struct Faction: Identifiable {
     let id: Int
     let name: String
+    let enName: String
+    let zhName: String
     let iconName: String
+    var corporations: [Corporation]
 
-    init?(from row: [String: Any]) {
-        guard let id = row["id"] as? Int,
-            let name = row["name"] as? String,
-            let iconName = row["iconName"] as? String
+    init?(from row: [String: Any], corporations: [Corporation] = []) {
+        guard let id = row["faction_id"] as? Int,
+            let name = row["faction_name"] as? String,
+            let enName = row["faction_en_name"] as? String,
+            let zhName = row["faction_zh_name"] as? String,
+            let iconName = row["faction_icon"] as? String
         else {
             return nil
         }
         self.id = id
         self.name = name
+        self.enName = enName
+        self.zhName = zhName
         self.iconName = iconName
+        self.corporations = corporations
     }
 }
 
+struct Corporation: Identifiable {
+    let id: Int
+    let name: String
+    let enName: String
+    let zhName: String
+    let factionId: Int
+    let iconFileName: String
+
+    init?(from row: [String: Any]) {
+        guard let corporationId = row["corporation_id"] as? Int,
+            let name = row["corp_name"] as? String,
+            let enName = row["corp_en_name"] as? String,
+            let zhName = row["corp_zh_name"] as? String,
+            let factionId = row["faction_id"] as? Int
+        else {
+            return nil
+        }
+
+        id = corporationId
+        self.name = name
+        self.enName = enName
+        self.zhName = zhName
+        self.factionId = factionId
+        self.iconFileName =
+            (row["icon_filename"] as? String)?.isEmpty == true
+            ? "corporations_default" : (row["icon_filename"] as? String ?? "corporations_default")
+    }
+}
+
+
 struct FactionLPDetailView: View {
     let faction: Faction
-    @State private var corporations: [Corporation] = []
-    @State private var isLoading = true
-    @State private var error: Error?
     @State private var searchText = ""
 
     private var filteredCorporations: [Corporation] {
         if searchText.isEmpty {
-            return corporations
+            return faction.corporations
         } else {
-            return corporations.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+            return faction.corporations.filter { corporation in
+                corporation.name.localizedCaseInsensitiveContains(searchText) ||
+                corporation.enName.localizedCaseInsensitiveContains(searchText) ||
+                corporation.zhName.localizedCaseInsensitiveContains(searchText)
+            }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         }
     }
 
     var body: some View {
         List {
-            if isLoading {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                    Spacer()
-                }
-            } else if let error = error {
-                VStack {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.largeTitle)
-                        .foregroundColor(.red)
-                        .cornerRadius(6)
-                    Text(error.localizedDescription)
-                        .font(.headline)
-                    Button(NSLocalizedString("Main_Setting_Reset", comment: "")) {
-                        loadCorporations()
+            Section(NSLocalizedString("Main_LP_Store_Corps", comment: "")) {
+                if filteredCorporations.isEmpty && !searchText.isEmpty {
+                    HStack {
+                        Spacer()
+                        Text(NSLocalizedString("Main_Search_No_Results", comment: ""))
+                            .foregroundColor(.secondary)
+                        Spacer()
                     }
-                    .buttonStyle(.bordered)
-                }
-            } else {
-                Section(NSLocalizedString("Main_LP_Store_Corps", comment: "")) {
+                } else {
                     ForEach(filteredCorporations) { corporation in
                         NavigationLink(
                             destination: CorporationLPStoreView(
@@ -84,34 +111,5 @@ struct FactionLPDetailView: View {
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: NSLocalizedString("Main_Search_Placeholder", comment: "")
         )
-        .onAppear {
-            loadCorporations()
-        }
-    }
-
-    private func loadCorporations() {
-        isLoading = true
-        error = nil
-
-        let query = """
-                SELECT c.corporation_id, c.name, c.faction_id, c.icon_filename
-                FROM npcCorporations c
-                WHERE c.faction_id = ?
-                ORDER BY c.name
-            """
-
-        let result = DatabaseManager.shared.executeQuery(query, parameters: [faction.id])
-        switch result {
-        case let .success(rows):
-            corporations = rows.compactMap { Corporation(from: $0) }
-            isLoading = false
-        case let .error(errorMessage):
-            error = NSError(
-                domain: "com.eve.nexus",
-                code: -1,
-                userInfo: [NSLocalizedDescriptionKey: errorMessage]
-            )
-            isLoading = false
-        }
     }
 }

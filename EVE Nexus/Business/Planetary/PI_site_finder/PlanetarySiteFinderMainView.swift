@@ -16,6 +16,8 @@ struct PlanetaryProduct: Identifiable {
 struct SovereigntyInfo: Identifiable {
     let id: Int
     let name: String
+    let en_name: String
+    let zh_name: String
     let icon: Image?
     let systemCount: Int
     let isAlliance: Bool  // true为联盟，false为派系
@@ -206,7 +208,11 @@ struct SovereigntySelectorView: View {
         if searchText.isEmpty {
             return sovereignties
         } else {
-            return sovereignties.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
+            return sovereignties.filter { sovereignty in
+                sovereignty.name.localizedCaseInsensitiveContains(searchText) ||
+                sovereignty.en_name.localizedCaseInsensitiveContains(searchText) ||
+                sovereignty.zh_name.localizedCaseInsensitiveContains(searchText)
+            }
         }
     }
 
@@ -250,6 +256,8 @@ struct SovereigntySelectorView: View {
                             SovereigntyInfo(
                                 id: allianceId,
                                 name: allianceName,
+                                en_name: allianceName,
+                                zh_name: allianceName,
                                 icon: nil,
                                 systemCount: systemCount,
                                 isAlliance: true
@@ -259,7 +267,7 @@ struct SovereigntySelectorView: View {
 
                 // 加载派系信息
                 let factionQuery = """
-                        SELECT id, iconName, name 
+                        SELECT id, iconName, name, en_name, zh_name 
                         FROM factions 
                         WHERE id IN (\(factionToSystems.keys.map { String($0) }.joined(separator: ",")))
                     """
@@ -271,13 +279,16 @@ struct SovereigntySelectorView: View {
                             let name = row["name"] as? String,
                             let systemCount = factionToSystems[factionId]
                         {
-
                             let icon = IconManager.shared.loadImage(for: iconName)
+                            let en_name = row["en_name"] as? String ?? name
+                            let zh_name = row["zh_name"] as? String ?? name
 
                             tempSovereignties.append(
                                 SovereigntyInfo(
                                     id: factionId,
                                     name: name,
+                                    en_name: en_name,
+                                    zh_name: zh_name,
                                     icon: icon,
                                     systemCount: systemCount,
                                     isAlliance: false
