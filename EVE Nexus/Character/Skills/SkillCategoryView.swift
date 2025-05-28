@@ -315,7 +315,7 @@ class SkillCategoryViewModel: ObservableObject {
                         trainingRate: info.trainingRate
                     )
                 }
-                .sorted { $0.name < $1.name }
+                .sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
         }
     }
 }
@@ -516,7 +516,7 @@ struct SkillCategoryView: View {
                     }
 
                     // 显示技能组列表
-                    ForEach(viewModel.skillGroups.sorted(by: { $0.id < $1.id })) { group in
+                    ForEach(viewModel.skillGroups.sorted(by: { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending })) { group in
                         NavigationLink {
                             SkillGroupDetailView(
                                 group: group, databaseManager: databaseManager,
@@ -611,8 +611,13 @@ struct SkillGroupDetailView: View {
                 ProgressView()
                     .frame(maxWidth: .infinity, alignment: .center)
             } else {
-                // 使用传入的 group 数据
-                ForEach(group.skills, id: \.skill_id) { skill in
+                // 使用传入的 group 数据，并按技能名称排序
+                ForEach(group.skills.sorted { skill1, skill2 in
+                    // 获取技能名称进行排序
+                    let name1 = viewModel.allSkillsDict[skill1.skill_id]?.name ?? ""
+                    let name2 = viewModel.allSkillsDict[skill2.skill_id]?.name ?? ""
+                    return name1.localizedCaseInsensitiveCompare(name2) == .orderedAscending
+                }, id: \.skill_id) { skill in
                     if let skillInfo = viewModel.allSkillsDict[skill.skill_id] {
                         NavigationLink {
                             ShowItemInfo(
