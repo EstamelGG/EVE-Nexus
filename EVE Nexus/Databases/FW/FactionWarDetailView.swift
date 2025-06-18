@@ -388,7 +388,7 @@ struct FWSystemCell: View {
                         .foregroundColor(getSecurityColor(system.location.security))
                         .font(.system(.subheadline, design: .monospaced))
                     Text(system.location.systemName)
-                        .fontWeight(.bold)
+                        .fontWeight(.semibold)
                         .textSelection(.enabled)
                 }
 
@@ -408,7 +408,7 @@ struct FWSystemCell: View {
                         )
                         .foregroundColor(.red)
                         .font(.caption)
-                        .fontWeight(.bold)
+                        .fontWeight(.semibold)
                     } else {
                         Text(
                             "\(String(format: "%.1f", Double(system.system.victory_points) / Double(system.system.victory_points_threshold) * 100))% \(NSLocalizedString("Main_\(system.system.contested)", comment: ""))"
@@ -422,7 +422,7 @@ struct FWSystemCell: View {
                     .foregroundColor(.secondary)
                     + Text(system.systemType.localizedString)
                     .font(.caption)
-                    .fontWeight(.bold)
+                    .fontWeight(.semibold)
                     .foregroundColor(system.systemType == .frontline ? .red : .secondary)
             }
 

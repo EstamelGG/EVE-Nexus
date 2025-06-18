@@ -30,7 +30,7 @@ struct LoadingView: View {
 
                 // 进度文本
                 Text("\(Int(progress * 100))%")
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.green)
             }
 

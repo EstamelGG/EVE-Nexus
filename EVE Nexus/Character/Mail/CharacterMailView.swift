@@ -105,7 +105,7 @@ struct CharacterMailView: View {
                 }
             } header: {
                 Text(NSLocalizedString("Main_EVE_Mail_Mailboxes", comment: ""))
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(.primary)
                     .textCase(nil)
             }

@@ -84,7 +84,7 @@ struct CharacterDetailView: View {
 
                             // 人物名称
                             Text(characterInfo.name)
-                                .font(.system(size: 20, weight: .bold))
+                                .font(.system(size: 20, weight: .semibold))
                                 .textSelection(.enabled)
                                 .lineLimit(1)
 

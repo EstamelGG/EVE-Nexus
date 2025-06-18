@@ -26,6 +26,17 @@ enum FormatUtil {
         return formatter
     }()
 
+    // 用于UI显示的 NumberFormatter 实例（不使用千位分隔符）
+    private static let uiFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 1  // UI显示最多1位小数
+        formatter.groupingSeparator = ""     // 不使用千位分隔符
+        formatter.decimalSeparator = "."
+        return formatter
+    }()
+
     /// 通用的数字格式化函数
     /// - Parameters:
     ///   - value: 要格式化的数值
@@ -281,4 +292,49 @@ enum FormatUtil {
 
         return result
     }
+
+    /// 格式化数字用于UI显示：不使用千位分隔符，自动去除末尾的0
+    /// - Parameters:
+    ///   - value: 要格式化的数值
+    ///   - maxFractionDigits: 最大小数位数（默认1位）
+    /// - Returns: 格式化后的字符串
+    /// - Example:
+    ///   ```
+    ///   formatForUI(1234.5)                    // "1234.5"
+    ///   formatForUI(1000.0)                    // "1000"
+    ///   formatForUI(1500000000)                // "1.5B"
+    ///   formatForUI(1500000)                   // "1.5M"
+    ///   formatForUI(12500)                     // "12.5k"
+    ///   formatForUI(1234.567, maxFractionDigits: 2)  // "1234.57"
+    ///   ```
+    static func formatForUI(_ value: Double, maxFractionDigits: Int = 1) -> String {
+        // 临时设置formatter的小数位数
+        let originalMaxFractionDigits = uiFormatter.maximumFractionDigits
+        uiFormatter.maximumFractionDigits = maxFractionDigits
+        
+        defer {
+            // 恢复原始设置
+            uiFormatter.maximumFractionDigits = originalMaxFractionDigits
+        }
+        
+        if value == 0 {
+            return "0"
+        } else if value >= 1_000_000_000 {
+            let formattedValue = value / 1_000_000_000
+            let numberString = uiFormatter.string(from: NSNumber(value: formattedValue)) ?? String(format: "%.\(maxFractionDigits)f", formattedValue)
+            return numberString + "B"
+        } else if value >= 1_000_000 {
+            let formattedValue = value / 1_000_000
+            let numberString = uiFormatter.string(from: NSNumber(value: formattedValue)) ?? String(format: "%.\(maxFractionDigits)f", formattedValue)
+            return numberString + "M"
+        } else if value >= 10_000 {
+            let formattedValue = value / 1000
+            let numberString = uiFormatter.string(from: NSNumber(value: formattedValue)) ?? String(format: "%.\(maxFractionDigits)f", formattedValue)
+            return numberString + "k"
+        } else {
+            return uiFormatter.string(from: NSNumber(value: value)) ?? String(format: "%.\(maxFractionDigits)f", value)
+        }
+    }
+    
+
 }

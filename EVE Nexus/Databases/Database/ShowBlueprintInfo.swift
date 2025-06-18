@@ -1,9 +1,10 @@
 import SwiftUI
+import UIKit
 
 // 蓝图活动数据模型
 struct BlueprintActivity {
     let materials: [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)]
-    let skills: [(typeID: Int, typeName: String, typeIcon: String, level: Int)]
+    let skills: [(typeID: Int, typeName: String, typeIcon: String, level: Int, timeMultiplier: Double?)]
     let products:
         [(typeID: Int, typeName: String, typeIcon: String, quantity: Int, probability: Double?)]
     let time: Int
@@ -86,6 +87,103 @@ struct InventionProductItemView: View {
     }
 }
 
+// 蓝图技能需求行
+struct BlueprintSkillRow: View {
+    let skill: (typeID: Int, typeName: String, typeIcon: String, level: Int, timeMultiplier: Double?)
+    let databaseManager: DatabaseManager
+    let currentSkillLevel: Int?
+    
+    // 获取当前技能点数（直接查表，不累加）
+    private func getCurrentSkillPointsSimple() -> Int {
+        guard let currentLevel = currentSkillLevel, let multiplier = skill.timeMultiplier else { return 0 }
+        if currentLevel <= 0 { return 0 }
+        if currentLevel > SkillTreeManager.levelBasePoints.count { return 0 }
+        return Int(Double(SkillTreeManager.levelBasePoints[currentLevel - 1]) * multiplier)
+    }
+    
+    // 获取所需总点数（直接查表）
+    private func getRequiredSkillPointsSimple() -> Int {
+        guard let multiplier = skill.timeMultiplier else { return 0 }
+        if skill.level <= 0 || skill.level > SkillTreeManager.levelBasePoints.count { return 0 }
+        return Int(Double(SkillTreeManager.levelBasePoints[skill.level - 1]) * multiplier)
+    }
+    
+    // 获取技能点数文本
+    private var skillPointsText: String {
+        guard let multiplier = skill.timeMultiplier,
+            skill.level > 0 && skill.level <= SkillTreeManager.levelBasePoints.count
+        else {
+            return ""
+        }
+        let points = Int(Double(SkillTreeManager.levelBasePoints[skill.level - 1]) * multiplier)
+        return "\(FormatUtil.format(Double(points))) SP"
+    }
+    
+    var body: some View {
+        NavigationLink {
+            ItemInfoMap.getItemInfoView(
+                itemID: skill.typeID,
+                databaseManager: databaseManager
+            )
+        } label: {
+            HStack {
+                // 技能图标
+                if let currentLevel = currentSkillLevel, currentLevel == -1 {
+                    Image(systemName: "xmark.circle.fill")
+                        .frame(width: 32, height: 32)
+                        .foregroundColor(.red)
+                } else if let currentLevel = currentSkillLevel, currentLevel >= skill.level {
+                    Image(systemName: "checkmark.circle.fill")
+                        .frame(width: 32, height: 32)
+                        .foregroundColor(.green)
+                } else {
+                    Image(systemName: "circle")
+                        .frame(width: 32, height: 32)
+                        .foregroundColor(.primary)
+                }
+
+                VStack(alignment: .leading) {
+                    // 技能名称
+                    Text(skill.typeName)
+                        .font(.body)
+                    
+                    // 技能点数显示
+                    if let currentLevel = currentSkillLevel, currentLevel >= -1, currentLevel < skill.level {
+                        // 当有技能但等级不足时，显示当前/需要的技能点数
+                        let currentSP = getCurrentSkillPointsSimple()
+                        let requiredSP = getRequiredSkillPointsSimple()
+                        Text(
+                            "\(FormatUtil.format(Double(currentSP)))/\(FormatUtil.format(Double(requiredSP))) SP"
+                        )
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    } else {
+                        // 其他情况显示需要的总技能点数
+                        if !skillPointsText.isEmpty {
+                            Text(skillPointsText)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+
+                Spacer()
+
+                // 等级要求
+                Text(
+                    String(
+                        format: NSLocalizedString(
+                            "Misc_Level", comment: ""
+                        ), skill.level
+                    )
+                )
+                .foregroundColor(.secondary)
+                .frame(alignment: .trailing)
+            }
+        }
+    }
+}
+
 // 主视图
 struct ShowBluePrintInfo: View {
     let blueprintID: Int
@@ -97,6 +195,9 @@ struct ShowBluePrintInfo: View {
     @State private var invention: BlueprintActivity?
     @State private var itemDetails: ItemDetails?
     @State private var blueprintSource: [(typeID: Int, typeName: String, typeIcon: String)] = []
+    @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
+    @State private var characterSkills: [Int: Int] = [:]
+    @State private var showingCopyAlert = false
     @State private var isManufacturingMaterialsExpanded = false
     @State private var isManufacturingSkillsExpanded = false
     @State private var isResearchMaterialMaterialsExpanded = false
@@ -128,12 +229,21 @@ struct ShowBluePrintInfo: View {
                 for: blueprintID)
             let manufacturingProducts = databaseManager.getBlueprintManufacturingOutput(
                 for: blueprintID)
-            let manufacturingSkills = databaseManager.getBlueprintManufacturingSkills(
-                for: blueprintID)
+            
+            // 获取制造技能要求
+            let manufacturingSkills = databaseManager.getBlueprintManufacturingSkills(for: blueprintID)
+            let skillIDs = manufacturingSkills.map { $0.typeID }
+            // 获取所有技能的训练时间倍增系数
+            let multipliers = SkillTreeManager.shared.getTrainingTimeMultipliers(for: skillIDs, databaseManager: databaseManager)
+            
+            // 将时间倍率添加到技能列表中
+            let skillsWithMultipliers = manufacturingSkills.map { skill -> (typeID: Int, typeName: String, typeIcon: String, level: Int, timeMultiplier: Double?) in
+                return (typeID: skill.typeID, typeName: skill.typeName, typeIcon: skill.typeIcon, level: skill.level, timeMultiplier: multipliers[skill.typeID])
+            }
 
             manufacturing = BlueprintActivity(
                 materials: manufacturingMaterials,
-                skills: manufacturingSkills,
+                skills: skillsWithMultipliers,
                 products: manufacturingProducts.map {
                     ($0.typeID, $0.typeName, $0.typeIcon, $0.quantity, nil)
                 },
@@ -147,10 +257,19 @@ struct ShowBluePrintInfo: View {
                 for: blueprintID)
             let researchMaterialSkills = databaseManager.getBlueprintResearchMaterialSkills(
                 for: blueprintID)
+            
+            // 获取所有技能的训练时间倍增系数
+            let skillIDs = researchMaterialSkills.map { $0.typeID }
+            let multipliers = SkillTreeManager.shared.getTrainingTimeMultipliers(for: skillIDs, databaseManager: databaseManager)
+            
+            // 将时间倍率添加到技能列表中
+            let skillsWithMultipliers = researchMaterialSkills.map { skill -> (typeID: Int, typeName: String, typeIcon: String, level: Int, timeMultiplier: Double?) in
+                return (typeID: skill.typeID, typeName: skill.typeName, typeIcon: skill.typeIcon, level: skill.level, timeMultiplier: multipliers[skill.typeID])
+            }
 
             researchMaterial = BlueprintActivity(
                 materials: researchMaterialMaterials,
-                skills: researchMaterialSkills,
+                skills: skillsWithMultipliers,
                 products: [],
                 time: processTime.research_material_time
             )
@@ -162,10 +281,19 @@ struct ShowBluePrintInfo: View {
                 for: blueprintID)
             let researchTimeSkills = databaseManager.getBlueprintResearchTimeSkills(
                 for: blueprintID)
+            
+            // 获取所有技能的训练时间倍增系数
+            let skillIDs = researchTimeSkills.map { $0.typeID }
+            let multipliers = SkillTreeManager.shared.getTrainingTimeMultipliers(for: skillIDs, databaseManager: databaseManager)
+            
+            // 将时间倍率添加到技能列表中
+            let skillsWithMultipliers = researchTimeSkills.map { skill -> (typeID: Int, typeName: String, typeIcon: String, level: Int, timeMultiplier: Double?) in
+                return (typeID: skill.typeID, typeName: skill.typeName, typeIcon: skill.typeIcon, level: skill.level, timeMultiplier: multipliers[skill.typeID])
+            }
 
             researchTime = BlueprintActivity(
                 materials: researchTimeMaterials,
-                skills: researchTimeSkills,
+                skills: skillsWithMultipliers,
                 products: [],
                 time: processTime.research_time_time
             )
@@ -175,10 +303,19 @@ struct ShowBluePrintInfo: View {
         if processTime.copying_time > 0 {
             let copyingMaterials = databaseManager.getBlueprintCopyingMaterials(for: blueprintID)
             let copyingSkills = databaseManager.getBlueprintCopyingSkills(for: blueprintID)
+            
+            // 获取所有技能的训练时间倍增系数
+            let skillIDs = copyingSkills.map { $0.typeID }
+            let multipliers = SkillTreeManager.shared.getTrainingTimeMultipliers(for: skillIDs, databaseManager: databaseManager)
+            
+            // 将时间倍率添加到技能列表中
+            let skillsWithMultipliers = copyingSkills.map { skill -> (typeID: Int, typeName: String, typeIcon: String, level: Int, timeMultiplier: Double?) in
+                return (typeID: skill.typeID, typeName: skill.typeName, typeIcon: skill.typeIcon, level: skill.level, timeMultiplier: multipliers[skill.typeID])
+            }
 
             copying = BlueprintActivity(
                 materials: copyingMaterials,
-                skills: copyingSkills,
+                skills: skillsWithMultipliers,
                 products: [],
                 time: processTime.copying_time
             )
@@ -190,10 +327,19 @@ struct ShowBluePrintInfo: View {
                 for: blueprintID)
             let inventionSkills = databaseManager.getBlueprintInventionSkills(for: blueprintID)
             let inventionProducts = databaseManager.getBlueprintInventionProducts(for: blueprintID)
+            
+            // 获取所有技能的训练时间倍增系数
+            let skillIDs = inventionSkills.map { $0.typeID }
+            let multipliers = SkillTreeManager.shared.getTrainingTimeMultipliers(for: skillIDs, databaseManager: databaseManager)
+            
+            // 将时间倍率添加到技能列表中
+            let skillsWithMultipliers = inventionSkills.map { skill -> (typeID: Int, typeName: String, typeIcon: String, level: Int, timeMultiplier: Double?) in
+                return (typeID: skill.typeID, typeName: skill.typeName, typeIcon: skill.typeIcon, level: skill.level, timeMultiplier: multipliers[skill.typeID])
+            }
 
             invention = BlueprintActivity(
                 materials: inventionMaterials,
-                skills: inventionSkills,
+                skills: skillsWithMultipliers,
                 products: inventionProducts.map {
                     ($0.typeID, $0.typeName, $0.typeIcon, $0.quantity, $0.probability)
                 },
@@ -212,6 +358,47 @@ struct ShowBluePrintInfo: View {
         // rank值也可以通过查询typeAttributes表中对应物品的attribute_id = 1955的值来获取
     }
 
+    // 加载所有技能等级
+    private func loadAllSkills() {
+        if currentCharacterId == 0 {
+            characterSkills = [:]
+            return
+        }
+        
+        let skillsQuery = "SELECT skills_data FROM character_skills WHERE character_id = ?"
+        
+        guard
+            case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
+                skillsQuery, parameters: [currentCharacterId]),
+            let row = rows.first,
+            let skillsJson = row["skills_data"] as? String,
+            let data = skillsJson.data(using: .utf8)
+        else {
+            characterSkills = [:]
+            return
+        }
+        
+        do {
+            let decoder = JSONDecoder()
+            let skillsResponse = try decoder.decode(CharacterSkillsResponse.self, from: data)
+            
+            // 将所有技能映射到字典中
+            var skillsDict = [Int: Int]()
+            for skill in skillsResponse.skills {
+                skillsDict[skill.skill_id] = skill.trained_skill_level
+            }
+            characterSkills = skillsDict
+        } catch {
+            Logger.error("解析技能数据失败: \(error)")
+            characterSkills = [:]
+        }
+    }
+    
+    // 获取当前技能等级
+    private func getCurrentSkillLevel(for skillID: Int) -> Int {
+        return characterSkills[skillID] ?? -1
+    }
+
     var body: some View {
         List {
             // 基础信息部分
@@ -222,8 +409,29 @@ struct ShowBluePrintInfo: View {
             // 制造活动
             if let manufacturing = manufacturing {
                 Section(
-                    header: Text(NSLocalizedString("Blueprint_Manufacturing", comment: "")).font(
-                        .headline)
+                    header: HStack {
+                        Text(NSLocalizedString("Blueprint_Manufacturing", comment: "")).font(
+                            .headline)
+                        Spacer()
+                        Button(action: {
+                            // 复制材料列表到剪贴板
+                            let materialsText = manufacturing.materials.map { material in
+                                "\(material.typeName)      \(material.quantity)"
+                            }.joined(separator: "\n")
+                            UIPasteboard.general.string = materialsText
+                            
+                            // 显示复制成功弹窗
+                            showingCopyAlert = true
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "doc.on.doc")
+                                    .font(.system(size: 14))
+                                Text(NSLocalizedString("Blueprint_Copy_Materials", comment: ""))
+                                    .font(.system(size: 14))
+                            }
+                        }
+                        .buttonStyle(.borderless)
+                    }
                 ) {
                     // 产出物
                     if !manufacturing.products.isEmpty {
@@ -289,37 +497,12 @@ struct ShowBluePrintInfo: View {
                             isExpanded: $isManufacturingSkillsExpanded,
                             content: {
                                 ForEach(manufacturing.skills, id: \.typeID) { skill in
-                                    NavigationLink {
-                                        ItemInfoMap.getItemInfoView(
-                                            itemID: skill.typeID,
-                                            databaseManager: databaseManager
-                                        )
-                                    } label: {
-                                        HStack {
-                                            IconManager.shared.loadImage(
-                                                for: skill.typeIcon.isEmpty
-                                                    ? "not_found" : skill.typeIcon
-                                            )
-                                            .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .cornerRadius(6)
-
-                                            Text(skill.typeName)
-
-                                            Spacer()
-
-                                            Text(
-                                                String(
-                                                    format: NSLocalizedString(
-                                                        "Misc_Level", comment: ""
-                                                    ), skill.level
-                                                )
-                                            )
-                                            .foregroundColor(.secondary)
-                                            .frame(alignment: .trailing)
-                                        }
-                                    }
-                                }
+                                    BlueprintSkillRow(
+                                        skill: skill, 
+                                        databaseManager: databaseManager,
+                                        currentSkillLevel: getCurrentSkillLevel(for: skill.typeID)
+                                    )
+                                }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                             },
                             label: {
                                 HStack {
@@ -408,37 +591,12 @@ struct ShowBluePrintInfo: View {
                             isExpanded: $isResearchMaterialSkillsExpanded,
                             content: {
                                 ForEach(researchMaterial.skills, id: \.typeID) { skill in
-                                    NavigationLink {
-                                        ItemInfoMap.getItemInfoView(
-                                            itemID: skill.typeID,
-                                            databaseManager: databaseManager
-                                        )
-                                    } label: {
-                                        HStack {
-                                            IconManager.shared.loadImage(
-                                                for: skill.typeIcon.isEmpty
-                                                    ? "not_found" : skill.typeIcon
-                                            )
-                                            .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .cornerRadius(6)
-
-                                            Text(skill.typeName)
-
-                                            Spacer()
-
-                                            Text(
-                                                String(
-                                                    format: NSLocalizedString(
-                                                        "Misc_Level", comment: ""
-                                                    ), skill.level
-                                                )
-                                            )
-                                            .foregroundColor(.secondary)
-                                            .frame(alignment: .trailing)
-                                        }
-                                    }
-                                }
+                                    BlueprintSkillRow(
+                                        skill: skill, 
+                                        databaseManager: databaseManager,
+                                        currentSkillLevel: getCurrentSkillLevel(for: skill.typeID)
+                                    )
+                                }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                             },
                             label: {
                                 HStack {
@@ -551,37 +709,12 @@ struct ShowBluePrintInfo: View {
                             isExpanded: $isResearchTimeSkillsExpanded,
                             content: {
                                 ForEach(researchTime.skills, id: \.typeID) { skill in
-                                    NavigationLink {
-                                        ItemInfoMap.getItemInfoView(
-                                            itemID: skill.typeID,
-                                            databaseManager: databaseManager
-                                        )
-                                    } label: {
-                                        HStack {
-                                            IconManager.shared.loadImage(
-                                                for: skill.typeIcon.isEmpty
-                                                    ? "not_found" : skill.typeIcon
-                                            )
-                                            .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .cornerRadius(6)
-
-                                            Text(skill.typeName)
-
-                                            Spacer()
-
-                                            Text(
-                                                String(
-                                                    format: NSLocalizedString(
-                                                        "Misc_Level", comment: ""
-                                                    ), skill.level
-                                                )
-                                            )
-                                            .foregroundColor(.secondary)
-                                            .frame(alignment: .trailing)
-                                        }
-                                    }
-                                }
+                                    BlueprintSkillRow(
+                                        skill: skill, 
+                                        databaseManager: databaseManager,
+                                        currentSkillLevel: getCurrentSkillLevel(for: skill.typeID)
+                                    )
+                                }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                             },
                             label: {
                                 HStack {
@@ -694,37 +827,12 @@ struct ShowBluePrintInfo: View {
                             isExpanded: $isCopyingSkillsExpanded,
                             content: {
                                 ForEach(copying.skills, id: \.typeID) { skill in
-                                    NavigationLink {
-                                        ItemInfoMap.getItemInfoView(
-                                            itemID: skill.typeID,
-                                            databaseManager: databaseManager
-                                        )
-                                    } label: {
-                                        HStack {
-                                            IconManager.shared.loadImage(
-                                                for: skill.typeIcon.isEmpty
-                                                    ? "not_found" : skill.typeIcon
-                                            )
-                                            .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .cornerRadius(6)
-
-                                            Text(skill.typeName)
-
-                                            Spacer()
-
-                                            Text(
-                                                String(
-                                                    format: NSLocalizedString(
-                                                        "Misc_Level", comment: ""
-                                                    ), skill.level
-                                                )
-                                            )
-                                            .foregroundColor(.secondary)
-                                            .frame(alignment: .trailing)
-                                        }
-                                    }
-                                }
+                                    BlueprintSkillRow(
+                                        skill: skill, 
+                                        databaseManager: databaseManager,
+                                        currentSkillLevel: getCurrentSkillLevel(for: skill.typeID)
+                                    )
+                                }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                             },
                             label: {
                                 HStack {
@@ -824,37 +932,12 @@ struct ShowBluePrintInfo: View {
                             isExpanded: $isInventionSkillsExpanded,
                             content: {
                                 ForEach(invention.skills, id: \.typeID) { skill in
-                                    NavigationLink {
-                                        ItemInfoMap.getItemInfoView(
-                                            itemID: skill.typeID,
-                                            databaseManager: databaseManager
-                                        )
-                                    } label: {
-                                        HStack {
-                                            IconManager.shared.loadImage(
-                                                for: skill.typeIcon.isEmpty
-                                                    ? "not_found" : skill.typeIcon
-                                            )
-                                            .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .cornerRadius(6)
-
-                                            Text(skill.typeName)
-
-                                            Spacer()
-
-                                            Text(
-                                                String(
-                                                    format: NSLocalizedString(
-                                                        "Misc_Level", comment: ""
-                                                    ), skill.level
-                                                )
-                                            )
-                                            .foregroundColor(.secondary)
-                                            .frame(alignment: .trailing)
-                                        }
-                                    }
-                                }
+                                    BlueprintSkillRow(
+                                        skill: skill, 
+                                        databaseManager: databaseManager,
+                                        currentSkillLevel: getCurrentSkillLevel(for: skill.typeID)
+                                    )
+                                }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                             },
                             label: {
                                 HStack {
@@ -913,10 +996,14 @@ struct ShowBluePrintInfo: View {
         }
         .listStyle(.insetGrouped)
         .navigationTitle(NSLocalizedString("Blueprint_Info", comment: ""))
+        .alert(NSLocalizedString("Blueprint_Copy_Success", comment: "材料已复制"), isPresented: $showingCopyAlert) {
+            Button("OK", role: .cancel) { }
+        }
         .onAppear {
             itemDetails = databaseManager.getItemDetails(for: blueprintID)
             loadBlueprintData()
             loadBlueprintSource()
+            loadAllSkills()
         }
     }
 }

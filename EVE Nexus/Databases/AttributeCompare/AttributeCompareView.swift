@@ -213,7 +213,7 @@ struct AttributeCompareView: View {
                 text: $newCompareName
             )
 
-            Button(NSLocalizedString("Main_EVE_Mail_Done", comment: "")) {
+            Button(NSLocalizedString("Misc_Done", comment: "")) {
                 if !newCompareName.isEmpty {
                     let newCompare = AttributeCompare(
                         name: newCompareName,
@@ -419,7 +419,7 @@ struct AttributeCompareDetailView: View {
                     }
                 } header: {
                     Text(NSLocalizedString("Main_Attribute_Compare_Item_List", comment: ""))
-                        .fontWeight(.bold)
+                        .fontWeight(.semibold)
                         .font(.system(size: 18))
                         .foregroundColor(.primary)
                         .textCase(.none)

@@ -240,7 +240,7 @@ struct JumpNavigationView: View {
             }
         }
         .sheet(isPresented: $showingShipSelector) {
-            ShipSelectorView(selectedShip: $selectedShip, ships: ships)
+            JumpShipSelectorView(selectedShip: $selectedShip, ships: ships)
         }
         .sheet(isPresented: $showingStartPointSelector) {
             SystemSelectorSheet(
@@ -1144,7 +1144,7 @@ struct CustomLoadingView: View {
 
                 // 进度文本
                 Text("\(Int(progress * 100))%")
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.green)
             }
 
@@ -1161,7 +1161,7 @@ struct CustomLoadingView: View {
 }
 
 // 飞船选择器视图
-struct ShipSelectorView: View {
+struct JumpShipSelectorView: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var selectedShip: Int  // 修改为Int类型
     let ships: [Int: [Ship]]

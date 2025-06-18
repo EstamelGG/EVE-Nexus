@@ -449,7 +449,7 @@ struct CorpWalletJournalView: View {
         Section(
             header: HStack {
                 Text(NSLocalizedString("Summary", comment: ""))
-                    .fontWeight(.bold)
+                    .fontWeight(.semibold)
                     .font(.system(size: 18))
                     .foregroundColor(.primary)
                     .textCase(.none)
@@ -564,7 +564,7 @@ struct CorpWalletJournalView: View {
                 } else {
                     Section(
                         header: Text(NSLocalizedString("Transaction Dates", comment: ""))
-                            .fontWeight(.bold)
+                            .fontWeight(.semibold)
                             .font(.system(size: 18))
                             .foregroundColor(.primary)
                             .textCase(.none)

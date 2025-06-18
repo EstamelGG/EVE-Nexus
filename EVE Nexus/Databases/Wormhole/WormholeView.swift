@@ -34,7 +34,7 @@ struct WormholeView: View {
             ) { target in
                 Section(
                     header: Text(target)
-                        .fontWeight(.bold)
+                        .fontWeight(.semibold)
                         .font(.system(size: 18))
                         .foregroundColor(.primary)
                         .textCase(.none)

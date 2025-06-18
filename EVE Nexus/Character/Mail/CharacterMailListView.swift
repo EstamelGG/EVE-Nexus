@@ -58,11 +58,6 @@ class CharacterPortraitLoader: ObservableObject {
         loadingTasks[key] = task
     }
     
-    func cancelAllTasks() {
-        loadingTasks.values.forEach { $0.cancel() }
-        loadingTasks.removeAll()
-    }
-    
     func getPortrait(for characterId: Int, size: Int) -> UIImage? {
         return portraits["\(characterId)_\(size)"]
     }

@@ -51,11 +51,11 @@ struct FactoryFacilityView: View {
                                 HStack {
                                     Text(NSLocalizedString("Factory_Processing", comment: ""))
                                         .font(.caption)
-                                        .fontWeight(.bold)
+                                        .fontWeight(.semibold)
                                         .foregroundColor(.green)
                                     Text("·")
                                         .font(.caption)
-                                        .fontWeight(.bold)
+                                        .fontWeight(.semibold)
                                         .foregroundColor(.secondary)
                                     Text(cycleEndTime, style: .relative)
                                         .font(.caption)
@@ -64,12 +64,12 @@ struct FactoryFacilityView: View {
                             } else if simPin.hasEnoughInputs() {
                                 Text(NSLocalizedString("Factory_Ready", comment: ""))
                                     .font(.caption)
-                                    .fontWeight(.bold)
+                                    .fontWeight(.semibold)
                                     .foregroundColor(.secondary)
                             } else {
                                 Text(NSLocalizedString("Factory_Waiting_Materials", comment: ""))
                                     .font(.caption)
-                                    .fontWeight(.bold)
+                                    .fontWeight(.semibold)
                                     .foregroundColor(.blue)
                             }
                         } else {
@@ -79,7 +79,7 @@ struct FactoryFacilityView: View {
                                 .tint(.gray)
                             Text(NSLocalizedString("Factory_No_Recipe", comment: ""))
                                 .font(.caption)
-                                .fontWeight(.bold)
+                                .fontWeight(.semibold)
                                 .foregroundColor(.red)
                         }
                     }
@@ -91,7 +91,7 @@ struct FactoryFacilityView: View {
                             .tint(.gray)
                         Text(NSLocalizedString("Factory_No_Recipe", comment: ""))
                             .font(.caption)
-                            .fontWeight(.bold)
+                            .fontWeight(.semibold)
                             .foregroundColor(.red)
                     }
                 }

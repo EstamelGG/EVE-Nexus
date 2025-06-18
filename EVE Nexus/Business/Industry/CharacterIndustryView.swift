@@ -308,7 +308,7 @@ struct CharacterIndustryView: View {
                 ) { dateKey in
                     Section(
                         header: Text(formatDateHeader(dateKey))
-                            .fontWeight(.bold)
+                            .fontWeight(.semibold)
                             .font(.system(size: 18))
                             .foregroundColor(.primary)
                             .textCase(.none)

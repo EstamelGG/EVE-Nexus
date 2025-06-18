@@ -130,10 +130,14 @@
 "Misc_OpenLink" = "Open Link";
 "Misc_InAll" = "All";
 "Misc_Need" = "Need";
+"Misc_Qty" = "Qty";
+"Misc_Null" = "Null";
 
 // Blueprint Details
 "Blueprint_Product" = "Product";
 "Blueprint_Success_Rate" = "Success Rate: %d%%";
+"Blueprint_Copy_Materials" = "Copy";
+"Blueprint_Copy_Success" = "Materials have been copied to clipboard.";
 "Time_Year" = "y";
 "Time_Month" = "mon";
 "Time_Day" = "d";
@@ -370,6 +374,8 @@
 "Location_Flag_StructureDeedBay" = "Structure Deed Bay";
 "Location_Flag_Unlocked" = "Unlocked";
 "Location_Flag_Wardrobe" = "Wardrobe";
+"Location_Flag_T3DModeSlot" = "Mode";
+"Fitting_Mode_Selection" = "Select Mode";
 
 // Assets Loading Status
 "Assets_Loading_Page" = "Fetching page %d";
@@ -654,7 +660,6 @@
 "Main_EVE_Mail_No_Results" = "No results found";
 "Main_EVE_Mail_Select_Mailing_List" = "Select Mailing List";
 "Main_EVE_Mail_No_Mailing_Lists" = "No mailing lists subscribed";
-"Main_EVE_Mail_Done" = "Done";
 
 // Mail Detail
 "Main_EVE_Mail_Reply" = "Reply";
@@ -776,7 +781,7 @@
 "Main_Search" = "Search";
 
 // Searcher View
-"Main_Contact_Search" = "Contact Searcher";
+"Main_Contact_Search" = "People & Places";
 "Main_Search_Title" = "Search";
 "Main_Search_Placeholder" = "Enter search content...";
 "Main_Search_Type_Character" = "Character";
@@ -1558,4 +1563,150 @@
 "Fitting_New_Structure_Fitting" = "New Structure Fitting";
 "Fitting_No_Local_Fitting" = "No Saved Local Fitting";
 "Fitting_Setting_Ship" = "Ship Setting";
+"Fitting_Setting_Skills" = "Skill Setting";
 "Fitting_Name" = "Name of Fitting";
+"Fitting_Select_Character" = "Select Character";
+"Fitting_All_Characters" = "All Characters";
+"Fitting_Virtual_Characters" = "Default Characters";
+"Fitting_All_Skills" = "All Lv%d";
+"Fitting_Skills_Mode" = "Skill Setting";
+
+"Fitting_modules" = "Modules";
+"Fitting_drones" = "Drones";
+"Fitting_fighters" = "Fighters";
+"Fitting_Fighter_Light" = "Light";
+"Fitting_Fighter_Heavy" = "Heavy";
+"Fitting_Fighter_Support" = "Support";
+"Fitting_cargo" = "Cargo";
+"Fitting_stats" = "Stats";
+"Fitting_Setting_Drones" = "Drone Setting";
+"Fitting_Setting_Module" = "Module Setting";
+"Fitting_Setting_Ammo" = "Ammo Setting";
+"Fitting_Setting_No_Ammo" = "No charge";
+"Fitting_Setting_Clear_Ammo" = "Clear Charge";
+"Fitting_Ammo" = "Charge";
+"Fitting_Setting_Items" = "Items Setting";
+"Fitting_Add_Drones" = "Add Drones";
+"Fitting_Select_Drone" = "Select Drones";
+"Fitting_Drones_Qty" = "Qty: %d";
+"Fitting_Act_Drones_Qty" = "Active Qty: %d";
+"Fitting_unit_vol" = "Volume:";
+"Fitting_unit_vol_sum" = "Sum vol:";
+"Fitting_select_Variations" = "Select Variations";
+"Fitting_Current_Character" = "Current Char";
+"Fitting_No_Characters" = "No Character Logged";
+
+"Fitting_stat_shipresource" = "Resource";
+
+"Fitting_stat_resistances" = "Resistances";
+
+"Fitting_stat_capacitor" = "Capacitor";
+"Fitting_cap_delta" = "Delta";
+"Fitting_cap_resistance" = "Resis";
+"Fitting_cap_stable" = "Stable";
+"Fitting_cap_time" = "Unstable";
+"Fitting_cap_capacity" = "Total";
+
+"Fitting_stat_tank" = "Recharge";
+"Fitting_tank_header" = "Type";
+"Fitting_tank_raw" = "HP/s";
+"Fitting_tank_effective" = "EHP/s";
+"Fitting_tank_effective_repair" = "EHP";
+"Fitting_tank_totalHP" = "HP";
+
+"Fitting_stat_firepower" = "Firepower";
+"Fitting_volley" = "Volley(DPH)";
+"Fitting_dps" = "DPS";
+"Fitting_damage_profile" = "Damage Type";
+
+"Fitting_Add_Fighters" = "Add Fighters";
+"Fitting_can_not_add_Fighters" = "Cannot add more fighters";
+"Fitting_Select_Drone" = "Select Drones";
+"Fitting_Select_Light_Fighter" = "Select Light Fighters";
+"Fitting_Select_Heavy_Fighter" = "Select Heavy Fighters";
+"Fitting_Select_Support_Fighter" = "Select Support Fighters";
+
+// Fighter Settings
+"Fitting_Setting_Fighters" = "Fighter Settings";
+"Fitting_Fighters_Qty" = "Fighter Quantity: %d/%d";
+"Fitting_Fighters_Max_Qty" = "Maximum Quantity";
+
+// Module Status
+"Module_Status_Offline" = "Offline";
+"Module_Status_Online" = "Online";
+"Module_Status_Active" = "Active";
+"Module_Status_Overload" = "Overload";
+
+// Ship Misc Stats View
+"Fitting_stat_misc" = "Misc Stats";
+"Fitting_max_targets" = "Targets";
+"Fitting_lock_range" = "Range";
+"Fitting_scan_resolution" = "Scan Res.";
+"Fitting_sensor_strength" = "Sensor Str.";
+"Fitting_drone_range" = "Drone Range";
+"Fitting_mass" = "Mass";
+"Fitting_velocity" = "Velocity";
+"Fitting_align_time" = "Align Time";
+"Fitting_inertia" = "Inertia";
+"Fitting_signature" = "Signature";
+"Fitting_warp_speed" = "Warp Speed";
+
+"Fitting_radar_strength" = "Radar";
+"Fitting_ladar_strength" = "Ladar";
+"Fitting_mag_strength" = "Magneto";
+"Fitting_grav_strength" = "Gravi";
+
+// Fighter Special Abilities
+"Fitting_Fighter_With_Special_Abilities" = "With Fighter Volley";
+"Fitting_Fighter_Without_Special_Abilities" = "No Fighter Volley";
+
+// 装备属性显示文本
+"Module_Attribute_Falloff" = "Falloff";
+"Module_Attribute_Range" = "Optimal";
+"Module_Attribute_MaxRange" = "Max Range";
+"Module_Attribute_empFieldRange" = "Range";
+"Module_Attribute_Tracking" = "Tracking";
+"Module_Attribute_Rate_of_Fire" = "Cycle Time";
+"Module_Attribute_Speed" = "Speed";
+"Module_Attribute_ProbeStrength" = "Probe Strength";
+
+// Batch Operation Related
+"Fitting_Batch_Operation" = "Batch Operation";
+"Fitting_Batch_Mode" = "Batch Mode";
+"Fitting_Batch_Mode_Description" = "Will modify %d identical modules simultaneously";
+"Fitting_Batch_Ammo_Setting" = "Batch Ammo Setting";
+"Fitting_Batch_Ammo_Description" = "Will set ammo for %d identical modules";
+
+// Implant and Booster Slots
+"Fitting_Implants_Mode" = "View / Select Implants";
+"Fitting_Setting_Implants" = "Implants Setting";
+"Implant_Slot_Num" = "Implant Slot %d";
+"Booster_Slot_Num" = "Booster Slot %d";
+"Implant_No_Slots" = "No implant slots available";
+"Implant_Empty_Slot" = "Empty Slot";
+"Booster_No_Boosters" = "No booster slots available";
+"Booster_Empty_Slot" = "Empty Slot";
+"Implant_Settings_Title" = "Implant Settings";
+"Implant_Use_Preset" = "Use Preset";
+"Implant_Set_Items" = "Preset Items";
+"Implant_Select_Preset" = "Select Preset";
+"Apply_Preset" = "Apply Preset";
+"Implant_Implants" = "Implants";
+"Implant_Boosters" = "Boosters";
+"Remove_Current_Implant" = "Remove Current Implant";
+"Remove_Current_Booster" = "Remove Current Booster";
+"Implant_Clear_All" = "Clear Implants and Boosters";
+
+"View_Details" = "View Details";
+
+"Implant_High_grade" = "High-grade";
+"Implant_Mid_grade" = "Mid-grade";
+"Implant_Low_grade" = "Low-grade";
+"Implant_Snake" = "Snake";
+"Implant_Crystal" = "Crystal";
+"Implant_Amulet" = "Amulet";
+"Implant_Ascendancy" = "Ascendancy";
+"Implant_Asklepian" = "Asklepian";
+"Implant_Nirvana" = "Nirvana";
+"Implant_Rapture" = "Rapture";
+"Implant_Virtue" = "Virtue";

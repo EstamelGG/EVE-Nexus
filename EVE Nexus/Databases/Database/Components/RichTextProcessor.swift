@@ -56,7 +56,7 @@ struct RichTextView: View {
                         }
                     }
                 }
-                .presentationDetents([.fraction(0.85)])  // 设置为屏幕高度的85%
+                .presentationDetents([.fraction(0.81)])  // 设置为屏幕高度的82%
                 .presentationDragIndicator(.visible)  // 显示拖动指示器
             }
             .alert(NSLocalizedString("Misc_OpenLink", comment: ""), isPresented: $showingURLAlert) {

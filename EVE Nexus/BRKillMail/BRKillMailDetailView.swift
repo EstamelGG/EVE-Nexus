@@ -162,10 +162,10 @@ struct BRKillMailDetailView: View {
                                 }
                                 if let solarSystemInfo = solarSystemInfo {
                                     Text(solarSystemInfo.systemName)
-                                        .fontWeight(.bold)
+                                        .fontWeight(.semibold)
                                 } else {
                                     Text(sysInfo["name"] as? String ?? "")
-                                        .fontWeight(.bold)
+                                        .fontWeight(.semibold)
                                 }
                             }
                             if let solarSystemInfo = solarSystemInfo {
@@ -244,7 +244,7 @@ struct BRKillMailDetailView: View {
                     if !implantItems.isEmpty {
                         Section(
                             header: Text(NSLocalizedString("Main_KM_Implants", comment: ""))
-                                .fontWeight(.bold)
+                                .fontWeight(.semibold)
                                 .font(.system(size: 18))
                                 .foregroundColor(.primary)
                                 .textCase(.none)
@@ -277,7 +277,7 @@ struct BRKillMailDetailView: View {
                     if !highSlotItems.isEmpty {
                         Section(
                             header: Text(NSLocalizedString("Main_KM_High_Slots", comment: ""))
-                                .fontWeight(.bold)
+                                .fontWeight(.semibold)
                                 .font(.system(size: 18))
                                 .foregroundColor(.primary)
                                 .textCase(.none)
@@ -310,7 +310,7 @@ struct BRKillMailDetailView: View {
                     if !mediumSlotItems.isEmpty {
                         Section(
                             header: Text(NSLocalizedString("Main_KM_Medium_Slots", comment: ""))
-                                .fontWeight(.bold)
+                                .fontWeight(.semibold)
                                 .font(.system(size: 18))
                                 .foregroundColor(.primary)
                                 .textCase(.none)
@@ -343,7 +343,7 @@ struct BRKillMailDetailView: View {
                     if !lowSlotItems.isEmpty {
                         Section(
                             header: Text(NSLocalizedString("Main_KM_Low_Slots", comment: ""))
-                                .fontWeight(.bold)
+                                .fontWeight(.semibold)
                                 .font(.system(size: 18))
                                 .foregroundColor(.primary)
                                 .textCase(.none)
@@ -376,7 +376,7 @@ struct BRKillMailDetailView: View {
                     if !rigSlotItems.isEmpty {
                         Section(
                             header: Text(NSLocalizedString("Main_KM_Rig_Slots", comment: ""))
-                                .fontWeight(.bold)
+                                .fontWeight(.semibold)
                                 .font(.system(size: 18))
                                 .foregroundColor(.primary)
                                 .textCase(.none)
@@ -409,7 +409,7 @@ struct BRKillMailDetailView: View {
                     if !subsystemSlotItems.isEmpty {
                         Section(
                             header: Text(NSLocalizedString("Main_KM_Subsystem_Slots", comment: ""))
-                                .fontWeight(.bold)
+                                .fontWeight(.semibold)
                                 .font(.system(size: 18))
                                 .foregroundColor(.primary)
                                 .textCase(.none)
@@ -442,7 +442,7 @@ struct BRKillMailDetailView: View {
                     if !fighterTubeItems.isEmpty {
                         Section(
                             header: Text(NSLocalizedString("Main_KM_Fighter_Tubes", comment: ""))
-                                .fontWeight(.bold)
+                                .fontWeight(.semibold)
                                 .font(.system(size: 18))
                                 .foregroundColor(.primary)
                                 .textCase(.none)
@@ -500,7 +500,7 @@ struct BRKillMailDetailView: View {
                         if !flagItems.isEmpty || !flagContainers.isEmpty {
                             Section(
                                 header: Text(getFlagName(flag))
-                                    .fontWeight(.bold)
+                                    .fontWeight(.semibold)
                                     .font(.system(size: 18))
                                     .foregroundColor(.primary)
                                     .textCase(.none)

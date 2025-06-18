@@ -147,9 +147,9 @@ public class CharacterSkillsAPI {
                 SELECT skills_data, last_updated 
                 FROM character_skills 
                 WHERE character_id = ? 
-                AND datetime(last_updated) > datetime('now', '-30 minutes')
+                AND datetime(last_updated) > datetime('now', '-120 minutes')
             """
-
+            // 缓存2h
         if case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
             query, parameters: [characterId]
         ),

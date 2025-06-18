@@ -61,7 +61,7 @@ struct DatabaseListView: View {
         ForEach(groupedPublishedItems, id: \.id) { group in
             Section(
                 header: Text(group.name)
-                    .fontWeight(.bold)
+                    .fontWeight(.semibold)
                     .font(.system(size: 18))
                     .foregroundColor(.primary)
                     .textCase(.none)
@@ -83,7 +83,7 @@ struct DatabaseListView: View {
     private var unpublishedItemsView: some View {
         Section(
             header: Text(NSLocalizedString("Main_Database_unpublished", comment: "未发布"))
-                .fontWeight(.bold)
+                .fontWeight(.semibold)
                 .font(.system(size: 18))
                 .foregroundColor(.primary)
                 .textCase(.none)

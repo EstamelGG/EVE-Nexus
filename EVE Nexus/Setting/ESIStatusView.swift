@@ -267,7 +267,7 @@ struct StatusCountView: View {
         Button(action: action) {
             VStack {
                 Text("\(count)")
-                    .font(.system(size: 24, weight: .bold))
+                    .font(.system(size: 24, weight: .semibold))
                     .foregroundColor(color)
                 Text(label)
                     .font(.caption)
@@ -313,7 +313,7 @@ struct EndpointStatusRow: View {
 
             // HTTP方法标签
             Text(status.method.uppercased())
-                .font(.system(size: 12, weight: .bold))
+                .font(.system(size: 12, weight: .semibold))
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
                 .foregroundColor(.white)

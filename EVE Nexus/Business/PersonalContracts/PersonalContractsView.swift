@@ -355,7 +355,6 @@ final class PersonalContractsViewModel: ObservableObject {
 struct PersonalContractsView: View {
     @StateObject private var viewModel: PersonalContractsViewModel
     @State private var showSettings = false
-    @State private var showFilterMenu = false  // 添加过滤菜单状态
 
     // 使用@AppStorage并使用动态key
     @AppStorage("") private var showActiveOnly: Bool = false

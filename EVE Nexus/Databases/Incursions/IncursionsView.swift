@@ -239,7 +239,7 @@ struct IncursionCell: View {
                                 .foregroundColor(getSecurityColor(incursion.location.security))
                                 .font(.system(.subheadline, design: .monospaced))
                             Text(incursion.location.systemName)
-                                .fontWeight(.bold)
+                                .fontWeight(.semibold)
                                 .font(.subheadline)
                                 .textSelection(.enabled)
                         }

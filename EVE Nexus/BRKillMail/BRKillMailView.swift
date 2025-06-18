@@ -750,7 +750,7 @@ struct BRKillMailCell: View {
             .font(.system(size: 12, weight: .medium))
 
         let systemName = Text(" \(sysInfo.name ?? NSLocalizedString("Unknown", comment: ""))")
-            .font(.system(size: 12, weight: .bold))
+            .font(.system(size: 12, weight: .semibold))
             .foregroundColor(.secondary)
 
         let regionText = Text(" / \(sysInfo.region ?? NSLocalizedString("Unknown", comment: ""))")

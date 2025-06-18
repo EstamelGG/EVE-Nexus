@@ -62,7 +62,7 @@ struct CorporationDetailView: View {
 
                             // 军团名称
                             Text(corporationInfo.name)
-                                .font(.system(size: 20, weight: .bold))
+                                .font(.system(size: 20, weight: .semibold))
                                 .lineLimit(1)
                                 .textSelection(.enabled)
 

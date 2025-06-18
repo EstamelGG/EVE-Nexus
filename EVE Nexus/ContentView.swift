@@ -10,7 +10,7 @@ struct TableRowNode: Identifiable, Equatable {
     let iconName: String
     let note: String?
     let destination: AnyView?
-    
+
     static func == (lhs: TableRowNode, rhs: TableRowNode) -> Bool {
         lhs.id == rhs.id && lhs.title == rhs.title && lhs.iconName == rhs.iconName
         && lhs.note == rhs.note
@@ -21,7 +21,7 @@ struct TableNode: Identifiable, Equatable {
     let id = UUID()
     let title: String
     var rows: [TableRowNode]
-    
+
     static func == (lhs: TableNode, rhs: TableNode) -> Bool {
         lhs.id == rhs.id && lhs.title == rhs.title && lhs.rows == rhs.rows
     }
@@ -33,7 +33,7 @@ class ServerStatusViewModel: ObservableObject {
     @Published var currentTime = Date()
     private var timer: Timer?
     private var statusTimer: Timer?
-    
+
     // 获取UTC时间的小时和分钟
     private var utcHourAndMinute: (hour: Int, minute: Int) {
         let calendar = Calendar.current
@@ -41,11 +41,11 @@ class ServerStatusViewModel: ObservableObject {
         let components = calendar.dateComponents(in: utc, from: currentTime)
         return (components.hour ?? 0, components.minute ?? 0)
     }
-    
+
     // 计算下一次更新的时间间隔
     private var nextUpdateInterval: TimeInterval {
         let (hour, minute) = utcHourAndMinute
-        
+
         // 11:00 AM UTC
         if hour == 11 && minute == 0 {
             return 60  // 1分钟
@@ -67,21 +67,21 @@ class ServerStatusViewModel: ObservableObject {
             return 1200  // 20分钟
         }
     }
-    
+
     func startTimers() {
         // 停止现有的计时器
         stopTimers()
-        
+
         // 创建时间更新计时器（每秒更新）
         timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
             guard let self = self else { return }
             let oldTime = self.currentTime
             self.currentTime = Date()
-            
+
             // 检查是否跨越了整点或半点
             let oldHourMinute = self.getHourAndMinute(from: oldTime)
             let newHourMinute = self.getHourAndMinute(from: self.currentTime)
-            
+
             // 在特定时间点立即刷新
             if self.shouldImmediatelyRefresh(oldTime: oldHourMinute, newTime: newHourMinute) {
                 Task {
@@ -91,18 +91,18 @@ class ServerStatusViewModel: ObservableObject {
                 self.resetStatusTimer()
             }
         }
-        
+
         // 设置状态更新计时器（这会自动触发第一次刷新）
         resetStatusTimer()
     }
-    
+
     private func getHourAndMinute(from date: Date) -> (hour: Int, minute: Int) {
         let calendar = Calendar.current
         let utc = TimeZone(identifier: "UTC")!
         let components = calendar.dateComponents(in: utc, from: date)
         return (components.hour ?? 0, components.minute ?? 0)
     }
-    
+
     private func shouldImmediatelyRefresh(
         oldTime: (hour: Int, minute: Int), newTime: (hour: Int, minute: Int)
     ) -> Bool {
@@ -113,7 +113,7 @@ class ServerStatusViewModel: ObservableObject {
         }
         return false
     }
-    
+
     private func resetStatusTimer() {
         statusTimer?.invalidate()
         statusTimer = Timer.scheduledTimer(withTimeInterval: nextUpdateInterval, repeats: true) {
@@ -123,21 +123,21 @@ class ServerStatusViewModel: ObservableObject {
             }
         }
     }
-    
+
     func stopTimers() {
         timer?.invalidate()
         timer = nil
         statusTimer?.invalidate()
         statusTimer = nil
     }
-    
+
     private func refreshServerStatus(forceRefresh: Bool = false) async {
         do {
             let newStatus = try await ServerStatusAPI.shared.fetchServerStatus(
                 forceRefresh: forceRefresh)
             await MainActor.run {
                 self.status = newStatus
-                
+
                 // 如果在11:00-11:30之间且服务器已上线，重置计时器使用新的间隔
                 let (hour, minute) = utcHourAndMinute
                 if hour == 11 && minute < 30 && newStatus.isOnline {
@@ -148,7 +148,7 @@ class ServerStatusViewModel: ObservableObject {
             Logger.error("刷新服务器状态失败: \(error)")
         }
     }
-    
+
     deinit {
         stopTimers()
     }
@@ -157,7 +157,7 @@ class ServerStatusViewModel: ObservableObject {
 struct ServerStatusView: View {
     @StateObject private var viewModel = ServerStatusViewModel()
     @ObservedObject var mainViewModel: MainViewModel
-    
+
     var body: some View {
         HStack(spacing: 4) {
             Text(formattedUTCTime)
@@ -173,7 +173,7 @@ struct ServerStatusView: View {
             viewModel.stopTimers()
         }
     }
-    
+
     private var formattedUTCTime: String {
         let formatter = DateFormatter()
         formatter.timeZone = TimeZone(identifier: "UTC")
@@ -181,7 +181,7 @@ struct ServerStatusView: View {
         formatter.timeStyle = .medium
         return formatter.string(from: viewModel.currentTime)
     }
-    
+
     private var statusText: Text {
         if let status = mainViewModel.serverStatus {
             if status.isOnline {
@@ -219,7 +219,7 @@ struct LoginButtonView: View {
     let isRefreshing: Bool
     @State private var isRefreshTokenExpired = false
     @ObservedObject var mainViewModel: MainViewModel
-    
+
     var body: some View {
         HStack {
             if let portrait = characterPortrait {
@@ -233,7 +233,7 @@ struct LoginButtonView: View {
                         Circle()
                             .fill(Color.black.opacity(0.6))
                             .frame(width: 64, height: 64)
-                        
+
                         ProgressView()
                             .scaleEffect(0.8)
                     } else if isRefreshTokenExpired {
@@ -258,13 +258,13 @@ struct LoginButtonView: View {
                 .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
                 .padding(4)
             }
-            
+
             VStack(alignment: .leading, spacing: 4) {
                 if let character = selectedCharacter {
                     Text(character.CharacterName)
                         .font(.headline)
                         .lineLimit(1)
-                    
+
                     // 显示联盟信息
                     HStack(spacing: 4) {
                         if let alliance = mainViewModel.allianceInfo,
@@ -288,7 +288,7 @@ struct LoginButtonView: View {
                                 .lineLimit(1)
                         }
                     }
-                    
+
                     // 显示军团信息
                     HStack(spacing: 4) {
                         if let corporation = mainViewModel.corporationInfo,
@@ -365,7 +365,7 @@ struct ContentView: View {
     @Environment(\.colorScheme) var systemColorScheme
     @State private var columnVisibility = NavigationSplitViewVisibility.all
     @State private var selectedItem: String? = nil
-    
+
     // 使用计算属性来确定当前的颜色方案
     private var currentColorScheme: ColorScheme? {
         switch selectedTheme {
@@ -377,33 +377,36 @@ struct ContentView: View {
             return nil
         }
     }
-    
+
     var body: some View {
         GeometryReader { geometry in
             NavigationSplitView(columnVisibility: $columnVisibility) {
                 List(selection: $selectedItem) {
                     // 登录部分
                     loginSection
-                    
+
                     // 角色功能部分
                     if currentCharacterId != 0 {
                         characterSection
-                        
+
                         // 军团部分（仅在开启设置且已登录时显示）
                         if showCorporationAffairs {
                             corporationSection
                         }
                     }
-                    
+
                     // 数据库部分(始终显示)
                     databaseSection
-                    
+
                     // 商业部分(登录后显示)
                     businessSection
+
+                    // 战斗部分(登录后显示)
                     if currentCharacterId != 0 {
                         KillBoardSection
                     }
-                    
+                    // 装配部分(无需登录)
+                    FittingSection
                     // 其他设置(始终显示)
                     otherSection
                 }
@@ -563,6 +566,10 @@ struct ContentView: View {
                             }
                         case "jump_navigation":
                             JumpNavigationView(databaseManager: databaseManager)
+                        case "fitting":
+                            FittingMainView(
+                                characterId: viewModel.selectedCharacter?.CharacterID,
+                                databaseManager: databaseManager)
                         default:
                             Text(NSLocalizedString("Select_Item", comment: ""))
                                 .foregroundColor(.gray)
@@ -605,9 +612,9 @@ struct ContentView: View {
             await viewModel.refreshAllData()
         }
     }
-    
+
     // MARK: - 视图组件
-    
+
     private var loginSection: some View {
         Section {
             NavigationLink(value: "accounts") {
@@ -635,7 +642,7 @@ struct ContentView: View {
             ServerStatusView(mainViewModel: viewModel)
         }
     }
-    
+
     private var characterSection: some View {
         Section {
             NavigationLink(value: "character_sheet") {
@@ -645,7 +652,7 @@ struct ContentView: View {
                     note: viewModel.characterStats.skillPoints
                 )
             }
-            
+
             NavigationLink(value: "character_clones") {
                 RowView(
                     title: NSLocalizedString("Main_Jump_Clones", comment: ""),
@@ -653,7 +660,7 @@ struct ContentView: View {
                     noteView: AnyView(CloneCountdownView(targetDate: viewModel.cloneCooldownEndDate))
                 )
             }
-            
+
             NavigationLink(value: "character_skills") {
                 RowView(
                     title: NSLocalizedString("Main_Skills", comment: ""),
@@ -661,14 +668,14 @@ struct ContentView: View {
                     noteView: AnyView(SkillQueueCountdownView(queueEndDate: viewModel.skillQueueEndDate, skillCount: viewModel.skillQueueCount))
                 )
             }
-            
+
             NavigationLink(value: "character_mail") {
                 RowView(
                     title: NSLocalizedString("Main_EVE_Mail", comment: ""),
                     icon: "evemail"
                 )
             }
-            
+
             NavigationLink(value: "calendar") {
                 RowView(
                     title: NSLocalizedString("Main_Calendar", comment: ""),
@@ -676,7 +683,7 @@ struct ContentView: View {
                 )
             }
             .isHidden(true)
-            
+
             NavigationLink(value: "character_wealth") {
                 RowView(
                     title: NSLocalizedString("Main_Wealth", comment: ""),
@@ -684,14 +691,14 @@ struct ContentView: View {
                     note: viewModel.characterStats.walletBalance
                 )
             }
-            
+
             NavigationLink(value: "character_lp") {
                 RowView(
                     title: NSLocalizedString("Main_Loyalty_Points", comment: ""),
                     icon: "lpstore"
                 )
             }
-            
+
             NavigationLink(value: "searcher") {
                 RowView(
                     title: NSLocalizedString("Main_Contact_Search", comment: ""),
@@ -700,13 +707,13 @@ struct ContentView: View {
             }
         } header: {
             Text(NSLocalizedString("Main_Character", comment: ""))
-                .fontWeight(.bold)
+                .fontWeight(.semibold)
                 .font(.system(size: 18))
                 .foregroundColor(.primary)
                 .textCase(nil)
         }
     }
-    
+
     private var corporationSection: some View {
         Section {
             NavigationLink(value: "corporation_wallet") {
@@ -715,49 +722,49 @@ struct ContentView: View {
                     icon: "wallet"
                 )
             }
-            
+
             NavigationLink(value: "corporation_members") {
                 RowView(
                     title: NSLocalizedString("Main_Corporation_Members", comment: ""),
                     icon: "corporation"
                 )
             }
-            
+
             NavigationLink(value: "corporation_moon") {
                 RowView(
                     title: NSLocalizedString("Main_Corporation_Moon_Mining", comment: ""),
                     icon: "satellite"
                 )
             }
-            
+
             NavigationLink(value: "corporation_structures") {
                 RowView(
                     title: NSLocalizedString("Main_Corporation_Structures", comment: ""),
                     icon: "Structurebrowser"
                 )
             }
-            
+
             // NavigationLink(value: "corporation_members") {
             //     RowView(
             //         title: NSLocalizedString("Main_Corporation_Members", comment: ""),
             //         icon: "corporation"
             //     )
             // }
-            
+
             // NavigationLink(value: "corporation_contracts") {
             //     RowView(
             //         title: NSLocalizedString("Main_Corporation_Contracts", comment: ""),
             //         icon: "contracts"
             //     )
             // }
-            
+
             // NavigationLink(value: "corporation_market_orders") {
             //     RowView(
             //         title: NSLocalizedString("Main_Corporation_Market_Orders", comment: ""),
             //         icon: "marketdeliveries"
             //     )
             // }
-            
+
             // NavigationLink(value: "corporation_industry") {
             //     RowView(
             //         title: NSLocalizedString("Main_Corporation_Industry", comment: ""),
@@ -766,13 +773,13 @@ struct ContentView: View {
             // }
         } header: {
             Text(NSLocalizedString("Main_Corporation", comment: ""))
-                .fontWeight(.bold)
+                .fontWeight(.semibold)
                 .font(.system(size: 18))
                 .foregroundColor(.primary)
                 .textCase(nil)
         }
     }
-    
+
     private var databaseSection: some View {
         Section {
             NavigationLink(value: "database") {
@@ -781,77 +788,77 @@ struct ContentView: View {
                     icon: "items"
                 )
             }
-            
+
             NavigationLink(value: "market") {
                 RowView(
                     title: NSLocalizedString("Main_Market", comment: ""),
                     icon: "market"
                 )
             }
-            
+
             NavigationLink(value: "vip_market_item") {
                 RowView(
                     title: NSLocalizedString("Main_Market_Watch_List", comment: ""),
                     icon: "searchmarket"
                 )
             }
-            
+
             NavigationLink(value: "attribute_compare") {
                 RowView(
                     title: NSLocalizedString("Main_Attribute_Compare", comment: "属性对比器"),
                     icon: "comparetool"
                 )
             }
-            
+
             NavigationLink(value: "npc") {
                 RowView(
                     title: "NPC",
                     icon: "criminal"
                 )
             }
-            
+
             NavigationLink(value: "agents") {
                 RowView(
                     title: NSLocalizedString("Main_Agents", comment: ""),
                     icon: "agentfinder"
                 )
             }
-            
+
             NavigationLink(value: "wormhole") {
                 RowView(
                     title: NSLocalizedString("Main_WH", comment: ""),
                     icon: "terminate"
                 )
             }
-            
+
             NavigationLink(value: "incursions") {
                 RowView(
                     title: NSLocalizedString("Main_Incursions", comment: ""),
                     icon: "incursions"
                 )
             }
-            
+
             NavigationLink(value: "faction_war") {
                 RowView(
                     title: NSLocalizedString("Main_Section_Frontlines", comment: ""),
                     icon: "factionalwarfare"
                 )
             }
-            
+
             NavigationLink(value: "sovereignty") {
                 RowView(
                     title: NSLocalizedString("Main_Sovereignty", comment: ""),
                     icon: "sovereignty"
                 )
             }
-            
+
             NavigationLink(value: "language_map") {
                 RowView(
                     title: NSLocalizedString("Main_Language_Map", comment: ""),
                     icon: "browser"
                 )
             }
-            
+
             NavigationLink(value: "jump_navigation") {
                 RowView(
                     title: NSLocalizedString("Main_Jump_Navigation", comment: ""),
@@ -860,13 +867,13 @@ struct ContentView: View {
             }
         } header: {
             Text(NSLocalizedString("Main_Databases", comment: ""))
-                .fontWeight(.bold)
+                .fontWeight(.semibold)
                 .font(.system(size: 18))
                 .foregroundColor(.primary)
                 .textCase(nil)
         }
     }
-    
+
     private var businessSection: some View {
         Section {
             NavigationLink(value: "assets") {
@@ -875,49 +882,49 @@ struct ContentView: View {
                     icon: "assets"
                 )
             }.isHidden(currentCharacterId == 0)
-            
+
             NavigationLink(value: "market_orders") {
                 RowView(
                     title: NSLocalizedString("Main_Market_Orders", comment: ""),
                     icon: "marketdeliveries"
                 )
             }.isHidden(currentCharacterId == 0)
-            
+
             NavigationLink(value: "contracts") {
                 RowView(
                     title: NSLocalizedString("Main_Contracts", comment: ""),
                     icon: "contracts"
                 )
             }.isHidden(currentCharacterId == 0)
-            
+
             NavigationLink(value: "market_transactions") {
                 RowView(
                     title: NSLocalizedString("Main_Market_Transactions", comment: ""),
                     icon: "journal"
                 )
             }.isHidden(currentCharacterId == 0)
-            
+
             NavigationLink(value: "wallet_journal") {
                 RowView(
                     title: NSLocalizedString("Main_Wallet_Journal", comment: ""),
                     icon: "wallet"
                 )
             }.isHidden(currentCharacterId == 0)
-            
+
             NavigationLink(value: "industry_jobs") {
                 RowView(
                     title: NSLocalizedString("Main_Industry_Jobs", comment: ""),
                     icon: "industry"
                 )
             }.isHidden(currentCharacterId == 0)
-            
+
             NavigationLink(value: "mining_ledger") {
                 RowView(
                     title: NSLocalizedString("Main_Mining_Ledger", comment: ""),
                     icon: "miningledger"
                 )
             }.isHidden(currentCharacterId == 0)
-            
+
             NavigationLink(value: "planetary") {
                 RowView(
                     title: NSLocalizedString("Main_Planetary", comment: ""),
@@ -926,13 +933,13 @@ struct ContentView: View {
             }
         } header: {
             Text(NSLocalizedString("Main_Business", comment: ""))
-                .fontWeight(.bold)
+                .fontWeight(.semibold)
                 .font(.system(size: 18))
                 .foregroundColor(.primary)
                 .textCase(nil)
         }
     }
-    
+
     private var KillBoardSection: some View {
         Section {
             NavigationLink(value: "killboard") {
@@ -944,13 +951,28 @@ struct ContentView: View {
             }
         } header: {
             Text(NSLocalizedString("Main_Battle", comment: ""))
-                .fontWeight(.bold)
+                .fontWeight(.semibold)
                 .font(.system(size: 18))
                 .foregroundColor(.primary)
                 .textCase(nil)
         }
     }
-    
+    private var FittingSection: some View {
+        Section {
+            NavigationLink(value: "fitting") {
+                RowView(
+                    title: NSLocalizedString("Main_Fitting_Simulation", comment: ""),
+                    icon: "fitting"
+                )
+            }
+        } header: {
+            Text(NSLocalizedString("Main_Fitting", comment: ""))
+                .fontWeight(.semibold)
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+                .textCase(nil)
+        }
+    }
     private var otherSection: some View {
         Section {
             NavigationLink {
@@ -961,7 +983,7 @@ struct ContentView: View {
                     icon: "Settings"
                 )
             }
-            
+
             NavigationLink {
                 AboutView()
             } label: {
@@ -972,13 +994,13 @@ struct ContentView: View {
             }
         } header: {
             Text(NSLocalizedString("Main_Other", comment: ""))
-                .fontWeight(.bold)
+                .fontWeight(.semibold)
                 .font(.system(size: 18))
                 .foregroundColor(.primary)
                 .textCase(nil)
         }
     }
-    
+
     private var logoutButton: some View {
         Button {
             if currentCharacterId != 0 {
@@ -996,16 +1018,16 @@ struct ContentView: View {
             }
         }
     }
-    
+
     // MARK: - 通用组件
-    
+
     struct RowView: View {
         let title: String
         let icon: String
         var note: String?
         var noteView: AnyView? = nil
         var isVisible: Bool = true
-        
+
         var body: some View {
             HStack {
                 Image(icon)
@@ -1013,7 +1035,7 @@ struct ContentView: View {
                     .frame(width: 36, height: 36)
                     .cornerRadius(6)
                     .drawingGroup()
-                
+
                 VStack(alignment: .leading) {
                     Text(title)
                         .fixedSize(horizontal: false, vertical: true)
@@ -1045,13 +1067,13 @@ extension View {
 // MARK: - 克隆倒计时组件
 struct CloneCountdownView: View {
     let targetDate: Date?
-    
+
     var body: some View {
         if let date = targetDate {
             TimelineView(.periodic(from: Date(), by: 1.0)) { timeline in
                 let now = timeline.date
                 let remainingTime = date.timeIntervalSince(now)
-                
+
                 if remainingTime <= 0 {
                     Text(NSLocalizedString("Main_Jump_Clones_Ready", comment: ""))
                         .font(.system(size: 12))
@@ -1063,7 +1085,7 @@ struct CloneCountdownView: View {
                     let hours = Int(remainingTime) / 3600
                     let minutes = (Int(remainingTime) % 3600) / 60
                     let seconds = Int(remainingTime) % 60
-                    
+
                     if hours > 0 {
                         if minutes > 0 {
                             Text(String(
@@ -1123,13 +1145,13 @@ struct CloneCountdownView: View {
 struct SkillQueueCountdownView: View {
     let queueEndDate: Date?
     let skillCount: Int
-    
+
     var body: some View {
         if let endDate = queueEndDate, skillCount > 0 {
             TimelineView(.periodic(from: Date(), by: 1.0)) { timeline in
                 let now = timeline.date
                 let remainingTime = endDate.timeIntervalSince(now)
-                
+
                 if remainingTime <= 0 {
                     // 队列已完成
                     Text(NSLocalizedString("Main_Skills_Queue_Complete", comment: "完成"))
@@ -1143,7 +1165,7 @@ struct SkillQueueCountdownView: View {
                     let hours = (Int(remainingTime) % 86400) / 3600
                     let minutes = (Int(remainingTime) % 3600) / 60
                     let seconds = Int(remainingTime) % 60
-                    
+
                     if days > 0 {
                         Text(String(
                             format: NSLocalizedString(

@@ -10,6 +10,7 @@ struct CharacterLoyaltyPointsStoreView: View {
     @State private var searchTask: Task<Void, Never>?
     @State private var loadingProgress: (current: Int, total: Int)?
     @State private var isForceRefresh = false
+    @State private var loadingTask: Task<Void, Never>?
 
     private var searchResults: (factions: [Faction], corporations: [Corporation]) {
         // 如果搜索文本为空，直接返回空结果，不进行任何计算
@@ -208,12 +209,20 @@ struct CharacterLoyaltyPointsStoreView: View {
                 loadFactions()
             }
         }
+        .onDisappear {
+            // 取消正在进行的任务以防止信号量泄漏
+            loadingTask?.cancel()
+            searchTask?.cancel()
+        }
     }
 
     private func loadFactions() {
         if hasLoadedData && !isForceRefresh {
             return
         }
+
+        // 取消之前的加载任务
+        loadingTask?.cancel()
 
         isLoading = true
         error = nil
@@ -281,7 +290,7 @@ struct CharacterLoyaltyPointsStoreView: View {
             }
             
             // 批量获取所有军团的LP商店数据
-            Task(priority: .userInitiated) {
+            loadingTask = Task(priority: .userInitiated) {
                 do {
                     let progressCallback: (Int) -> Void = { completedCount in
                         Task { @MainActor in
@@ -295,6 +304,12 @@ struct CharacterLoyaltyPointsStoreView: View {
                         progressCallback: progressCallback,
                         forceRefresh: isForceRefresh
                     )
+                    
+                    // 检查任务是否被取消
+                    if Task.isCancelled {
+                        Logger.info("LP商店数据加载任务被取消")
+                        return
+                    }
                     
                     // 过滤掉没有offer的军团
                     for (factionId, _) in factionDict {
@@ -317,20 +332,29 @@ struct CharacterLoyaltyPointsStoreView: View {
                     
                     // 更新UI
                     await MainActor.run {
-                        self.factions = filteredFactions
-                        isLoading = false
-                        hasLoadedData = true
-                        loadingProgress = nil
-                        isForceRefresh = false
+                        // 再次检查任务是否被取消
+                        if !Task.isCancelled {
+                            self.factions = filteredFactions
+                            isLoading = false
+                            hasLoadedData = true
+                            loadingProgress = nil
+                            isForceRefresh = false
+                            loadingTask = nil
+                        }
                     }
                     
                     Logger.info("成功加载所有军团的LP商店数据")
                 } catch {
-                    Logger.error("加载LP商店数据失败: \(error)")
-                    await MainActor.run {
-                        self.error = error
-                        isLoading = false
-                        loadingProgress = nil
+                    if error is CancellationError {
+                        Logger.info("LP商店数据加载任务被取消")
+                    } else {
+                        Logger.error("加载LP商店数据失败: \(error)")
+                        await MainActor.run {
+                            self.error = error
+                            isLoading = false
+                            loadingProgress = nil
+                            loadingTask = nil
+                        }
                     }
                 }
             }

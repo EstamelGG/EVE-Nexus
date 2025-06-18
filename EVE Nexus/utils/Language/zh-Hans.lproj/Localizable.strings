@@ -141,10 +141,14 @@
 "Misc_OpenLink" = "打开链接";
 "Misc_InAll" = "总计";
 "Misc_Need" = "缺少";
+"Misc_Qty" = "数量";
+"Misc_Null" = "无";
 
 // 蓝图详情
 "Blueprint_Product" = "产品";
 "Blueprint_Success_Rate" = "成功率: %d%%";
+"Blueprint_Copy_Materials" = "复制材料";
+"Blueprint_Copy_Success" = "所需材料已复制到剪贴板.";
 "Time_Year" = "年";
 "Time_Month" = "月";
 "Time_Day" = "日";
@@ -348,6 +352,8 @@
 "Location_Flag_StructureDeedBay" = "建筑契据仓";
 "Location_Flag_Unlocked" = "已解锁";
 "Location_Flag_Wardrobe" = "衣柜";
+"Location_Flag_T3DModeSlot" = "模式";
+"Fitting_Mode_Selection" = "选择模式";
 
 // Assets Loading Status
 "Assets_Loading_Page" = "正在获取第%d页";
@@ -653,7 +659,6 @@
 "Main_EVE_Mail_No_Results" = "未找到相关结果";
 "Main_EVE_Mail_Select_Mailing_List" = "选择邮件列表";
 "Main_EVE_Mail_No_Mailing_Lists" = "没有订阅的邮件列表";
-"Main_EVE_Mail_Done" = "完成";
 
 // Mail Detail
 "Main_EVE_Mail_Reply" = "回复";
@@ -772,7 +777,7 @@
 
 // 搜索页面
 "Main_Search_Title" = "搜索";
-"Main_Contact_Search" = "社交搜索";
+"Main_Contact_Search" = "人物与地点";
 "Main_Search_Placeholder" = "输入搜索内容...";
 "Main_Search_Type_Character" = "人物";
 "Main_Search_Type_Corporation" = "军团";
@@ -1588,5 +1593,153 @@
 "Fitting_New_Structure_Fitting" = "新建建筑配置";
 "Fitting_No_Local_Fitting" = "没有本地保存的装配";
 "Fitting_Setting_Ship" = "舰船设置";
+"Fitting_Setting_Skills" = "技能设置";
+"Fitting_Select_Character" = "选择人物";
+"Fitting_All_Characters" = "所有人物";
 "Fitting_Name" = "配置名称";
+"Fitting_Virtual_Characters" = "默认人物";
+"Fitting_All_Skills" = "全 %d 级";
+"Fitting_Skills_Mode" = "技能选择";
 
+"Fitting_modules" = "装备";
+"Fitting_drones" = "无人机";
+"Fitting_fighters" = "舰载机";
+"Fitting_Fighter_Light" = "轻型";
+"Fitting_Fighter_Heavy" = "重型";
+"Fitting_Fighter_Support" = "辅助";
+"Fitting_cargo" = "货舱";
+"Fitting_stats" = "状态";
+"Fitting_Setting_Drones" = "无人机设置";
+"Fitting_Setting_Module" = "装备设置";
+"Fitting_Setting_Ammo" = "弹药设置";
+"Fitting_Setting_No_Ammo" = "不装填弹药";
+"Fitting_Setting_Clear_Ammo" = "清除弹药";
+"Fitting_Ammo" = "弹药";
+"Fitting_Setting_Items" = "物品设置";
+"Fitting_Add_Drones" = "添加无人机";
+"Fitting_Select_Drone" = "选择无人机";
+"Fitting_Drones_Qty" = "数量: %d";
+"Fitting_Act_Drones_Qty" = "激活数量: %d";
+"Fitting_unit_vol" = "单位体积:";
+"Fitting_unit_vol_sum" = "总体积:";
+"Fitting_select_Variations" = "选择变体";
+"Fitting_Current_Character" = "当前人物";
+"Fitting_No_Characters" = "无可选人物";
+
+"Fitting_stat_shipresource" = "舰船资源";
+
+"Fitting_stat_resistances" = "舰船抗性";
+
+"Fitting_stat_capacitor" = "舰船电容";
+"Fitting_cap_delta" = "回充";
+"Fitting_cap_resistance" = "抗性";
+"Fitting_cap_stable" = "稳定";
+"Fitting_cap_time" = "持续";
+"Fitting_cap_capacity" = "容量";
+
+"Fitting_stat_tank" = "舰船维修";
+"Fitting_tank_header" = "类型";
+"Fitting_tank_raw" = "修量/秒";
+"Fitting_tank_effective_repair" = "有效/秒";
+"Fitting_tank_effective" = "有效";
+"Fitting_tank_totalHP" = "总HP";
+
+"Fitting_stat_firepower" = "舰船火力";
+"Fitting_volley" = "齐射(DPH)";
+"Fitting_dps" = "秒伤(DPS)";
+"Fitting_damage_profile" = "伤害分布";
+
+"Fitting_Add_Fighters" = "添加舰载机";
+"Fitting_can_not_add_Fighters" = "无法添加更多舰载机";
+"Fitting_Select_Drone" = "选择无人机";
+"Fitting_Select_Light_Fighter" = "选择轻型舰载机";
+"Fitting_Select_Heavy_Fighter" = "选择重型舰载机";
+"Fitting_Select_Support_Fighter" = "选择辅助舰载机";
+
+// 舰载机设置
+"Fitting_Setting_Fighters" = "舰载机设置";
+"Fitting_Fighters_Qty" = "舰载机数量: %d/%d";
+"Fitting_Fighters_Max_Qty" = "最大数量";
+"Fitting_Select_Light_Fighter" = "选择轻型舰载机";
+"Fitting_Select_Heavy_Fighter" = "选择重型舰载机";
+"Fitting_Select_Support_Fighter" = "选择辅助舰载机";
+
+// 模块状态
+"Module_Status_Offline" = "离线";
+"Module_Status_Online" = "上线";
+"Module_Status_Active" = "启动";
+"Module_Status_Overload" = "超载";
+
+// Ship Misc Stats View
+"Fitting_stat_misc" = "其他属性";
+"Fitting_max_targets" = "锁定数";
+"Fitting_lock_range" = "锁定距离";
+"Fitting_scan_resolution" = "分辨率";
+"Fitting_sensor_strength" = "感应强度";
+"Fitting_drone_range" = "无人机距离";
+"Fitting_mass" = "质量";
+"Fitting_velocity" = "速度";
+"Fitting_align_time" = "转向时间";
+"Fitting_inertia" = "惯性调整";
+"Fitting_signature" = "信号半径";
+"Fitting_warp_speed" = "跃迁速度";
+
+"Fitting_radar_strength" = "雷达";
+"Fitting_ladar_strength" = "光雷达";
+"Fitting_mag_strength" = "磁力";
+"Fitting_grav_strength" = "引力";
+
+// Fighter Special Abilities
+"Fitting_Fighter_With_Special_Abilities" = "含铁骑轰炸";
+"Fitting_Fighter_Without_Special_Abilities" = "不含铁骑轰炸";
+
+// 装备属性显示文本
+"Module_Attribute_Falloff" = "失准";
+"Module_Attribute_Range" = "最佳射程";
+"Module_Attribute_MaxRange" = "最大射程";
+"Module_Attribute_empFieldRange" = "作用范围";
+"Module_Attribute_Tracking" = "跟踪速度";
+"Module_Attribute_Rate_of_Fire" = "运转周期";
+"Module_Attribute_Speed" = "飞行速度";
+"Module_Attribute_ProbeStrength" = "探针强度";
+
+// 批量操作相关
+"Fitting_Batch_Operation" = "批量操作";
+"Fitting_Batch_Mode" = "批量模式";
+"Fitting_Batch_Mode_Description" = "将同时修改 %d 个相同装备";
+"Fitting_Batch_Ammo_Setting" = "批量弹药设置";
+"Fitting_Batch_Ammo_Description" = "将为 %d 个相同装备设置弹药";
+
+// Implant and Booster Slots
+"Fitting_Implants_Mode" = "查看 / 选择植入体";
+"Fitting_Setting_Implants" = "植入体设置";
+"Implant_Slot_Num" = "植入体槽位 %d";
+"Booster_Slot_Num" = "增效剂槽位 %d";
+"Implant_No_Slots" = "没有可用的植入体槽位";
+"Implant_Empty_Slot" = "空槽位";
+"Booster_No_Boosters" = "没有可用的增效剂槽位";
+"Booster_Empty_Slot" = "空槽位";
+"Implant_Settings_Title" = "植入体设置";
+"Implant_Use_Preset" = "使用预设";
+"Implant_Select_Preset" = "选择预设";
+"Implant_Set_Items" = "预设内容";
+"Apply_Preset" = "使用预设";
+"Implant_Implants" = "植入体";
+"Implant_Boosters" = "增效剂";
+"Remove_Current_Implant" = "移除此处植入体";
+"Remove_Current_Booster" = "移除此处增效剂";
+"Implant_Clear_All" = "清空植入体与增效剂";
+
+"View_Details" = "查看详情";
+
+"Implant_High_grade" = "高级";
+"Implant_Mid_grade" = "中级";
+"Implant_Low_grade" = "低级";
+"Implant_Snake" = "蝰蛇";
+"Implant_Crystal" = "水晶";
+"Implant_Amulet" = "辟邪";
+"Implant_Ascendancy" = "统御";
+"Implant_Asklepian" = "阿斯克雷";
+"Implant_Nirvana" = "极乐";
+"Implant_Rapture" = "销魂";
+"Implant_Virtue" = "美德";

@@ -42,7 +42,7 @@ class SovereigntyCampaignsAPI {
 
     // 缓存相关常量
     private let cacheKey = "sovereignty_campaigns_data"
-    private let cacheDuration: TimeInterval = 300  // 5分钟缓存
+    private let cacheDuration: TimeInterval = 3600 * 8  // 8小时缓存
 
     struct CachedData: Codable {
         let data: [SovereigntyCampaign]

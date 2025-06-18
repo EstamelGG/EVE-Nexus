@@ -1,12 +1,5 @@
 import Foundation
 
-// 定义工业项目API错误类型
-enum IndustryAPIError: Error {
-    case databaseError(String)
-    case dataError(String)
-    case jsonError(String)
-}
-
 class CharacterIndustryAPI {
     static let shared = CharacterIndustryAPI()
     private let databaseManager = CharacterDatabaseManager.shared

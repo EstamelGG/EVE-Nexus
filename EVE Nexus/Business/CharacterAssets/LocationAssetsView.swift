@@ -179,7 +179,7 @@ struct LocationAssetsView: View {
     private func assetGroupSection(for group: (flag: String, items: [AssetTreeNode])) -> some View {
         Section(
             header: Text(formatLocationFlag(group.flag))
-                .fontWeight(.bold)
+                .fontWeight(.semibold)
                 .font(.system(size: 18))
                 .foregroundColor(.primary)
                 .textCase(.none)
@@ -349,7 +349,7 @@ struct SubLocationAssetsView: View {
             }
         } header: {
             Text(NSLocalizedString("Container_Basic_Info", comment: ""))
-                .fontWeight(.bold)
+                .fontWeight(.semibold)
                 .font(.system(size: 18))
                 .foregroundColor(.primary)
                 .textCase(.none)
@@ -362,7 +362,7 @@ struct SubLocationAssetsView: View {
     {
         Section(
             header: Text(formatLocationFlag(group.flag))
-                .fontWeight(.bold)
+                .fontWeight(.semibold)
                 .font(.system(size: 18))
                 .foregroundColor(.primary)
                 .textCase(.none)

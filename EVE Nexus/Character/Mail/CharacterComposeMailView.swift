@@ -288,7 +288,7 @@ struct RecipientPickerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("Main_EVE_Mail_Done", comment: "")) {
+                    Button(NSLocalizedString("Misc_Done", comment: "")) {
                         dismiss()
                     }
                 }
@@ -400,7 +400,7 @@ struct MailListPickerView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("Main_EVE_Mail_Done", comment: "")) {
+                    Button(NSLocalizedString("Misc_Done", comment: "")) {
                         dismiss()
                     }
                 }

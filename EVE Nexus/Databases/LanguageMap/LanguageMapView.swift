@@ -80,7 +80,7 @@ struct LanguageMapView: View {
                             header: Text(
                                 NSLocalizedString("Main_Language_Map_Exact_Match", comment: "完全匹配")
                             )
-                            .fontWeight(.bold)
+                            .fontWeight(.semibold)
                             .font(.system(size: 18))
                             .foregroundColor(.primary)
                             .textCase(nil)
@@ -97,7 +97,7 @@ struct LanguageMapView: View {
                             header: Text(
                                 NSLocalizedString("Main_Language_Map_Prefix_Match", comment: "前缀匹配")
                             )
-                            .fontWeight(.bold)
+                            .fontWeight(.semibold)
                             .font(.system(size: 18))
                             .foregroundColor(.primary)
                             .textCase(nil)
@@ -114,7 +114,7 @@ struct LanguageMapView: View {
                             header: Text(
                                 NSLocalizedString("Main_Language_Map_Fuzzy_Match", comment: "模糊匹配")
                             )
-                            .fontWeight(.bold)
+                            .fontWeight(.semibold)
                             .font(.system(size: 18))
                             .foregroundColor(.primary)
                             .textCase(nil)

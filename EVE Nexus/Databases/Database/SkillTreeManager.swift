@@ -203,7 +203,7 @@ class SkillTreeManager {
     }
 
     /// 批量获取技能的训练时间倍增系数
-    private func getTrainingTimeMultipliers(for skillIDs: [Int], databaseManager: DatabaseManager)
+    func getTrainingTimeMultipliers(for skillIDs: [Int], databaseManager: DatabaseManager)
         -> [Int: Double]
     {
         guard !skillIDs.isEmpty else { return [:] }

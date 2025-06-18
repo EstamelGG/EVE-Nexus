@@ -413,7 +413,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
                     // 添加初始任务
                     while currentPage <= totalPages, inProgressPages < maxConcurrentPages {
                         let page = currentPage
-                        group.addTask {
+                        group.addTask(priority: .userInitiated) {
                             let pageUrlString =
                                 baseUrl.absoluteString
                                 + (baseUrl.absoluteString.contains("?") ? "&" : "?")
@@ -452,7 +452,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
                         // 如果还有更多页面要获取，添加新任务
                         if currentPage <= totalPages {
                             let page = currentPage
-                            group.addTask {
+                            group.addTask(priority: .userInitiated) {
                                 let pageUrlString =
                                     baseUrl.absoluteString
                                     + (baseUrl.absoluteString.contains("?") ? "&" : "?")
@@ -639,12 +639,12 @@ class RequestRetrier {
     {
         try await withThrowingTaskGroup(of: T.self) { group in
             // 添加实际操作任务
-            group.addTask {
+            group.addTask(priority: .userInitiated) {
                 try await operation()
             }
 
             // 添加超时任务
-            group.addTask {
+            group.addTask(priority: .userInitiated) {
                 try await Task.sleep(nanoseconds: UInt64(timeout * 1_000_000_000))
                 throw NetworkError.httpError(statusCode: 408, message: "请求超时")
             }

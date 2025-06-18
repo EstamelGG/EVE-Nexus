@@ -51,11 +51,6 @@ class UniversePortraitLoader: ObservableObject {
         loadingTasks[key] = task
     }
     
-    func cancelAllTasks() {
-        loadingTasks.values.forEach { $0.cancel() }
-        loadingTasks.removeAll()
-    }
-    
     func getPortrait(for id: Int, type: MailRecipient.RecipientType, size: Int) -> UIImage? {
         return portraits["\(type.rawValue)_\(id)_\(size)"]
     }

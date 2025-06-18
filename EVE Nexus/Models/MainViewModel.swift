@@ -30,9 +30,7 @@ class MainViewModel: ObservableObject {
 
     private enum Constants {
         static let baseCloneCooldown: TimeInterval = 24 * 3600  // 基础24小时冷却
-        static let secondsInDay = 86400
         static let secondsInHour = 3600
-        static let secondsInMinute = 60
         static let maxRetryCount = 3
         static let retryDelay: TimeInterval = 1.0
         static let emptyValue = "--"
@@ -168,14 +166,7 @@ class MainViewModel: ObservableObject {
                 .replacingOccurrences(of: "$num", with: Constants.emptyValue)
         }
     }
-
-    private func formatTimeComponents(seconds: Int) -> (days: Int, hours: Int, minutes: Int) {
-        let days = seconds / Constants.secondsInDay
-        let hours = (seconds % Constants.secondsInDay) / Constants.secondsInHour
-        let minutes = (seconds % Constants.secondsInHour) / Constants.secondsInMinute
-        return (days, hours, minutes)
-    }
-
+    
     private func updateWalletBalance(_ balance: Double?) {
         if let bal = balance {
             characterStats.walletBalance = NSLocalizedString("Main_Wealth_ISK", comment: "")

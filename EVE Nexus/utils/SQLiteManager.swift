@@ -93,7 +93,7 @@ class SQLiteManager {
             // 记录开始时间
             let startTime = CFAbsoluteTimeGetCurrent()
 
-            Logger.info("\(query)?#\(parameters)")
+            Logger.info("[SQLite executeQuery]\(query)?#\(parameters)")
             // 记录查询日志
             addQueryLog(query: query, parameters: parameters)
 

@@ -185,14 +185,14 @@ enum AttributeDisplayConfig {
     // 基于 Attribute_id 的值转换规则
     private static let valueTransformRules: [Int: (Double) -> Double] = [:]
 
-    // 基于 unitID 的值转换规则
+    // 基于 unitID 的值转换规则，转换规则参考 https://sde.hoboleaks.space/tq/dogmaunits.json
     private static let unitTransformRules: [Int: (Double) -> Double] = [
         108: { value in (1 - value) * 100 },  // 百分比转换
         111: { value in (1 - value) * 100 },  // 百分比转换
         127: { value in value * 100 },  // 百分比转换
     ]
 
-    // 基于 unitID 的值格式化规则
+    // 基于 unitID 的值格式化规则，转换规则参考 https://sde.hoboleaks.space/tq/dogmaunits.json
     private static let unitFormatRules: [Int: (Double, String?) -> String] = [
         109: { value, _ in
             let diff = value - 1

@@ -124,7 +124,7 @@ struct SkillPlanDetailView: View {
                         Button {
                             isShowingEditSheet = false
                         } label: {
-                            Text(NSLocalizedString("Main_EVE_Mail_Done", comment: ""))
+                            Text(NSLocalizedString("Misc_Done", comment: ""))
                         }
                     }
                 }

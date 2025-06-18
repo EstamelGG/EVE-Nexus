@@ -18,7 +18,7 @@ struct TokenExpiredOverlay: View {
 
                 // 红色感叹号
                 Image(systemName: "exclamationmark")
-                    .font(.system(size: 16, weight: .bold))
+                    .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(.red)
             }
         }

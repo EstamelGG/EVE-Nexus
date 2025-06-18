@@ -70,7 +70,7 @@ struct AboutView: View {
 
                         Text(appName)
                             .font(.title2)
-                            .fontWeight(.bold)
+                            .fontWeight(.semibold)
                         Text("v\(AppConfiguration.Version.fullVersion)")
                             .font(.system(.body, design: .monospaced))
                     }

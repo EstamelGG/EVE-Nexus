@@ -222,7 +222,13 @@ class CacheManager {
             clearPortraitLoaderCaches()
         }
 
-        // 10. 清理 URL Session 缓存
+        // 10. 清理 Swift URLCache
+        await MainActor.run {
+            URLCache.shared.removeAllCachedResponses()
+            Logger.info("URLCache 清理完成")
+        }
+
+        // 11. 清理 URL Session 缓存
         await clearURLSessionCacheAsync()
 
         Logger.info("所有缓存清理完成")
@@ -608,7 +614,7 @@ struct SettingView: View {
                     }
                 } header: {
                     Text(group.header)
-                        .fontWeight(.bold)
+                        .fontWeight(.semibold)
                         .font(.system(size: 18))
                         .foregroundColor(.primary)
                         .textCase(nil)

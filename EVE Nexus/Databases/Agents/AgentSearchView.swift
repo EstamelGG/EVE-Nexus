@@ -1103,7 +1103,7 @@ struct AgentListHierarchyView: View {
                                 .fill(getLevelColor(level))
                                 .frame(width: 40, height: 40)
                             Text("\(level)")
-                                .font(.system(size: 18, weight: .bold))
+                                .font(.system(size: 18, weight: .semibold))
                                 .foregroundColor(.white)
                         }
 

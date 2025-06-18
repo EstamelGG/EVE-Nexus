@@ -39,7 +39,7 @@ struct InsurgencySystemCell: View {
                                 .cornerRadius(4)
                         }
                         Text(systemInfo.name)
-                            .fontWeight(.bold)
+                            .fontWeight(.semibold)
                             .textSelection(.enabled)
                     }
 
@@ -133,7 +133,7 @@ struct InsurgencySystemCell: View {
                     .foregroundColor(.secondary)
                     + Text(state.systemType.localizedString)
                     .font(.caption)
-                    .fontWeight(.bold)
+                    .fontWeight(.semibold)
                     .foregroundColor(state.systemType == .frontline ? .red : .secondary)
             }
         }
@@ -304,7 +304,7 @@ struct InsurgencyView: View {
                                             .foregroundColor(getSecurityColor(systemInfo.security))
                                             .font(.system(.subheadline, design: .monospaced))
                                         Text(systemInfo.name)
-                                            .fontWeight(.bold)
+                                            .fontWeight(.semibold)
                                             .textSelection(.enabled)
                                     }
 

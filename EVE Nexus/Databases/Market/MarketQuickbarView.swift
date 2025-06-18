@@ -258,7 +258,7 @@ struct MarketItemSelectorBaseView<Content: View>: View {
                 ForEach(groupedSearchResults, id: \.id) { group in
                     Section(
                         header: Text(group.name)
-                            .fontWeight(.bold)
+                            .fontWeight(.semibold)
                             .font(.system(size: 18))
                             .foregroundColor(.primary)
                             .textCase(.none)
@@ -346,7 +346,7 @@ struct MarketItemSelectorBaseView<Content: View>: View {
         .navigationTitle(title)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(NSLocalizedString("Main_EVE_Mail_Done", comment: "")) {
+                Button(NSLocalizedString("Misc_Done", comment: "")) {
                     onDismiss()
                 }
             }
@@ -621,7 +621,7 @@ struct MarketItemSelectorItemListView: View {
                 ForEach(groupedItems, id: \.id) { group in
                     Section(
                         header: Text(group.name)
-                            .fontWeight(.bold)
+                            .fontWeight(.semibold)
                             .font(.system(size: 18))
                             .foregroundColor(.primary)
                             .textCase(.none)
@@ -775,7 +775,7 @@ struct MarketQuickbarView: View {
                 text: $newQuickbarName
             )
 
-            Button(NSLocalizedString("Main_EVE_Mail_Done", comment: "")) {
+            Button(NSLocalizedString("Misc_Done", comment: "")) {
                 if !newQuickbarName.isEmpty {
                     let newQuickbar = MarketQuickbar(
                         name: newQuickbarName,
@@ -980,7 +980,7 @@ struct MarketQuickbarDetailView: View {
                     }
                 } header: {
                     Text(NSLocalizedString("Main_Market_QuickBar_info", comment: ""))
-                        .fontWeight(.bold)
+                        .fontWeight(.semibold)
                         .font(.system(size: 18))
                         .foregroundColor(.primary)
                         .textCase(.none)
@@ -1005,7 +1005,7 @@ struct MarketQuickbarDetailView: View {
                 } header: {
                     HStack {
                         Text(NSLocalizedString("Main_Market_Item_List", comment: ""))
-                            .fontWeight(.bold)
+                            .fontWeight(.semibold)
                             .font(.system(size: 18))
                             .foregroundColor(.primary)
                             .textCase(.none)

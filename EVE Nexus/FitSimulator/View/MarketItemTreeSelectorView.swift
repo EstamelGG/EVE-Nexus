@@ -1,0 +1,609 @@
+import SwiftUI
+
+// MARK: - 工具类
+struct MarketItemGrouper {
+    static let categoryPriority = [6, 7, 32, 8, 4, 16, 18, 87, 20, 22, 9, 5]
+    
+    static func groupSearchResults(_ items: [DatabaseListItem]) -> [(id: Int, name: String, items: [DatabaseListItem])] {
+        guard !items.isEmpty else { return [] }
+        
+        var groupedByCategory: [Int: [(groupID: Int, name: String, items: [DatabaseListItem])]] = [:]
+        
+        for item in items {
+            let categoryID = item.categoryID ?? 0
+            let groupID = item.groupID ?? 0
+            let groupName = item.groupName ?? "Unknown Group"
+            
+            if groupedByCategory[categoryID] == nil {
+                groupedByCategory[categoryID] = []
+            }
+            
+            if let index = groupedByCategory[categoryID]?.firstIndex(where: { $0.groupID == groupID }) {
+                groupedByCategory[categoryID]?[index].items.append(item)
+            } else {
+                groupedByCategory[categoryID]?.append((groupID: groupID, name: groupName, items: [item]))
+            }
+        }
+        
+        var result: [(id: Int, name: String, items: [DatabaseListItem])] = []
+        
+        // 优先级分类 + 其他分类
+        let allCategories = categoryPriority + groupedByCategory.keys.filter { !categoryPriority.contains($0) }
+        
+        for categoryID in allCategories {
+            if let groups = groupedByCategory[categoryID] {
+                for group in groups.sorted(by: { $0.groupID < $1.groupID }) {
+                    let sortedItems = group.items.sorted { item1, item2 in
+                        if item1.metaGroupID != item2.metaGroupID {
+                            return (item1.metaGroupID ?? -1) < (item2.metaGroupID ?? -1)
+                        }
+                        return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+                    }
+                    result.append((id: group.groupID, name: group.name, items: sortedItems))
+                }
+            }
+        }
+        
+        return result
+    }
+}
+
+// MARK: - 主视图
+struct MarketItemTreeSelectorView: View {
+    @ObservedObject var databaseManager: DatabaseManager
+    let title: String
+    let marketGroupTree: [MarketGroupNode]
+    let allowTypeIDs: Set<Int>
+    let existingItems: Set<Int>
+    let onItemSelected: (DatabaseListItem) -> Void
+    let onItemDeselected: (DatabaseListItem) -> Void
+    let onDismiss: (_ lastVisitedGroupID: Int?, _ searchText: String?) -> Void
+    let lastVisitedGroupID: Int?
+    let initialSearchText: String?
+    let searchItemsByKeyword: ((String) -> [DatabaseListItem])?
+    
+    @State private var searchText = ""
+    @State private var isSearchActive = false
+    @State private var searchResults: [DatabaseListItem] = []
+    @State private var isLoading = false
+    @State private var currentGroupID: Int?
+    @State private var navigationPath = NavigationPath()
+    @State private var hasNavigated = false
+    @StateObject private var searchController = SearchController()
+    
+    var groupedSearchResults: [(id: Int, name: String, items: [DatabaseListItem])] {
+        MarketItemGrouper.groupSearchResults(searchResults)
+    }
+    
+    var body: some View {
+        NavigationStack(path: $navigationPath) {
+            List {
+                if isSearchActive && !searchText.isEmpty {
+                    searchResultsContent
+                } else {
+                    marketTreeContent
+                }
+            }
+            .navigationTitle(title)
+            .navigationDestination(for: MarketNodeSubViewDestination.self) { destination in
+                MarketNodeSubView(
+                    databaseManager: databaseManager,
+                    group: destination.group,
+                    allowTypeIDs: allowTypeIDs,
+                    existingItems: existingItems,
+                    onItemSelected: onItemSelected,
+                    onItemDeselected: onItemDeselected,
+                    onDismiss: { groupID, searchText in
+                        currentGroupID = groupID
+                        onDismiss(groupID, searchText)
+                    },
+                    updateCurrentGroup: { currentGroupID = $0 }
+                )
+            }
+            .navigationDestination(for: MarketNodeItemsViewDestination.self) { destination in
+                MarketNodeItemsView(
+                    databaseManager: databaseManager,
+                    group: destination.group,
+                    allowTypeIDs: allowTypeIDs,
+                    existingItems: existingItems,
+                    onItemSelected: onItemSelected,
+                    onItemDeselected: onItemDeselected,
+                    onDismiss: { groupID, searchText in
+                        currentGroupID = groupID
+                        onDismiss(groupID, searchText)
+                    }
+                )
+            }
+            .searchable(
+                text: $searchText,
+                isPresented: $isSearchActive,
+                placement: .navigationBarDrawer(displayMode: .always),
+                prompt: Text(NSLocalizedString("Main_Database_Search", comment: "搜索"))
+            )
+            .onChange(of: searchText) { _, newValue in
+                handleSearchTextChange(newValue)
+            }
+            .onChange(of: isSearchActive) { _, newValue in
+                Logger.info("搜索激活状态变化: \(newValue ? "激活" : "取消激活")")
+                if !newValue && !searchText.isEmpty {
+                    Logger.info("搜索被关闭时的搜索文本: \"\(searchText)\"")
+                }
+            }
+            .onAppear {
+                setupSearch()
+                handleInitialState()
+            }
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(NSLocalizedString("Misc_Done", comment: "完成")) {
+                        handleDismiss()
+                    }
+                }
+            }
+        }
+        .onDisappear {
+            handleViewDisappear()
+        }
+    }
+    
+    // MARK: - 子视图
+    @ViewBuilder
+    private var searchResultsContent: some View {
+        if isLoading {
+            HStack {
+                Spacer()
+                ProgressView()
+                Spacer()
+            }
+            .padding()
+        } else if searchResults.isEmpty {
+            Text(NSLocalizedString("Misc_Not_Found", comment: "未找到结果"))
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding()
+        } else {
+            ForEach(groupedSearchResults, id: \.id) { group in
+                Section(
+                    header: Text(group.name)
+                        .fontWeight(.semibold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                ) {
+                    ForEach(group.items) { item in
+                        ItemNodeRow(
+                            item: item,
+                            onSelect: {
+                                if existingItems.contains(item.id) {
+                                    onItemDeselected(item)
+                                } else {
+                                    onItemSelected(item)
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var marketTreeContent: some View {
+        if marketGroupTree.isEmpty {
+            Text(NSLocalizedString("Misc_No_Data", comment: "无数据"))
+                .foregroundColor(.secondary)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding()
+        } else {
+            ForEach(marketGroupTree) { group in
+                MarketGroupNodeRow(
+                    group: group,
+                    databaseManager: databaseManager,
+                    allowTypeIDs: allowTypeIDs,
+                    existingItems: existingItems,
+                    onItemSelected: onItemSelected,
+                    onItemDeselected: onItemDeselected,
+                    onDismiss: { groupID, searchText in
+                        currentGroupID = groupID
+                        onDismiss(groupID, searchText)
+                    },
+                    updateCurrentGroup: { currentGroupID = $0 }
+                )
+            }
+        }
+    }
+    
+    // MARK: - 私有方法
+    private func setupSearch() {
+        searchController.debouncedSearchPublisher
+            .receive(on: DispatchQueue.main)
+            .sink { query in
+                guard !searchText.isEmpty else { return }
+                performSearch(with: query)
+            }
+            .store(in: &searchController.cancellables)
+    }
+    
+    private func performSearch(with text: String) {
+        guard let searchFunction = searchItemsByKeyword else {
+            Logger.warning("没有提供搜索函数，无法执行搜索")
+            isLoading = false
+            return
+        }
+        
+        isLoading = true
+        Logger.info("执行本地搜索: \"\(text)\"")
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            let results = searchFunction(text)
+            
+            DispatchQueue.main.async {
+                searchResults = results
+                Logger.info("搜索结果数量: \(results.count)")
+                isLoading = false
+            }
+        }
+    }
+    
+    private func handleSearchTextChange(_ newValue: String) {
+        Logger.info("搜索文本变化: \"\(newValue)\"")
+        if newValue.isEmpty {
+            searchResults = []
+            isLoading = false
+        } else {
+            isLoading = true
+            searchController.processSearchInput(newValue)
+        }
+    }
+    
+    private func handleInitialState() {
+        if let initialText = initialSearchText, !initialText.isEmpty {
+            Logger.info("使用上次的搜索关键词：\(initialText)")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                searchText = initialText
+                isSearchActive = true
+            }
+        } else if !hasNavigated, let lastVisitedGroupID = lastVisitedGroupID, lastVisitedGroupID > 0 {
+            Logger.info("准备导航到上次访问的目录：ID=\(lastVisitedGroupID)")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                navigateToGroup(id: lastVisitedGroupID)
+                hasNavigated = true
+            }
+        }
+    }
+    
+    private func navigateToGroup(id: Int) {
+        Logger.info("开始导航到指定目录：ID=\(id)")
+        
+        if navigationPath.count > 0 {
+            navigationPath.removeLast(navigationPath.count)
+        }
+        
+        let nodePath = findNodePath(id: id, in: marketGroupTree)
+        
+        if !nodePath.isEmpty {
+            let pathToNavigate = nodePath.dropFirst()
+            Logger.info("找到路径，共\(nodePath.count)级，需要导航\(pathToNavigate.count)级")
+            
+            for (index, node) in pathToNavigate.enumerated() {
+                if node.children.isEmpty || index == pathToNavigate.count - 1 {
+                    navigationPath.append(MarketNodeItemsViewDestination(group: node))
+                } else {
+                    navigationPath.append(MarketNodeSubViewDestination(group: node))
+                }
+            }
+            currentGroupID = id
+        } else if let node = findNodeById(marketGroupTree, id: id) {
+            Logger.info("在顶层找到目标节点：\(node.name)")
+            if node.children.isEmpty {
+                navigationPath.append(MarketNodeItemsViewDestination(group: node))
+            } else {
+                navigationPath.append(MarketNodeSubViewDestination(group: node))
+            }
+            currentGroupID = id
+        }
+    }
+    
+    private func findNodePath(id: Int, in nodes: [MarketGroupNode]) -> [MarketGroupNode] {
+        for node in nodes {
+            if node.id == id {
+                return [node]
+            }
+            let pathInChildren = findNodePath(id: id, in: node.children)
+            if !pathInChildren.isEmpty {
+                return [node] + pathInChildren
+            }
+        }
+        return []
+    }
+    
+    private func findNodeById(_ nodes: [MarketGroupNode], id: Int) -> MarketGroupNode? {
+        for node in nodes {
+            if node.id == id {
+                return node
+            }
+            if let found = findNodeById(node.children, id: id) {
+                return found
+            }
+        }
+        return nil
+    }
+    
+    private func handleDismiss() {
+        let finalSearchText = searchText.isEmpty ? nil : searchText
+        if let text = finalSearchText {
+            Logger.info("准备传递搜索关键词：\(text)")
+        }
+        Logger.info("关闭视图，返回当前浏览目录ID: \(currentGroupID?.description ?? "nil")")
+        onDismiss(currentGroupID, finalSearchText)
+    }
+    
+    private func handleViewDisappear() {
+        Logger.info("视图消失，搜索文本: \(searchText.isEmpty ? "空" : "\"\(searchText)\""), 搜索状态: \(isSearchActive ? "激活" : "未激活")")
+        
+        if !searchText.isEmpty {
+            Logger.info("视图消失时保存搜索文本: \"\(searchText)\"")
+            onDismiss(currentGroupID, searchText)
+        }
+    }
+}
+
+// MARK: - 导航目标
+struct MarketNodeSubViewDestination: Hashable {
+    let group: MarketGroupNode
+    
+    static func == (lhs: MarketNodeSubViewDestination, rhs: MarketNodeSubViewDestination) -> Bool {
+        lhs.group.id == rhs.group.id
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(group.id)
+    }
+}
+
+struct MarketNodeItemsViewDestination: Hashable {
+    let group: MarketGroupNode
+    
+    static func == (lhs: MarketNodeItemsViewDestination, rhs: MarketNodeItemsViewDestination) -> Bool {
+        lhs.group.id == rhs.group.id
+    }
+    
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(group.id)
+    }
+}
+
+// MARK: - 组件视图
+struct ItemNodeRow: View {
+    let item: DatabaseListItem
+    let onSelect: () -> Void
+    
+    var body: some View {
+        Button(action: onSelect) {
+            HStack {
+                DatabaseListItemView(item: item, showDetails: true)
+            }
+        }
+        .foregroundColor(.primary)
+        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+    }
+}
+
+struct MarketGroupNodeRow: View {
+    let group: MarketGroupNode
+    let databaseManager: DatabaseManager
+    let allowTypeIDs: Set<Int>
+    let existingItems: Set<Int>
+    let onItemSelected: (DatabaseListItem) -> Void
+    let onItemDeselected: (DatabaseListItem) -> Void
+    let onDismiss: (Int?, String?) -> Void
+    let updateCurrentGroup: (Int) -> Void
+    
+    var body: some View {
+        NavigationLink {
+            if group.children.isEmpty {
+                MarketNodeItemsView(
+                    databaseManager: databaseManager,
+                    group: group,
+                    allowTypeIDs: allowTypeIDs,
+                    existingItems: existingItems,
+                    onItemSelected: onItemSelected,
+                    onItemDeselected: onItemDeselected,
+                    onDismiss: onDismiss
+                )
+            } else {
+                MarketNodeSubView(
+                    databaseManager: databaseManager,
+                    group: group,
+                    allowTypeIDs: allowTypeIDs,
+                    existingItems: existingItems,
+                    onItemSelected: onItemSelected,
+                    onItemDeselected: onItemDeselected,
+                    onDismiss: onDismiss,
+                    updateCurrentGroup: updateCurrentGroup
+                )
+            }
+        } label: {
+            HStack {
+                Image(uiImage: IconManager.shared.loadUIImage(for: group.iconName))
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(4)
+                    .padding(.trailing, 8)
+                
+                Text(group.name)
+                    .font(.body)
+                    .foregroundColor(.primary)
+            }
+        }
+        .onAppear {
+            if group.children.isEmpty {
+                Logger.info("访问物品列表目录：\(group.name)，ID: \(group.id)")
+            }
+            updateCurrentGroup(group.id)
+        }
+    }
+}
+
+struct MarketNodeSubView: View {
+    let databaseManager: DatabaseManager
+    let group: MarketGroupNode
+    let allowTypeIDs: Set<Int>
+    let existingItems: Set<Int>
+    let onItemSelected: (DatabaseListItem) -> Void
+    let onItemDeselected: (DatabaseListItem) -> Void
+    let onDismiss: (Int?, String?) -> Void
+    let updateCurrentGroup: (Int) -> Void
+    
+    var body: some View {
+        List {
+            ForEach(group.children) { subGroup in
+                MarketGroupNodeRow(
+                    group: subGroup,
+                    databaseManager: databaseManager,
+                    allowTypeIDs: allowTypeIDs,
+                    existingItems: existingItems,
+                    onItemSelected: onItemSelected,
+                    onItemDeselected: onItemDeselected,
+                    onDismiss: onDismiss,
+                    updateCurrentGroup: updateCurrentGroup
+                )
+            }
+        }
+        .navigationTitle(group.name)
+        .onAppear {
+            Logger.info("打开子目录视图：\(group.name)，ID: \(group.id)，子节点数: \(group.children.count)")
+            updateCurrentGroup(group.id)
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(NSLocalizedString("Misc_Done", comment: "完成")) {
+                    onDismiss(group.id, nil)
+                }
+            }
+        }
+    }
+}
+
+struct MarketNodeItemsView: View {
+    let databaseManager: DatabaseManager
+    let group: MarketGroupNode
+    let allowTypeIDs: Set<Int>
+    let existingItems: Set<Int>
+    let onItemSelected: (DatabaseListItem) -> Void
+    let onItemDeselected: (DatabaseListItem) -> Void
+    let onDismiss: (Int?, String?) -> Void
+    
+    @State private var items: [DatabaseListItem] = []
+    @State private var isLoading = true
+    @State private var metaGroupNames: [Int: String] = [:]
+    
+    var groupedItems: [(id: Int, name: String, items: [DatabaseListItem])] {
+        let publishedItems = items.filter { $0.published }
+        let unpublishedItems = items.filter { !$0.published }
+        
+        var result: [(id: Int, name: String, items: [DatabaseListItem])] = []
+        
+        // 按科技等级分组
+        var techLevelGroups: [Int?: [DatabaseListItem]] = [:]
+        for item in publishedItems {
+            let techLevel = item.metaGroupID
+            if techLevelGroups[techLevel] == nil {
+                techLevelGroups[techLevel] = []
+            }
+            techLevelGroups[techLevel]?.append(item)
+        }
+        
+        // 添加各种分组
+        for (techLevel, items) in techLevelGroups.sorted(by: { ($0.key ?? -1) < ($1.key ?? -1) }) {
+            if let techLevel = techLevel {
+                let name = metaGroupNames[techLevel] ?? NSLocalizedString("Main_Database_base", comment: "基础物品")
+                result.append((id: techLevel, name: name, items: items))
+            }
+        }
+        
+        if let ungroupedItems = techLevelGroups[nil], !ungroupedItems.isEmpty {
+            result.append((id: -2, name: NSLocalizedString("Main_Database_ungrouped", comment: "未分组"), items: ungroupedItems))
+        }
+        
+        if !unpublishedItems.isEmpty {
+            result.append((id: -1, name: NSLocalizedString("Main_Database_unpublished", comment: "未发布"), items: unpublishedItems))
+        }
+        
+        return result
+    }
+    
+    var body: some View {
+        List {
+            if isLoading {
+                HStack {
+                    Spacer()
+                    ProgressView()
+                    Spacer()
+                }
+                .padding()
+            } else if items.isEmpty {
+                Text(NSLocalizedString("Misc_No_Data", comment: "无数据"))
+                    .foregroundColor(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding()
+            } else {
+                ForEach(groupedItems, id: \.id) { group in
+                    Section(
+                        header: Text(group.name)
+                            .fontWeight(.semibold)
+                            .font(.system(size: 18))
+                            .foregroundColor(.primary)
+                            .textCase(.none)
+                    ) {
+                        ForEach(group.items) { item in
+                            ItemNodeRow(
+                                item: item,
+                                onSelect: {
+                                    Logger.info("用户在目录 \(self.group.name)(ID: \(self.group.id)) 中选择了装备 \(item.name)(ID: \(item.id))")
+                                    if existingItems.contains(item.id) {
+                                        onItemDeselected(item)
+                                    } else {
+                                        onItemSelected(item)
+                                        onDismiss(self.group.id, nil)
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        .navigationTitle(group.name)
+        .onAppear {
+            Logger.info("打开物品列表视图：\(group.name)，ID: \(group.id)")
+            loadItems()
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(NSLocalizedString("Misc_Done", comment: "完成")) {
+                    onDismiss(group.id, nil)
+                }
+            }
+        }
+    }
+    
+    private func loadItems() {
+        isLoading = true
+        
+        let typeIDsString = allowTypeIDs.map { String($0) }.joined(separator: ",")
+        var whereClause = "t.marketGroupID = ? AND t.type_id IN (\(typeIDsString))"
+        if typeIDsString.isEmpty {
+            whereClause = "t.marketGroupID = ?"
+        }
+        let parameters: [Any] = [group.id]
+        
+        items = databaseManager.loadMarketItems(whereClause: whereClause, parameters: parameters)
+        
+        // 加载科技等级名称
+        let metaGroupIDs = Set(items.compactMap { $0.metaGroupID })
+        metaGroupNames = databaseManager.loadMetaGroupNames(for: Array(metaGroupIDs))
+        
+        isLoading = false
+    }
+}

@@ -253,7 +253,7 @@ struct CharacterAssetsView: View {
                 ForEach(viewModel.locationsByRegion, id: \.region) { group in
                     Section(
                         header: Text(group.region)
-                            .fontWeight(.bold)
+                            .fontWeight(.semibold)
                             .font(.system(size: 18))
                             .foregroundColor(.primary)
                             .textCase(.none)

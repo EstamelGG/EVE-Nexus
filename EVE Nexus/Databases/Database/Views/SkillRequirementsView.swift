@@ -6,7 +6,6 @@ struct SkillRequirementRow: View {
     let level: Int
     let timeMultiplier: Double?
     @ObservedObject var databaseManager: DatabaseManager
-    let icon: Image
     let currentLevel: Int?
 
     // 新：获取当前技能点数（直接查表，不累加）
@@ -47,10 +46,14 @@ struct SkillRequirementRow: View {
                         Image(systemName: "xmark.circle.fill")
                             .frame(width: 32, height: 32)
                             .foregroundColor(.red)
-                    } else {
-                        icon
+                    } else if let currentLevel = currentLevel, currentLevel >= level {
+                        Image(systemName: "checkmark.circle.fill")
                             .frame(width: 32, height: 32)
-                            .foregroundColor((currentLevel ?? 0) >= level ? .green : .primary)
+                            .foregroundColor(.green)
+                    } else {
+                        Image(systemName: "circle")
+                            .frame(width: 32, height: 32)
+                            .foregroundColor(.primary)
                     }
 
                     VStack(alignment: .leading) {
@@ -147,22 +150,6 @@ struct SkillRequirementsView: View {
         }
     }
 
-    // 获取技能图标
-    private func getSkillIcon(for skillID: Int, requiredLevel: Int) -> Image {
-        if currentCharacterId == 0 {
-            // 未登录时显示技能图标
-            return Image(systemName: "circle")
-        } else {
-            // 已登录时根据技能等级显示状态图标
-            let currentLevel = getCurrentSkillLevel(for: skillID)
-            if currentLevel >= requiredLevel {
-                return Image(systemName: "checkmark.circle.fill")
-            } else {
-                return Image(systemName: "circle")
-            }
-        }
-    }
-
     // 获取当前技能等级 - 从预加载的数据中获取
     private func getCurrentSkillLevel(for skillID: Int) -> Int {
         return characterSkills[skillID] ?? -1
@@ -223,8 +210,6 @@ struct SkillRequirementsView: View {
                         level: requirement.level,
                         timeMultiplier: requirement.timeMultiplier,
                         databaseManager: databaseManager,
-                        icon: getSkillIcon(
-                            for: requirement.skillID, requiredLevel: requirement.level),
                         currentLevel: currentCharacterId == 0
                             ? nil : getCurrentSkillLevel(for: requirement.skillID)
                     )

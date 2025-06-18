@@ -236,7 +236,7 @@ class LPStoreAPI {
         try await withThrowingTaskGroup(of: (corporationId: Int, data: Data).self) { group in
             // 添加初始任务
             for corporationId in corporationIds.prefix(maxConcurrent) {
-                group.addTask {
+                group.addTask(priority: .userInitiated) {
                     let data = try await self.fetchLPStoreDataFromAPI(corporationId: corporationId)
                     return (corporationId: corporationId, data: data)
                 }
@@ -255,7 +255,7 @@ class LPStoreAPI {
                 // 如果还有剩余军团ID，添加新任务
                 if let nextId = remainingIds.first {
                     remainingIds.removeFirst()
-                    group.addTask {
+                    group.addTask(priority: .userInitiated) {
                         let data = try await self.fetchLPStoreDataFromAPI(corporationId: nextId)
                         return (corporationId: nextId, data: data)
                     }

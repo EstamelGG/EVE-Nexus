@@ -225,7 +225,7 @@ struct SovereigntyCell: View {
                             .foregroundColor(getSecurityColor(sovereignty.location.security))
                             .font(.system(.subheadline, design: .monospaced))
                         Text(sovereignty.location.systemName)
-                            .fontWeight(.bold)
+                            .fontWeight(.semibold)
                             .textSelection(.enabled)
                     }
 
@@ -264,7 +264,7 @@ struct SovereigntyView: View {
         List {
             Section(
                 header: Text(NSLocalizedString("Sovereignty_All", comment: "主权势力列表"))
-                    .fontWeight(.bold)
+                    .fontWeight(.semibold)
                     .font(.system(size: 18))
                     .foregroundColor(.primary)
                     .textCase(.none)
@@ -288,7 +288,7 @@ struct SovereigntyView: View {
                 ForEach(Array(viewModel.groupedCampaigns.keys.sorted()), id: \.self) { regionName in
                     Section(
                         header: Text(regionName)
-                            .fontWeight(.bold)
+                            .fontWeight(.semibold)
                             .font(.system(size: 18))
                             .foregroundColor(.primary)
                             .textCase(.none)

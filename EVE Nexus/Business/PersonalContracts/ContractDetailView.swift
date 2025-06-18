@@ -427,7 +427,7 @@ struct ContractDetailView: View {
                         }
                     } header: {
                         Text(NSLocalizedString("Contract_Basic_Info", comment: ""))
-                            .fontWeight(.bold)
+                            .fontWeight(.semibold)
                             .font(.system(size: 18))
                             .foregroundColor(.primary)
                             .textCase(.none)
@@ -447,7 +447,7 @@ struct ContractDetailView: View {
                             }
                         } header: {
                             Text(NSLocalizedString("Contract_Items_Included", comment: ""))
-                                .fontWeight(.bold)
+                                .fontWeight(.semibold)
                                 .font(.system(size: 18))
                                 .foregroundColor(.primary)
                                 .textCase(.none)
@@ -468,7 +468,7 @@ struct ContractDetailView: View {
                             }
                         } header: {
                             Text(NSLocalizedString("Contract_Items_Required", comment: ""))
-                                .fontWeight(.bold)
+                                .fontWeight(.semibold)
                                 .font(.system(size: 18))
                                 .foregroundColor(.primary)
                                 .textCase(.none)

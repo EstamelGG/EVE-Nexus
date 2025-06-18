@@ -68,7 +68,7 @@ struct NPCBaseView<Content: View>: View {
                 ForEach(groupedSearchResults, id: \.id) { group in
                     Section(
                         header: Text(group.name)
-                            .fontWeight(.bold)
+                            .fontWeight(.semibold)
                             .font(.system(size: 18))
                             .foregroundColor(.primary)
                             .textCase(.none)
