@@ -1548,6 +1548,7 @@
 "PI_Output_No_Resources" = "No Resource Available";
 "PI_Output_Loading_Systems" = "Loading Systems...";
 "Common_Cancel" = "Cancel";
+"Misc_Cancel" = "Cancel";
 "Planetary_System_Description" = "Select system as production center";
 
 "PI_Output_View_Systems" = "Show Systems";
@@ -1847,3 +1848,80 @@
 "Fitting_Delete_Confirm_Message" = "Are you sure you want to delete fitting \"%@\"?";
 "Fitting_Delete_Failed_Title" = "Delete Failed";
 "Fitting_Delete_Success" = "Fitting deleted successfully";
+
+// 更新
+"Update_Notification_Title" = "Update";
+"Update_Notification_Version" = "Version %@ - %@";
+"Update_Notification_Got_It" = "OK";
+"whats_new" = "whats_new_en";
+
+// 更新历史
+"Update_Log_Version" = "Version";
+"Update_Log_Changes_Count" = "%d updates";
+"Update_Log_History" = "Update history";
+"Update_Log_Details" = "Update info";
+"Main_Update_History" = "Update history";
+
+// All-in-One System Finder
+"AllInOne_SystemFinder_Title" = "All-in-one Finder";
+"AllInOne_SystemFinder_Description" = "Find systems that can produce multiple PI products";
+"AllInOne_SystemFinder_Select_Products" = "Select Products";
+"AllInOne_SystemFinder_Select_Region" = "Select Region";
+"AllInOne_SystemFinder_Select_Sovereignty" = "Select Sovereignty";
+"AllInOne_SystemFinder_Not_Selected" = "Not Selected";
+"AllInOne_SystemFinder_Calculate" = "Calculate";
+"AllInOne_SystemFinder_Calculating" = "Calculating...";
+"AllInOne_SystemFinder_Products_Description" = "Select multiple PI products to produce";
+"AllInOne_SystemFinder_Region_Description" = "Select region for production";
+"AllInOne_SystemFinder_Sovereignty_Description" = "Select sovereignty for production";
+"AllInOne_SystemFinder_Constraint_Warning" = "At least one of Region or Sovereignty must be selected";
+"AllInOne_SystemFinder_No_Products_Selected" = "No products selected";
+"AllInOne_SystemFinder_Products_Count" = "%d products selected";
+"AllInOne_SystemFinder_Selected_Products" = "Selected Products";
+
+// All-in-One System Finder Results
+"AllInOne_SystemFinder_Result_Tip_1" = "The following systems can support all your selected products for single-planet production";
+"AllInOne_SystemFinder_Result_Tip_2" = "Higher scoring systems have more available planets and better resource distribution";
+"AllInOne_SystemFinder_No_Results" = "No systems found";
+"AllInOne_SystemFinder_No_Results_Description" = "No systems found that can support all selected products for single-planet production";
+"AllInOne_SystemFinder_System_Score" = "System Score: %.1f";
+"AllInOne_SystemFinder_Product_Support" = "Product Support";
+"AllInOne_SystemFinder_Planet_Count" = "%d planets available";
+"AllInOne_SystemFinder_Multiple_Planets" = "Multiple planets available";
+"AllInOne_SystemFinder_Single_Planet" = "Single planet available";
+"AllInOne_SystemFinder_Results" = "System Search Results";
+"AllInOne_SystemFinder_Score" = "Score";
+"AllInOne_SystemFinder_Planet_Distribution" = "Planet Distribution";
+"AllInOne_SystemFinder_Available_Planets" = "Available planets: %d";
+"AllInOne_SystemFinder_Used_By_Products" = "Used by:";
+"AllInOne_SystemFinder_No_Results_Tips" = "Please consider the following adjustments:\n• Reduce the number of selected products\n• Select different regions or sovereignty\n• Choose products with better compatibility";
+
+// Multi-Product Requirement Analysis
+"AllInOne_MultiProduct_Analysis" = "Multi-Product Analysis";
+"AllInOne_MultiProduct_Planet_Types" = "Required Planet Types";
+"AllInOne_MultiProduct_Conflicts" = "Planet Type Conflicts";
+"AllInOne_MultiProduct_Solutions" = "Recommended Solutions";
+"AllInOne_MultiProduct_No_Conflicts" = "No conflicts detected";
+"AllInOne_MultiProduct_Conflict_Warning" = "Some products require the same planet types";
+"AllInOne_MultiProduct_Solution_Multiple" = "Systems with multiple %@ planets";
+"AllInOne_MultiProduct_Solution_Alternative" = "Systems with alternative planet types";
+
+// System Scoring
+"AllInOne_Scoring_Base_Score" = "Base Score";
+"AllInOne_Scoring_Balance_Bonus" = "Balance Bonus";
+"AllInOne_Scoring_Diversity_Bonus" = "Diversity Bonus";
+"AllInOne_Scoring_Total_Score" = "Total Score";
+"AllInOne_Scoring_Explanation" = "Score based on planet availability and distribution";
+
+// Feature Descriptions
+"AllInOne_SystemFinder_Description_Title" = "Find Systems for All-in-One Production";
+"AllInOne_SystemFinder_Description_Text" = "This tool helps you find systems that can support multiple PI products for single-planet production. Select your desired products, choose a region or sovereignty, then calculate to find the best systems.\n\n• Avoids conflicts where one planet is used for multiple products\n• Scores systems based on available planets and resource distribution\n• Prioritizes systems with multiple planets for each product type\n• Some products can not be processed in single planet";
+
+"PI_Output_Description_Title" = "Planetary Industry Output Calculator";
+"PI_Output_Description_Text" = "Calculate what PI products can be produced in a selected system and its surrounding area. Choose a central system and jump range to see all available resources and production possibilities.\n\n• Shows P0-P4 resources available in the region\n• Considers resource dependencies and production chains\n• Helps plan efficient PI operations";
+
+"PI_SiteFinder_Description_Title" = "Planetary Industry Site Finder";
+"PI_SiteFinder_Description_Text" = "Find the best systems to produce a specific PI product. Select your target product, region, sovereignty, and jump range to get ranked recommendations.\n\n• Analyzes resource availability and planet types\n• Considers nearby systems for missing resources\n• Provides detailed scoring and resource coverage information";
+
+"AllInOne_Calculator_Description_Title" = "All-in-One Production Calculator";
+"AllInOne_Calculator_Description_Text" = "Analyze what products can be produced entirely on a single planet within a selected system. This tool identifies complete production chains that don't require inter-planetary transport.\n\n• Shows all single-planet capable products\n• Groups results by product level (P1-P4)\n• Displays compatible planet types and availability";

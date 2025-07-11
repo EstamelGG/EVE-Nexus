@@ -2,10 +2,6 @@
 
 [中文](Readme.md) | [English](Readme.en.md)
 
-# 开发进度
-
-[查看资料..](inDev.md)
-
 # Xcode
 
 使用 Xcode Version 16.2 编译

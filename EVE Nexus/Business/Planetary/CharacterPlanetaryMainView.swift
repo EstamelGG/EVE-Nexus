@@ -182,6 +182,11 @@ struct CharacterPlanetaryView: View {
                 } label: {
                     Text(NSLocalizedString("Planet_All-in-One_Calc", comment: ""))
                 }
+                NavigationLink {
+                    PIAllInOneSystemFinderMainView(characterId: characterId)
+                } label: {
+                    Text(NSLocalizedString("AllInOne_SystemFinder_Title", comment: "查找 All-in-One 星系"))
+                }
             }
             if viewModel.isLoading {
                 Section(header: Text(NSLocalizedString("Main_Planetary_of_Mine", comment: ""))) {

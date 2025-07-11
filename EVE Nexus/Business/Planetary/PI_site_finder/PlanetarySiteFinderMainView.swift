@@ -414,6 +414,24 @@ struct PlanetarySiteFinder: View {
                     }
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                
+                // 功能描述（当没有结果时显示）
+                if searchResults.isEmpty && !isCalculating {
+                    Section {
+                        VStack(alignment: .leading, spacing: 16) {
+                            Text(NSLocalizedString("PI_SiteFinder_Description_Title", comment: "行星工业选址工具"))
+                                .font(.headline)
+                                .foregroundColor(.primary)
+                            
+                            Text(NSLocalizedString("PI_SiteFinder_Description_Text", comment: "功能描述"))
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(.vertical, 8)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
             }
 
             // 底部计算按钮

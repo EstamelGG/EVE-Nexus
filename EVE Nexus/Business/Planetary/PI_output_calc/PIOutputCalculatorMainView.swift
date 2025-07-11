@@ -127,6 +127,24 @@ struct PIOutputCalculatorView: View {
                 }
             }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
 
+            // 功能描述（当没有选择星系或正在计算时显示）
+            if selectedSolarSystemId == nil && !isCalculating {
+                Section {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text(NSLocalizedString("PI_Output_Description_Title", comment: "行星工业产出计算器"))
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Text(NSLocalizedString("PI_Output_Description_Text", comment: "功能描述"))
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+
             // 添加显示计算结果的Section
             if isCalculating {
                 Section {

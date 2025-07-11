@@ -349,10 +349,8 @@ enum RichTextProcessor {
                 let boldEndIndex = attributedString.index(
                     attrStartIndex, offsetByCharacters: boldText.count
                 )
-                var container = AttributeContainer()
-                // 使用比系统字体大1.2倍的字号
-                container.font = .boldSystemFont(ofSize: UIFont.systemFontSize * 1.2)
-                attributedString[attrStartIndex..<boldEndIndex].setAttributes(container)
+                // 使用最简单的粗体设置方式
+                attributedString[attrStartIndex..<boldEndIndex].inlinePresentationIntent = .stronglyEmphasized
 
                 Logger.debug("Applied bold style to: \(boldText)")
             }

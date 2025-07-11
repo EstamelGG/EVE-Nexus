@@ -54,6 +54,24 @@ struct PIAllInOneMainView: View {
                 }
             }
             
+            // 功能描述（当没有选择星系或没有结果时显示）
+            if selectedSystemID == nil && !isLoading {
+                Section {
+                    VStack(alignment: .leading, spacing: 16) {
+                        Text(NSLocalizedString("AllInOne_Calculator_Description_Title", comment: "单球生产计算器"))
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        
+                        Text(NSLocalizedString("AllInOne_Calculator_Description_Text", comment: "功能描述"))
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.vertical, 8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+            
             // 行星分布信息
             if selectedSystemID != nil && !isLoading {
                 Section {
@@ -271,17 +289,37 @@ struct AllInOneSinglePlanetProductResult {
 }
 
 // All-in-One 行星类型信息
-struct AllInOnePlanetTypeInfo {
+struct AllInOnePlanetTypeInfo: Hashable {
     let typeId: Int
     let name: String
     let iconFileName: String
+    
+    // 实现 Hashable
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(typeId)
+    }
+    
+    // 实现 Equatable
+    static func == (lhs: AllInOnePlanetTypeInfo, rhs: AllInOnePlanetTypeInfo) -> Bool {
+        return lhs.typeId == rhs.typeId
+    }
 }
 
 // All-in-One P0资源信息
-struct AllInOneP0ResourceInfo {
+struct AllInOneP0ResourceInfo: Hashable {
     let resourceId: Int
     let resourceName: String
     let iconFileName: String
+    
+    // 实现 Hashable
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(resourceId)
+    }
+    
+    // 实现 Equatable
+    static func == (lhs: AllInOneP0ResourceInfo, rhs: AllInOneP0ResourceInfo) -> Bool {
+        return lhs.resourceId == rhs.resourceId
+    }
 }
 
 // 单星球产品分析器

@@ -1576,6 +1576,7 @@
 "PI_Output_No_Resources" = "没有找到可用资源";
 "PI_Output_Loading_Systems" = "正在加载星系数据...";
 "Common_Cancel" = "取消";
+"Misc_Cancel" = "取消";
 "Planetary_System_Description" = "选择作为生产中心的星系";
 
 "PI_Output_View_Systems" = "查看可用星系";
@@ -1877,3 +1878,79 @@
 "Fitting_Delete_Failed_Title" = "删除失败";
 "Fitting_Delete_Success" = "装配配置删除成功";
 
+// 更新
+"Update_Notification_Title" = "更新内容";
+"Update_Notification_Version" = "版本 %@ - %@";
+"Update_Notification_Got_It" = "知道了";
+"whats_new" = "whats_new";
+
+// 更新历史
+"Update_Log_Version" = "版本";
+"Update_Log_Changes_Count" = "%d 项更新";
+"Update_Log_History" = "更新历史";
+"Update_Log_Details" = "更新详情";
+"Main_Update_History" = "更新历史";
+
+// All-in-One 星系查找器
+"AllInOne_SystemFinder_Title" = "单球生产选址";
+"AllInOne_SystemFinder_Description" = "查找能够生产多种PI产品的星系";
+"AllInOne_SystemFinder_Select_Products" = "选择产品";
+"AllInOne_SystemFinder_Select_Region" = "选择星域";
+"AllInOne_SystemFinder_Select_Sovereignty" = "选择主权";
+"AllInOne_SystemFinder_Not_Selected" = "未选择";
+"AllInOne_SystemFinder_Calculate" = "开始计算";
+"AllInOne_SystemFinder_Calculating" = "计算中...";
+"AllInOne_SystemFinder_Products_Description" = "选择要生产的多种PI产品";
+"AllInOne_SystemFinder_Region_Description" = "选择生产星域";
+"AllInOne_SystemFinder_Sovereignty_Description" = "选择主权势力";
+"AllInOne_SystemFinder_Constraint_Warning" = "星域和主权必须至少选择一个";
+"AllInOne_SystemFinder_No_Products_Selected" = "未选择产品";
+"AllInOne_SystemFinder_Products_Count" = "已选择 %d 个产品";
+"AllInOne_SystemFinder_Selected_Products" = "已选择的产品";
+
+// All-in-One 星系查找器结果
+"AllInOne_SystemFinder_Result_Tip_1" = "以下星系可以支持您选择的所有产品进行单星球生产";
+"AllInOne_SystemFinder_Result_Tip_2" = "评分越高的星系拥有更多可用行星和更好的资源分布";
+"AllInOne_SystemFinder_No_Results" = "没有找到符合条件的星系";
+"AllInOne_SystemFinder_No_Results_Description" = "没有找到能够支持所有选定产品进行单星球生产的星系";
+"AllInOne_SystemFinder_System_Score" = "星系评分: %.1f";
+"AllInOne_SystemFinder_Product_Support" = "产品支持情况";
+"AllInOne_SystemFinder_Planet_Count" = "可用行星 %d 颗";
+"AllInOne_SystemFinder_Multiple_Planets" = "多颗行星可用";
+"AllInOne_SystemFinder_Single_Planet" = "单颗行星可用";
+"AllInOne_SystemFinder_Results" = "星系搜索结果";
+"AllInOne_SystemFinder_Score" = "评分";
+"AllInOne_SystemFinder_Planet_Distribution" = "行星分布";
+"AllInOne_SystemFinder_Available_Planets" = "可用行星: %d 颗";
+"AllInOne_SystemFinder_Used_By_Products" = "用于生产:";
+"AllInOne_SystemFinder_No_Results_Tips" = "请考虑以下调整方案:\n• 减少选择的产品数量\n• 选择其他星域或主权\n• 选择兼容性更好的产品组合";
+
+// 多产品需求分析
+"AllInOne_MultiProduct_Analysis" = "多产品需求分析";
+"AllInOne_MultiProduct_Planet_Types" = "所需行星类型";
+"AllInOne_MultiProduct_Conflicts" = "行星类型冲突";
+"AllInOne_MultiProduct_Solutions" = "推荐解决方案";
+"AllInOne_MultiProduct_No_Conflicts" = "未检测到冲突";
+"AllInOne_MultiProduct_Conflict_Warning" = "某些产品需要相同的行星类型";
+"AllInOne_MultiProduct_Solution_Multiple" = "拥有多个%@行星的星系";
+"AllInOne_MultiProduct_Solution_Alternative" = "拥有替代行星类型的星系";
+
+// 星系评分
+"AllInOne_Scoring_Base_Score" = "基础分数";
+"AllInOne_Scoring_Balance_Bonus" = "均衡奖励";
+"AllInOne_Scoring_Diversity_Bonus" = "多样性奖励";
+"AllInOne_Scoring_Total_Score" = "总分";
+"AllInOne_Scoring_Explanation" = "基于行星可用性和分布的评分";
+
+// 功能描述
+"AllInOne_SystemFinder_Description_Title" = "查找单球生产星系";
+"AllInOne_SystemFinder_Description_Text" = "此工具帮助您找到能够支持多种PI产品进行单星球生产（从P0到最终产品）的星系。选择您想要的产品，选择星域或主权，然后计算以找到最佳星系。\n\n• 避免一个行星被用于多个产品的冲突\n• 基于可用行星和资源分布对星系评分\n• 优先推荐每种产品类型都有多个可用行星的星系\n• 部分商品（如P4）无法在一颗星球上完成生产，不做展示";
+
+"PI_Output_Description_Title" = "行星工业产出计算器";
+"PI_Output_Description_Text" = "计算在选定星系及其周边区域可以生产哪些PI产品。选择中心星系和跳跃范围，查看所有可用资源和生产可能性。\n\n• 显示区域内可用的P0-P4资源\n• 考虑资源依赖关系和生产链\n• 帮助规划高效的PI操作";
+
+"PI_SiteFinder_Description_Title" = "行星工业选址工具";
+"PI_SiteFinder_Description_Text" = "找到生产特定PI产品的最佳星系。选择目标产品、星域、主权和跳跃范围，获得排名推荐。\n\n• 分析资源可用性和行星类型\n• 考虑邻近星系的缺失资源\n• 提供详细的评分和资源覆盖信息";
+
+"AllInOne_Calculator_Description_Title" = "单球生产计算器";
+"AllInOne_Calculator_Description_Text" = "分析在选定星系内可以完全在单个行星上生产的产品。此工具识别不需要行星间运输的完整生产链。\n\n• 显示所有单星球生产能力的产品\n• 按产品等级分组显示结果(P1-P4)\n• 显示兼容的行星类型和可用性";

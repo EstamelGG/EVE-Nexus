@@ -577,6 +577,8 @@ struct ContentView: View {
                             SettingView(databaseManager: databaseManager)
                         case "about":
                             AboutView()
+                        case "update_history":
+                            UpdateLogListView()
                         default:
                             Text(NSLocalizedString("Select_Item", comment: ""))
                                 .foregroundColor(.gray)
@@ -993,6 +995,13 @@ struct ContentView: View {
                 RowView(
                     title: NSLocalizedString("Main_Setting", comment: ""),
                     icon: "Settings"
+                )
+            }
+
+            NavigationLink(value: "update_history") {
+                RowView(
+                    title: NSLocalizedString("Main_Update_History", comment: "更新历史"),
+                    icon: "log"
                 )
             }
 
