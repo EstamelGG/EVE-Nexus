@@ -75,6 +75,11 @@ struct CharacterDetailView: View {
                                 .aspectRatio(contentMode: .fill)
                                 .frame(width: 96, height: 96)
                                 .clipShape(RoundedRectangle(cornerRadius: 4))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .stroke(.primary, lineWidth: 1)
+                                        .opacity(0.3)
+                                )
                         }
 
                         // 右侧信息
@@ -85,7 +90,6 @@ struct CharacterDetailView: View {
                             // 人物名称
                             Text(characterInfo.name)
                                 .font(.system(size: 20, weight: .semibold))
-                                .textSelection(.enabled)
                                 .lineLimit(1)
 
                             // 人物头衔
@@ -116,7 +120,6 @@ struct CharacterDetailView: View {
                                     }
                                     Text(corpInfo.name)
                                         .font(.system(size: 14))
-                                        .textSelection(.enabled)
                                         .lineLimit(1)
                                 }
                             }
@@ -129,7 +132,6 @@ struct CharacterDetailView: View {
                                         .frame(width: 20, height: 20)
                                         .clipShape(RoundedRectangle(cornerRadius: 4))
                                     Text(allianceInfo.name)
-                                        .textSelection(.enabled)
                                         .font(.system(size: 14))
                                         .lineLimit(1)
                                 } else {
@@ -147,6 +149,34 @@ struct CharacterDetailView: View {
 
                             Spacer()
                                 .frame(height: 8)
+                        }
+                        .contextMenu {
+                            Button {
+                                UIPasteboard.general.string = characterInfo.name
+                            } label: {
+                                Label(NSLocalizedString("Misc_Copy_CharID", comment: ""), systemImage: "doc.on.doc")
+                            }
+                            if let title = characterInfo.title, !title.isEmpty {
+                                Button {
+                                    UIPasteboard.general.string = title.removeHTMLTags()
+                                } label: {
+                                    Label(NSLocalizedString("Misc_Copy_Title", comment: ""), systemImage: "doc.on.doc")
+                                }
+                            }
+                            if let corpInfo = corporationInfo {
+                                Button {
+                                    UIPasteboard.general.string = corpInfo.name
+                                } label: {
+                                    Label(NSLocalizedString("Misc_Copy_CorpID", comment: ""), systemImage: "doc.on.doc")
+                                }
+                            }
+                            if let allianceInfo = allianceInfo {
+                                Button {
+                                    UIPasteboard.general.string = allianceInfo.name
+                                } label: {
+                                    Label(NSLocalizedString("Misc_Copy_FactionID", comment: ""), systemImage: "doc.on.doc")
+                                }
+                            }
                         }
                         .frame(height: 96)  // 与头像等高
                     }
@@ -642,23 +672,16 @@ struct CharacterDetailView: View {
                         systemImage: "exclamationmark.triangle")
                 }
             } else {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(history.enumerated()), id: \.element.record_id) { index, record in
-                        if let startDate = parseDate(record.start_date) {
-                            let endDate = index > 0 ? parseDate(history[index - 1].start_date) : nil
+                ForEach(Array(history.enumerated()), id: \.element.record_id) { index, record in
+                    if let startDate = parseDate(record.start_date) {
+                        let endDate = index > 0 ? parseDate(history[index - 1].start_date) : nil
 
-                            VStack(spacing: 0) {
-                                EmploymentHistoryRowView(
-                                    corporationId: record.corporation_id,
-                                    startDate: startDate,
-                                    endDate: endDate
-                                )
-                                .padding(.vertical, 4)
-
-                                if index < history.count - 1 {
-                                    Divider()
-                                }
-                            }
+                        VStack(spacing: 0) {
+                            EmploymentHistoryRowView(
+                                corporationId: record.corporation_id,
+                                startDate: startDate,
+                                endDate: endDate
+                            )
                         }
                     }
                 }
@@ -700,7 +723,6 @@ struct CharacterDetailView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     // 军团名称
                     Text(corporationInfo?.name ?? NSLocalizedString("Misc_Loading", comment: ""))
-                        .textSelection(.enabled)
                         .font(.system(size: 12))
                         .lineLimit(1)
 
@@ -733,7 +755,28 @@ struct CharacterDetailView: View {
 
                 Spacer()
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
             .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color.clear)
+            .contentShape(Rectangle())
+            .contextMenu {
+                if let corpName = corporationInfo?.name {
+                    Button {
+                        UIPasteboard.general.string = corpName
+                    } label: {
+                        Label(NSLocalizedString("Misc_Copy_CorpID", comment: ""), systemImage: "doc.on.doc")
+                    }
+                }
+                
+                if let allianceName = corporationInfo?.allianceName {
+                    Button {
+                        UIPasteboard.general.string = allianceName
+                    } label: {
+                        Label(NSLocalizedString("Misc_Copy_FactionID", comment: ""), systemImage: "doc.on.doc")
+                    }
+                }
+            }
             .task {
                 await loadCorporationInfo()
             }
@@ -785,7 +828,7 @@ struct CharacterDetailView: View {
                 let endStr = dateFormatter.string(from: end)
                 return "\(startStr) - \(endStr)"
             } else {
-                return "\(startStr) - 至今"
+                return "\(startStr) - \(NSLocalizedString("Misc_Now", comment: "now"))"
             }
         }
 
@@ -797,9 +840,9 @@ struct CharacterDetailView: View {
             let hours = components.hour ?? 0
 
             if days == 0 {
-                return "(\(hours)小时)"
+                return "(\(String(format: NSLocalizedString("Time_Hours_Long", comment: ""), hours)))"
             } else {
-                return "(\(days)天)"
+                return "(\(String(format: NSLocalizedString("Time_Days_Long", comment: ""), days)))"
             }
         }
     }

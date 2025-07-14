@@ -42,7 +42,13 @@ struct LocationInfoView: View {
                     + Text(stationName.dropFirst(solarSystemName.count)))
                     .font(font)
                     .foregroundColor(textColor)
-                    .textSelection(.enabled)
+                    .contextMenu {
+                        Button {
+                            UIPasteboard.general.string = stationName
+                        } label: {
+                            Label(NSLocalizedString("Misc_Copy_Location", comment: ""), systemImage: "doc.on.doc")
+                        }
+                    }
             } else {
                 // 如果空间站名称不以星系名开头
                 (Text(security != nil ? "\(formatSystemSecurity(security!)) " : "0.0 ")
@@ -50,7 +56,13 @@ struct LocationInfoView: View {
                     + Text("\(solarSystemName) - \(stationName)"))
                     .font(font)
                     .foregroundColor(textColor)
-                    .textSelection(.enabled)
+                    .contextMenu {
+                        Button {
+                            UIPasteboard.general.string = stationName
+                        } label: {
+                            Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                        }
+                    }
             }
         } else if let solarSystemName = solarSystemName {
             // 在太空中的场景
@@ -62,7 +74,14 @@ struct LocationInfoView: View {
                     " (\(NSLocalizedString("Character_in_space", comment: "")))"))
                 .font(font)
                 .foregroundColor(textColor)
-                .textSelection(.enabled)
+                .contextMenu {
+                    Button {
+                        let copyText = solarSystemName
+                        UIPasteboard.general.string = copyText
+                    } label: {
+                        Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                    }
+                }
         } else if let locationId = locationId {
             // 未知位置但有ID
             (Text(security != nil ? "\(formatSystemSecurity(security!)) " : "0.0 ")
@@ -71,6 +90,13 @@ struct LocationInfoView: View {
                     "\(NSLocalizedString("Assets_Unknown_Location", comment: "")) (\(locationId))"))
                 .font(font)
                 .foregroundColor(textColor)
+                .contextMenu {
+                    Button {
+                        UIPasteboard.general.string = "\(locationId)"
+                    } label: {
+                        Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                    }
+                }
         } else {
             // 完全未知的位置
             (Text(security != nil ? "\(formatSystemSecurity(security!)) " : "0.0 ")
@@ -78,6 +104,13 @@ struct LocationInfoView: View {
                 + Text(NSLocalizedString("Assets_Unknown_Location", comment: "")))
                 .font(font)
                 .foregroundColor(textColor)
+                .contextMenu {
+                    Button {
+                        UIPasteboard.general.string = NSLocalizedString("Assets_Unknown_Location", comment: "")
+                    } label: {
+                        Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                    }
+                }
         }
     }
 }

@@ -288,7 +288,13 @@ struct PlanetarySearchResultView: View {
                                         .font(.system(.body, design: .monospaced))
                                     Text(result.systemName)
                                         .fontWeight(.medium)
-                                        .textSelection(.enabled)
+                                        .contextMenu {
+                                            Button {
+                                                UIPasteboard.general.string = result.systemName
+                                            } label: {
+                                                Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                                            }
+                                        }
                                     Text("（\(result.regionName)）")
                                         .font(.subheadline)
                                         .foregroundColor(.gray)

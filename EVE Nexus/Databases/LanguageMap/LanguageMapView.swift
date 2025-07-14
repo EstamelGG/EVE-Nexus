@@ -161,7 +161,22 @@ struct LanguageMapView: View {
                             Text(availableLanguages[langCode] ?? langCode)
                                 .foregroundColor(.gray)
                                 .frame(width: 80, alignment: .trailing)
-                            Text(name).textSelection(.enabled)
+                            Text(name)
+                                .contextMenu {
+                                    Button {
+                                        // 构建所有语言的文本
+                                        let allLanguagesText = availableLanguages.keys.sorted().compactMap { lang in
+                                            if let text = result.names[lang] {
+                                                return "\(availableLanguages[lang] ?? lang) \(text)"
+                                            }
+                                            return nil
+                                        }.joined(separator: "\n")
+                                        
+                                        UIPasteboard.general.string = allLanguagesText
+                                    } label: {
+                                        Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                                    }
+                                }
                         }
                     }
                 }

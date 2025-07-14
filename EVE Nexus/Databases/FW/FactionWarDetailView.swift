@@ -389,7 +389,13 @@ struct FWSystemCell: View {
                         .font(.system(.subheadline, design: .monospaced))
                     Text(system.location.systemName)
                         .fontWeight(.semibold)
-                        .textSelection(.enabled)
+                        .contextMenu {
+                            Button {
+                                UIPasteboard.general.string = system.location.systemName
+                            } label: {
+                                Label(NSLocalizedString("Misc_Copy_Location", comment: ""), systemImage: "doc.on.doc")
+                            }
+                        }
                 }
 
                 Text("\(system.location.constellationName) / \(system.location.regionName)")

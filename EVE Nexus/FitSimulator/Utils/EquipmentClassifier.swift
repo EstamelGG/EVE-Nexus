@@ -13,33 +13,6 @@ enum EquipmentCategory: String, CaseIterable {
     case charge = "charge"
     case implant = "implant"
     case unknown = "unknown"
-    
-    var localizedName: String {
-        switch self {
-        case .ship:
-            return NSLocalizedString("Ship", comment: "舰船")
-        case .hiSlot:
-            return NSLocalizedString("High Slot", comment: "高槽")
-        case .medSlot:
-            return NSLocalizedString("Medium Slot", comment: "中槽")
-        case .lowSlot:
-            return NSLocalizedString("Low Slot", comment: "低槽")
-        case .rig:
-            return NSLocalizedString("Rig", comment: "改装件")
-        case .subsystem:
-            return NSLocalizedString("Subsystem", comment: "子系统")
-        case .drone:
-            return NSLocalizedString("Drone", comment: "无人机")
-        case .fighter:
-            return NSLocalizedString("Fighter", comment: "舰载机")
-        case .charge:
-            return NSLocalizedString("Charge", comment: "弹药")
-        case .implant:
-            return NSLocalizedString("Implant", comment: "植入体")
-        case .unknown:
-            return NSLocalizedString("Unknown", comment: "未知")
-        }
-    }
 }
 
 /// 装备分类结果
@@ -173,21 +146,6 @@ class EquipmentClassifier {
         return results
     }
     
-    /// 按类别分组装备
-    func groupEquipmentsByCategory(typeIds: [Int]) -> [EquipmentCategory: [Int]] {
-        let classifications = classifyEquipments(typeIds: typeIds)
-        var groups: [EquipmentCategory: [Int]] = [:]
-        
-        for (typeId, result) in classifications {
-            if groups[result.category] == nil {
-                groups[result.category] = []
-            }
-            groups[result.category]?.append(typeId)
-        }
-        
-        return groups
-    }
-    
     // MARK: - 私有方法
     
     /// 获取装备的effects
@@ -255,33 +213,6 @@ class EquipmentClassifier {
         return categoryId
     }
     
-    /// 获取装备的marketGroupID
-    private func getMarketGroupId(for typeId: Int) -> Int? {
-        if let cached = marketGroupCache[typeId] {
-            return cached
-        }
-        
-        let query = "SELECT marketGroupID FROM types WHERE type_id = ?"
-        var marketGroupId: Int? = nil
-        
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]),
-           let row = rows.first {
-            marketGroupId = row["marketGroupID"] as? Int
-        }
-        
-        marketGroupCache[typeId] = marketGroupId
-        return marketGroupId
-    }
-    
-    /// 判断是否为舰载机
-    private func isFighter(marketGroupId: Int?) -> Bool {
-        // 舰载机的marketGroupID：840(轻型), 1310(重型), 2239(辅助)
-        guard let marketGroupId = marketGroupId else { return false }
-        return [840, 1310, 2239].contains(marketGroupId)
-    }
-    
-
-    
     /// 预加载缓存数据
     private func preloadCache(for typeIds: [Int]) {
         guard !typeIds.isEmpty else { return }
@@ -324,14 +255,5 @@ class EquipmentClassifier {
         }
         
         Logger.info("预加载了 \(typeIds.count) 个装备的分类数据")
-    }
-    
-    /// 清除缓存
-    func clearCache() {
-        effectCache.removeAll()
-        groupCache.removeAll()
-        categoryCache.removeAll()
-        marketGroupCache.removeAll()
-        Logger.info("装备分类器缓存已清除")
     }
 } 

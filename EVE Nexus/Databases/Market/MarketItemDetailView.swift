@@ -23,6 +23,13 @@ struct MarketItemBasicInfoView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(itemDetails.name)
                     .font(.title)
+                    .contextMenu {
+                        Button {
+                            UIPasteboard.general.string = itemDetails.name
+                        } label: {
+                            Label(NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc")
+                        }
+                    }
                 Text(
                     "\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)"
                 )

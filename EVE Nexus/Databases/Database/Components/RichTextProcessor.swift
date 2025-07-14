@@ -7,10 +7,15 @@ struct RichTextView: View {
     @State private var showingSheet = false
     @State private var urlToConfirm: URL?
     @State private var showingURLAlert = false
+    @State private var plainText: String = ""
 
     var body: some View {
-        RichTextProcessor.processRichText(text)
-            .textSelection(.enabled)  // 允许复制
+        let processedResult = RichTextProcessor.processRichText(text)
+        let _ = DispatchQueue.main.async {
+            plainText = processedResult.plainText
+        }
+        
+        processedResult.richText
             .environment(
                 \.openURL,
                 OpenURLAction { url in
@@ -34,6 +39,13 @@ struct RichTextView: View {
                     return .systemAction
                 }
             )
+            .contextMenu {
+                Button {
+                    UIPasteboard.general.string = plainText
+                } label: {
+                    Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                }
+            }
             .sheet(
                 item: Binding(
                     get: {
@@ -79,6 +91,12 @@ private struct SheetItem: Identifiable {
     let id = UUID()
     let itemID: Int
     let categoryID: Int
+}
+
+// 处理结果结构体
+struct RichTextProcessResult {
+    let richText: Text
+    let plainText: String
 }
 
 enum RichTextProcessor {
@@ -135,8 +153,8 @@ enum RichTextProcessor {
 
         return currentText
     }
-
-    static func processRichText(_ text: String) -> Text {
+    
+    static func processRichText(_ text: String) -> RichTextProcessResult {
         // 记录原始文本
         Logger.debug("RichText processing - Original text:\n\(text)")
 
@@ -146,11 +164,11 @@ enum RichTextProcessor {
         // 记录基础清理后的文本
         Logger.debug("RichText processing - After basic cleanup:\n\(currentText)")
 
-        // 5. 创建AttributedString
+        // 创建AttributedString
         var attributedString = AttributedString(currentText)
         var processedText = currentText
 
-        // 6. 处理链接
+        // 处理链接
         while let linkStart = processedText.range(of: "<a href="),
             let linkEnd = processedText.range(of: "</a>")
         {
@@ -230,7 +248,7 @@ enum RichTextProcessor {
         Logger.debug(
             "RichText processing - After processing links:\n\(attributedString.characters)")
 
-        // 7. 处理URL标签
+        // 处理URL标签
         processedText = currentText
         while let urlStart = processedText.range(of: "<url="),
             let urlEnd = processedText.range(of: "</url>")
@@ -311,7 +329,7 @@ enum RichTextProcessor {
         // 记录处理URL后的文本
         Logger.debug("RichText processing - After processing URLs:\n\(attributedString.characters)")
 
-        // 8. 处理加粗文本
+        // 处理加粗文本
         // 首先找出所有的加粗标签对
         var boldRanges: [(Range<String.Index>, String)] = []
         var searchRange = currentText.startIndex..<currentText.endIndex
@@ -359,7 +377,14 @@ enum RichTextProcessor {
         // 记录最终处理后的文本
         Logger.debug("RichText processing - Final processed text:\n\(attributedString.characters)")
 
-        // 9. 创建文本视图
-        return Text(attributedString)
+        // 使用 NSAttributedString 的内置方法提取纯文本
+        let nsAttributedString = NSAttributedString(attributedString)
+        let plainText = nsAttributedString.string
+
+        Logger.debug("RichText processing - Final plain text:\n\(plainText)")
+
+        // 创建文本视图并返回结果
+        let richText = Text(attributedString)
+        return RichTextProcessResult(richText: richText, plainText: plainText)
     }
 }

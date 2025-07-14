@@ -97,7 +97,7 @@
 "Main_Database_Misc_Bonuses" = "Misc Bonuses";
 "Main_Database_Bonuses_Per_Level" = "bonuses per level";
 "Main_Database_Show_Important_Only" = "Important Attributes Only";
-"Main_Database_Show_Important_Only_Detail" = "Only show important attributes in database function.";
+"Main_Database_Show_Important_Only_Detail" = "Only show important attributes in database function";
 
 "Main_About" = "About";
 "Main_About_Database_Version" = "Database Version";
@@ -106,6 +106,7 @@
 "Main_About_Report_Bug" = "Report Bug";
 "Main_About_copyright_Title" = "Copy Right And Privacy Statement";
 
+"Misc_Now" = "Now";
 "Misc_true" = "True";
 "Misc_false" = "False";
 "Misc_Yes" = "Yes";
@@ -124,7 +125,7 @@
 "Misc_Not_Found" = "Not found";
 "Misc_Level" = "Level %d";
 "Misc_Level_Short" = "Lv %d";
-"Misc_No_Data" = "No Data.";
+"Misc_No_Data" = "No Data";
 "Misc_Clear" = "Clear";
 "Misc_Filter" = "Filter";
 "Misc_OpenLink" = "Open Link";
@@ -133,6 +134,15 @@
 "Misc_Qty" = "Qty";
 "Misc_Null" = "Null";
 "Misc_Items" = "%d items";
+"Misc_Copy" = "Copy";
+
+"Misc_Copy_CharID" = "Copy Char Name";
+"Misc_Copy_CEO_CharID" = "Copy CEO Name";
+"Misc_Copy_CorpID" = "Copy Corp Name";
+"Misc_Copy_FactionID" = "Copy Alliance Name";
+"Misc_Copy_Location" = "Copy Location";
+"Misc_Copy_Name" = "Copy Name";
+"Misc_Copy_Title" = "Copy Title";
 
 // Blueprint Details
 "Blueprint_Product" = "Product";
@@ -235,6 +245,7 @@
 "Time_Days_Minutes" = "%dd %dm";
 "Time_Days_Seconds" = "%dd %ds";
 "Time_Hours" = "%dh";
+"Time_Hours_Long" = "%d Hours";
 "Time_Hours_Seconds" = "%dh %ds";
 "Time_Seconds" = "%ds";
 "Time_Hours_Minutes" = "%dh %dm";
@@ -400,7 +411,7 @@
 "Wallet_Transaction_Category" = "Category";
 "Wallet_Income" = "Income";
 "Wallet_Expense" = "Expense";
-"Wallet_Partial_Data_Notice" = "Too many records, only showing partial transaction journal.";
+"Wallet_Partial_Data_Notice" = "Too many records, only showing partial transaction journal";
 
 // Market Orders
 "Orders_Remaining" = "remaining";
@@ -516,7 +527,7 @@
 "Main_Setting_Reset_Database_Title" = "Reset Database";
 "Main_Setting_Reset_Database_Message" = "This will delete all character database content and reinitialize it. This action cannot be undone. Do you want to continue?";
 "Main_Setting_Reset_Database_Success_Title" = "Reset Complete";
-"Main_Setting_Reset_Database_Success_Message" = "Database has been successfully reset.";
+"Main_Setting_Reset_Database_Success_Message" = "Database has been successfully reset";
 "Common_info" = "Basic info";
 "Timer" = "Timer";
 
@@ -690,6 +701,8 @@
 "Main_EVE_Mail_Forward_Date" = "Date: %@";
 "Main_EVE_Mail_Forward_Subject" = "Subject: %@";
 "Main_EVE_Mail_Forward_To" = "To: %@";
+"Main_EVE_Mail_Copy_Sender" = "Copy Sender";
+"Main_EVE_Mail_Copy_Recipients" = "Copy Recipients";
 
 // Mail Recipient Types
 "Main_EVE_Mail_Recipient_Character" = "Character";
@@ -808,7 +821,7 @@
 "Main_No_Title" = "No title";
 
 // Search Filters
-"Main_Search_Filter_Title" = "Filters(can be empty)";
+"Main_Search_Filter_Title" = "Filters (can be empty)";
 "Main_Search_Filter_Corporation" = "Corporation";
 "Main_Search_Filter_Alliance" = "Alliance";
 "Main_Search_Filter_Ticker" = "Ticker";
@@ -877,6 +890,7 @@
 "Tax Rate" = "Tax Rate";
 "Description" = "Description";
 "Creator Corp" = "Creator Corp";
+"Executor Corp" = "Executor Corp";
 "Creator" = "Creator";
 "Unknown" = "Unknown";
 "Executor" = "Executor";
@@ -1108,7 +1122,7 @@
 "Factory_Stopped" = "Stopped";
 "Factory_Not_Started" = "Not Started";
 "Factory_No_Recipe" = "No Schematic";
-"Planet_Detail_No_Data" = "No Data.";
+"Planet_Detail_No_Data" = "No Data";
 
 "Contracts_Personal" = "Personal";
 "Contracts_Corporation" = "Corporation";
@@ -1257,7 +1271,7 @@
 "Contract_Appraisal_Show_Full_Amount" = "Show Full Amount";
 "Contract_Appraisal_Set_Discount" = "Set Contract Price Discount";
 "Contract_Appraisal_Discount_Title" = "Set Discount Percentage";
-"Contract_Appraisal_Discount_Message" = "Please enter discount (0-10000), e.g. 90 means 10% off(90%)";
+"Contract_Appraisal_Discount_Message" = "Please enter discount (0-99999), e.g. 90 means 10% off(90%)";
 "Contract_Appraisal_Discount_Cancel" = "Cancel";
 "Contract_Appraisal_Discount_Confirm" = "Confirm";
 "Contract_Appraisal_Discount_Placeholder" = "Discount Percentage";
@@ -1307,8 +1321,8 @@
 "Agent_Unknown_Division" = "Unknown Division";
 "Agent_Loading" = "Loading...";
 "Agent_Not_Found" = "No agents found.";
-"Agent_Search_Locator_Description" = "Agents can find another player character.";
-"Agent_inspace_Description" = "Including COSMOS, Epic Arc etc.";
+"Agent_Search_Locator_Description" = "Agents can find another player character";
+"Agent_inspace_Description" = "Including COSMOS, Epic Arc etc";
 
 // Agent Types
 "Agent_Type_NonAgent" = "Non-Agent";
@@ -1504,7 +1518,7 @@
 "Sovereignty_List" = "Sovereignty List";
 "Sovereignty_Search_Title" = "Select Sovereignty";
 "Sovereignty_Search_Placeholder" = "Search sovereignty or systems...";
-"Sovereignty_Systems" = " systems";
+"Sovereignty_Systems" = " system(s)";
 "Sovereignty_Loading" = "Loading...";
 "Sovereignty_No_Data" = "No sovereignty data";
 "Sovereignty_Error" = "Loading failed";

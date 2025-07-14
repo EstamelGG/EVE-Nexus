@@ -25,31 +25,6 @@ class UpdateLogManager: ObservableObject {
     
     // MARK: - 公共方法
     
-    /// 检查是否需要显示更新通知
-    func shouldShowUpdateNotification() -> Bool {
-        let currentVersion = AppConfiguration.Version.fullVersion
-        let lastShownVersion = UserDefaults.standard.string(forKey: lastShownVersionKey) ?? ""
-        
-        Logger.info("检查更新通知 - 当前版本: \(currentVersion), 上次显示版本: \(lastShownVersion), 是否需要弹窗: \(lastShownVersion != currentVersion)")
-        
-        // 如果是首次启动或版本不同，则显示通知
-        let updateLogs = loadUpdateLogs()
-        return lastShownVersion != currentVersion && !updateLogs.isEmpty
-    }
-    
-    /// 获取当前版本的更新日志
-    func getCurrentVersionUpdateLog() -> UpdateLog? {
-        let currentVersion = AppConfiguration.Version.fullVersion
-        let updateLogs = loadUpdateLogs()
-        return updateLogs.first { $0.version == currentVersion }
-    }
-    
-    /// 获取最新的更新日志
-    func getLatestUpdateLog() -> UpdateLog? {
-        let updateLogs = loadUpdateLogs()
-        return updateLogs.first
-    }
-    
     /// 标记已显示更新通知
     func markUpdateNotificationShown() {
         let currentVersion = AppConfiguration.Version.fullVersion

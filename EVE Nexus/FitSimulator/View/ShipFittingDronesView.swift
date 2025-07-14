@@ -235,29 +235,6 @@ struct ShipFittingDronesView: View {
                         showingDroneSettings = true
                         Logger.info("点击了无人机: \(drone.name), ID: \(drone.typeId)")
                     }
-                    .contextMenu {
-                        Button(action: {
-                            viewModel.removeDrone(typeId: drone.typeId)
-                        }) {
-                            Label("删除", systemImage: "trash")
-                        }
-                        
-                        if drone.activeCount < drone.quantity {
-                            Button(action: {
-                                viewModel.activateDrone(typeId: drone.typeId)
-                            }) {
-                                Label("激活", systemImage: "power")
-                            }
-                        }
-                        
-                        if drone.activeCount > 0 {
-                            Button(action: {
-                                viewModel.deactivateDrone(typeId: drone.typeId)
-                            }) {
-                                Label("停用", systemImage: "power.slash")
-                            }
-                        }
-                    }
                 }
                 .onDelete { indexSet in
                     for index in indexSet.sorted(by: >) {

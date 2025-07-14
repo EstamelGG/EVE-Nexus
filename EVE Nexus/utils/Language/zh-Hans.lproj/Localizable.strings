@@ -126,7 +126,7 @@
 "Main_About_Report_Bug" = "报告缺陷";
 "Main_About_copyright_Title" = "版权与隐私说明";
 
-
+"Misc_Now" = "现在";
 "Misc_true" = "是";
 "Misc_false" = "否";
 "Misc_Yes" = "是";
@@ -150,6 +150,15 @@
 "Misc_Qty" = "数量";
 "Misc_Null" = "无";
 "Misc_Items" = "%d 个物品";
+"Misc_Copy" = "复制";
+
+"Misc_Copy_CharID" = "复制人物名称";
+"Misc_Copy_CEO_CharID" = "复制 CEO 名称";
+"Misc_Copy_CorpID" = "复制军团名称";
+"Misc_Copy_FactionID" = "复制联盟名称";
+"Misc_Copy_Location" = "复制地点";
+"Misc_Copy_Name" = "复制名称";
+"Misc_Copy_Title" = "复制头衔";
 
 // 蓝图详情
 "Blueprint_Product" = "产品";
@@ -158,7 +167,7 @@
 "Blueprint_Copy_Success" = "所需材料已复制到剪贴板";
 "Time_Year" = "年";
 "Time_Month" = "月";
-"Time_Day" = "日";
+"Time_Day" = "天";
 "Time_Hour" = "时";
 "Time_Minute" = "分";
 "Time_Second" = "秒";
@@ -585,6 +594,7 @@
 "Time_Days_Seconds" = "%d天%d秒";
 
 "Time_Hours" = "%d小时";
+"Time_Hours_Long" = "%d 小时";
 "Time_Hours_Minutes" = "%d小时%d分";
 "Time_Hours_Seconds" = "%d小时%d秒";
 
@@ -700,6 +710,8 @@
 "Main_EVE_Mail_Forward_Date" = "日期：%@";
 "Main_EVE_Mail_Forward_Subject" = "主题：%@";
 "Main_EVE_Mail_Forward_To" = "收件人：%@";
+"Main_EVE_Mail_Copy_Sender" = "复制发件人";
+"Main_EVE_Mail_Copy_Recipients" = "复制收件人";
 
 // Mail Recipient Types
 "Main_EVE_Mail_Recipient_Character" = "角色";
@@ -894,8 +906,9 @@
 "Member Count" = "成员数量";
 "Tax Rate" = "税率";
 "Description" = "描述";
-"Creator Corp" = "创建者军团";
-"Creator" = "创建者";
+"Creator Corp" = "创建者公司";
+"Executor Corp" = "执行公司";
+"Creator" = "创建人";
 "Executor" = "执行军团";
 "Unknown" = "未知";
 
@@ -1293,7 +1306,7 @@
 "Contract_Appraisal_Show_Full_Amount" = "显示完整金额";
 "Contract_Appraisal_Set_Discount" = "设置合同价格折扣";
 "Contract_Appraisal_Discount_Title" = "设置折扣百分比";
-"Contract_Appraisal_Discount_Message" = "请输入折扣百分比（0-10000），例如90表示九折(90%)";
+"Contract_Appraisal_Discount_Message" = "请输入折扣百分比（0-99999），例如90表示九折(90%)";
 "Contract_Appraisal_Discount_Cancel" = "取消";
 "Contract_Appraisal_Discount_Confirm" = "确定";
 "Contract_Appraisal_Discount_Placeholder" = "折扣百分比";

@@ -11,10 +11,11 @@ struct ContractAppraisalView: View {
     @State private var esiResult: ESIAppraisalResult?
     @State private var showFullAmount: Bool = true
     @State private var discountPercentage: Double = 100
-    @State private var safeDiscountPercentage: Double = 10000
+    @State private var safeDiscountPercentage: Double = 99999
     @State private var showDiscountAlert = false
     @State private var hasBlueprint = false
     @State private var hasInsufficientOrders = false
+    @State private var discountText: String = "100" // 新增：用于管理输入文本
 
     // 在初始化时从UserDefaults加载设置
     init(contract: ContractInfo, items: [ContractItemInfo]) {
@@ -85,6 +86,7 @@ struct ContractAppraisalView: View {
 
                 // 设置合同价格折扣
                 Button(action: {
+                    discountText = String(Int(discountPercentage))
                     showDiscountAlert = true
                 }) {
                     HStack {
@@ -98,22 +100,31 @@ struct ContractAppraisalView: View {
                     NSLocalizedString("Contract_Appraisal_Discount_Title", comment: ""),
                     isPresented: $showDiscountAlert
                 ) {
-                    // 使用绑定转换器来限制输入范围
-                    let boundDiscountPercentage = Binding<Double>(
-                        get: { self.discountPercentage },
-                        set: { self.discountPercentage = max(0, min(safeDiscountPercentage, $0)) }
-                    )
-                    
                     TextField(
                         NSLocalizedString("Contract_Appraisal_Discount_Placeholder", comment: ""),
-                        value: boundDiscountPercentage, format: .number
+                        text: Binding<String>(
+                            get: { discountText },
+                            set: { newValue in
+                                // 只允许数字字符
+                                let filtered = newValue.filter { $0.isNumber }
+                                // 限制最大5位数
+                                if filtered.count <= 5 {
+                                    discountText = filtered
+                                }
+                            }
+                        )
                     )
-                    .keyboardType(.decimalPad)
+                    .keyboardType(.numberPad)
                     Button(
                         NSLocalizedString("Contract_Appraisal_Discount_Cancel", comment: ""),
                         role: .cancel
                     ) {}
-                    Button(NSLocalizedString("Contract_Appraisal_Discount_Confirm", comment: "")) {}
+                    Button(NSLocalizedString("Contract_Appraisal_Discount_Confirm", comment: "")) {
+                        // 将文本转换为数值
+                        if let value = Double(discountText), value > 0 {
+                            discountPercentage = value
+                        }
+                    }
                 } message: {
                     Text(NSLocalizedString("Contract_Appraisal_Discount_Message", comment: ""))
                 }
@@ -123,30 +134,39 @@ struct ContractAppraisalView: View {
 
             // Janice估价结果部分
             if let result = janiceResult {
+                let buy_price = formatPrice(result.immediatePrices.totalBuyPrice * min(safeDiscountPercentage, discountPercentage) / 100)
+                let split_price = formatPrice(result.immediatePrices.totalSplitPrice * min(safeDiscountPercentage, discountPercentage) / 100)
+                let sell_price = formatPrice(result.immediatePrices.totalSellPrice * min(safeDiscountPercentage, discountPercentage) / 100)
                 Section {
                     // 买入价格行
                     HStack {
                         Text(NSLocalizedString("Contract_Appraisal_Buy_Price", comment: ""))
                         Spacer()
-                        Text(
-                            formatPrice(
-                                result.immediatePrices.totalBuyPrice * min(safeDiscountPercentage, discountPercentage) / 100)
-                        )
-                        .foregroundColor(.red)
-                        .textSelection(.enabled)
-                        .font(.system(.body, design: .monospaced))
+                        Text(buy_price)
+                            .foregroundColor(.red)
+                            .contextMenu {
+                                Button {
+                                    UIPasteboard.general.string = buy_price
+                                } label: {
+                                    Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                                }
+                            }
+                            .font(.system(.body, design: .monospaced))
                     }
 
                     // 中间价格行
                     HStack {
                         Text(NSLocalizedString("Contract_Appraisal_Middle_Price", comment: ""))
                         Spacer()
-                        Text(
-                            formatPrice(
-                                result.immediatePrices.totalSplitPrice * min(safeDiscountPercentage, discountPercentage) / 100)
-                        )
+                        Text(split_price)
                         .foregroundColor(.orange)
-                        .textSelection(.enabled)
+                        .contextMenu {
+                            Button {
+                                UIPasteboard.general.string = split_price
+                            } label: {
+                                Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                            }
+                        }
                         .font(.system(.body, design: .monospaced))
                     }
 
@@ -154,12 +174,15 @@ struct ContractAppraisalView: View {
                     HStack {
                         Text(NSLocalizedString("Contract_Appraisal_Sell_Price", comment: ""))
                         Spacer()
-                        Text(
-                            formatPrice(
-                                result.immediatePrices.totalSellPrice * min(safeDiscountPercentage, discountPercentage) / 100)
-                        )
+                        Text(sell_price)
                         .foregroundColor(.green)
-                        .textSelection(.enabled)
+                        .contextMenu {
+                            Button {
+                                UIPasteboard.general.string = sell_price
+                            } label: {
+                                Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                            }
+                        }
                         .font(.system(.body, design: .monospaced))
                     }
 
@@ -192,14 +215,23 @@ struct ContractAppraisalView: View {
 
             // ESI估价结果部分
             if let result = esiResult {
+                let buy_price_esi = formatPrice(result.totalBuyPrice * min(safeDiscountPercentage, discountPercentage) / 100)
+                let middle_price_esi = formatPrice(result.totalMiddlePrice * min(safeDiscountPercentage, discountPercentage) / 100)
+                let sell_price_esi = formatPrice(result.totalSellPrice * min(safeDiscountPercentage, discountPercentage) / 100)
                 Section {
                     // 买入价格行
                     HStack {
                         Text(NSLocalizedString("Contract_Appraisal_Buy_Price", comment: ""))
                         Spacer()
-                        Text(formatPrice(result.totalBuyPrice * min(safeDiscountPercentage, discountPercentage) / 100))
+                        Text(buy_price_esi)
                             .foregroundColor(.red)
-                            .textSelection(.enabled)
+                            .contextMenu {
+                                Button {
+                                    UIPasteboard.general.string = buy_price_esi
+                                } label: {
+                                    Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                                }
+                            }
                             .font(.system(.body, design: .monospaced))
                     }
 
@@ -207,9 +239,15 @@ struct ContractAppraisalView: View {
                     HStack {
                         Text(NSLocalizedString("Contract_Appraisal_Middle_Price", comment: ""))
                         Spacer()
-                        Text(formatPrice(result.totalMiddlePrice * min(safeDiscountPercentage, discountPercentage) / 100))
+                        Text(middle_price_esi)
                             .foregroundColor(.orange)
-                            .textSelection(.enabled)
+                            .contextMenu {
+                                Button {
+                                    UIPasteboard.general.string = middle_price_esi
+                                } label: {
+                                    Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                                }
+                            }
                             .font(.system(.body, design: .monospaced))
                     }
 
@@ -217,9 +255,15 @@ struct ContractAppraisalView: View {
                     HStack {
                         Text(NSLocalizedString("Contract_Appraisal_Sell_Price", comment: ""))
                         Spacer()
-                        Text(formatPrice(result.totalSellPrice * min(safeDiscountPercentage, discountPercentage) / 100))
+                        Text(sell_price_esi)
                             .foregroundColor(.green)
-                            .textSelection(.enabled)
+                            .contextMenu {
+                                Button {
+                                    UIPasteboard.general.string = sell_price_esi
+                                } label: {
+                                    Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                                }
+                            }
                             .font(.system(.body, design: .monospaced))
                     }
                 } header: {

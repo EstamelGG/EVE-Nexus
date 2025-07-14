@@ -459,7 +459,13 @@ struct SovereigntyListView: View {
             VStack(alignment: .leading) {
                 Text(sovereignty.name)
                     .foregroundColor(.primary)
-                    .textSelection(.enabled)
+                    .contextMenu {
+                        Button {
+                            UIPasteboard.general.string = sovereignty.name
+                        } label: {
+                            Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                        }
+                    }
                 Text(
                     "\(sovereignty.systemCount) \(NSLocalizedString("Sovereignty_Systems", comment: "个星系"))"
                 )
@@ -504,7 +510,13 @@ struct SovereigntyListView: View {
                     Text(system.name)
                         .foregroundColor(.primary)
                         .fontWeight(.semibold)
-                        .textSelection(.enabled)
+                        .contextMenu {
+                            Button {
+                                UIPasteboard.general.string = system.name
+                            } label: {
+                                Label(NSLocalizedString("Misc_Copy_Location", comment: ""), systemImage: "doc.on.doc")
+                            }
+                        }
                         
                     Spacer()
                 }

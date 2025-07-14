@@ -226,7 +226,13 @@ struct SovereigntyCell: View {
                             .font(.system(.subheadline, design: .monospaced))
                         Text(sovereignty.location.systemName)
                             .fontWeight(.semibold)
-                            .textSelection(.enabled)
+                            .contextMenu {
+                                Button {
+                                    UIPasteboard.general.string = sovereignty.location.systemName
+                                } label: {
+                                    Label(NSLocalizedString("Misc_Copy_Location", comment: ""), systemImage: "doc.on.doc")
+                                }
+                            }
                     }
 
                     Text(

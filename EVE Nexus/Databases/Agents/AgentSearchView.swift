@@ -1409,7 +1409,6 @@ struct AgentCellView: View {
                 // 名称
                 Text(agent.name)
                     .font(.headline)
-                    .textSelection(.enabled)
 
                 // 位置信息
                 LocationInfoView(
@@ -1510,6 +1509,30 @@ struct AgentCellView: View {
                             .background(Color.green.opacity(0.1))
                             .foregroundColor(.green)
                             .cornerRadius(4)
+                    }
+                }
+            }
+            .contextMenu {
+                Button {
+                    UIPasteboard.general.string = agent.name
+                } label: {
+                    Label(NSLocalizedString("Misc_Copy_CharID", comment: ""), systemImage: "doc.on.doc")
+                }
+                
+                // 根据代理人位置类型决定是否显示复制位置按钮
+                if agent.solarSystemID == nil && !agent.locationName.isEmpty {
+                    // 空间站代理人，复制空间站名称
+                    Button {
+                        UIPasteboard.general.string = agent.locationName
+                    } label: {
+                        Label(NSLocalizedString("Misc_Copy_Location", comment: ""), systemImage: "doc.on.doc")
+                    }
+                } else if let systemName = agent.solarSystemName, !systemName.isEmpty {
+                    // 空间代理人，复制星系名称
+                    Button {
+                        UIPasteboard.general.string = systemName
+                    } label: {
+                        Label(NSLocalizedString("Misc_Copy_Location", comment: ""), systemImage: "doc.on.doc")
                     }
                 }
             }

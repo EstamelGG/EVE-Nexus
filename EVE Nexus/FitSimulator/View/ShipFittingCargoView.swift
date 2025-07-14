@@ -52,13 +52,6 @@ struct ShipFittingCargoView: View {
                         selectedCargoItem.itemTypeId = item.typeId
                         showingItemSettings = true
                     }
-                    .contextMenu {
-                        Button(action: {
-                            viewModel.removeCargoItem(typeId: item.typeId)
-                        }) {
-                            Label("删除", systemImage: "trash")
-                        }
-                    }
                 }
                 .onDelete { indexSet in
                     for index in indexSet.sorted(by: >) {

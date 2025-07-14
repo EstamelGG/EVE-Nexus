@@ -478,9 +478,20 @@ struct SearchResultRow: View {
             // 信息
             VStack(alignment: .leading, spacing: 2) {
                 // 第一行：名称
-                Text(result.name)
-                    .textSelection(.enabled)
-                    .font(.body)
+                if result.locationInfo != nil {
+                    Text(result.name)
+                        .font(.body)
+                        .contextMenu {
+                            Button {
+                                UIPasteboard.general.string = result.name
+                            } label: {
+                                Label(NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc")
+                            }
+                        }
+                } else {
+                    Text(result.name)
+                        .font(.body)
+                }
 
                 // 第二行：军团和联盟信息
                 if result.type == .character {

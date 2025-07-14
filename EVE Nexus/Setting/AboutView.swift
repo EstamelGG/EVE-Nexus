@@ -137,7 +137,13 @@ struct AboutItemRow: View {
                 Text(item.value)
                     .font(.system(size: 13))
                     .foregroundColor(.gray)
-                    .textSelection(.enabled)
+                    .contextMenu {
+                        Button {
+                            UIPasteboard.general.string = item.value
+                        } label: {
+                            Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                        }
+                    }
             }
 
             if item.characterId != nil {

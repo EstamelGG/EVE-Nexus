@@ -247,7 +247,13 @@ struct SovSystemRow: View {
                     
                     Text(system.systemName)
                         .fontWeight(.semibold)
-                        .textSelection(.enabled)
+                        .contextMenu {
+                            Button {
+                                UIPasteboard.general.string = system.systemName
+                            } label: {
+                                Label(NSLocalizedString("Misc_Copy_Location", comment: ""), systemImage: "doc.on.doc")
+                            }
+                        }
                 }
                 
                 Text("\(system.constellationName) / \(system.regionName)")

@@ -134,7 +134,6 @@ struct ModuleSettingsView: View {
     @State private var availableModuleStates: [Int] = []
     @State private var chargeGroupIDs: [Int] = []  // 可装载的弹药组ID
     @State private var currentModuleID: Int  // 添加当前模块ID状态变量
-    @State private var currentModule: SimModuleOutput?
     
     // 计算属性：是否为批量操作模式
     private var isBatchMode: Bool {

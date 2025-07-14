@@ -229,6 +229,11 @@ struct AllianceDetailView: View {
                                 .resizable()
                                 .frame(width: 96, height: 96)
                                 .clipShape(RoundedRectangle(cornerRadius: 8))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(.primary, lineWidth: 1)
+                                        .opacity(0.3)
+                                )
                         } else {
                             Image(systemName: "square.dashed")
                                 .resizable()
@@ -240,7 +245,6 @@ struct AllianceDetailView: View {
                             // 联盟名称和代号
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(allianceInfo.name)
-                                    .textSelection(.enabled)
                                     .font(.headline)
                                     .lineLimit(1)
                                 Text("[\(allianceInfo.ticker)]")
@@ -248,6 +252,7 @@ struct AllianceDetailView: View {
                                     .foregroundColor(.secondary)
                                     .lineLimit(1)
                             }
+                            
 
                             // 执行军团
                             if let executorInfo = executorCorpInfo {
@@ -259,7 +264,6 @@ struct AllianceDetailView: View {
                                             .clipShape(RoundedRectangle(cornerRadius: 4))
                                     }
                                     Text("\(executorInfo.name)")
-                                        .textSelection(.enabled)
                                         .font(.system(size: 14))
                                         .lineLimit(1)
                                 }
@@ -301,6 +305,34 @@ struct AllianceDetailView: View {
                         }
                     }
                     .padding(.vertical, 4)
+                    .contextMenu {
+                        Button {
+                            UIPasteboard.general.string = allianceInfo.name
+                        } label: {
+                            Label(NSLocalizedString("Misc_Copy_FactionID", comment: ""), systemImage: "doc.on.doc")
+                        }
+                        if let executorInfo = executorCorpInfo {
+                            Button {
+                                UIPasteboard.general.string = executorInfo.name
+                            } label: {
+                                Label("\(NSLocalizedString("Misc_Copy", comment: "")) \(NSLocalizedString("Executor Corp", comment: ""))", systemImage: "doc.on.doc")
+                            }
+                        }
+                        if let creatorCorpInfo = creatorCorpInfo {
+                            Button {
+                                UIPasteboard.general.string = creatorCorpInfo.name
+                            } label: {
+                                Label("\(NSLocalizedString("Misc_Copy", comment: "")) \(NSLocalizedString("Creator Corp", comment: ""))", systemImage: "doc.on.doc")
+                            }
+                        }
+                        if let creatorInfo = creatorInfo {
+                            Button {
+                                UIPasteboard.general.string = creatorInfo.name
+                            } label: {
+                                Label("\(NSLocalizedString("Misc_Copy", comment: "")) \(NSLocalizedString("Creator", comment: ""))", systemImage: "doc.on.doc")
+                            }
+                        }
+                    }
                 }
 
                 // 联盟基本信息

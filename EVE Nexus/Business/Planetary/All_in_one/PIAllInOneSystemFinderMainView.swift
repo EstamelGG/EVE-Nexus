@@ -15,12 +15,9 @@ struct PIAllInOneSystemFinderMainView: View {
     @State private var isCalculating = false
     @State private var searchResults: [AllInOneSystemResult] = []
     @State private var showResults = false
-    @State private var showSelected = true  // 显示已选择的产品
     
     private let singlePlanetAnalyzer = SinglePlanetProductAnalyzer()
     private let systemCalculator = AllInOneSystemCalculator()
-    
-    private static let allowedMarketGroups: Set<Int> = [1334, 1335, 1336, 1337]
     
     // 判断是否可以开始计算
     private var isCalculationEnabled: Bool {

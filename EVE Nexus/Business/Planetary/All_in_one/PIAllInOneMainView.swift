@@ -3,7 +3,6 @@ import SwiftUI
 struct PIAllInOneMainView: View {
     let characterId: Int?
     
-    @StateObject private var databaseManager = DatabaseManager.shared
     @State private var selectedSystemID: Int?
     @State private var selectedSystemName: String?
     @State private var isLoading = false

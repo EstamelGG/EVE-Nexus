@@ -192,8 +192,9 @@ Fixes & Improvements:
 
 1. Fitting page now allows manual booster and implant selection without slot number requirements
 
-# 1.6.4 July 11, 2025
+# 1.6.4 July 15, 2025
 
-1. Added update changelog popup for new version launches
-2. Added "Update History" in settings to view all version changelogs
-3. Add a new site selection feature to PI function, allowing the production of one or more products in a single planet. It can identify the optimal star system under a specified sovereignty or region that meets the product requirements.
+1. Added "Update History" in settings to view all version changelogs. (reported by Cai ***)
+2. Add a new site selection feature to PI function, allowing the production of one or more products in a single planet. It can identify the optimal star system under a specified sovereignty or region that meets the product requirements.
+3. Fix a bug: On certain devices, the expected text copy functionality would unexpectedly fail after using the search feature. (reported by Kelly Hsueh), You can now long-press to copy content in certain sections (such as database details, solar-systems lists, email content, etc.).
+4. Fix some localization issues.

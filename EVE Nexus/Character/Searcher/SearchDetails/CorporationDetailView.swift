@@ -53,6 +53,11 @@ struct CorporationDetailView: View {
                                 .aspectRatio(contentMode: .fill)
                                 .frame(width: 96, height: 96)
                                 .clipShape(RoundedRectangle(cornerRadius: 4))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .stroke(.primary, lineWidth: 1)
+                                        .opacity(0.3)
+                                )
                         }
 
                         // 右侧信息
@@ -64,7 +69,6 @@ struct CorporationDetailView: View {
                             Text(corporationInfo.name)
                                 .font(.system(size: 20, weight: .semibold))
                                 .lineLimit(1)
-                                .textSelection(.enabled)
 
                             // 军团代号
                             Text("[\(corporationInfo.ticker)]")
@@ -90,7 +94,6 @@ struct CorporationDetailView: View {
                                     Text(ceoInfo.name)
                                         .font(.system(size: 14))
                                         .lineLimit(1)
-                                        .textSelection(.enabled)
                                 }
                             }
 
@@ -102,7 +105,6 @@ struct CorporationDetailView: View {
                                         .frame(width: 20, height: 20)
                                         .clipShape(RoundedRectangle(cornerRadius: 4))
                                     Text(allianceInfo.name)
-                                        .textSelection(.enabled)
                                         .font(.system(size: 14))
                                         .lineLimit(1)
                                 } else {
@@ -120,6 +122,27 @@ struct CorporationDetailView: View {
 
                             Spacer()
                                 .frame(height: 8)
+                        }
+                        .contextMenu {
+                            Button {
+                                UIPasteboard.general.string = corporationInfo.name
+                            } label: {
+                                Label(NSLocalizedString("Misc_Copy_CorpID", comment: ""), systemImage: "doc.on.doc")
+                            }
+                            if let ceoInfo = ceoInfo {
+                                Button {
+                                    UIPasteboard.general.string = ceoInfo.name
+                                } label: {
+                                    Label(NSLocalizedString("Misc_Copy_CEO_CharID", comment: ""), systemImage: "doc.on.doc")
+                                }
+                            }
+                            if let allianceInfo = allianceInfo {
+                                Button {
+                                    UIPasteboard.general.string = allianceInfo.name
+                                } label: {
+                                    Label(NSLocalizedString("Misc_Copy_FactionID", comment: ""), systemImage: "doc.on.doc")
+                                }
+                            }
                         }
                         .frame(height: 96)  // 与Logo等高
                     }
@@ -159,10 +182,17 @@ struct CorporationDetailView: View {
 
                 // 军团描述
                 if !corporationInfo.description.isEmpty {
+                    let description = TextProcessingUtil.processDescription(corporationInfo.description)
                     Section(header: Text("\(NSLocalizedString("Description", comment: ""))")) {
-                        Text(TextProcessingUtil.processDescription(corporationInfo.description))
+                        Text(description)
                             .font(.system(size: 14))
-                            .textSelection(.enabled)
+                            .contextMenu {
+                                Button {
+                                    UIPasteboard.general.string = description
+                                } label: {
+                                    Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                                }
+                            }
                     }
                 }
                 Section(header: Text(NSLocalizedString("Standings", comment: ""))) {

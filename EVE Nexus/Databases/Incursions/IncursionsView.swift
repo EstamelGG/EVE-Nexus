@@ -241,7 +241,13 @@ struct IncursionCell: View {
                             Text(incursion.location.systemName)
                                 .fontWeight(.semibold)
                                 .font(.subheadline)
-                                .textSelection(.enabled)
+                                .contextMenu {
+                                    Button {
+                                        UIPasteboard.general.string = incursion.location.systemName
+                                    } label: {
+                                        Label(NSLocalizedString("Misc_Copy_Location", comment: ""), systemImage: "doc.on.doc")
+                                    }
+                                }
                         }
 
                         Text(

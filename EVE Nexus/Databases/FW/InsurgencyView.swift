@@ -40,7 +40,13 @@ struct InsurgencySystemCell: View {
                         }
                         Text(systemInfo.name)
                             .fontWeight(.semibold)
-                            .textSelection(.enabled)
+                            .contextMenu {
+                                Button {
+                                    UIPasteboard.general.string = systemInfo.name
+                                } label: {
+                                    Label(NSLocalizedString("Misc_Copy_Location", comment: ""), systemImage: "doc.on.doc")
+                                }
+                            }
                     }
 
                     if hasEnoughWidth {
@@ -305,7 +311,13 @@ struct InsurgencyView: View {
                                             .font(.system(.subheadline, design: .monospaced))
                                         Text(systemInfo.name)
                                             .fontWeight(.semibold)
-                                            .textSelection(.enabled)
+                                            .contextMenu {
+                                                Button {
+                                                    UIPasteboard.general.string = systemInfo.name
+                                                } label: {
+                                                    Label(NSLocalizedString("Misc_Copy_Location", comment: ""), systemImage: "doc.on.doc")
+                                                }
+                                            }
                                     }
 
                                     if hasEnoughWidth {

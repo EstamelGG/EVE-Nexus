@@ -38,14 +38,6 @@ struct AllInOneSystemResult: Identifiable {
     let score: Double
     let productSupport: [Int: ProductSupportInfo] // [productId: support info]
     let planetTypeSummary: [PlanetTypeSummary]
-    
-    var totalSupportedProducts: Int {
-        return productSupport.values.filter { $0.canSupport }.count
-    }
-    
-    var supportedProductIds: Set<Int> {
-        return Set(productSupport.compactMap { $0.value.canSupport ? $0.key : nil })
-    }
 }
 
 // 产品支持信息
@@ -87,5 +79,4 @@ struct SystemScoringConfig {
     let balanceBonus: Double = 50.0
     let allProductsSupportedBonus: Double = 100.0
     let multiPlanetTypeBonus: Double = 25.0
-    let dedicatedPlanetPenalty: Double = 5.0
 } 

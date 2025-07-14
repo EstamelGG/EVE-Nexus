@@ -59,11 +59,17 @@ struct ItemBasicInfoView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(itemDetails.name)
                             .font(.title)
-                            .textSelection(.enabled)  // 允许复制
                         Text(
                             "\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)"
                         )
                         .font(.subheadline)
+                    }
+                    .contextMenu {
+                        Button {
+                            UIPasteboard.general.string = itemDetails.name
+                        } label: {
+                            Label(NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc")
+                        }
                     }
                     .padding(.horizontal, standardPadding * 2)
                     .padding(.vertical, standardPadding)
@@ -87,7 +93,13 @@ struct ItemBasicInfoView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(itemDetails.name)
                             .font(.title)
-                            .textSelection(.enabled)  // 允许复制
+                            .contextMenu {
+                                Button {
+                                    UIPasteboard.general.string = itemDetails.name
+                                } label: {
+                                    Label(NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc")
+                                }
+                            }
                         Text(
                             "\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)"
                         )

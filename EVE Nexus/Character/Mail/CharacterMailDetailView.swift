@@ -62,32 +62,50 @@ struct CharacterMailDetailView: View {
                             .font(.headline)
                             .padding(.bottom, 4)
 
-                        // 发件人和时间信息
-                        HStack {
-                            CharacterPortrait(characterId: detail.content.from, size: 32)
-                            VStack(alignment: .leading) {
-                                Text(detail.senderName)
-                                    .font(.subheadline)
-                                    .textSelection(.enabled)
-                                Text(mail.timestamp.formatDate())
-                                    .font(.caption)
+                        // 发件人、时间和收件人信息
+                        VStack(alignment: .leading, spacing: 8) {
+                            // 发件人和时间信息
+                            HStack {
+                                CharacterPortrait(characterId: detail.content.from, size: 32)
+                                VStack(alignment: .leading) {
+                                    Text(detail.senderName)
+                                        .font(.subheadline)
+                                    Text(mail.timestamp.formatDate())
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                            }
+                            
+                            // 收件人信息
+                            if !detail.content.recipients.isEmpty {
+                                let recipientsString = detail.content.recipients.compactMap { recipient in
+                                    detail.recipientNames[recipient.recipient_id] ?? NSLocalizedString("Main_EVE_Mail_Unknown_Recipient", comment: "")
+                                }.joined(separator: ", ")
+                                
+                                (Text(NSLocalizedString("Main_EVE_Mail_To", comment: ""))
                                     .foregroundColor(.secondary)
+                                + Text(recipientsString))
+                                    .font(.subheadline)
                             }
                         }
-
-                        // 收件人信息
-                        if !detail.content.recipients.isEmpty {
-                            (Text(NSLocalizedString("Main_EVE_Mail_To", comment: ""))
-                                .foregroundColor(.secondary)
-                                + Text(
-                                    detail.content.recipients.compactMap {
-                                        detail.recipientNames[$0.recipient_id]
-                                            ?? NSLocalizedString(
-                                                "Main_EVE_Mail_Unknown_Recipient", comment: ""
-                                            )
-                                    }.joined(separator: ", ")))
-                                .font(.subheadline)
-                                .textSelection(.enabled)
+                        .contextMenu {
+                            Button {
+                                UIPasteboard.general.string = detail.senderName
+                            } label: {
+                                Label(NSLocalizedString("Main_EVE_Mail_Copy_Sender", comment: "Copy Sender"), systemImage: "person")
+                            }
+                            
+                            if !detail.content.recipients.isEmpty {
+                                Button {
+                                    let recipientsString = detail.content.recipients.compactMap { recipient in
+                                        detail.recipientNames[recipient.recipient_id] ?? NSLocalizedString("Main_EVE_Mail_Unknown_Recipient", comment: "")
+                                    }.joined(separator: ", ")
+                                    UIPasteboard.general.string = recipientsString
+                                } label: {
+                                    Label(NSLocalizedString("Main_EVE_Mail_Copy_Recipients", comment: "Copy Recipients"), systemImage: "person.2")
+                                }
+                            }
                         }
 
                         Divider()

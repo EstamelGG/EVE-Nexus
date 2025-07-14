@@ -366,7 +366,6 @@ struct CharacterSheetView: View {
 
                             Text(character.CharacterName)
                                 .font(.headline)
-                                .textSelection(.enabled)
                                 .lineLimit(1)
                         }
 
@@ -415,6 +414,26 @@ struct CharacterSheetView: View {
                         }
                     }
                     .padding(.leading, 2)
+                }.contextMenu {
+                    Button {
+                        UIPasteboard.general.string = character.CharacterName
+                    } label: {
+                        Label(NSLocalizedString("Misc_Copy_CharID", comment: ""), systemImage: "doc.on.doc")
+                    }
+                    if let allianceInfo = allianceInfo {
+                        Button {
+                            UIPasteboard.general.string = allianceInfo.name
+                        } label: {
+                            Label(NSLocalizedString("Misc_Copy_FactionID", comment: ""), systemImage: "doc.on.doc")
+                        }
+                    }
+                    if let corpInfo = corporationInfo {
+                        Button {
+                            UIPasteboard.general.string = corpInfo.name
+                        } label: {
+                            Label(NSLocalizedString("Misc_Copy_CorpID", comment: ""), systemImage: "doc.on.doc")
+                        }
+                    }
                 }
 
                 // 出生日期信息
