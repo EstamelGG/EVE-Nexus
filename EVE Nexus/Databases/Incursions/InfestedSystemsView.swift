@@ -282,6 +282,13 @@ struct SystemRow: View {
                         .font(.system(.body, design: .monospaced))
                     Text(system.systemName)
                         .fontWeight(.medium)
+                        .contextMenu {
+                            Button {
+                                UIPasteboard.general.string = system.systemName
+                            } label: {
+                                Label(NSLocalizedString("Misc_Copy_Solar", comment: ""), systemImage: "doc.on.doc")
+                            }
+                        }
                 }
 
                 // 第二行：联盟/派系名称

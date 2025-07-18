@@ -24,6 +24,7 @@ struct CharacterSheetView: View {
     @State private var medals: [CharacterMedal]?
     @State private var isLoadingMedals = true
     @State private var hasInitialized = false  // 追踪是否已初始化
+    @State private var factionInfo: (name: String, faction_id: Int, iconName: String, rank: Int?)?
 
     // UserDefaults 键名常量
     private let lastShipTypeIdKey: String
@@ -369,28 +370,6 @@ struct CharacterSheetView: View {
                                 .lineLimit(1)
                         }
 
-                        // 联盟信息
-                        HStack(spacing: 4) {
-                            if let alliance = allianceInfo, let logo = allianceLogo {
-                                Image(uiImage: logo)
-                                    .resizable()
-                                    .frame(width: 18, height: 18)
-                                    .clipShape(RoundedRectangle(cornerRadius: 2))
-                                Text("[\(alliance.ticker)] \(alliance.name)")
-                                    .font(.caption)
-                                    .lineLimit(1)
-                            } else {
-                                Image(systemName: "square.dashed")
-                                    .resizable()
-                                    .frame(width: 18, height: 18)
-                                    .foregroundColor(.gray)
-                                Text("[-] \(NSLocalizedString("No Alliance", comment: ""))")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                                    .lineLimit(1)
-                            }
-                        }
-
                         // 军团信息
                         HStack(spacing: 4) {
                             if let corporation = corporationInfo, let logo = corporationLogo {
@@ -412,6 +391,28 @@ struct CharacterSheetView: View {
                                     .lineLimit(1)
                             }
                         }
+                        
+                        // 联盟信息
+                        HStack(spacing: 4) {
+                            if let alliance = allianceInfo, let logo = allianceLogo {
+                                Image(uiImage: logo)
+                                    .resizable()
+                                    .frame(width: 18, height: 18)
+                                    .clipShape(RoundedRectangle(cornerRadius: 2))
+                                Text("[\(alliance.ticker)] \(alliance.name)")
+                                    .font(.caption)
+                                    .lineLimit(1)
+                            } else {
+                                Image(systemName: "square.dashed")
+                                    .resizable()
+                                    .frame(width: 18, height: 18)
+                                    .foregroundColor(.gray)
+                                Text("[-] \(NSLocalizedString("No Alliance", comment: ""))")
+                                    .font(.caption)
+                                    .foregroundColor(.gray)
+                                    .lineLimit(1)
+                            }
+                        }
                     }
                     .padding(.leading, 2)
                 }.contextMenu {
@@ -424,7 +425,7 @@ struct CharacterSheetView: View {
                         Button {
                             UIPasteboard.general.string = allianceInfo.name
                         } label: {
-                            Label(NSLocalizedString("Misc_Copy_FactionID", comment: ""), systemImage: "doc.on.doc")
+                            Label(NSLocalizedString("Misc_Copy_Alliance", comment: ""), systemImage: "doc.on.doc")
                         }
                     }
                     if let corpInfo = corporationInfo {
@@ -654,6 +655,52 @@ struct CharacterSheetView: View {
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
+            
+            // 势力信息
+            if let faction = factionInfo {
+                Section {
+                    HStack {
+                        // 势力图标
+                        IconManager.shared.loadImage(for: faction.iconName)
+                            .resizable()
+                            .frame(width: 36, height: 36)
+                            .cornerRadius(6)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(NSLocalizedString("Character_Faction", comment: ""))
+                                .font(.body)
+                                .foregroundColor(.primary)
+                            Text(faction.name)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    // 军衔信息
+                    if let rank = faction.rank {
+                        HStack {
+                            // 军衔图标：格式为 "factionId_rank"
+                            IconManager.shared.loadImage(for: "\(faction.faction_id)_\(rank)")
+                                .resizable()
+                                .frame(width: 36, height: 36)
+                                .cornerRadius(6)
+                            
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(NSLocalizedString("Character_Rank", comment: ""))
+                                    .font(.body)
+                                    .foregroundColor(.primary)
+                                // 军衔文本：格式为 "rank_factionid_rank"
+                                Text(NSLocalizedString("rank_\(faction.faction_id)_\(rank)", comment: ""))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                } header: {
+                    Text(NSLocalizedString("Main_Faction_War", comment: ""))
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+            }
 
             // 奖章信息 Section
             if let medals = medals, !medals.isEmpty {
@@ -805,6 +852,31 @@ struct CharacterSheetView: View {
             // 更新安全等级
             await MainActor.run {
                 self.securityStatus = publicInfo.security_status
+            }
+
+            // 获取势力信息（如果有）
+            if let factionId = publicInfo.faction_id {
+                let query = "SELECT name, iconName FROM factions WHERE id = ?"
+                if case let .success(rows) = DatabaseManager.shared.executeQuery(query, parameters: [factionId]),
+                   let row = rows.first,
+                   let name = row["name"] as? String,
+                   let iconName = row["iconName"] as? String {
+                    
+                    // 获取势力战争统计数据
+                    let fwStats = try? await CharacterFWStatsAPI.shared.getFWStats(
+                        characterId: character.CharacterID, 
+                        forceRefresh: false
+                    )
+                    
+                    await MainActor.run {
+                        self.factionInfo = (
+                            name: name, 
+                            faction_id: factionId, 
+                            iconName: iconName, 
+                            rank: fwStats?.current_rank
+                        )
+                    }
+                }
             }
         }
     }
@@ -1111,6 +1183,31 @@ struct CharacterSheetView: View {
             // 更新安全等级
             await MainActor.run {
                 self.securityStatus = publicInfo.security_status
+            }
+
+            // 获取势力信息（如果有）
+            if let factionId = publicInfo.faction_id {
+                let query = "SELECT name, iconName FROM factions WHERE id = ?"
+                if case let .success(rows) = DatabaseManager.shared.executeQuery(query, parameters: [factionId]),
+                   let row = rows.first,
+                   let name = row["name"] as? String,
+                   let iconName = row["iconName"] as? String {
+                    
+                    // 获取势力战争统计数据（强制刷新）
+                    let fwStats = try? await CharacterFWStatsAPI.shared.getFWStats(
+                        characterId: character.CharacterID, 
+                        forceRefresh: true
+                    )
+                    
+                    await MainActor.run {
+                        self.factionInfo = (
+                            name: name, 
+                            faction_id: factionId, 
+                            iconName: iconName, 
+                            rank: fwStats?.current_rank
+                        )
+                    }
+                }
             }
         }
 

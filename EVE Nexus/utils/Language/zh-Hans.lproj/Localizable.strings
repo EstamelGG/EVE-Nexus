@@ -26,6 +26,7 @@
 "Main_Skills_Queue_Complete" = "已完成";
 "Main_Skills_Queue_Empty" = "技能队列为空";
 "Main_Skills_Queue_All_Completed" = "所有技能已完成";
+"Main_Skill_Queue_Free_SP" = "可分配:";
 
 "Main_EVE_Mail" = "EVE 邮件";
 "Main_Calendar" = "日历";
@@ -49,8 +50,14 @@
 "Main_Database_Misc_Bonuses" = "其他加成";
 "Main_Database_Bonuses_Per_Level" = "每级技能加成";
 "Main_Database_Required_By" = "技能等级适用于";
+"Main_Database_Category" = "目录";
+"Main_Database_Market_Category" = "市场";
+"Main_NPC_entity" = "NPC 实体";
+"Main_NPC_Faction" = "NPC 势力";
 "Main_Database_NPC_Scene" = "NPC";
 "Main_Database_NPC_Ships" = "舰船";
+"Corp_and_Faction" = "势力与军团";
+"Corporation_Detail" = "下属军团";
 "Main_Database_Show_Important_Only" = "只展示重要属性";
 "Main_Database_Show_Important_Only_Detail" = "在数据库中只展示物品的重要属性";
 "Main_Market_Current_Price" = "当前售价";
@@ -151,14 +158,33 @@
 "Misc_Null" = "无";
 "Misc_Items" = "%d 个物品";
 "Misc_Copy" = "复制";
+"Misc_Show_Detail" = "查看详情";
 
 "Misc_Copy_CharID" = "复制人物名称";
 "Misc_Copy_CEO_CharID" = "复制 CEO 名称";
 "Misc_Copy_CorpID" = "复制军团名称";
-"Misc_Copy_FactionID" = "复制联盟名称";
+"Misc_Copy_Alliance" = "复制联盟名称";
+"Misc_Copy_Faction" = "复制势力名称";
 "Misc_Copy_Location" = "复制地点";
+"Misc_Copy_Solar" = "复制星系";
+"Misc_Copy_Staging_Solar" = "复制集结星系";
+"Misc_Copy_Constellation" = "复制星座";
+"Misc_Copy_Constellation_And_Solar" = "复制星座与星系";
 "Misc_Copy_Name" = "复制名称";
+"Misc_Copy_Victim_Name" = "复制受害人";
+"Misc_Copy_Module_Name" = "复制装备名称";
+"Misc_Copy_Item_Name" = "复制物品名称";
+"Misc_Copy_Trans" = "复制翻译";
 "Misc_Copy_Title" = "复制头衔";
+"Misc_Copy_LP_Offer_Name" = "复制商品名称";
+"Misc_Constellation" = "星座";
+"Misc_Copy_Structure" = "复制建筑名称";
+
+// 建筑市场订单
+"Structure_Orders_Load" = "获取市场订单";
+"Structure_Orders_Loading" = "正在加载订单...";
+"Structure_Orders_Success" = "订单加载成功";
+"Structure_Orders_Failed" = "订单加载失败";
 
 // 蓝图详情
 "Blueprint_Product" = "产品";
@@ -299,7 +325,53 @@
 "Character_in_space" = "在太空中";
 "Character_Location" = "当前位置";
 "Character_Current_Ship" = "当前飞船";
+"Character_Rank" = "势力军衔";
 "Main_Setting_sovcam_No_Data" = "未找到入侵事件";
+
+"rank_500003_0" = "十字军骑士";
+"rank_500003_1" = "圣殿骑士尉官";
+"rank_500003_2" = "红衣尉官";
+"rank_500003_3" = "首席尉官";
+"rank_500003_4" = "帝国校官";
+"rank_500003_5" = "高阶指挥官";
+"rank_500003_6" = "凯旋指挥官";
+"rank_500003_7" = "护民上校";
+"rank_500003_8" = "皇家指挥官";
+"rank_500003_9" = "神圣指挥官";
+
+"rank_500001_0" = "护卫军掌旗官";
+"rank_500001_1" = "少尉";
+"rank_500001_2" = "中尉";
+"rank_500001_3" = "上尉";
+"rank_500001_4" = "少校";
+"rank_500001_5" = "中校";
+"rank_500001_6" = "上校";
+"rank_500001_7" = "联队指挥官";
+"rank_500001_8" = "攻击指挥官";
+"rank_500001_9" = "准将";
+
+"rank_500002_0" = "民族战士";
+"rank_500002_1" = "尖刀尉官";
+"rank_500002_2" = "长矛尉官";
+"rank_500002_3" = "复仇队长";
+"rank_500002_4" = "骑兵指挥官";
+"rank_500002_5" = "刀锋指挥官";
+"rank_500002_6" = "鹰爪指挥官";
+"rank_500002_7" = "曙光少校";
+"rank_500002_8" = "玛塔尔上校";
+"rank_500002_9" = "瓦基尔将军";
+
+"rank_500004_0" = "联邦民兵";
+"rank_500004_1" = "防御者尉官";
+"rank_500004_2" = "保护者尉官";
+"rank_500004_3" = "岗哨尉官";
+"rank_500004_4" = "庇护指挥官";
+"rank_500004_5" = "守护指挥官";
+"rank_500004_6" = "次级指挥官";
+"rank_500004_7" = "少将";
+"rank_500004_8" = "中将";
+"rank_500004_9" = "上将";
+
 // 日志
 "Main_Setting_Logs" = "应用日志";
 "Main_Setting_Logs_Detail" = "查看应用运行日志";
@@ -424,11 +496,11 @@
 // Industry Orders Time
 "Industry" = "工业属性";
 "Industry_Expired" = "已完成";
-"Industry_Remaining_Days_Hours" = "%d天%d小时后完成";
-"Industry_Remaining_Days" = "%d天后完成";
-"Industry_Remaining_Hours_Minutes" = "%d小时%d分钟后完成";
-"Industry_Remaining_Hours" = "%d小时后完成";
-"Industry_Remaining_Minutes" = "%d分钟后完成";
+"Industry_Remaining_Days_Hours" = "%d天 %d小时";
+"Industry_Remaining_Days" = "%d天";
+"Industry_Remaining_Hours_Minutes" = "%d小时 %d分钟";
+"Industry_Remaining_Hours" = "%d小时";
+"Industry_Remaining_Minutes" = "%d分钟";
 "Finished_on" = "将完成于";
 "Industry_runs" = "流程";
 "Industry_copies" = "拷贝";
@@ -459,6 +531,13 @@
 "Contract_Assignee" = "合同对象";
 "Contract_Acceptor" = "接收人";
 "Contract_Days_To_Complete" = "完成期限";
+"Contract_Date_Issued" = "发布日期";
+"Contract_Date_Expired" = "过期日期";
+"Contract_Days_Remaining" = "%d 天";
+"Contract_Expires_Today" = "今天到期";
+"Contract_Expired" = "已过期";
+"Contract_Days_Remaining_Full" = "剩余 %d 天";
+"Contract_Date_Completed" = "完成日期";
 "Contract_Items_Included" = "提供的物品";
 "Contract_Items_Required" = "索取的物品";
 // Contract Details
@@ -500,6 +579,12 @@
 "Industry_Type_Copying" = "复制";
 "Industry_Type_Invention" = "发明";
 "Industry_Type_Reaction" = "反应";
+
+// 工业槽位统计
+"Industry_Slots_Header" = "工业槽位";
+"Industry_Slots_Manufacturing" = "加工任务";
+"Industry_Slots_Research" = "研究任务";
+"Industry_Slots_Reaction" = "反应任务";
 
 // 工业列表标题
 "Industry_Started_On" = "开始于%@";
@@ -616,6 +701,7 @@
 "Character_Attributes_Last_Remap" = "上次重置时间";
 "Character_Attributes_Next_Remap" = "下次可重置时间";
 "Character_Attributes_Load_Failed" = "加载属性失败";
+"Character_Attributes_Has_Booster" = "人物使用了加速器，每个属性+%d";
 
 // Character Attributes Time
 "Character_Attributes_Ready_Now" = "现在";
@@ -899,6 +985,7 @@
 "Alliance Standings" = "联盟声望";
 "Standing_Loading" = "正在加载声望数据...";
 "Standing_Loading_Failed" = "加载声望数据失败";
+"Standings_num" = "声望: %@";
 "Standing_No_Data" = "暂无声望数据";
 "Standing_Unknown" = "[未知]";
 
@@ -925,6 +1012,7 @@
 "Main_Market_Location" = "市场地点";
 "Main_Market_Order_Type" = "订单类型";
 "Main_Market_Price" = "市场价格";
+"Main_Market_Price_Jita" = "吉他市场价格";
 "Main_Market_QuickBar_info" = "基本信息";
 "Main_Market_Item_List" = "物品列表";
 "Main_Market_Edit_Quantity" = "编辑数量...";
@@ -1429,9 +1517,9 @@
 
 "Insurgency_info_corr_s1" = "PvP掉率+7.5%*腐化阶段（适用于投靠海盗的飞行员）";
 "Insurgency_info_corr_s2" = "帝国警察终止巡逻，海盗团伙四处游荡";
-"Insurgency_info_corr_s3" = "叛乱蔓延到新星系";
+"Insurgency_info_corr_s3" = "叛乱扩散，星系所有者的优势点系数降低20,000";
 "Insurgency_info_corr_s4" = "跃迁速度倍增系数+2.0（适用于投靠海盗的飞行员）";
-"Insurgency_info_corr_s5" = "低安地区：允许使用炸弹和泡沫发射器。岗哨炮不可用；高安地区：攻击克隆飞行员将获得嫌犯计时器";
+"Insurgency_info_corr_s5" = "低安地区：允许使用炸弹和拦截泡发射器。岗哨炮不可用；高安地区：攻击克隆飞行员将获得嫌犯计时器";
 
 "Insurgency_info_supp_s1" = "海盗NPC的赏金获取量和安全等级增加5%";
 "Insurgency_info_supp_s2" = "星系内国民卫队忠诚点获取量增加5%*（镇压阶段-1）";
@@ -1531,7 +1619,7 @@
 "Character_Clone_Count" = "%d 个克隆体";
 "Character_Implants_Count" = "%d 个植入体";
 "Character_Clone_And_Implants_Count" = "%d 个克隆体 · %d 个植入体";
-
+"Character_Faction" = "所属势力";
 "Character_Clone_ID" = "克隆体 ID: %d";
 
 "Main_Planetary_Filter_Conditions" = "过滤条件";
@@ -1840,6 +1928,44 @@
 "Main_Setting_Logs_Unknown_Date" = "未知日期";
 "Main_Setting_Logs_Unknown_Size" = "未知大小";
 
+// 市场建筑设置
+"Main_Setting_Market_Structure_Section" = "市场建筑设置";
+"Main_Setting_Market_Structure_Manage" = "管理市场建筑";
+"Main_Setting_Market_Structure_Manage_Detail" = "设置用于市场查询的建筑";
+"Main_Setting_Market_Structure_Add" = "添加建筑";
+"Main_Setting_Market_Structure_Added_Count" = "已添加的建筑 (%d)";
+"Main_Setting_Market_Structure_Add_Title" = "添加市场建筑";
+"Main_Setting_Market_Structure_Settings_Title" = "市场建筑设置";
+"Main_Setting_Market_Structure_Select" = "选择建筑市场";
+
+// 添加建筑 Sheet
+"Market_Structure_Select_Character_Section" = "选择人物";
+"Market_Structure_Select_Character_Button" = "选择一个有权限的人物";
+"Market_Structure_Select_Character_Selected" = "已选择: %@";
+"Market_Structure_Select_Structure_Section" = "选择建筑";
+"Market_Structure_Select_Structure_Button" = "选择市场建筑";
+"Market_Structure_Select_Structure_Selected" = "已选择: %@";
+"Market_Structure_Select_Character_First" = "请先选择人物";
+"Market_Structure_Sheet_Cancel" = "取消";
+"Market_Structure_Sheet_Complete" = "完成";
+
+// 角色选择器
+"Market_Structure_Character_Selector_Title" = "选择人物";
+
+// 建筑选择器
+"Market_Structure_Structure_Selector_Title" = "选择建筑";
+"Market_Structure_Search_Placeholder" = "搜索建筑名称";
+"Market_Structure_Search_Hint" = "搜索市场建筑";
+"Market_Structure_Search_Description" = "输入建筑名称进行搜索";
+"Market_Structure_Search_Min_Length" = "请输入至少 %d 个字符进行搜索";
+"Market_Structure_Search_No_Results" = "未找到匹配的建筑";
+"Market_Structure_Search_Try_Different" = "请尝试使用不同的关键词";
+"Market_Structure_Search_Searching" = "搜索中...";
+
+// 角色选择器行视图
+"Market_Structure_Loading_Corporation" = "加载军团信息...";
+"Market_Structure_Unknown_Corporation" = "未知军团";
+
 // 虫洞生命周期
 "WH_time_life" = "时间状态";
 "WH_life_Notyet" = "该虫洞尚未进入自然周期的衰退阶段，它还能敞开至少一天";
@@ -1854,7 +1980,7 @@
 "Fitting_Exporting_To_ESI" = "正在上传到ESI...";
 "Fitting_Export_To_ESI" = "导出到ESI";
 "Fitting_Upload_Confirm_Title" = "确认上传";
-"Fitting_Upload_Confirm_Message" = "将配置 \"%@\" 上传到EVE游戏内？";
+"Fitting_Upload_Confirm_Message" = "将配置 \"%@\" 上传到EVE内？";
 "Fitting_Upload_Cancel" = "取消";
 "Fitting_Upload_Confirm" = "确认上传";
 "Fitting_Upload_Success_Title" = "导出成功";
@@ -1981,3 +2107,21 @@
 "PI_Chain_Processing_Round" = "第%d轮加工";
 "PI_Chain_Quantity_Format" = "数量：%d";
 "PI_Chain_Level_And_Quantity_Format" = "等级：P%d，数量：%d";
+
+// LP商店相关
+"LP_Store_Title" = "LP商店";
+"LP_Store_View" = "查看LP商店";
+"LP_Store_No_Data" = "无LP商店数据";
+"LP_Store_Loading" = "加载LP商店数据...";
+
+// App Update Alert
+"App_Updated_Title" = "App已更新";
+"App_Updated_Message" = "应用已更新到新版本";
+"App_Updated_OK" = "好的";
+"App_Updated_View_Changes" = "查看更新";
+
+// Market Structure Order Reload
+"Structure_Orders_Reload_Title" = "重新加载订单";
+"Structure_Orders_Reload_Message" = "是否重新加载该建筑的市场订单数据？";
+"Structure_Orders_Reload_Cancel" = "取消";
+"Structure_Orders_Reload_Confirm" = "确认";

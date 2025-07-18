@@ -10,6 +10,7 @@ struct AllianceInfo: Codable {
     let creator_id: Int
     let date_founded: String
     let executor_corporation_id: Int
+    let faction_id: Int?
 }
 
 @globalActor actor AllianceAPIActor {

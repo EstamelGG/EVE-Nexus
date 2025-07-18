@@ -70,8 +70,8 @@ public class CorpMoonExtractionAPI {
             characterId: characterId,
             maxConcurrentPages: 3,
             decoder: { try JSONDecoder().decode([MoonExtractionInfo].self, from: $0) },
-            progressCallback: { page in
-                Logger.debug("正在获取第 \(page) 页月矿提取数据")
+            progressCallback: { currentPage, totalPages in
+                Logger.debug("正在获取第 \(currentPage)/\(totalPages) 页月矿提取数据")
             }
         )
 

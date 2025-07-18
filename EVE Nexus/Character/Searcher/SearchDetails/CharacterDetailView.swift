@@ -39,6 +39,7 @@ struct CharacterDetailView: View {
     @State private var myCorpInfo: (name: String, icon: UIImage?)?
     @State private var myAllianceInfo: (name: String, icon: UIImage?)?
     @State private var standingsLoaded = false
+    @State private var factionInfo: (name: String, iconName: String)?
 
     var body: some View {
         List {
@@ -174,7 +175,7 @@ struct CharacterDetailView: View {
                                 Button {
                                     UIPasteboard.general.string = allianceInfo.name
                                 } label: {
-                                    Label(NSLocalizedString("Misc_Copy_FactionID", comment: ""), systemImage: "doc.on.doc")
+                                    Label(NSLocalizedString("Misc_Copy_Alliance", comment: ""), systemImage: "doc.on.doc")
                                 }
                             }
                         }
@@ -185,6 +186,21 @@ struct CharacterDetailView: View {
 
                 // 添加外部链接按钮
                 Section {
+                    // 势力信息
+                    if let faction = factionInfo {
+                        HStack(spacing: 8) {
+                            Text("\(NSLocalizedString("Character_Faction", comment: ""))")
+                            Spacer()
+                            IconManager.shared.loadImage(for: faction.iconName)
+                                .resizable()
+                                .frame(width: 32, height: 32)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                            Text(faction.name)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    
                     Button(action: {
                         if let url = URL(string: "https://evewho.com/character/\(characterId)") {
                             UIApplication.shared.open(url)
@@ -299,6 +315,18 @@ struct CharacterDetailView: View {
                     let allianceIcon = try? await AllianceAPI.shared.fetchAllianceLogo(
                         allianceID: allianceId)
                     allianceInfo = (name: allianceName, icon: allianceIcon)
+                }
+            }
+
+            // 加载势力信息
+            if let factionId = info.faction_id {
+                let query = "SELECT name, iconName FROM factions WHERE id = ?"
+                if case let .success(rows) = DatabaseManager.shared.executeQuery(query, parameters: [factionId]),
+                   let row = rows.first,
+                   let name = row["name"] as? String,
+                   let iconName = row["iconName"] as? String {
+                    Logger.info("成功加载势力信息: \(name)")
+                    factionInfo = (name: name, iconName: iconName)
                 }
             }
 
@@ -773,7 +801,7 @@ struct CharacterDetailView: View {
                     Button {
                         UIPasteboard.general.string = allianceName
                     } label: {
-                        Label(NSLocalizedString("Misc_Copy_FactionID", comment: ""), systemImage: "doc.on.doc")
+                        Label(NSLocalizedString("Misc_Copy_Alliance", comment: ""), systemImage: "doc.on.doc")
                     }
                 }
             }

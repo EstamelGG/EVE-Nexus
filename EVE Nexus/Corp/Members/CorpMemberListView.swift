@@ -913,6 +913,7 @@ struct CorpMemberListView: View {
     let characterId: Int
     @StateObject private var viewModel: CorpMemberListViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var isRefreshing = false
 
     init(characterId: Int) {
         self.characterId = characterId
@@ -1059,7 +1060,18 @@ struct CorpMemberListView: View {
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                SortMenuView(viewModel: viewModel, isPresented: .constant(false))
+                HStack {
+                    Button(action: {
+                        refreshData()
+                    }) {
+                        Image(systemName: "arrow.clockwise")
+                            .rotationEffect(.degrees(isRefreshing ? 360 : 0))
+                            .animation(isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
+                    }
+                    .disabled(isRefreshing || viewModel.isLoading)
+                    
+                    SortMenuView(viewModel: viewModel, isPresented: .constant(false))
+                }
             }
         }
         .onChange(of: viewModel.searchText) { _, _ in
@@ -1075,6 +1087,15 @@ struct CorpMemberListView: View {
                     dismiss()
                 }
             )
+        }
+    }
+    
+    private func refreshData() {
+        isRefreshing = true
+        
+        Task {
+            viewModel.loadMembers(forceRefresh: true)
+            isRefreshing = false
         }
     }
 }

@@ -152,6 +152,7 @@ struct ShowItemInfo: View {
 
                 let details = ItemDetails(
                     name: itemDetail.name,
+                    en_name: itemDetail.en_name ?? "",
                     description: fullDescription,
                     iconFileName: itemDetail.iconFileName,
                     groupName: itemDetail.groupName,

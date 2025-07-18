@@ -130,6 +130,7 @@ struct CharacterAssetsView: View {
     @StateObject private var viewModel: CharacterAssetsViewModel
     @State private var searchText = ""
     @State private var isSearching = false
+    @State private var isRefreshing = false
 
     init(characterId: Int) {
         // 创建ViewModel并立即开始加载资产
@@ -303,5 +304,26 @@ struct CharacterAssetsView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_Assets", comment: ""))
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    refreshData()
+                }) {
+                    Image(systemName: "arrow.clockwise")
+                        .rotationEffect(.degrees(isRefreshing ? 360 : 0))
+                        .animation(isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
+                }
+                .disabled(isRefreshing || viewModel.isLoading)
+            }
+        }
+    }
+    
+    private func refreshData() {
+        isRefreshing = true
+        
+        Task {
+            await viewModel.loadAssets(forceRefresh: true)
+            isRefreshing = false
+        }
     }
 }

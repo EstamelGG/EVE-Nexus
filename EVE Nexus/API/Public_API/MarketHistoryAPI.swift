@@ -149,6 +149,9 @@ class MarketHistoryAPI {
     }
     
     private func fetchApiHistory(typeID: Int, regionID: Int, forceRefresh: Bool, interpolate: Bool = true, fillToCurrentDate: Bool = true) async throws -> [MarketHistory] {
+        if regionID < 0 {
+            return []
+        }
         // 如果不是强制刷新，尝试从缓存获取
         if !forceRefresh {
             if let cached = loadFromCache(typeID: typeID, regionID: regionID) {

@@ -67,8 +67,8 @@ class CorporationContractsAPI {
                 decoder.dateDecodingStrategy = .iso8601
                 return try decoder.decode([ContractInfo].self, from: data)
             },
-            progressCallback: { page in
-                progressCallback?(page)
+            progressCallback: { currentPage, totalPages in
+                progressCallback?(currentPage)
             }
         )
 

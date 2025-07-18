@@ -220,7 +220,7 @@ class CharacterPlanetaryAPI {
         else {
             return nil
         }
-
+        Logger.info("[CharacterPlanetaryAPI] Read data from cache: \(cacheFile.path())")
         return planetaryInfo
     }
 

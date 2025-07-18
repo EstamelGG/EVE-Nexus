@@ -25,7 +25,6 @@ final class PIProductionChainViewModel: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     
-    private let databaseManager = DatabaseManager.shared
     private let resourceCache = PIResourceCache.shared
     
     func loadProductionChain(for productId: Int) {
@@ -57,12 +56,12 @@ final class PIProductionChainViewModel: ObservableObject {
             throw NSError(domain: "ProductionChain", code: 1, userInfo: [NSLocalizedDescriptionKey: "无法获取产品信息"])
         }
         
-        var sections: [ProductionChainSection] = []
+        // 存储所有轮次的原始数据
+        var allRoundsData: [[Int: (name: String, iconFileName: String, quantity: Int)]] = []
         
-        // 递归计算每一级的生产链
+        // 一次性计算所有轮次
         var currentLevelItems: [Int: (name: String, iconFileName: String, quantity: Int)] = [productId: (productInfo.name, productInfo.iconFileName, 1)]
         var currentLevel = productLevel.rawValue
-        var sectionId = 1
         
         while currentLevel > 0 && !currentLevelItems.isEmpty {
             let targetLevel = currentLevel - 1
@@ -92,36 +91,44 @@ final class PIProductionChainViewModel: ObservableObject {
             }
             
             if !nextLevelItems.isEmpty {
-                let sectionItems = nextLevelItems.enumerated().map { (index, element) in
-                    // 获取物品的真实PI等级
-                    let itemLevel = resourceCache.getResourceLevel(for: element.key)?.rawValue ?? 0
-                    
-                    return ProductionChainItem(
-                        id: sectionId * 1000 + index,
-                        typeId: element.key,
-                        name: element.value.name,
-                        iconFileName: element.value.iconFileName,
-                        quantity: element.value.quantity,
-                        level: itemLevel
-                    )
-                }.sorted { $0.name < $1.name }
-                
-                let sectionTitle = String(format: NSLocalizedString("PI_Chain_Processing_Round", comment: "第%d轮加工"), sectionId)
-                
-                let section = ProductionChainSection(
-                    id: sectionId,
-                    title: sectionTitle,
-                    level: sectionId, // 使用轮次作为section的level标识
-                    items: sectionItems
-                )
-                sections.append(section)
-                
+                allRoundsData.append(nextLevelItems)
                 currentLevelItems = nextLevelItems
                 currentLevel = targetLevel
-                sectionId += 1
             } else {
                 break
             }
+        }
+        
+        // 根据计算结果创建sections，使用倒序的轮次编号
+        let totalRounds = allRoundsData.count
+        var sections: [ProductionChainSection] = []
+        
+        for (index, roundData) in allRoundsData.enumerated() {
+            let sectionItems = roundData.enumerated().map { (itemIndex, element) in
+                // 获取物品的真实PI等级
+                let itemLevel = resourceCache.getResourceLevel(for: element.key)?.rawValue ?? 0
+                
+                return ProductionChainItem(
+                    id: (index + 1) * 1000 + itemIndex,
+                    typeId: element.key,
+                    name: element.value.name,
+                    iconFileName: element.value.iconFileName,
+                    quantity: element.value.quantity,
+                    level: itemLevel
+                )
+            }.sorted { $0.name < $1.name }
+            
+            // 使用倒序的轮次编号：从totalRounds开始递减
+            let roundNumber = totalRounds - index
+            let sectionTitle = String(format: NSLocalizedString("PI_Chain_Processing_Round", comment: "第%d轮加工"), roundNumber)
+            
+            let section = ProductionChainSection(
+                id: index + 1,
+                title: sectionTitle,
+                level: index + 1, // 使用轮次作为section的level标识
+                items: sectionItems
+            )
+            sections.append(section)
         }
         
         return sections

@@ -24,6 +24,7 @@
 "Main_Skills_Queue_Training_Minutes" = "Training: %d skills(%dm %ds)";
 "Main_Skills_Queue_Paused" = "Paused: %d skills";
 "Main_Skills_Queue_Complete" = "Complete";
+"Main_Skill_Queue_Free_SP" = "Free:";
 
 "Main_EVE_Mail" = "EVE Mail";
 "Main_Calendar" = "Calendar";
@@ -44,6 +45,12 @@
 "Main_Database_Item_info_Reprocess" = "Reprocess Output";
 "Main_Database_Source" = "Reprocess Source";
 "Main_Database_Required_By" = "Required for";
+"Main_Database_Category" = "Category";
+"Main_Database_Market_Category" = "Market";
+"Main_NPC_entity" = "NPC Entity";
+"Main_NPC_Faction" = "NPC Faction";
+"Corp_and_Faction" = "Factions and Corps";
+"Corporation_Detail" = "Corperations";
 "Main_Database_NPC_Scene" = "NPC";
 "Main_Database_NPC_Ships" = "Ships";
 "Main_Market_Current_Price" = "Current Price";
@@ -135,14 +142,33 @@
 "Misc_Null" = "Null";
 "Misc_Items" = "%d items";
 "Misc_Copy" = "Copy";
+"Misc_Show_Detail" = "Show Info";
 
 "Misc_Copy_CharID" = "Copy Char Name";
 "Misc_Copy_CEO_CharID" = "Copy CEO Name";
 "Misc_Copy_CorpID" = "Copy Corp Name";
-"Misc_Copy_FactionID" = "Copy Alliance Name";
+"Misc_Copy_Alliance" = "Copy Alliance Name";
+"Misc_Copy_Faction" = "Copy Faction Name";
 "Misc_Copy_Location" = "Copy Location";
+"Misc_Copy_Solar" = "Copy System";
+"Misc_Copy_Staging_Solar" = "Copy Staging System";
+"Misc_Copy_Constellation" = "Copy Constellation";
+"Misc_Copy_Constellation_And_Solar" = "Copy Const & Systems";
 "Misc_Copy_Name" = "Copy Name";
+"Misc_Copy_Victim_Name" = "Copy Victim";
+"Misc_Copy_Module_Name" = "Copy Module Name";
+"Misc_Copy_Item_Name" = "Copy Item Name";
+"Misc_Copy_Trans" = "Copy Translation";
 "Misc_Copy_Title" = "Copy Title";
+"Misc_Copy_LP_Offer_Name" = "Corp Offer Name";
+"Misc_Constellation" = "Constellation";
+"Misc_Copy_Structure" = "Copy Structure";
+
+// Structure Market Orders
+"Structure_Orders_Load" = "Load Market Orders";
+"Structure_Orders_Loading" = "Loading Orders...";
+"Structure_Orders_Success" = "Orders Loaded Successfully";
+"Structure_Orders_Failed" = "Failed to Load Orders";
 
 // Blueprint Details
 "Blueprint_Product" = "Product";
@@ -308,6 +334,51 @@
 "Character_in_space" = "in Space";
 "Character_Location" = "Location";
 "Character_Current_Ship" = "Current Ship";
+"Character_Rank" = "Rank";
+
+"rank_500003_0" = "Paladin Crusader";
+"rank_500003_1" = "Templar Lieutenant";
+"rank_500003_2" = "Cardinal Lieutenant";
+"rank_500003_3" = "Arch Lieutenant";
+"rank_500003_4" = "Imperial Major";
+"rank_500003_5" = "Marshal Commander";
+"rank_500003_6" = "Imperator Commander";
+"rank_500003_7" = "Tribunus Colonel";
+"rank_500003_8" = "Legatus Commodore";
+"rank_500003_9" = "Divine Commodore";
+
+"rank_500001_0" = "Protectorate Ensign";
+"rank_500001_1" = "Second Lieutenant";
+"rank_500001_2" = "First Lieutenant";
+"rank_500001_3" = "Captain";
+"rank_500001_4" = "Major";
+"rank_500001_5" = "Lieutenant Colonel";
+"rank_500001_6" = "Colonel";
+"rank_500001_7" = "Wing Commander";
+"rank_500001_8" = "Strike Commander";
+"rank_500001_9" = "Brigadier General";
+
+"rank_500002_0" = "Nation Warrior";
+"rank_500002_1" = "Spike Lieutenant";
+"rank_500002_2" = "Spear Lieutenant";
+"rank_500002_3" = "Venge Captain";
+"rank_500002_4" = "Lance Commander";
+"rank_500002_5" = "Blade Commander";
+"rank_500002_6" = "Talon Commander";
+"rank_500002_7" = "Voshud Major";
+"rank_500002_8" = "Matar Colonel";
+"rank_500002_9" = "Valklear General";
+
+"rank_500004_0" = "Federation Minuteman";
+"rank_500004_1" = "Defender Lieutenant";
+"rank_500004_2" = "Guardian Lieutenant";
+"rank_500004_3" = "Lieutenant Sentinel";
+"rank_500004_4" = "Shield Commander";
+"rank_500004_5" = "Aegis Commander";
+"rank_500004_6" = "Vice Commander";
+"rank_500004_7" = "Major General";
+"rank_500004_8" = "Lieutenant General";
+"rank_500004_9" = "Luminaire General";
 
 // Logs
 "Main_Setting_Logs" = "App Logs";
@@ -463,9 +534,14 @@
 "Contract_Price" = "Price";
 "Contract_Reward" = "Reward";
 "Contract_Days_To_Complete" = "Days to Complete";
+"Contract_Date_Issued" = "Date Issued";
+"Contract_Date_Expired" = "Expiration Date";
+"Contract_Days_Remaining" = "%d days";
+"Contract_Expires_Today" = "Expires today";
+"Contract_Expired" = "Expired";
+"Contract_Days_Remaining_Full" = "Remaining %d days";
+"Contract_Date_Completed" = "Completion Date";
 "Contract_Item_Singleton" = "Singleton";
-"Contract_Item_Included" = "Included";
-"Contract_Item_Required" = "Required";
 
 "Contract_Location" = "Location";
 "Contract_Start_Location" = "Start Location";
@@ -500,16 +576,22 @@
 "Industry_Type_Invention" = "Inv";
 "Industry_Type_Reaction" = "React";
 
+// Industry Slot Statistics
+"Industry_Slots_Header" = "Industry Slots";
+"Industry_Slots_Manufacturing" = "Manufacturing Jobs";
+"Industry_Slots_Research" = "Science Jobs";
+"Industry_Slots_Reaction" = "Reactions";
+
 // Industry List Headers
 "Industry_Started_On" = "Started on %@";
 "Industry_In_Progress" = "In Progress";
 
 // Industry Remaining Time
-"Industry_Remaining_Days_Hours" = "%d d %d h";
-"Industry_Remaining_Days" = "%d d";
-"Industry_Remaining_Hours_Minutes" = "%d h %d m";
-"Industry_Remaining_Hours" = "%d h";
-"Industry_Remaining_Minutes" = "%d m";
+"Industry_Remaining_Days_Hours" = "%dd %dh";
+"Industry_Remaining_Days" = "%dd";
+"Industry_Remaining_Hours_Minutes" = "%dh %dm";
+"Industry_Remaining_Hours" = "%dh";
+"Industry_Remaining_Minutes" = "%dm";
 
 // Date Formats
 "Date_Format_Month_Day" = "MMM d";
@@ -612,6 +694,7 @@
 "Character_Attributes_Bonus_Remaps" = "Available Bonus Remaps";
 "Character_Attributes_Next_Remap" = "Next Remap Available";
 "Character_Attributes_Load_Failed" = "Failed to load attributes";
+"Character_Attributes_Has_Booster" = "Character has booster, +%d each";
 
 // Skill Categories
 "Main_Skills_No_Skills" = "No skills found";
@@ -882,6 +965,7 @@
 "Alliance Standings" = "Alliance Standings";
 "Standing_Loading" = "Loading standings data...";
 "Standing_Loading_Failed" = "Failed to load standings data";
+"Standings_num" = "Standing: %@";
 "Standing_No_Data" = "No standings data available";
 "Standing_Unknown" = "[Unknown]";
 
@@ -908,6 +992,7 @@
 "Main_Market_Location" = "Market Location";
 "Main_Market_Order_Type" = "Order Type";
 "Main_Market_Price" = "Market Price";
+"Main_Market_Price_Jita" = "Jita Market Price";
 "Main_Market_QuickBar_info" = "Basic Info";
 "Main_Market_Item_List" = "Item List";
 "Main_Market_Edit_Quantity" = "Edit Qty...";
@@ -1396,7 +1481,7 @@
 
 "Insurgency_info_corr_s1" = "+7.5% to PVP drop rates * corruption stage (applies to pirate aligned pilots)";
 "Insurgency_info_corr_s2" = "Empire police patrols cease & pirate roaming gangs present";
-"Insurgency_info_corr_s3" = "Insurgency spreads to new systems";
+"Insurgency_info_corr_s3" = "Insurgency spreads & -20,000 advantage point modifier applied to system owner";
 "Insurgency_info_corr_s4" = "+2.0 warp speed multiplier (applied to pirate aligned pilots)";
 "Insurgency_info_corr_s5" = "Lowsec: bomb and bubble launchers allowed. Sentry guns disabled; Hisec: attacks on capsuleers give a suspect timer";
 
@@ -1494,7 +1579,7 @@
 
 "Character_Implants_Count" = "%d Implant(s)";
 "Character_Clone_And_Implants_Count" = "%d Clone(s) · %d Implant(s)";
-
+"Character_Faction" = "Faction";
 "Main_Planetary_Filter_Conditions" = "Filter Conditions";
 "Main_Planetary_Select_Product" = "Select Product";
 "Main_Planetary_Select_Region" = "Select Region";
@@ -1813,6 +1898,44 @@
 "Main_Setting_Logs_Unknown_Date" = "Unknown date";
 "Main_Setting_Logs_Unknown_Size" = "Unknown size";
 
+// Market Structure Settings
+"Main_Setting_Market_Structure_Section" = "Market Structure Settings";
+"Main_Setting_Market_Structure_Manage" = "Manage Market Structures";
+"Main_Setting_Market_Structure_Manage_Detail" = "Configure structures for market queries";
+"Main_Setting_Market_Structure_Add" = "Add Structure";
+"Main_Setting_Market_Structure_Added_Count" = "Added Structures (%d)";
+"Main_Setting_Market_Structure_Add_Title" = "Add Market Structure";
+"Main_Setting_Market_Structure_Settings_Title" = "Market Structure Settings";
+"Main_Setting_Market_Structure_Select" = "Select Structure Market";
+
+// Add Structure Sheet
+"Market_Structure_Select_Character_Section" = "Select Character";
+"Market_Structure_Select_Character_Button" = "Select a character with permissions";
+"Market_Structure_Select_Character_Selected" = "Selected: %@";
+"Market_Structure_Select_Structure_Section" = "Select Structure";
+"Market_Structure_Select_Structure_Button" = "Select Market Structure";
+"Market_Structure_Select_Structure_Selected" = "Selected: %@";
+"Market_Structure_Select_Character_First" = "Please select a character first";
+"Market_Structure_Sheet_Cancel" = "Cancel";
+"Market_Structure_Sheet_Complete" = "Complete";
+
+// Character Selector
+"Market_Structure_Character_Selector_Title" = "Select Character";
+
+// Structure Selector
+"Market_Structure_Structure_Selector_Title" = "Select Structure";
+"Market_Structure_Search_Placeholder" = "Search structure name";
+"Market_Structure_Search_Hint" = "Search Market Structures";
+"Market_Structure_Search_Description" = "Enter structure name to search";
+"Market_Structure_Search_Min_Length" = "Please enter at least %d characters to search";
+"Market_Structure_Search_No_Results" = "No matching structures found";
+"Market_Structure_Search_Try_Different" = "Try using different keywords";
+"Market_Structure_Search_Searching" = "Searching...";
+
+// Character Selector Row View
+"Market_Structure_Loading_Corporation" = "Loading corporation info...";
+"Market_Structure_Unknown_Corporation" = "Unknown Corporation";
+
 // 虫洞生命周期
 "WH_time_life" = "Time";
 "WH_life_Notyet" = "This wormhole has not yet begun its natural cycle of decay and should last at least another day";
@@ -1953,3 +2076,21 @@
 "PI_Chain_Processing_Round" = "Processing Round %d";
 "PI_Chain_Quantity_Format" = "Quantity: %d";
 "PI_Chain_Level_And_Quantity_Format" = "Level: P%d, Quantity: %d";
+
+// LP Store Related
+"LP_Store_Title" = "LP Store";
+"LP_Store_View" = "View LP Store";
+"LP_Store_No_Data" = "No LP Store Data";
+"LP_Store_Loading" = "Loading LP Store data...";
+
+// App Update Alert
+"App_Updated_Title" = "App Updated";
+"App_Updated_Message" = "The application has been updated to a new version";
+"App_Updated_OK" = "OK";
+"App_Updated_View_Changes" = "View Changes";
+
+// Structure Orders Reload Alert
+"Structure_Orders_Reload_Title" = "Reload Orders";
+"Structure_Orders_Reload_Message" = "Do you want to reload market orders for this structure?";
+"Structure_Orders_Reload_Cancel" = "Cancel";
+"Structure_Orders_Reload_Confirm" = "Confirm";

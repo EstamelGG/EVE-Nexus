@@ -1755,6 +1755,13 @@ struct ShipFittingModulesView: View {
                 rightContent
             }
         }
+        .contextMenu {
+            Button {
+                UIPasteboard.general.string = title
+            } label: {
+                Label(NSLocalizedString("Misc_Copy_Module_Name", comment: ""), systemImage: "doc.on.doc")
+            }
+        }
         .padding(.vertical, 2)
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)

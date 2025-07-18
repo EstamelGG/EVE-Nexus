@@ -184,7 +184,7 @@ final class CharacterAPI: @unchecked Sendable {
                     birthday: info.birthday,
                     bloodline_id: info.bloodline_id,
                     corporation_id: affiliation.corporation_id,  // 使用缓存期较短的数据
-                    faction_id: info.faction_id,
+                    faction_id: affiliation.faction_id,
                     gender: info.gender,
                     name: info.name,
                     race_id: info.race_id,

@@ -248,8 +248,8 @@ class CorpWalletAPI {
                 }
                 return entries
             },
-            progressCallback: { page in
-                progressCallback?(.loading(page: page))
+            progressCallback: { currentPage, totalPages in
+                progressCallback?(.loading(page: currentPage))
             }
         )
     }

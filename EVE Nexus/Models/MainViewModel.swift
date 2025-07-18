@@ -76,6 +76,10 @@ class MainViewModel: ObservableObject {
     @Published var allianceInfo: AllianceInfo?
     @Published var allianceLogo: UIImage?
 
+    // 添加势力相关的发布属性
+    @Published var factionInfo: FactionInfo?
+    @Published var factionLogo: UIImage?
+
     // MARK: - Private Properties
 
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
@@ -310,6 +314,34 @@ class MainViewModel: ObservableObject {
                         // 如果没有联盟，清除联盟信息
                         self.allianceInfo = nil
                         self.allianceLogo = nil
+                    }
+                    // 获取势力信息
+                    if let faction_id = publicInfo.faction_id {
+                        // 从数据库查询势力信息
+                        let query = "SELECT name, iconName FROM factions WHERE id = ?"
+                        if case let .success(rows) = DatabaseManager.shared.executeQuery(query, parameters: [faction_id]),
+                           let row = rows.first,
+                           let name = row["name"] as? String,
+                           let iconName = row["iconName"] as? String {
+                            
+                            self.factionInfo = FactionInfo(
+                                id: faction_id,
+                                name: name,
+                                iconName: iconName
+                            )
+                            
+                            // 加载势力图标 - 使用UIImage版本
+                            let factionUIImage = IconManager.shared.loadUIImage(for: iconName)
+                            self.factionLogo = factionUIImage
+                        } else {
+                            Logger.error("查询势力信息失败: faction_id=\(faction_id)")
+                            self.factionInfo = nil
+                            self.factionLogo = nil
+                        }
+                    } else {
+                        // 如果没有势力，清除势力信息
+                        self.factionInfo = nil
+                        self.factionLogo = nil
                     }
                 } catch {
                     Logger.error("获取角色公共信息失败: \(error)")

@@ -84,6 +84,9 @@ class CacheManager {
         "CharacterOrders",  // 人物市场订单
         // "Fitting",  // 舰船配置目录
         "fw",  // 势力战争
+        "CorpCache",  // 军团缓存
+        "char_standings",  // 人物声望
+        "Structure_Orders"  // 建筑订单
     ]
 
     // 获取缓存目录列表
@@ -278,6 +281,7 @@ struct SettingView: View {
     @State private var showResetDatabaseSuccessAlert = false
     @State private var showingESIStatusView = false
     @State private var showingLogsBrowserView = false
+    @State private var showingMarketStructureView = false
 
     // MARK: - 数据更新函数
 
@@ -371,6 +375,7 @@ struct SettingView: View {
         settingGroups = [
             createAppearanceGroup(),
             createCorporationAffairsGroup(),
+            createMarketStructureGroup(),
             createOthersGroup(),
             createLogsGroup(),
             createCacheGroup(),
@@ -505,6 +510,19 @@ struct SettingView: View {
                 ) { _ in
                     AnyView(ShowImportantAttributesToggle())
                 },
+            ]
+        )
+    }
+
+    private func createMarketStructureGroup() -> SettingGroup {
+        SettingGroup(
+            header: NSLocalizedString("Main_Setting_Market_Structure_Section", comment: ""),
+            items: [
+                SettingItem(
+                    title: NSLocalizedString("Main_Setting_Market_Structure_Manage", comment: ""),
+                    detail: NSLocalizedString("Main_Setting_Market_Structure_Manage_Detail", comment: ""),
+                    action: { showingMarketStructureView = true }
+                )
             ]
         )
     }
@@ -671,6 +689,9 @@ struct SettingView: View {
         }
         .navigationDestination(isPresented: $showingLogsBrowserView) {
             LogsBrowserView()
+        }
+        .navigationDestination(isPresented: $showingMarketStructureView) {
+            MarketStructureSettingsView()
         }
         .alert(
             NSLocalizedString("Main_Setting_Clean_Cache_Title", comment: ""),

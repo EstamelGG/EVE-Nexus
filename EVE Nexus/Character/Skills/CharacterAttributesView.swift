@@ -4,6 +4,9 @@ struct CharacterAttributesView: View {
     let characterId: Int
     @State private var attributes: CharacterAttributes?
     @State private var isLoading = true
+    @State private var implantBonuses: ImplantAttributes?
+    @State private var hasBooster = false
+    @State private var boosterValue = 0
 
     var body: some View {
         List {
@@ -38,6 +41,10 @@ struct CharacterAttributesView: View {
                 }
             } header: {
                 Text(NSLocalizedString("Character_Attributes_Basic", comment: ""))
+            } footer: {
+                if hasBooster {
+                    Text(String(format: NSLocalizedString("Character_Attributes_Has_Booster", comment: "人物使用了加速器，每个属性+%d"), boosterValue))
+                }
             }
 
             if let attributes = attributes {
@@ -122,9 +129,28 @@ struct CharacterAttributesView: View {
         defer { isLoading = false }
 
         do {
-            attributes = try await CharacterSkillsAPI.shared.fetchAttributes(
+            // 获取角色属性
+            let attrs = try await CharacterSkillsAPI.shared.fetchAttributes(
                 characterId: characterId, forceRefresh: forceRefresh
             )
+            
+            // 获取植入体加成
+            let implants = await SkillTrainingCalculator.getImplantBonuses(
+                characterId: characterId, forceRefresh: forceRefresh
+            )
+            
+            // 检测是否有加速器
+            let boosterBonus = SkillTrainingCalculator.detectBoosterBonus(
+                currentAttributes: attrs,
+                implantBonuses: implants
+            )
+            
+            await MainActor.run {
+                attributes = attrs
+                implantBonuses = implants
+                hasBooster = boosterBonus > 0
+                boosterValue = boosterBonus
+            }
         } catch {
             Logger.error("获取角色属性失败: \(error)")
         }

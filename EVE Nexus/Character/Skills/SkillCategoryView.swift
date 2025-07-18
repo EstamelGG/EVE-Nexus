@@ -405,6 +405,12 @@ struct SkillCellView: View {
             }
             .font(.caption)
             .foregroundColor(.secondary)
+        }.contextMenu {
+            Button {
+                UIPasteboard.general.string = skill.name
+            } label: {
+                Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+            }
         }
     }
 

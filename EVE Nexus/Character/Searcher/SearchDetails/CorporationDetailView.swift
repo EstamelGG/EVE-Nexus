@@ -6,6 +6,7 @@ struct CorporationDetailView: View {
     @State private var logo: UIImage?
     @State private var corporationInfo: CorporationInfo?
     @State private var allianceInfo: (name: String, icon: UIImage?)?
+    @State private var factionInfo: (name: String, iconName: String)?
     @State private var ceoInfo: CharacterPublicInfo?
     @State private var ceoPortrait: UIImage?
     @State private var isLoading = true
@@ -140,7 +141,7 @@ struct CorporationDetailView: View {
                                 Button {
                                     UIPasteboard.general.string = allianceInfo.name
                                 } label: {
-                                    Label(NSLocalizedString("Misc_Copy_FactionID", comment: ""), systemImage: "doc.on.doc")
+                                    Label(NSLocalizedString("Misc_Copy_Alliance", comment: ""), systemImage: "doc.on.doc")
                                 }
                             }
                         }
@@ -151,6 +152,21 @@ struct CorporationDetailView: View {
 
                 // 军团基本信息
                 Section {
+                    // 势力信息
+                    if let faction = factionInfo {
+                        HStack(spacing: 8) {
+                            Text("\(NSLocalizedString("Character_Faction", comment: ""))")
+                            Spacer()
+                            IconManager.shared.loadImage(for: faction.iconName)
+                                .resizable()
+                                .frame(width: 32, height: 32)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                            Text(faction.name)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+                    
                     // 成员数量
                     HStack {
                         Text("\(NSLocalizedString("Member Count", comment: ""))")
@@ -264,6 +280,18 @@ struct CorporationDetailView: View {
                 }
             }
 
+            // 加载势力信息
+            if let factionId = info.faction_id {
+                let query = "SELECT name, iconName FROM factions WHERE id = ?"
+                if case let .success(rows) = DatabaseManager.shared.executeQuery(query, parameters: [factionId]),
+                   let row = rows.first,
+                   let name = row["name"] as? String,
+                   let iconName = row["iconName"] as? String {
+                    Logger.info("成功加载势力信息: \(name)")
+                    factionInfo = (name: name, iconName: iconName)
+                }
+            }
+            
             // 加载声望数据
             if !standingsLoaded {
                 await loadStandings()

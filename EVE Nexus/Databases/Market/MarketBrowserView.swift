@@ -467,6 +467,13 @@ struct MarketGroupLabel: View {
             Text(group.name)
                 .font(.body)
                 .foregroundColor(.primary)
+                .contextMenu {
+                    Button {
+                        UIPasteboard.general.string = group.name
+                    } label: {
+                        Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                    }
+                }
             
             Spacer()
         }

@@ -207,6 +207,7 @@ struct StructureSearchView {
         }
 
         var results: [SearcherView.SearchResult] = []
+        var typeIdMap: [Int: Int] = [:]  // 建筑ID到类型ID的映射
 
         // 处理空间站结果
         if !allStationIds.isEmpty {
@@ -245,6 +246,9 @@ struct StructureSearchView {
                         continue
                     }
 
+                    // 存储类型ID映射
+                    typeIdMap[info.id] = info.typeId
+                    
                     let result = SearcherView.SearchResult(
                         id: info.id,
                         name: info.name,
@@ -345,6 +349,9 @@ struct StructureSearchView {
                     continue
                 }
 
+                // 存储类型ID映射
+                typeIdMap[info.id] = info.typeId
+                
                 let result = SearcherView.SearchResult(
                     id: info.id,
                     name: info.name,
@@ -363,19 +370,38 @@ struct StructureSearchView {
 
         Logger.debug("成功创建 \(results.count) 个搜索结果")
 
-        // 按名称排序，优先显示以搜索文本开头的结果
+        // 按照指定的类型ID顺序排序
         results.sort { result1, result2 in
-            let name1 = result1.name.lowercased()
-            let name2 = result2.name.lowercased()
-            let searchTextLower = searchText.lowercased()
-
-            let starts1 = name1.starts(with: searchTextLower)
-            let starts2 = name2.starts(with: searchTextLower)
-
-            if starts1 != starts2 {
-                return starts1
+            // 定义优先级类型ID顺序
+            let priorityTypeIds = [40340, 35834, 35833, 35827, 35832, 35825, 35836, 35826, 35835]
+            
+            // 从映射中获取类型ID
+            let typeId1 = typeIdMap[result1.id] ?? 0
+            let typeId2 = typeIdMap[result2.id] ?? 0
+            
+            // 获取优先级索引
+            let priority1 = priorityTypeIds.firstIndex(of: typeId1) ?? Int.max
+            let priority2 = priorityTypeIds.firstIndex(of: typeId2) ?? Int.max
+            
+            // 如果两个都在优先级列表中
+            if priority1 != Int.max && priority2 != Int.max {
+                if priority1 != priority2 {
+                    return priority1 < priority2
+                }
+                // 同类型按建筑ID排序
+                return result1.id < result2.id
             }
-            return name1 < name2
+            
+            // 如果只有一个在优先级列表中
+            if priority1 != Int.max {
+                return true
+            }
+            if priority2 != Int.max {
+                return false
+            }
+            
+            // 两个都不在优先级列表中，按建筑ID排序
+            return result1.id < result2.id
         }
 
         searchResults = results

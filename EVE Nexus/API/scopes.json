@@ -67,8 +67,6 @@
     "notAllowedScopes": [
         "esi-fleets.read_fleet.v1",
         "esi-fleets.write_fleet.v1",
-        "esi-calendar.respond_calendar_events.v1",
-        "esi-calendar.read_calendar_events.v1",
         "esi-ui.open_window.v1",
         "esi-ui.write_waypoint.v1"
     ]

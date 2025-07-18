@@ -228,6 +228,7 @@ struct WormholeDetailView: View {
             ItemBasicInfoView(
                 itemDetails: ItemDetails(
                     name: wormhole.name,
+                    en_name: wormhole.name,
                     description: wormhole.description,
                     iconFileName: wormhole.icon,
                     groupName: wormhole.sizeType,

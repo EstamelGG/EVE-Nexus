@@ -7,6 +7,7 @@ struct CorpMoonMiningView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var error: Error?
     @State private var showError = false
+    @State private var isRefreshing = false
 
     init(characterId: Int) {
         self.characterId = characterId
@@ -72,6 +73,18 @@ struct CorpMoonMiningView: View {
                 }
             }
         }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    refreshData()
+                }) {
+                    Image(systemName: "arrow.clockwise")
+                        .rotationEffect(.degrees(isRefreshing ? 360 : 0))
+                        .animation(isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
+                }
+                .disabled(isRefreshing || viewModel.isLoading)
+            }
+        }
         .alert(isPresented: $showError) {
             Alert(
                 title: Text(NSLocalizedString("Common_Error", comment: "")),
@@ -82,6 +95,24 @@ struct CorpMoonMiningView: View {
                     dismiss()
                 }
             )
+        }
+    }
+    
+    private func refreshData() {
+        isRefreshing = true
+        
+        Task {
+            do {
+                try await viewModel.fetchMoonExtractions(forceRefresh: true)
+            } catch {
+                if !(error is CancellationError) {
+                    self.error = error
+                    self.showError = true
+                    Logger.error("刷新月矿提取信息失败: \(error)")
+                }
+            }
+            
+            isRefreshing = false
         }
     }
 }

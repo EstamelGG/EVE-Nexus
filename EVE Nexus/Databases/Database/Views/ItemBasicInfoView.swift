@@ -5,11 +5,36 @@ struct ItemBasicInfoView: View {
     @State private var renderImage: UIImage?
     @ObservedObject var databaseManager: DatabaseManager
     let modifiedAttributes: [Int: Double]?
+    
+    // 监听屏幕方向变化
+    @State private var orientation = UIDevice.current.orientation
+    
+    // 布局状态标识符（用于判断是否需要重新渲染视图）
+    @State private var layoutMode: LayoutMode = .portrait
+    
+    // 存储市场目录路径
+    @State private var marketPath: String = ""
 
     // iOS 标准圆角半径
     private let cornerRadius: CGFloat = 10
     // 标准边距
     private let standardPadding: CGFloat = 16
+    
+    // 判断是否应该使用小图模式（横屏或iPad）
+    private var shouldUseCompactLayout: Bool {
+        DeviceUtils.shouldUseCompactLayout
+    }
+    
+    // 获取图片尺寸
+    private var imageSize: CGFloat {
+        if DeviceUtils.isIPad {
+            return 256 // iPad使用256尺寸
+        } else if DeviceUtils.isIPhoneLandscape {
+            return 128 // 横屏iPhone使用128尺寸
+        } else {
+            return 128 // 默认尺寸
+        }
+    }
 
     // 获取修改后的属性值，如果没有则返回原始值
     private func getAttributeValue(attributeId: Int, originalValue: Double?) -> Double? {
@@ -41,72 +66,226 @@ struct ItemBasicInfoView: View {
             return modifiedValue < originalValue ? .green : .red
         }
     }
-
-    var body: some View {
-        Section {
-            if let renderImage = renderImage {
-                // 如果有渲染图，显示大图布局
-                ZStack(alignment: .bottomLeading) {
-                    Image(uiImage: renderImage)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(maxWidth: .infinity)
-                        .cornerRadius(cornerRadius)
-                        .padding(.horizontal, standardPadding)
-                        .padding(.vertical, standardPadding)
-
-                    // 物品信息覆盖层
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(itemDetails.name)
-                            .font(.title)
-                        Text(
-                            "\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)"
-                        )
-                        .font(.subheadline)
+    
+    // 获取市场目录路径
+    private func fetchMarketPath(for marketGroupID: Int?) {
+        guard let marketGroupID = marketGroupID else {
+            marketPath = ""
+            return
+        }
+        
+        Task {
+            do {
+                let path = try await getMarketGroupPath(groupID: marketGroupID)
+                await MainActor.run {
+                    self.marketPath = path.joined(separator: " / ")
+                }
+            } catch {
+                Logger.error("获取市场目录路径失败: \(error.localizedDescription)")
+                await MainActor.run {
+                    self.marketPath = ""
+                }
+            }
+        }
+    }
+    
+    // 递归获取市场目录路径
+    private func getMarketGroupPath(groupID: Int) async throws -> [String] {
+        var path: [String] = []
+        var currentGroupID = groupID
+        var iterations = 0
+        let maxIterations = 100 // 设置最大递归深度，避免无限循环
+        
+        while currentGroupID != 0 && iterations < maxIterations {
+            iterations += 1 // 增加迭代计数
+            
+            // 查询市场组信息
+            let query = "SELECT name, parentgroup_id FROM marketGroups WHERE group_id = ?"
+            let result = databaseManager.executeQuery(query, parameters: [currentGroupID])
+            
+            switch result {
+            case let .success(rows):
+                guard let row = rows.first,
+                      let name = row["name"] as? String else {
+                    return path // 如果找不到数据，直接返回当前路径
+                }
+                
+                // 添加当前组名称到路径
+                path.insert(name, at: 0)
+                
+                // 获取父组ID，如果为nil或0则结束循环
+                if let parentGroupID = row["parentgroup_id"] as? Int, parentGroupID > 0 {
+                    // 检查是否形成循环引用（子项引用了已经在路径中的父项）
+                    if parentGroupID == currentGroupID || path.count >= maxIterations {
+                        Logger.warning("检测到可能的循环引用或过深的市场目录路径，中止查询")
+                        return path
                     }
+                    currentGroupID = parentGroupID
+                } else {
+                    return path // 找到了顶级分类，返回路径
+                }
+            case let .error(error):
+                Logger.error("查询市场组信息失败: \(error)")
+                return path // 查询出错，返回已收集的路径
+            }
+        }
+        
+        // 如果达到最大迭代次数，记录警告
+        if iterations >= maxIterations {
+            Logger.warning("市场目录路径查询达到最大迭代次数 \(maxIterations)，可能存在循环引用")
+        }
+        
+        return path
+    }
+    
+    // MARK: - 布局视图函数
+    
+    // 小图布局（横屏或iPad）
+    @ViewBuilder
+    private func compactLayoutView(renderImage: UIImage) -> some View {
+        HStack(alignment: .center) {
+            Image(uiImage: renderImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: imageSize, height: imageSize)
+                .cornerRadius(cornerRadius)
+                .padding(.trailing, 8)
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text(itemDetails.name)
+                    .font(.title)
+                    .lineLimit(2)
                     .contextMenu {
                         Button {
                             UIPasteboard.general.string = itemDetails.name
                         } label: {
                             Label(NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc")
                         }
-                    }
-                    .padding(.horizontal, standardPadding * 2)
-                    .padding(.vertical, standardPadding)
-                    .background(
-                        Color.black.opacity(0.5)
-                            .cornerRadius(cornerRadius, corners: [.bottomLeft, .topRight])
-                    )
-                    .foregroundColor(.white)
-                    .padding(.horizontal, standardPadding)
-                    .padding(.bottom, standardPadding)
-                }
-                .listRowInsets(EdgeInsets())  // 移除 List 的默认边距
-            } else {
-                // 如果没有渲染图，显示原来的布局
-                HStack {
-                    IconManager.shared.loadImage(for: itemDetails.iconFileName)
-                        .resizable()
-                        .frame(width: 60, height: 60)
-                        .cornerRadius(8)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(itemDetails.name)
-                            .font(.title)
-                            .contextMenu {
-                                Button {
-                                    UIPasteboard.general.string = itemDetails.name
-                                } label: {
-                                    Label(NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc")
-                                }
+                        if let en_detail = itemDetails.en_name, !en_detail.isEmpty, en_detail != itemDetails.name {
+                            Button {
+                                UIPasteboard.general.string = itemDetails.en_name
+                            } label: {
+                                Label(NSLocalizedString("Misc_Copy_Trans", comment: ""), systemImage: "translate")
                             }
-                        Text(
-                            "\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)"
-                        )
+                        }
+                    }
+                
+                Text("\(NSLocalizedString("Main_Database_Category", comment: "")): \(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)")
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .lineLimit(2)
+                
+                // 显示市场目录路径（如果有）
+                if !marketPath.isEmpty {
+                    Text("\(NSLocalizedString("Main_Database_Market_Category", comment: "")): \(marketPath)")
                         .font(.subheadline)
-                        .foregroundColor(.gray)
+                        .foregroundColor(.secondary)
+                        .lineLimit(2)
+                }
+            }
+            .padding(.vertical, 8)
+            
+            Spacer()
+        }
+        .padding(.horizontal, 8)
+    }
+    
+    // 渲染图大图布局（竖屏手机）
+    @ViewBuilder
+    private func renderImageLayoutView(renderImage: UIImage) -> some View {
+        ZStack(alignment: .bottomLeading) {
+            Image(uiImage: renderImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxWidth: .infinity)
+                .cornerRadius(cornerRadius)
+                .padding(.horizontal, standardPadding)
+                .padding(.vertical, standardPadding)
+
+            // 物品信息覆盖层
+            VStack(alignment: .leading, spacing: 4) {
+                Text(itemDetails.name)
+                    .font(.title)
+                Text(
+                    "\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)"
+                )
+                .font(.subheadline)
+            }
+            .contextMenu {
+                Button {
+                    UIPasteboard.general.string = itemDetails.name
+                } label: {
+                    Label(NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc")
+                }
+                if let en_detail = itemDetails.en_name, !en_detail.isEmpty, en_detail != itemDetails.name {
+                    Button {
+                        UIPasteboard.general.string = itemDetails.en_name
+                    } label: {
+                        Label(NSLocalizedString("Misc_Copy_Trans", comment: ""), systemImage: "translate")
                     }
                 }
+            }
+            .padding(.horizontal, standardPadding * 2)
+            .padding(.vertical, standardPadding)
+            .background(
+                Color.black.opacity(0.5)
+                    .cornerRadius(cornerRadius, corners: [.bottomLeft, .topRight])
+            )
+            .foregroundColor(.white)
+            .padding(.horizontal, standardPadding)
+            .padding(.bottom, standardPadding)
+        }
+        .listRowInsets(EdgeInsets())  // 移除 List 的默认边距
+    }
+    
+    // 原始布局（无渲染图时的回退布局）
+    @ViewBuilder
+    private func originalLayoutView() -> some View {
+        HStack {
+            IconManager.shared.loadImage(for: itemDetails.iconFileName)
+                .resizable()
+                .frame(width: 60, height: 60)
+                .cornerRadius(8)
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(itemDetails.name)
+                    .font(.title)
+                    .contextMenu {
+                        Button {
+                            UIPasteboard.general.string = itemDetails.name
+                        } label: {
+                            Label(NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc")
+                        }
+                        if let en_name = itemDetails.en_name , en_name != itemDetails.name, !en_name.isEmpty {
+                            Button {
+                                UIPasteboard.general.string = itemDetails.en_name
+                            } label: {
+                                Label(NSLocalizedString("Misc_Copy_Trans", comment: ""), systemImage: "translate")
+                            }
+                        }
+                    }
+                Text(
+                    "\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)"
+                )
+                .font(.subheadline)
+                .foregroundColor(.gray)
+            }
+        }
+    }
+
+    var body: some View {
+        Section {
+            if let renderImage = renderImage {
+                if shouldUseCompactLayout {
+                    // 小图模式（横屏或iPad）
+                    compactLayoutView(renderImage: renderImage)
+                } else {
+                    // 渲染图大图布局（竖屏手机）
+                    renderImageLayoutView(renderImage: renderImage)
+                }
+            } else {
+                // 原始布局（无渲染图时的回退布局）
+                originalLayoutView()
             }
 
             let desc = itemDetails.description
@@ -117,6 +296,7 @@ struct ItemBasicInfoView: View {
             }
         }
         .onAppear {
+            layoutMode = DeviceUtils.currentLayoutMode
             loadRenderImage(for: itemDetails.typeId)
             // 调试输出移到这里
             Logger.debug(
@@ -124,6 +304,25 @@ struct ItemBasicInfoView: View {
             )
             if let marketGroupID = itemDetails.marketGroupID {
                 Logger.debug("显示市场按钮，marketGroupID: \(marketGroupID)")
+                // 如果是小图模式，获取市场目录路径
+                if shouldUseCompactLayout {
+                    fetchMarketPath(for: marketGroupID)
+                }
+            }
+            
+            // 设置方向变化通知
+            setupOrientationNotification()
+        }
+        .onDisappear {
+            // 移除方向变化通知
+            removeOrientationNotification()
+        }
+        // 使用布局模式而非方向作为视图ID
+        .id(layoutMode)
+        // 当布局模式变化时，决定是否需要获取市场路径
+        .onChange(of: shouldUseCompactLayout) { _, newValue in
+            if newValue && marketPath.isEmpty && itemDetails.marketGroupID != nil {
+                fetchMarketPath(for: itemDetails.marketGroupID)
             }
         }
 
@@ -234,5 +433,32 @@ struct ItemBasicInfoView: View {
                 // 加载失败时保持使用原来的小图显示，不需特殊处理
             }
         }
+    }
+    
+    // 设置方向变化通知
+    private func setupOrientationNotification() {
+        NotificationCenter.default.addObserver(
+            forName: UIDevice.orientationDidChangeNotification,
+            object: nil,
+            queue: .main
+        ) { _ in
+            self.orientation = UIDevice.current.orientation
+            
+            // 只有当布局模式真正发生变化时才更新layoutMode
+            let newLayoutMode = DeviceUtils.currentLayoutMode
+            if DeviceUtils.shouldUpdateLayout(from: self.layoutMode, to: newLayoutMode) {
+                Logger.debug("物品详情布局模式变化: \(self.layoutMode.rawValue) -> \(newLayoutMode.rawValue)")
+                self.layoutMode = newLayoutMode
+            }
+        }
+    }
+    
+    // 移除方向变化通知
+    private func removeOrientationNotification() {
+        NotificationCenter.default.removeObserver(
+            self,
+            name: UIDevice.orientationDidChangeNotification,
+            object: nil
+        )
     }
 }

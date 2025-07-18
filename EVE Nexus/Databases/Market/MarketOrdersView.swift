@@ -102,11 +102,44 @@ struct MarketOrdersView: View {
         defer { isLoadingOrders = false }
         
         do {
-            let newOrders = try await MarketOrdersAPI.shared.fetchMarketOrders(
-                typeID: itemID,
-                regionID: regionID,
-                forceRefresh: forceRefresh
-            )
+            let newOrders: [MarketOrder]
+            
+            // 判断是否选择了建筑
+            if StructureMarketManager.isStructureId(regionID) {
+                // 选择了建筑，使用建筑订单API
+                guard let structureId = StructureMarketManager.getStructureId(from: regionID) else {
+                    Logger.error("无效的建筑ID: \(regionID)")
+                    await MainActor.run {
+                        orders = []
+                    }
+                    return
+                }
+                
+                // 获取建筑对应的角色ID
+                guard let structure = getStructureById(structureId) else {
+                    Logger.error("未找到建筑信息: \(structureId)")
+                    await MainActor.run {
+                        orders = []
+                    }
+                    return
+                }
+                
+                newOrders = try await StructureMarketManager.shared.getItemOrdersInStructure(
+                    structureId: structureId,
+                    characterId: structure.characterId,
+                    typeId: itemID,
+                    forceRefresh: forceRefresh
+                )
+                
+                Logger.info("从建筑 \(structure.structureName) 获取到 \(newOrders.count) 个订单")
+            } else {
+                // 选择了星域，使用原有的API
+                newOrders = try await MarketOrdersAPI.shared.fetchMarketOrders(
+                    typeID: itemID,
+                    regionID: regionID,
+                    forceRefresh: forceRefresh
+                )
+            }
             
             await MainActor.run {
                 orders = newOrders
@@ -296,5 +329,10 @@ struct MarketOrdersView: View {
                 return "\(formattedFullPrice) ISK"
             }
         }
+    }
+    
+    // 根据建筑ID获取建筑信息
+    private func getStructureById(_ structureId: Int64) -> MarketStructure? {
+        return MarketStructureManager.shared.structures.first { $0.structureId == Int(structureId) }
     }
 }

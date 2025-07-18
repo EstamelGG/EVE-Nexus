@@ -84,8 +84,8 @@ public class CorpStructureAPI {
             characterId: characterId,
             maxConcurrentPages: 3,
             decoder: { try JSONDecoder().decode([StructureInfo].self, from: $0) },
-            progressCallback: { page in
-                Logger.debug("正在获取第 \(page) 页军团建筑物数据")
+            progressCallback: { currentPage, totalPages in
+                Logger.debug("正在获取第 \(currentPage)/\(totalPages) 页军团建筑物数据")
             }
         )
 

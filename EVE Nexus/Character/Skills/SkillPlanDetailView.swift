@@ -219,6 +219,13 @@ struct SkillPlanDetailView: View {
                 )
                 .padding(.trailing, 2)
             }
+            .contextMenu {
+                Button {
+                    UIPasteboard.general.string = skill.skillName
+                } label: {
+                    Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                }
+            }
 
             let spRange = getSkillPointRange(skill)
             HStack(spacing: 4) {

@@ -13,6 +13,14 @@ class CharacterIndustryViewModel: ObservableObject {
     @Published var locationInfoCache: [Int64: LocationInfoDetail] = [:]
     @Published var itemIcons: [Int: String] = [:]
     @Published var currentTime: Date = .init()  // 当前时间，用于进度计算
+    
+    // 添加工业槽位统计相关属性
+    @Published var manufacturingSlots: (used: Int, total: Int) = (0, 0)
+    @Published var researchSlots: (used: Int, total: Int) = (0, 0)
+    @Published var reactionSlots: (used: Int, total: Int) = (0, 0)
+    
+    // 缓存最大槽位数据，在初始化时计算一次
+    private var maxSlots: (manufacturing: Int, research: Int, reaction: Int) = (1, 1, 1)
 
     private let characterId: Int
     private let databaseManager: DatabaseManager
@@ -25,8 +33,11 @@ class CharacterIndustryViewModel: ObservableObject {
         self.characterId = characterId
         self.databaseManager = databaseManager
         
-        // 在初始化时立即加载一次数据
+        // 在初始化时立即加载技能数据和工业任务数据
         Task {
+            // 先加载技能数据计算最大槽位
+            await loadMaxSlots()
+            // 然后加载工业任务数据
             await loadJobs()
         }
         
@@ -46,7 +57,7 @@ class CharacterIndustryViewModel: ObservableObject {
         updateTask = Task { @MainActor in
             while !Task.isCancelled {
                 self.currentTime = Date()  // 更新当前时间，触发UI刷新
-                try? await Task.sleep(nanoseconds: 1_000_000_000)  // 1秒
+                try? await Task.sleep(nanoseconds: 5_000_000_000)  // 5秒
             }
         }
     }
@@ -149,6 +160,9 @@ class CharacterIndustryViewModel: ObservableObject {
                 if Task.isCancelled { return }
 
                 groupJobsByDate()
+                
+                // 计算工业槽位统计
+                calculateIndustrySlotStats()
 
                 self.isLoading = false
                 self.initialLoadDone = true
@@ -239,6 +253,95 @@ class CharacterIndustryViewModel: ObservableObject {
         )
         locationInfoCache = await locationLoader.loadLocationInfo(locationIds: locationIds)
     }
+    
+    // 加载最大槽位数据（仅在初始化时调用一次）
+    private func loadMaxSlots() async {
+        maxSlots = await calculateMaxIndustrySlots()
+    }
+    
+    // 计算工业槽位统计（只计算使用数量，不重新计算最大值）
+    private func calculateIndustrySlotStats() {
+        // 计算当前使用的槽位数
+        let activeJobs = jobs.filter { job in
+            job.status == "active" && job.end_date > currentTime
+        }
+        
+        let manufacturingUsed = activeJobs.filter { $0.activity_id == 1 }.count
+        let researchUsed = activeJobs.filter { [3, 4, 5, 8].contains($0.activity_id) }.count
+        let reactionUsed = activeJobs.filter { $0.activity_id == 9 }.count
+        
+        // 取计算出的最大槽位数和实际使用数量中的较大值，避免缓存不同步问题
+        let actualManufacturingTotal = max(maxSlots.manufacturing, manufacturingUsed)
+        let actualResearchTotal = max(maxSlots.research, researchUsed)
+        let actualReactionTotal = max(maxSlots.reaction, reactionUsed)
+        
+        manufacturingSlots = (used: manufacturingUsed, total: actualManufacturingTotal)
+        researchSlots = (used: researchUsed, total: actualResearchTotal)
+        reactionSlots = (used: reactionUsed, total: actualReactionTotal)
+    }
+    
+    // 计算最大工业槽位数
+    private func calculateMaxIndustrySlots() async -> (manufacturing: Int, research: Int, reaction: Int) {
+        // 基础槽位数
+        var manufacturingSlots = 1
+        var researchSlots = 1 
+        var reactionSlots = 1
+        
+        // 获取技能槽位增加属性的映射
+        let attributeQuery = """
+            SELECT type_id, attribute_id, value 
+            FROM typeAttributes 
+            WHERE attribute_id IN (450, 471, 2661)
+        """
+        
+        var skillSlotBonuses: [Int: (manufacturing: Int, research: Int, reaction: Int)] = [:]
+        
+        if case let .success(rows) = databaseManager.executeQuery(attributeQuery) {
+            for row in rows {
+                guard let typeId = row["type_id"] as? Int,
+                      let attributeId = row["attribute_id"] as? Int,
+                      let value = row["value"] as? Double else { continue }
+                
+                if skillSlotBonuses[typeId] == nil {
+                    skillSlotBonuses[typeId] = (manufacturing: 0, research: 0, reaction: 0)
+                }
+                
+                let intValue = Int(value)
+                switch attributeId {
+                case 450: // 加工任务槽位增加数
+                    skillSlotBonuses[typeId]?.manufacturing = intValue
+                case 471: // 科研槽位增加数
+                    skillSlotBonuses[typeId]?.research = intValue
+                case 2661: // 反应任务增加数
+                    skillSlotBonuses[typeId]?.reaction = intValue
+                default:
+                    break
+                }
+            }
+        }
+        
+        // 使用 CharacterSkillsAPI 获取角色技能数据
+        do {
+            let skillsResponse = try await CharacterSkillsAPI.shared.fetchCharacterSkills(
+                characterId: characterId, 
+                forceRefresh: false
+            )
+            
+            // 遍历角色技能，计算槽位增加
+            for skill in skillsResponse.skills {
+                if let bonus = skillSlotBonuses[skill.skill_id] {
+                    let level = skill.trained_skill_level
+                    manufacturingSlots += bonus.manufacturing * level
+                    researchSlots += bonus.research * level
+                    reactionSlots += bonus.reaction * level
+                }
+            }
+        } catch {
+            Logger.error("获取角色技能数据失败: \(error)")
+        }
+        
+        return (manufacturing: manufacturingSlots, research: researchSlots, reaction: reactionSlots)
+    }
 }
 
 struct CharacterIndustryView: View {
@@ -293,12 +396,79 @@ struct CharacterIndustryView: View {
                     ProgressView()
                     Spacer()
                 }
-            } else if viewModel.groupedJobs.isEmpty {
-                Section {
-                    NoDataSection()
-                }
-                .listSectionSpacing(.compact)
             } else {
+                // 工业槽位统计 Section - 始终显示
+                Section(
+                    header: Text(NSLocalizedString("Industry_Slots_Header", comment: "工业槽位"))
+                        .fontWeight(.semibold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                ) {
+                    // 加工任务
+                    HStack {
+                        Text(NSLocalizedString("Industry_Slots_Manufacturing", comment: "加工任务"))
+                            .font(.body)
+                        Spacer()
+                        HStack(spacing: 0) {
+                            Text("\(viewModel.manufacturingSlots.used)")
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                            Text("/")
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                            Text("\(viewModel.manufacturingSlots.total)")
+                                .font(.body)
+                                .foregroundColor(Color(red: 0.9, green: 0.7, blue: 0.3)) // 更亮的土黄色
+                        }
+                    }
+                    
+                    // 研究任务
+                    HStack {
+                        Text(NSLocalizedString("Industry_Slots_Research", comment: "研究任务"))
+                            .font(.body)
+                        Spacer()
+                        HStack(spacing: 0) {
+                            Text("\(viewModel.researchSlots.used)")
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                            Text("/")
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                            Text("\(viewModel.researchSlots.total)")
+                                .font(.body)
+                                .foregroundColor(Color.blue) // 蓝色
+                        }
+                    }
+                    
+                    // 反应任务
+                    HStack {
+                        Text(NSLocalizedString("Industry_Slots_Reaction", comment: "反应任务"))
+                            .font(.body)
+                        Spacer()
+                        HStack(spacing: 0) {
+                            Text("\(viewModel.reactionSlots.used)")
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                            Text("/")
+                                .font(.body)
+                                .foregroundColor(.secondary)
+                            Text("\(viewModel.reactionSlots.total)")
+                                .font(.body)
+                                .foregroundColor(Color.cyan) // 青蓝色
+                        }
+                    }
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                .listSectionSpacing(.compact)
+                
+                // 工业任务列表部分
+                if viewModel.groupedJobs.isEmpty {
+                    Section {
+                        NoDataSection()
+                    }
+                    .listSectionSpacing(.compact)
+                } else {
                 ForEach(
                     Array(viewModel.groupedJobs.keys).sorted { key1, key2 in
                         if key1 == "active" { return true }
@@ -325,6 +495,7 @@ struct CharacterIndustryView: View {
                         }
                     }
                     .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                }
                 }
             }
         }
@@ -382,7 +553,7 @@ struct IndustryJobRow: View {
                 return Color.blue.opacity(0.3)
             case 8:  // 发明
                 return Color.blue.opacity(0.6)
-            case 11:  // 反应
+            case 9:  // 反应
                 return Color.yellow.opacity(0.8)
             default:
                 return Color.gray
@@ -492,6 +663,7 @@ struct IndustryJobRow: View {
             }
 
             // 如果是活动状态，根据活动类型返回对应文本
+            // https://sde.hoboleaks.space/tq/industryactivities.json
             switch job.activity_id {
             case 1:
                 return NSLocalizedString("Industry_Type_Manufacturing", comment: "")
@@ -503,7 +675,7 @@ struct IndustryJobRow: View {
                 return NSLocalizedString("Industry_Type_Copying", comment: "")
             case 8:
                 return NSLocalizedString("Industry_Type_Invention", comment: "")
-            case 11:
+            case 9:
                 return NSLocalizedString("Industry_Type_Reaction", comment: "")
             default:
                 return NSLocalizedString("Industry_Status_active", comment: "")
@@ -552,7 +724,7 @@ struct IndustryJobRow: View {
             return NSLocalizedString("Industry_Type_Copying", comment: "")
         case 8:
             return NSLocalizedString("Industry_Type_Invention", comment: "")
-        case 11:
+        case 9:
             return NSLocalizedString("Industry_Type_Reaction", comment: "")
         default:
             return ""

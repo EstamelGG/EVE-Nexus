@@ -120,6 +120,7 @@ public struct TraitGroup {
 // 物品详情模型
 public struct ItemDetails {
     public let name: String
+    public let en_name: String?
     public let description: String
     public let iconFileName: String
     public let groupName: String
@@ -137,7 +138,7 @@ public struct ItemDetails {
     public let marketGroupID: Int?
 
     public init(
-        name: String, description: String, iconFileName: String, groupName: String,
+        name: String, en_name: String, description: String, iconFileName: String, groupName: String,
         categoryID: Int? = nil,
         categoryName: String, roleBonuses: [Trait]? = [], typeBonuses: [Trait]? = [],
         miscBonuses: [Trait]? = [],
@@ -147,6 +148,7 @@ public struct ItemDetails {
         marketGroupID: Int? = nil
     ) {
         self.name = name
+        self.en_name = en_name
         self.description = description
         self.iconFileName = iconFileName
         self.groupName = groupName

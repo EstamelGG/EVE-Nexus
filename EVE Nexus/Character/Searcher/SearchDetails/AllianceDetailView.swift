@@ -182,7 +182,8 @@ struct AllianceDetailView: View {
     @State private var creatorCorpInfo: (name: String, icon: UIImage?)?
     @State private var executorCorpInfo: (name: String, icon: UIImage?)?
     @State private var creatorInfo: (name: String, icon: UIImage?)?
-
+    @State private var factionInfo: (name: String, iconName: String)?
+    
     @State private var personalStandings: [Int: Double] = [:]
     @State private var corpStandings: [Int: Double] = [:]
     @State private var allianceStandings: [Int: Double] = [:]
@@ -309,7 +310,7 @@ struct AllianceDetailView: View {
                         Button {
                             UIPasteboard.general.string = allianceInfo.name
                         } label: {
-                            Label(NSLocalizedString("Misc_Copy_FactionID", comment: ""), systemImage: "doc.on.doc")
+                            Label(NSLocalizedString("Misc_Copy_Alliance", comment: ""), systemImage: "doc.on.doc")
                         }
                         if let executorInfo = executorCorpInfo {
                             Button {
@@ -337,6 +338,20 @@ struct AllianceDetailView: View {
 
                 // 联盟基本信息
                 Section {
+                    // 势力信息
+                    if let faction = factionInfo {
+                        HStack(spacing: 8) {
+                            Text("\(NSLocalizedString("Character_Faction", comment: ""))")
+                            Spacer()
+                            IconManager.shared.loadImage(for: faction.iconName)
+                                .resizable()
+                                .frame(width: 32, height: 32)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                            Text(faction.name)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
                     // 成立时间
                     if let date = ISO8601DateFormatter().date(from: allianceInfo.date_founded) {
                         HStack {
@@ -420,6 +435,18 @@ struct AllianceDetailView: View {
                 creatorCorpInfoTask, creatorCorpLogoTask
             )
 
+            // 加载势力信息
+            if let factionId = info.faction_id {
+                let query = "SELECT name, iconName FROM factions WHERE id = ?"
+                if case let .success(rows) = DatabaseManager.shared.executeQuery(query, parameters: [factionId]),
+                   let row = rows.first,
+                   let name = row["name"] as? String,
+                   let iconName = row["iconName"] as? String {
+                    Logger.info("成功加载势力信息: \(name)")
+                    factionInfo = (name: name, iconName: iconName)
+                }
+            }
+            
             // 更新UI
             await MainActor.run {
                 self.allianceInfo = info

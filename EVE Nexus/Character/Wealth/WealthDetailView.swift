@@ -133,6 +133,12 @@ struct WealthDetailView: View {
                                         Text(FormatUtil.formatISK(item.totalValue))
                                             .font(.caption)
                                             .foregroundColor(.secondary)
+                                    }.contextMenu {
+                                        Button {
+                                            UIPasteboard.general.string = itemInfo.name
+                                        } label: {
+                                            Label(NSLocalizedString("Misc_Copy_Item_Name", comment: ""), systemImage: "doc.on.doc")
+                                        }
                                     }
                                 }
                             }
@@ -162,6 +168,12 @@ struct WealthDetailView: View {
                                         Text("\(item.quantity)")
                                             .font(.caption)
                                             .foregroundColor(.secondary)
+                                    }
+                                }.contextMenu {
+                                    Button {
+                                        UIPasteboard.general.string = item.name
+                                    } label: {
+                                        Label(NSLocalizedString("Misc_Copy_Item_Name", comment: ""), systemImage: "doc.on.doc")
                                     }
                                 }
                             }

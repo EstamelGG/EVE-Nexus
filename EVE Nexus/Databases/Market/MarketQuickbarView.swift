@@ -876,6 +876,7 @@ struct MarketQuickbarDetailView: View {
     @State private var selectedRegionID: Int = 0  // 新增：选中的星域ID
     @State private var selectedRegionName: String = ""  // 新增：选中的星域名称
     @State private var showSelected = true
+    @State private var structureOrdersProgress: StructureOrdersProgress? = nil  // 建筑订单加载进度
 
     // 新增：订单类型枚举
     private enum OrderType: String, CaseIterable {
@@ -927,10 +928,23 @@ struct MarketQuickbarDetailView: View {
                     }
                     .onChange(of: quickbar.regionID) { oldValue, newValue in
                         if oldValue != newValue {
-                            // 更新显示
-                            if let region = regions.first(where: { $0.id == newValue }) {
-                                selectedRegion = region.name
-                                selectedRegionName = region.name
+                            // 根据是否是建筑ID更新显示
+                            if StructureMarketManager.isStructureId(newValue) {
+                                // 是建筑ID，查找建筑名称
+                                if let structureId = StructureMarketManager.getStructureId(from: newValue),
+                                   let structure = getStructureById(structureId) {
+                                    selectedRegion = structure.structureName
+                                    selectedRegionName = structure.structureName
+                                } else {
+                                    selectedRegion = "Unknown Structure"
+                                    selectedRegionName = "Unknown Structure"
+                                }
+                            } else {
+                                // 是星域ID，查找星域名称
+                                if let region = regions.first(where: { $0.id == newValue }) {
+                                    selectedRegion = region.name
+                                    selectedRegionName = region.name
+                                }
                             }
                             // 保存更改
                             MarketQuickbarManager.shared.saveQuickbar(quickbar)
@@ -964,8 +978,25 @@ struct MarketQuickbarDetailView: View {
                         Text(NSLocalizedString("Main_Market_Price", comment: ""))
                         Spacer()
                         if isLoadingOrders {
-                            ProgressView()
-                                .scaleEffect(0.7)
+                            if StructureMarketManager.isStructureId(currentRegionID),
+                               let progress = structureOrdersProgress {
+                                switch progress {
+                                case .loading(let currentPage, let totalPages):
+                                    HStack(spacing: 4) {
+                                        ProgressView()
+                                            .scaleEffect(0.7)
+                                        Text("\(currentPage)/\(totalPages)")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                case .completed:
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                }
+                            } else {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                            }
                         } else {
                             let priceInfo = calculateTotalPrice()
                             if priceInfo.total > 0 {
@@ -1092,8 +1123,32 @@ struct MarketQuickbarDetailView: View {
         .task {
             loadItems()
             loadRegions()
-            selectedRegionID = currentRegionID
-            selectedRegion = regions.first(where: { $0.id == currentRegionID })?.name ?? ""
+            
+            // 验证当前选择的区域ID是否有效
+            if isValidRegionID(currentRegionID) {
+                selectedRegionID = currentRegionID
+            } else {
+                Logger.warning("关注列表中的区域ID \(currentRegionID) 无效，回退到Jita")
+                selectedRegionID = 10000002 // The Forge (Jita)
+                // 更新quickbar的regionID
+                quickbar.regionID = selectedRegionID
+                MarketQuickbarManager.shared.saveQuickbar(quickbar)
+            }
+            
+            // 根据是否是建筑ID来设置显示名称
+            if StructureMarketManager.isStructureId(selectedRegionID) {
+                // 是建筑ID，查找建筑名称
+                if let structureId = StructureMarketManager.getStructureId(from: selectedRegionID),
+                   let structure = getStructureById(structureId) {
+                    selectedRegion = structure.structureName
+                } else {
+                    selectedRegion = "Unknown Structure"
+                }
+            } else {
+                // 是星域ID，查找星域名称
+                selectedRegion = regions.first(where: { $0.id == selectedRegionID })?.name ?? ""
+            }
+            
             selectedRegionName = selectedRegion
 
             // 只在第一次加载时获取市场订单
@@ -1117,53 +1172,89 @@ struct MarketQuickbarDetailView: View {
         // 清除旧数据
         marketOrders.removeAll()
 
-        // 计算并发数
-        let concurrency = max(1, min(10, items.count))
-        Logger.info("强制刷新: \(forceRefresh)")
-        // 创建任务组
-        await withTaskGroup(of: (Int, [MarketOrder])?.self) { group in
-            var pendingItems = items
+        // 判断是否选择了建筑
+        if StructureMarketManager.isStructureId(currentRegionID) {
+            // 选择了建筑，使用批量建筑订单API
+            guard let structureId = StructureMarketManager.getStructureId(from: currentRegionID) else {
+                Logger.error("无效的建筑ID: \(currentRegionID)")
+                return
+            }
+            
+            // 获取建筑对应的角色ID
+            guard let structure = getStructureById(structureId) else {
+                Logger.error("未找到建筑信息: \(structureId)")
+                return
+            }
+            
+            do {
+                let typeIds = items.map { $0.id }
+                let batchOrders = try await StructureMarketManager.shared.getBatchItemOrdersInStructure(
+                    structureId: structureId,
+                    characterId: structure.characterId,
+                    typeIds: typeIds,
+                    forceRefresh: forceRefresh,
+                    progressCallback: { progress in
+                        Task { @MainActor in
+                            structureOrdersProgress = progress
+                        }
+                    }
+                )
+                
+                marketOrders = batchOrders
+                Logger.info("从建筑 \(structure.structureName) 批量获取了 \(typeIds.count) 个物品的订单数据")
+            } catch {
+                Logger.error("批量加载建筑订单失败: \(error)")
+            }
+        } else {
+            // 选择了星域，使用原有的并发API加载
+            // 计算并发数
+            let concurrency = max(1, min(10, items.count))
+            Logger.info("强制刷新: \(forceRefresh)")
+            // 创建任务组
+            await withTaskGroup(of: (Int, [MarketOrder])?.self) { group in
+                var pendingItems = items
 
-            // 初始添加并发数量的任务
-            for _ in 0..<concurrency {
-                if !pendingItems.isEmpty {
-                    let item = pendingItems.removeFirst()
-                    group.addTask {
-                        do {
-                            let orders = try await MarketOrdersAPI.shared.fetchMarketOrders(
-                                typeID: item.id,
-                                regionID: currentRegionID,
-                                forceRefresh: forceRefresh
-                            )
-                            return (item.id, orders)
-                        } catch {
-                            Logger.error("加载市场订单失败: \(error)")
-                            return nil
+                // 初始添加并发数量的任务
+                for _ in 0..<concurrency {
+                    if !pendingItems.isEmpty {
+                        let item = pendingItems.removeFirst()
+                        group.addTask {
+                            do {
+                                let orders = try await MarketOrdersAPI.shared.fetchMarketOrders(
+                                    typeID: item.id,
+                                    regionID: currentRegionID,
+                                    forceRefresh: forceRefresh
+                                )
+                                return (item.id, orders)
+                            } catch {
+                                Logger.error("加载市场订单失败: \(error)")
+                                return nil
+                            }
                         }
                     }
                 }
-            }
 
-            // 处理结果并添加新任务
-            while let result = await group.next() {
-                if let (typeID, orders) = result {
-                    marketOrders[typeID] = orders
-                }
+                // 处理结果并添加新任务
+                while let result = await group.next() {
+                    if let (typeID, orders) = result {
+                        marketOrders[typeID] = orders
+                    }
 
-                // 如果还有待处理的物品，添加新任务
-                if !pendingItems.isEmpty {
-                    let item = pendingItems.removeFirst()
-                    group.addTask {
-                        do {
-                            let orders = try await MarketOrdersAPI.shared.fetchMarketOrders(
-                                typeID: item.id,
-                                regionID: currentRegionID,
-                                forceRefresh: forceRefresh
-                            )
-                            return (item.id, orders)
-                        } catch {
-                            Logger.error("加载市场订单失败: \(error)")
-                            return nil
+                    // 如果还有待处理的物品，添加新任务
+                    if !pendingItems.isEmpty {
+                        let item = pendingItems.removeFirst()
+                        group.addTask {
+                            do {
+                                let orders = try await MarketOrdersAPI.shared.fetchMarketOrders(
+                                    typeID: item.id,
+                                    regionID: currentRegionID,
+                                    forceRefresh: forceRefresh
+                                )
+                                return (item.id, orders)
+                            } catch {
+                                Logger.error("加载市场订单失败: \(error)")
+                                return nil
+                            }
                         }
                     }
                 }
@@ -1594,5 +1685,41 @@ struct MarketItemSelectorIntegratedView: View {
         }
 
         return validGroupIDs
+    }
+}
+
+// MARK: - MarketQuickbarDetailView扩展
+
+extension MarketQuickbarDetailView {
+    // 根据建筑ID获取建筑信息
+    private func getStructureById(_ structureId: Int64) -> MarketStructure? {
+        return MarketStructureManager.shared.structures.first { $0.structureId == Int(structureId) }
+    }
+    
+    // 验证区域ID是否有效（星域或存在的建筑）
+    private func isValidRegionID(_ regionID: Int) -> Bool {
+        // 检查是否是建筑ID（负数表示建筑）
+        if StructureMarketManager.isStructureId(regionID) {
+            // 验证建筑是否存在
+            guard let structureId = StructureMarketManager.getStructureId(from: regionID) else {
+                return false
+            }
+            return getStructureById(structureId) != nil
+        }
+        
+        // 检查是否是有效的星域ID
+        if regionID > 0 && regionID < 11000000 {
+            // 查询数据库验证星域是否存在
+            let query = """
+                    SELECT regionID
+                    FROM regions
+                    WHERE regionID = ?
+                """
+            if case let .success(rows) = databaseManager.executeQuery(query, parameters: [regionID]) {
+                return !rows.isEmpty
+            }
+        }
+        
+        return false
     }
 }

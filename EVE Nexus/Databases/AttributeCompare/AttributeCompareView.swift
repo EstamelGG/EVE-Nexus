@@ -475,7 +475,7 @@ struct AttributeCompareDetailView: View {
                                 .frame(width: 24, height: 24)
                                 .cornerRadius(6)
                             
-                            Text(NSLocalizedString("Main_Market_Price", comment: "市场价格"))
+                            Text(NSLocalizedString("Main_Market_Price_Jita", comment: "Jita 市场价格"))
                                 .font(.headline)
                         }
                     }

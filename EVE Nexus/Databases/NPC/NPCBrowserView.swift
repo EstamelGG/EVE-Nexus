@@ -368,7 +368,7 @@ struct NPCBrowserView: View {
     private func getNavigationTitle() -> String {
         switch level {
         case .scene:
-            return NSLocalizedString("Main_Database_NPC_Scene", comment: "")
+            return NSLocalizedString("Main_NPC_entity", comment: "")
         case .faction:
             return scene ?? ""
         case .type:

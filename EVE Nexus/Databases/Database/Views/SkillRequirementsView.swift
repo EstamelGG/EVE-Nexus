@@ -107,6 +107,8 @@ struct SkillRequirementsView: View {
     
     // 存储所有技能等级的字典
     @State private var characterSkills: [Int: Int] = [:]
+    // 新增：存储角色属性点数
+    @State private var characterAttributes: CharacterAttributes?
 
     private var requirements: [(skillID: Int, level: Int, timeMultiplier: Double?)] {
         SkillTreeManager.shared.getDeduplicatedSkillRequirements(
@@ -155,6 +157,170 @@ struct SkillRequirementsView: View {
         return characterSkills[skillID] ?? -1
     }
     
+    // 新增：计算缺失技能的预计训练时间
+    private var estimatedTrainingTime: TimeInterval {
+        guard let attributes = characterAttributes, missingPoints > 0 else {
+            return 0
+        }
+        
+        // 获取所有未满足技能的属性（批量查询，优化性能）
+        let skillAttributesMap = unmetSkillAttributes
+        
+        var totalTime: TimeInterval = 0
+        
+        for requirement in requirements {
+            let currentLevel = getCurrentSkillLevel(for: requirement.skillID)
+            if currentLevel >= requirement.level {
+                continue // 技能已满足要求，跳过
+            }
+            
+            // 从预加载的属性映射中获取技能的主副属性ID
+            guard let skillAttrs = skillAttributesMap[requirement.skillID] else {
+                continue
+            }
+            
+            // 使用现有的 SkillTrainingCalculator.calculateTrainingRate 函数
+            guard let pointsPerHour = SkillTrainingCalculator.calculateTrainingRate(
+                primaryAttrId: skillAttrs.primary,
+                secondaryAttrId: skillAttrs.secondary,
+                attributes: attributes
+            ) else {
+                continue
+            }
+            
+            // 计算该技能缺失的技能点数
+            guard let multiplier = requirement.timeMultiplier,
+                requirement.level > 0 && requirement.level <= SkillTreeManager.levelBasePoints.count
+            else {
+                continue
+            }
+            
+            let requiredPoints = Int(
+                Double(SkillTreeManager.levelBasePoints[requirement.level - 1]) * multiplier)
+            let currentPoints =
+                currentLevel > 0
+                ? Int(Double(SkillTreeManager.levelBasePoints[currentLevel - 1]) * multiplier) : 0
+            let missingSkillPoints = requiredPoints - currentPoints
+            
+            if missingSkillPoints > 0 && pointsPerHour > 0 {
+                // 计算该技能的训练时间（小时）然后转换为秒
+                let trainingTimeHours = Double(missingSkillPoints) / Double(pointsPerHour)
+                totalTime += trainingTimeHours * 3600 // 转换为秒
+            }
+        }
+        
+        return totalTime
+    }
+    
+    // 新增：批量获取未满足技能的主副属性
+    private var unmetSkillAttributes: [Int: (primary: Int, secondary: Int)] {
+        // 首先找出所有未满足要求的技能ID
+        let unmetSkillIDs = requirements.compactMap { requirement -> Int? in
+            let currentLevel = getCurrentSkillLevel(for: requirement.skillID)
+            return currentLevel < requirement.level ? requirement.skillID : nil
+        }
+        
+        guard !unmetSkillIDs.isEmpty else {
+            return [:]
+        }
+        
+        // 批量查询这些技能的主副属性
+        let query = """
+            SELECT type_id, attribute_id, value
+            FROM typeAttributes
+            WHERE type_id IN (\(unmetSkillIDs.map(String.init).joined(separator: ","))) 
+            AND attribute_id IN (180, 181)
+        """
+        
+        guard case let .success(rows) = databaseManager.executeQuery(query) else {
+            return [:]
+        }
+        
+        // 按技能ID分组处理属性
+        var groupedAttributes: [Int: [(attributeId: Int, value: Int)]] = [:]
+        for row in rows {
+            guard let typeId = row["type_id"] as? Int,
+                let attributeId = row["attribute_id"] as? Int,
+                let value = row["value"] as? Double
+            else { continue }
+            
+            groupedAttributes[typeId, default: []].append((attributeId, Int(value)))
+        }
+        
+        // 构建最终的属性映射
+        var skillAttributes: [Int: (primary: Int, secondary: Int)] = [:]
+        for (typeId, attributes) in groupedAttributes {
+            var primary: Int?
+            var secondary: Int?
+            
+            for attr in attributes {
+                switch attr.attributeId {
+                case 180: primary = attr.value
+                case 181: secondary = attr.value
+                default: break
+                }
+            }
+            
+            if let p = primary, let s = secondary {
+                skillAttributes[typeId] = (p, s)
+            }
+        }
+        
+        return skillAttributes
+    }
+    
+    // 新增：格式化时间显示（复用现有逻辑）
+    private func formatTrainingTime(_ timeInterval: TimeInterval) -> String {
+        if timeInterval < 1 {
+            return String(format: NSLocalizedString("Time_Seconds", comment: ""), 0)
+        }
+
+        let totalSeconds = timeInterval
+        let days = Int(totalSeconds) / (24 * 3600)
+        var hours = Int(totalSeconds) / 3600 % 24
+        var minutes = Int(totalSeconds) / 60 % 60
+        let seconds = Int(totalSeconds) % 60
+
+        // 当显示两个单位时，对第二个单位进行四舍五入
+        if days > 0 {
+            // 对小时进行四舍五入
+            if minutes >= 30 {
+                hours += 1
+                if hours == 24 {  // 如果四舍五入后小时数达到24
+                    return String(format: NSLocalizedString("Time_Days", comment: ""), days + 1)
+                }
+            }
+            if hours > 0 {
+                return String(
+                    format: NSLocalizedString("Time_Days_Hours", comment: ""), days, hours
+                )
+            }
+            return String(format: NSLocalizedString("Time_Days", comment: ""), days)
+        } else if hours > 0 {
+            // 对分钟进行四舍五入
+            if seconds >= 30 {
+                minutes += 1
+                if minutes == 60 {  // 如果四舍五入后分钟数达到60
+                    return String(format: NSLocalizedString("Time_Hours", comment: ""), hours + 1)
+                }
+            }
+            if minutes > 0 {
+                return String(
+                    format: NSLocalizedString("Time_Hours_Minutes", comment: ""), hours, minutes
+                )
+            }
+            return String(format: NSLocalizedString("Time_Hours", comment: ""), hours)
+        } else if minutes > 0 {
+            // 对秒进行四舍五入
+            if seconds >= 30 {
+                minutes += 1
+            }
+            return String(format: NSLocalizedString("Time_Minutes", comment: ""), minutes)
+        }
+        // 只有秒
+        return String(format: NSLocalizedString("Time_Seconds", comment: ""), Int(totalSeconds))
+    }
+
     // 加载所有技能等级
     private func loadAllSkills() {
         if currentCharacterId == 0 {
@@ -189,13 +355,70 @@ struct SkillRequirementsView: View {
             Logger.error("解析技能数据失败: \(error)")
             characterSkills = [:]
         }
+        
+        // 新增：加载角色属性点数
+        loadCharacterAttributes()
+    }
+    
+    // 新增：加载角色属性点数（从本地数据库）
+    private func loadCharacterAttributes() {
+        guard currentCharacterId != 0 else {
+            characterAttributes = nil
+            return
+        }
+        
+        // 直接从数据库读取角色属性，不关心缓存时间
+        let query = """
+            SELECT charisma, intelligence, memory, perception, willpower,
+                   bonus_remaps, accrued_remap_cooldown_date, last_remap_date
+            FROM character_attributes 
+            WHERE character_id = ?
+        """
+        
+        guard
+            case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
+                query, parameters: [currentCharacterId]),
+            let row = rows.first
+        else {
+            characterAttributes = nil
+            return
+        }
+        
+        // 使用 NSNumber 转换来处理不同的数字类型
+        let charisma = (row["charisma"] as? NSNumber)?.intValue ?? 19
+        let intelligence = (row["intelligence"] as? NSNumber)?.intValue ?? 20
+        let memory = (row["memory"] as? NSNumber)?.intValue ?? 20
+        let perception = (row["perception"] as? NSNumber)?.intValue ?? 20
+        let willpower = (row["willpower"] as? NSNumber)?.intValue ?? 20
+        let bonusRemaps = (row["bonus_remaps"] as? NSNumber)?.intValue ?? 0
+        
+        characterAttributes = CharacterAttributes(
+            charisma: charisma,
+            intelligence: intelligence,
+            memory: memory,
+            perception: perception,
+            willpower: willpower,
+            bonus_remaps: bonusRemaps,
+            accrued_remap_cooldown_date: row["accrued_remap_cooldown_date"] as? String,
+            last_remap_date: row["last_remap_date"] as? String
+        )
     }
 
     var body: some View {
         if !requirements.isEmpty {
             Section(
-                header: Text(groupName)
-                    .font(.headline),
+                header: HStack {
+                    Text(groupName)
+                        .font(.headline)
+                    
+                    // 新增：显示预计训练时间
+                    if currentCharacterId != 0 && missingPoints > 0 && estimatedTrainingTime > 0 {
+                        Spacer()
+                        Text("(\(formatTrainingTime(estimatedTrainingTime)))")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                },
                 footer: Text(
                     (currentCharacterId == 0 || missingPoints == 0)
                         ? "\(NSLocalizedString("Misc_InAll",comment: "")): \(FormatUtil.format(Double(totalPoints))) SP"

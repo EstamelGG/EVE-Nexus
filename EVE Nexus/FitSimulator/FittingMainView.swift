@@ -36,25 +36,6 @@ final class FittingDeletionCacheManager: ObservableObject {
         deletedFittingItems[characterId]?.append(deletedItem)
     }
     
-    /// 移除已删除的配置ID（用于API删除失败时恢复显示）
-    func removeDeletedFitting(fittingId: Int, characterId: Int) {
-        guard var items = deletedFittingItems[characterId] else {
-            return
-        }
-        
-        // 移除指定的删除记录
-        items.removeAll { $0.fittingId == fittingId }
-        
-        // 更新数组
-        if items.isEmpty {
-            deletedFittingItems[characterId] = nil
-        } else {
-            deletedFittingItems[characterId] = items
-        }
-        
-        Logger.debug("已从删除缓存中移除配置ID: \(fittingId)")
-    }
-    
     /// 检查配置是否已被删除且未过期
     func isDeleted(fittingId: Int, characterId: Int) -> Bool {
         guard let items = deletedFittingItems[characterId] else {

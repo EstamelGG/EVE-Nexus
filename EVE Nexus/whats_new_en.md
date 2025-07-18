@@ -199,3 +199,16 @@ Fixes & Improvements:
 3. Added "Production Chain Analysis" feature to PI function, allowing analysis and display of processing chains for specified product
 4. Fix a bug: On certain devices, the expected text copy functionality would unexpectedly fail after using the search feature. (reported by Kelly Hsueh), You can now long-press to copy content in certain sections (such as database details, solar-systems lists, email content, etc.).
 5. Fix some localization issues.
+
+# 1.6.5 July 23, 2025
+
+1. Added a browser for NPC factions and legions, and displayed the reputation of the currently selected character.
+2. The character sheet now displays the NPC faction the character belongs to, and show the rank.
+3. The character searcher now displays the NPC faction the character belongs to.
+4. Fix a bug that can not detect reaction jobs in Industry function.
+5. Added the "Market Structure Settings" feature. You can search for and add structures in the "Settings" menu, and then use them in the Market Browser and Market Watchlist features.
+6. Displaying the expiration time and completion time of contracts.
+7. Show creator's and recipient's detail pages from the contract details.
+8. Add refresh button for some functions. (assets, corp structures etc.)
+9. Show available industry slots in Industry Jobs function.
+10. Improved the KM page view and database image rendering on landscape mode and iPad.

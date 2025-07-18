@@ -50,6 +50,9 @@ final class IncursionsViewModel: ObservableObject {
     private var loadingTask: Task<Void, Never>?
     private var lastFetchTime: Date?
     private let cacheTimeout: TimeInterval = 300  // 5分钟缓存
+    
+    // 缓存所有星系信息，包括受影响的星系
+    private var allSystemInfoCache: [Int: SolarSystemInfo] = [:]
 
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
@@ -106,14 +109,21 @@ final class IncursionsViewModel: ObservableObject {
     }
 
     private func processIncursions(_ incursions: [Incursion]) async {
-        // 提取所有需要查询的星系ID
-        let solarSystemIds = incursions.map { $0.stagingSolarSystemId }
+        // 提取所有需要查询的星系ID（包括主要星系和所有受影响星系）
+        var allSystemIds = Set<Int>()
+        for incursion in incursions {
+            allSystemIds.insert(incursion.stagingSolarSystemId)
+            allSystemIds.formUnion(incursion.infestedSolarSystems)
+        }
 
         // 一次性获取所有星系信息
         let systemInfoMap = await getBatchSolarSystemInfo(
-            solarSystemIds: solarSystemIds,
+            solarSystemIds: Array(allSystemIds),
             databaseManager: databaseManager
         )
+        
+        // 缓存所有星系信息
+        self.allSystemInfoCache = systemInfoMap
 
         var prepared: [PreparedIncursion] = []
 
@@ -182,6 +192,15 @@ final class IncursionsViewModel: ObservableObject {
         }
         return (iconName, name)
     }
+    
+    // 获取入侵涉及的所有星系名称，已排序
+    func getInfestedSystemNames(for incursion: PreparedIncursion) -> [String] {
+        return incursion.incursion.infestedSolarSystems
+            .compactMap { systemId in
+                allSystemInfoCache[systemId]?.systemName
+            }
+            .sorted()
+    }
 }
 
 // MARK: - Views
@@ -189,6 +208,7 @@ final class IncursionsViewModel: ObservableObject {
 struct IncursionCell: View {
     let incursion: PreparedIncursion
     let databaseManager: DatabaseManager
+    let viewModel: IncursionsViewModel
 
     var body: some View {
         NavigationLink(
@@ -245,7 +265,23 @@ struct IncursionCell: View {
                                     Button {
                                         UIPasteboard.general.string = incursion.location.systemName
                                     } label: {
-                                        Label(NSLocalizedString("Misc_Copy_Location", comment: ""), systemImage: "doc.on.doc")
+                                        Label(NSLocalizedString("Misc_Copy_Staging_Solar", comment: ""), systemImage: "doc.on.doc")
+                                    }
+                                    Button {
+                                        UIPasteboard.general.string = incursion.location.constellationName
+                                    } label: {
+                                        Label(NSLocalizedString("Misc_Copy_Constellation", comment: ""), systemImage: "doc.on.doc")
+                                    }
+                                    Button {
+                                        // 使用缓存的星系信息，无需异步操作
+                                        let systemNames = viewModel.getInfestedSystemNames(for: incursion)
+                                        
+                                        // 格式化为: 星座名称(星系1,星系2,星系3)
+                                        let formattedString = "\(incursion.location.constellationName) \(NSLocalizedString("Misc_Constellation", comment: ""))(\(systemNames.joined(separator: ",")))"
+                                        
+                                        UIPasteboard.general.string = formattedString
+                                    } label: {
+                                        Label(NSLocalizedString("Misc_Copy_Constellation_And_Solar", comment: ""), systemImage: "doc.on.doc")
                                     }
                                 }
                         }
@@ -289,7 +325,9 @@ struct IncursionsView: View {
                 } else {
                     ForEach(viewModel.preparedIncursions) { incursion in
                         IncursionCell(
-                            incursion: incursion, databaseManager: viewModel.databaseManager
+                            incursion: incursion, 
+                            databaseManager: viewModel.databaseManager,
+                            viewModel: viewModel
                         )
                     }
                 }

@@ -459,6 +459,14 @@ struct DatabaseListItemView: View {
                 .font(.caption)
                 .foregroundColor(.secondary)
             }
+        }.contextMenu {
+            if !item.name.isEmpty {
+                Button {
+                    UIPasteboard.general.string = item.name
+                } label: {
+                    Label(NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc")
+                }
+            }
         }
     }
 

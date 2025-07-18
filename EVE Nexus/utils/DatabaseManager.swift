@@ -1003,7 +1003,7 @@ class DatabaseManager: ObservableObject {
     // 获取物品详情
     func getItemDetails(for typeID: Int) -> ItemDetails? {
         let query = """
-                SELECT name, description, icon_filename, groupID,
+                SELECT name, en_name, description, icon_filename, groupID,
                        volume, repackaged_volume, capacity, mass, marketGroupID,
                        group_name, category_name, categoryID
                 FROM types
@@ -1015,6 +1015,7 @@ class DatabaseManager: ObservableObject {
         if case let .success(rows) = result,
             let row = rows.first,
             let name = row["name"] as? String,
+            let en_name = row["en_name"] as? String,
             let description = row["description"] as? String,
             let iconFileName = row["icon_filename"] as? String,
             let groupName = row["group_name"] as? String,
@@ -1030,6 +1031,7 @@ class DatabaseManager: ObservableObject {
 
             return ItemDetails(
                 name: name,
+                en_name: en_name,
                 description: description,
                 iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName,
                 groupName: groupName,

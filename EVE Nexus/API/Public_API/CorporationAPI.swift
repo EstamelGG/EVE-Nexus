@@ -16,6 +16,7 @@ struct CorporationInfo: Codable {
     let tax_rate: Double
     let url: String?
     let alliance_id: Int?
+    let faction_id: Int?
 }
 
 @globalActor actor CorporationAPIActor {
@@ -228,7 +229,8 @@ class CorporationAPI {
             shares: info.shares,
             tax_rate: info.tax_rate,
             url: info.url,
-            alliance_id: info.alliance_id
+            alliance_id: info.alliance_id,
+            faction_id: info.faction_id
         )
     }
 }

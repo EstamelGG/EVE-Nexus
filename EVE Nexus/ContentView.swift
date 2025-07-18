@@ -265,6 +265,30 @@ struct LoginButtonView: View {
                         .font(.headline)
                         .lineLimit(1)
 
+                    // 显示军团信息
+                    HStack(spacing: 4) {
+                        if let corporation = mainViewModel.corporationInfo,
+                           let logo = mainViewModel.corporationLogo
+                        {
+                            Image(uiImage: logo)
+                                .resizable()
+                                .frame(width: 16, height: 16)
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                            Text("[\(corporation.ticker)] \(corporation.name)")
+                                .font(.caption)
+                                .lineLimit(1)
+                        } else {
+                            Image(systemName: "square.dashed")
+                                .resizable()
+                                .frame(width: 16, height: 16)
+                                .foregroundColor(.gray)
+                            Text("[-] \(NSLocalizedString("No Corporation", comment: ""))")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                                .lineLimit(1)
+                        }
+                    }
+                    
                     // 显示联盟信息
                     HStack(spacing: 4) {
                         if let alliance = mainViewModel.allianceInfo,
@@ -288,27 +312,19 @@ struct LoginButtonView: View {
                                 .lineLimit(1)
                         }
                     }
-
-                    // 显示军团信息
-                    HStack(spacing: 4) {
-                        if let corporation = mainViewModel.corporationInfo,
-                           let logo = mainViewModel.corporationLogo
-                        {
+                    
+                    // 显示势力信息
+                    if let faction = mainViewModel.factionInfo,
+                       let logo = mainViewModel.factionLogo
+                    {
+                        HStack(spacing: 4) {
+                            
                             Image(uiImage: logo)
                                 .resizable()
                                 .frame(width: 16, height: 16)
                                 .clipShape(RoundedRectangle(cornerRadius: 4))
-                            Text("[\(corporation.ticker)] \(corporation.name)")
+                            Text(faction.name)
                                 .font(.caption)
-                                .lineLimit(1)
-                        } else {
-                            Image(systemName: "square.dashed")
-                                .resizable()
-                                .frame(width: 16, height: 16)
-                                .foregroundColor(.gray)
-                            Text("[-] \(NSLocalizedString("No Corporation", comment: ""))")
-                                .font(.caption)
-                                .foregroundColor(.gray)
                                 .lineLimit(1)
                         }
                     }
@@ -362,9 +378,12 @@ struct ContentView: View {
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
     @AppStorage("selectedTheme") private var selectedTheme: String = "system"
     @AppStorage("showCorporationAffairs") private var showCorporationAffairs: Bool = false
+    @AppStorage("lastVersion") private var lastVersion: String = ""
     @Environment(\.colorScheme) var systemColorScheme
     @State private var columnVisibility = NavigationSplitViewVisibility.all
     @State private var selectedItem: String? = nil
+    @State private var showUpdateAlert = false
+    @State private var shouldNavigateToUpdateLog = false
 
     // 使用计算属性来确定当前的颜色方案
     private var currentColorScheme: ColorScheme? {
@@ -494,6 +513,11 @@ struct ContentView: View {
                             AttributeCompareView(databaseManager: databaseManager)
                         case "npc":
                             NPCBrowserView(databaseManager: databaseManager)
+                        case "npc_faction":
+                            FactionBrowserView(
+                                databaseManager: databaseManager,
+                                characterId: currentCharacterId == 0 ? nil : currentCharacterId
+                            )
                         case "agents":
                             AgentSearchView(databaseManager: databaseManager)
                         case "wormhole":
@@ -585,6 +609,12 @@ struct ContentView: View {
                         }
                     }
                 }
+                .onChange(of: shouldNavigateToUpdateLog) { _, newValue in
+                    if newValue {
+                        selectedItem = "update_history"
+                        shouldNavigateToUpdateLog = false
+                    }
+                }
             }
         }
         .navigationSplitViewStyle(.balanced)
@@ -600,6 +630,9 @@ struct ContentView: View {
                     viewModel.resetCharacterInfo()
                 }
             }
+            
+            // 检查应用版本更新
+            checkAppVersionUpdate()
         }
         .onReceive(
             NotificationCenter.default.publisher(for: NSNotification.Name("LanguageChanged"))
@@ -620,6 +653,16 @@ struct ContentView: View {
         .task {
             await viewModel.refreshAllData()
         }
+        .alert(NSLocalizedString("App_Updated_Title", comment: "App已更新"), isPresented: $showUpdateAlert) {
+            Button(NSLocalizedString("App_Updated_OK", comment: "好的"), role: .cancel) {
+                // 只关闭弹窗
+            }
+            Button(NSLocalizedString("App_Updated_View_Changes", comment: "查看更新")) {
+                shouldNavigateToUpdateLog = true
+            }
+        } message: {
+            Text(NSLocalizedString("App_Updated_Message", comment: "应用已更新到新版本"))
+        }
     }
 
     // MARK: - 辅助函数
@@ -627,6 +670,23 @@ struct ContentView: View {
     private func logSelectedItem(_ item: String?) -> Void {
         guard let item = item else { return }
         Logger.info("\n\n=== 用户访问功能: \(item) ===")
+    }
+    
+    private func checkAppVersionUpdate() {
+        let currentVersion = AppConfiguration.Version.fullVersion
+        
+        // 如果lastVersion为空，说明是首次安装，记录版本号但不显示更新提示
+        if lastVersion.isEmpty {
+            lastVersion = currentVersion
+            Logger.info("首次安装应用，记录当前版本: \(currentVersion)")
+        } 
+        // 如果版本不同，显示更新提示
+        else if lastVersion != currentVersion {
+            Logger.info("检测到应用版本更新: \(lastVersion) -> \(currentVersion)")
+            showUpdateAlert = true
+            // 立即更新存储的版本号，确保提示只显示一次
+            lastVersion = currentVersion
+        }
     }
 
     // MARK: - 视图组件
@@ -828,8 +888,15 @@ struct ContentView: View {
 
             NavigationLink(value: "npc") {
                 RowView(
-                    title: "NPC",
+                    title: NSLocalizedString("Main_NPC_entity", comment: ""),
                     icon: "criminal"
+                )
+            }
+            
+            NavigationLink(value: "npc_faction") {
+                RowView(
+                    title: NSLocalizedString("Main_NPC_Faction", comment: ""),
+                    icon: "concord"
                 )
             }
 

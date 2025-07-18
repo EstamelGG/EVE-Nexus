@@ -455,6 +455,8 @@ struct SearchResultRow: View {
     @State private var hasAttemptedAllianceLoad = false
     @State private var loadTask: Task<Void, Never>?
     @State private var standingIcon: String = "ColorTag-Neutral"
+    @State private var corporationLogo: UIImage?
+    @State private var allianceLogo: UIImage?
 
     // 获取父视图的ViewModel
     @EnvironmentObject private var viewModel: SearcherViewModel
@@ -496,18 +498,34 @@ struct SearchResultRow: View {
                 // 第二行：军团和联盟信息
                 if result.type == .character {
                     if let corpName = result.corporationName {
-                        Text(corpName)
-                            .foregroundColor(.secondary)
-                            .font(.caption)
+                        HStack(spacing: 4) {
+                            if let logo = corporationLogo {
+                                Image(uiImage: logo)
+                                    .resizable()
+                                    .frame(width: 16, height: 16)
+                                    .clipShape(RoundedRectangle(cornerRadius: 2))
+                            }
+                            Text(corpName)
+                                .foregroundColor(.secondary)
+                                .font(.caption)
+                        }
                     } else {
                         Text("[\(NSLocalizedString("Main_No_Corp", comment: ""))]")
                             .foregroundColor(.secondary)
                             .font(.caption)
                     }
                     if let allianceName = result.allianceName {
-                        Text("\(allianceName)")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
+                        HStack(spacing: 4) {
+                            if let logo = allianceLogo {
+                                Image(uiImage: logo)
+                                    .resizable()
+                                    .frame(width: 16, height: 16)
+                                    .clipShape(RoundedRectangle(cornerRadius: 2))
+                            }
+                            Text("\(allianceName)")
+                                .foregroundColor(.secondary)
+                                .font(.caption)
+                        }
                     } else {
                         Text("[\(NSLocalizedString("Main_No_Alliance", comment: ""))]")
                             .foregroundColor(.secondary)
@@ -516,9 +534,17 @@ struct SearchResultRow: View {
                 } else if result.type == .corporation {
                     // 军团搜索时显示联盟信息
                     if let allianceName = allianceName {
-                        Text("[\(allianceName)]")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
+                        HStack(spacing: 4) {
+                            if let logo = allianceLogo {
+                                Image(uiImage: logo)
+                                    .resizable()
+                                    .frame(width: 16, height: 16)
+                                    .clipShape(RoundedRectangle(cornerRadius: 2))
+                            }
+                            Text("[\(allianceName)]")
+                                .foregroundColor(.secondary)
+                                .font(.caption)
+                        }
                     }
                 }
 
@@ -572,12 +598,24 @@ struct SearchResultRow: View {
         loadTask = Task {
             try? await Task.sleep(nanoseconds: 500_000_000)  // 500ms delay
             if !Task.isCancelled {
+                // 加载军团图标（如果是角色搜索结果且有军团ID）
+                if result.type == .character && result.corporationId != nil {
+                    await loadCorporationLogo(corporationId: result.corporationId!)
+                }
+                
+                // 加载联盟图标（如果是角色搜索结果且有联盟ID）
+                if result.type == .character && result.allianceId != nil {
+                    await loadAllianceLogo(allianceId: result.allianceId!)
+                }
+                
                 // 只有当结果类型是军团时才加载军团信息
                 if result.type == .corporation && !hasAttemptedCorpInfoLoad {
                     await loadCorporationInfo()
-                    // 如果加载到了联盟ID，继续加载联盟名称
+                    // 如果加载到了联盟ID，继续加载联盟名称和图标
                     if allianceId != nil && !hasAttemptedAllianceLoad {
                         await loadAllianceName()
+                        // 加载联盟图标
+                        await loadAllianceLogo(allianceId: allianceId!)
                         // 只有在军团信息和联盟名称都加载完成后，才更新声望图标
                         if !Task.isCancelled && viewModel.isContactsLoaded {
                             await MainActor.run {
@@ -603,6 +641,34 @@ struct SearchResultRow: View {
                     await loadAllianceName()
                 }
             }
+        }
+    }
+    
+    // 加载军团图标
+    private func loadCorporationLogo(corporationId: Int) async {
+        do {
+            let logo = try await CorporationAPI.shared.fetchCorporationLogo(corporationId: corporationId)
+            if !Task.isCancelled {
+                await MainActor.run {
+                    self.corporationLogo = logo
+                }
+            }
+        } catch {
+            Logger.error("加载军团图标失败: \(error)")
+        }
+    }
+    
+    // 加载联盟图标
+    private func loadAllianceLogo(allianceId: Int) async {
+        do {
+            let logo = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
+            if !Task.isCancelled {
+                await MainActor.run {
+                    self.allianceLogo = logo
+                }
+            }
+        } catch {
+            Logger.error("加载联盟图标失败: \(error)")
         }
     }
 

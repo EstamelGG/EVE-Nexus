@@ -14,6 +14,7 @@ struct CorpStructureView: View {
     }
 
     @State private var tempDays: String = ""
+    @State private var isRefreshing = false
 
     init(characterId: Int) {
         self.characterId = characterId
@@ -72,11 +73,22 @@ struct CorpStructureView: View {
         .navigationTitle(NSLocalizedString("Corp_Structure_Title", comment: ""))
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: {
-                    tempDays = String(fuelMonitorDays)
-                    showSettings = true
-                }) {
-                    Image(systemName: "gear")
+                HStack {
+                    Button(action: {
+                        refreshData()
+                    }) {
+                        Image(systemName: "arrow.clockwise")
+                            .rotationEffect(.degrees(isRefreshing ? 360 : 0))
+                            .animation(isRefreshing ? .linear(duration: 1).repeatForever(autoreverses: false) : .default, value: isRefreshing)
+                    }
+                    .disabled(isRefreshing)
+                    
+                    Button(action: {
+                        tempDays = String(fuelMonitorDays)
+                        showSettings = true
+                    }) {
+                        Image(systemName: "gear")
+                    }
                 }
             }
         }
@@ -176,6 +188,24 @@ struct CorpStructureView: View {
                     dismiss()
                 }
             )
+        }
+    }
+
+    private func refreshData() {
+        isRefreshing = true
+        
+        Task {
+            do {
+                try await viewModel.loadStructures(forceRefresh: true)
+            } catch {
+                if !(error is CancellationError) {
+                    self.error = error
+                    self.showError = true
+                    Logger.error("刷新建筑信息失败: \(error)")
+                }
+            }
+            
+            isRefreshing = false
         }
     }
 

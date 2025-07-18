@@ -57,6 +57,13 @@ struct LPStoreOfferView: View {
                         .font(.subheadline)
                     }
                 }
+                .contextMenu {
+                    Button {
+                        UIPasteboard.general.string = itemInfo.name
+                    } label: {
+                        Label(NSLocalizedString("Misc_Copy_LP_Offer_Name", comment: ""), systemImage: "doc.on.doc")
+                    }
+                }
             }
             .buttonStyle(.plain)
 

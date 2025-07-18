@@ -16,6 +16,7 @@ struct EVECharacterInfo: Codable {
     let CharacterOwnerHash: String
     var corporationId: Int?
     var allianceId: Int?
+    var factionId: Int?
     var refreshTokenExpired: Bool = false
 
     // 动态属性
@@ -67,6 +68,7 @@ struct EVECharacterInfo: Codable {
         case refreshTokenExpired
         case corporationId
         case allianceId
+        case factionId
         case skillQueueLength
         case queueFinishTime
     }
@@ -93,6 +95,7 @@ struct EVECharacterInfo: Codable {
             try container.decodeIfPresent(Bool.self, forKey: .refreshTokenExpired) ?? false
         corporationId = try container.decodeIfPresent(Int.self, forKey: .corporationId)
         allianceId = try container.decodeIfPresent(Int.self, forKey: .allianceId)
+        factionId = try container.decodeIfPresent(Int.self, forKey: .factionId)
         skillQueueLength = try container.decodeIfPresent(Int.self, forKey: .skillQueueLength)
         queueFinishTime = try container.decodeIfPresent(TimeInterval.self, forKey: .queueFinishTime)
     }
@@ -114,6 +117,7 @@ struct EVECharacterInfo: Codable {
         try container.encode(refreshTokenExpired, forKey: .refreshTokenExpired)
         try container.encodeIfPresent(corporationId, forKey: .corporationId)
         try container.encodeIfPresent(allianceId, forKey: .allianceId)
+        try container.encodeIfPresent(factionId, forKey: .factionId)
         try container.encodeIfPresent(skillQueueLength, forKey: .skillQueueLength)
         try container.encodeIfPresent(queueFinishTime, forKey: .queueFinishTime)
     }
@@ -460,6 +464,7 @@ class EVELogin {
             var updatedCharacterInfo = characterInfo
             updatedCharacterInfo.corporationId = publicInfo.corporation_id
             updatedCharacterInfo.allianceId = publicInfo.alliance_id
+            updatedCharacterInfo.factionId = publicInfo.faction_id
 
             return updatedCharacterInfo
         }

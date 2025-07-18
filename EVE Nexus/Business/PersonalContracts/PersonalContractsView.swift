@@ -1136,9 +1136,34 @@ struct ContractRow: View {
                         .lineLimit(1)
                     }
                     Spacer()
-                    Text("\(timeFormatter.string(from: contract.date_issued)) (UTC+0)")
-                        .font(.caption)
-                        .foregroundColor(.gray)
+                    // 只对未决合同显示剩余时间
+                    if contract.status == "outstanding" {
+                        // 计算剩余天数
+                        let remainingDays = Calendar.current.dateComponents(
+                            [.day], 
+                            from: Date(), 
+                            to: contract.date_expired
+                        ).day ?? 0
+                        
+                        if remainingDays > 0 {
+                            Text("\(timeFormatter.string(from: contract.date_issued)) (\(String(format: NSLocalizedString("Contract_Days_Remaining", comment: ""), remainingDays)))")
+                                .font(.caption)
+                                .foregroundColor(.gray)
+                        } else if remainingDays == 0 {
+                            Text("\(timeFormatter.string(from: contract.date_issued)) (\(NSLocalizedString("Contract_Expires_Today", comment: "")))")
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        } else {
+                            Text("\(timeFormatter.string(from: contract.date_issued)) (\(NSLocalizedString("Contract_Expired", comment: "")))")
+                                .font(.caption)
+                                .foregroundColor(.red)
+                        }
+                    } else {
+                        // 非未决合同只显示发布时间
+                        Text("\(timeFormatter.string(from: contract.date_issued))")
+                            .font(.caption)
+                            .foregroundColor(.gray)
+                    }
                 }
             }
             .padding(.vertical, 2)

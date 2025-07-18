@@ -253,6 +253,13 @@ struct AssetItemView: View {
                     HStack(spacing: 4) {
                         if let itemInfo = itemInfo {
                             Text(itemInfo.name).lineLimit(1)
+                                .contextMenu {
+                                    Button {
+                                        UIPasteboard.general.string = itemInfo.name
+                                    } label: {
+                                        Label(NSLocalizedString("Misc_Copy_Item_Name", comment: ""), systemImage: "doc.on.doc")
+                                    }
+                                }
                             if showCustomName, let customName = node.name, node.items != nil,
                                 !customName.isEmpty, customName != "None"
                             {

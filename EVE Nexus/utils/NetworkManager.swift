@@ -371,14 +371,14 @@ class NetworkManager: NSObject, @unchecked Sendable {
     ///   - characterId: 角色ID，用于获取访问令牌
     ///   - maxConcurrentPages: 最大并发请求数
     ///   - decoder: 用于解码数据的闭包
-    ///   - progressCallback: 进度回调闭包
+    ///   - progressCallback: 进度回调闭包，提供当前页数和总页数
     /// - Returns: 解码后的数据数组
     func fetchPaginatedData<T>(
         from baseUrl: URL,
         characterId: Int,
         maxConcurrentPages: Int = 3,
         decoder: @escaping (Data) throws -> [T],
-        progressCallback: ((Int) -> Void)? = nil
+        progressCallback: ((Int, Int) -> Void)? = nil
     ) async throws -> [T] {
         var allItems: [T] = []
 
@@ -389,7 +389,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
             throw NetworkError.invalidURL
         }
 
-        progressCallback?(1)
         Logger.info("开始获取第1页数据")
 
         // 获取第一页数据和总页数
@@ -398,6 +397,8 @@ class NetworkManager: NSObject, @unchecked Sendable {
             characterId: characterId,
             timeouts: [2, 10, 15, 15, 15]
         )
+
+        progressCallback?(1, totalPages)
 
         let firstPageItems = try decoder(firstPageData)
         Logger.info("成功获取第1页数据，本页包含\(firstPageItems.count)个项目")
@@ -426,7 +427,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
                                 throw NetworkError.invalidURL
                             }
 
-                            progressCallback?(page)
                             Logger.info("开始获取第\(page)页数据")
 
                             let data = try await self.fetchDataWithToken(
@@ -452,6 +452,9 @@ class NetworkManager: NSObject, @unchecked Sendable {
                         allItems.append(contentsOf: result.items)
                         completedPages.insert(result.page)
                         inProgressPages -= 1
+                        
+                        // 更新进度回调
+                        progressCallback?(completedPages.count, totalPages)
 
                         // 如果还有更多页面要获取，添加新任务
                         if currentPage <= totalPages {
@@ -465,7 +468,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
                                     throw NetworkError.invalidURL
                                 }
 
-                                progressCallback?(page)
                                 Logger.info("开始获取第\(page)页数据")
 
                                 let data = try await self.fetchDataWithToken(

@@ -429,9 +429,18 @@ struct CharacterSkillsView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                         }
-                        Text(NSLocalizedString("Main_Skills_Optimal_Attributes_Note", comment: ""))
-                            .font(.caption2)
-                            .foregroundColor(.secondary)
+                        
+                        // 只在检测到加速器时显示注释信息
+                        if let attrs = characterAttributes,
+                           let implants = implantBonuses,
+                           SkillTrainingCalculator.detectBoosterBonus(
+                               currentAttributes: attrs,
+                               implantBonuses: implants
+                           ) > 0 {
+                            Text(NSLocalizedString("Main_Skills_Optimal_Attributes_Note", comment: ""))
+                                .font(.caption2)
+                                .foregroundColor(.secondary)
+                        }
                     }
                 }
             } header: {
@@ -503,6 +512,15 @@ struct CharacterSkillsView: View {
 
                 if let progress = calculateProgress(item) {
                     skillProgressView(item: item, progress: progress)
+                }
+            }
+        }
+        .contextMenu {
+            if let skillName = skillNames[item.skill_id] {
+                Button {
+                    UIPasteboard.general.string = skillName
+                } label: {
+                    Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
                 }
             }
         }

@@ -4,6 +4,7 @@ struct CharacterAffiliation: Codable {
     let character_id: Int
     let corporation_id: Int
     let alliance_id: Int?
+    let faction_id: Int?
 }
 
 class CharacterAffiliationAPI {

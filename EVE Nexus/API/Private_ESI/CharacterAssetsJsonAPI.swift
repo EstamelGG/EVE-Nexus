@@ -196,8 +196,8 @@ public class CharacterAssetsJsonAPI {
             characterId: characterId,
             maxConcurrentPages: 3,
             decoder: { try JSONDecoder().decode([CharacterAsset].self, from: $0) },
-            progressCallback: { page in
-                progressCallback?(.loading(page: page))
+            progressCallback: { currentPage, totalPages in
+                progressCallback?(.loading(page: currentPage))
             }
         )
     }

@@ -2,6 +2,149 @@ import SafariServices
 import SwiftUI
 import WebKit
 
+// 带有组织徽章的角色头像组件
+struct CharacterAvatarWithBadges: View {
+    let character: EVECharacterInfo
+    let portrait: UIImage?
+    let isRefreshing: Bool
+    let refreshTokenhasExpired: Bool
+    @State private var factionIcon: UIImage?
+    @State private var corporationIcon: UIImage?
+    @State private var allianceIcon: UIImage?
+    
+    private let avatarSize: CGFloat = 64
+    private let badgeSize: CGFloat = 20
+    
+    var body: some View {
+        ZStack {
+            // 主要头像
+            if let portrait = portrait {
+                Image(uiImage: portrait)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: avatarSize, height: avatarSize)
+                    .clipShape(Circle())
+            } else {
+                Image("default_char")
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: avatarSize, height: avatarSize)
+                    .clipShape(Circle())
+            }
+            
+            // 刷新或过期状态覆盖层
+            if isRefreshing {
+                Circle()
+                    .fill(Color.black.opacity(0.6))
+                    .frame(width: avatarSize, height: avatarSize)
+                
+                ProgressView()
+                    .scaleEffect(0.8)
+            } else if refreshTokenhasExpired {
+                TokenExpiredOverlay()
+            }
+        }
+        .overlay(
+            Circle()
+                .stroke(Color.primary.opacity(0.2), lineWidth: 3)
+        )
+        .background(
+            Circle()
+                .fill(Color.primary.opacity(0.05))
+        )
+        .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
+        .padding(4)
+        .overlay(
+            // 在这里添加小图标作为overlay，这样它们会显示在最上层
+            ZStack {
+                // 势力图标 (左上角)
+                if let factionIcon = factionIcon {
+                    Image(uiImage: factionIcon)
+                        .resizable()
+                        .frame(width: badgeSize, height: badgeSize)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.primary.opacity(0.8), lineWidth: 1))
+                        .background(Circle().fill(Color(UIColor.systemBackground)))
+                        .offset(x: -avatarSize/2 + badgeSize/2, y: -avatarSize/2 + badgeSize/2)
+                }
+                
+                // 军团图标 (左下角)
+                if let corporationIcon = corporationIcon {
+                    Image(uiImage: corporationIcon)
+                        .resizable()
+                        .frame(width: badgeSize, height: badgeSize)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.primary.opacity(0.8), lineWidth: 1))
+                        .background(Circle().fill(Color(UIColor.systemBackground)))
+                        .offset(x: -avatarSize/2 + badgeSize/2, y: avatarSize/2 - badgeSize/2)
+                }
+                
+                // 联盟图标 (右下角)
+                if let allianceIcon = allianceIcon {
+                    Image(uiImage: allianceIcon)
+                        .resizable()
+                        .frame(width: badgeSize, height: badgeSize)
+                        .clipShape(Circle())
+                        .overlay(Circle().stroke(Color.primary.opacity(0.8), lineWidth: 1))
+                        .background(Circle().fill(Color(UIColor.systemBackground)))
+                        .offset(x: avatarSize/2 - badgeSize/2, y: avatarSize/2 - badgeSize/2)
+                }
+            }
+        )
+        .onAppear {
+            loadOrganizationIcons()
+        }
+        .onChange(of: character.CharacterID) { _, _ in
+            loadOrganizationIcons()
+        }
+    }
+    
+    private func loadOrganizationIcons() {
+        // 加载势力图标
+        if let factionId = character.factionId {
+            Task {
+                let query = "SELECT iconName FROM factions WHERE id = ?"
+                if case let .success(rows) = DatabaseManager.shared.executeQuery(query, parameters: [factionId]),
+                   let row = rows.first,
+                   let iconName = row["iconName"] as? String {
+                    let icon = IconManager.shared.loadUIImage(for: iconName)
+                    await MainActor.run {
+                        self.factionIcon = icon
+                    }
+                }
+            }
+        }
+        
+        // 加载军团图标
+        if let corporationId = character.corporationId {
+            Task {
+                do {
+                    let icon = try await CorporationAPI.shared.fetchCorporationLogo(corporationId: corporationId, size: 64)
+                    await MainActor.run {
+                        self.corporationIcon = icon
+                    }
+                } catch {
+                    Logger.error("加载军团图标失败: \(error)")
+                }
+            }
+        }
+        
+        // 加载联盟图标
+        if let allianceId = character.allianceId {
+            Task {
+                do {
+                    let icon = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId, size: 64)
+                    await MainActor.run {
+                        self.allianceIcon = icon
+                    }
+                } catch {
+                    Logger.error("加载联盟图标失败: \(error)")
+                }
+            }
+        }
+    }
+}
+
 struct AccountsView: View {
     @StateObject private var viewModel: EVELoginViewModel
     let mainViewModel: MainViewModel
@@ -539,6 +682,16 @@ struct AccountsView: View {
                         ) {
                             viewModel.characterPortraits[auth.character.CharacterID] = portrait
                         }
+                        
+                        // 尝试从缓存获取角色公共信息（组织信息）
+                        if let publicInfo = try? await CharacterAPI.shared.fetchCharacterPublicInfo(
+                            characterId: auth.character.CharacterID,
+                            forceRefresh: false
+                        ) {
+                            viewModel.characters[index].corporationId = publicInfo.corporation_id
+                            viewModel.characters[index].allianceId = publicInfo.alliance_id
+                            viewModel.characters[index].factionId = publicInfo.faction_id
+                        }
                     }
                 }
             }
@@ -638,10 +791,13 @@ struct AccountsView: View {
                             async let locationTask = service.getLocation(
                                 id: characterAuth.character.CharacterID, forceRefresh: true
                             )
+                            async let publicInfoTask = CharacterAPI.shared.fetchCharacterPublicInfo(
+                                characterId: characterAuth.character.CharacterID, forceRefresh: true
+                            )
 
                             // 等待所有数据获取完成
-                            let ((skillsResponse, queue), balance, portrait, location) = try await (
-                                skillInfoTask, walletTask, portraitTask, locationTask
+                            let ((skillsResponse, queue), balance, portrait, location, publicInfo) = try await (
+                                skillInfoTask, walletTask, portraitTask, locationTask, publicInfoTask
                             )
 
                             // 更新UI
@@ -649,6 +805,11 @@ struct AccountsView: View {
                                 if let index = self.viewModel.characters.firstIndex(where: {
                                     $0.CharacterID == characterAuth.character.CharacterID
                                 }) {
+                                    // 更新组织信息
+                                    self.viewModel.characters[index].corporationId = publicInfo.corporation_id
+                                    self.viewModel.characters[index].allianceId = publicInfo.alliance_id
+                                    self.viewModel.characters[index].factionId = publicInfo.faction_id
+                                    
                                     // 更新技能信息
                                     self.viewModel.characters[index].totalSkillPoints =
                                         skillsResponse.total_sp
@@ -919,10 +1080,13 @@ struct AccountsView: View {
             async let locationTask = service.getLocation(
                 id: character.CharacterID, forceRefresh: true
             )
+            async let publicInfoTask = CharacterAPI.shared.fetchCharacterPublicInfo(
+                characterId: character.CharacterID, forceRefresh: true
+            )
 
             // 等待所有数据获取完成
-            let ((skillsResponse, queue), balance, portrait, location) = try await (
-                skillInfoTask, walletTask, portraitTask, locationTask
+            let ((skillsResponse, queue), balance, portrait, location, publicInfo) = try await (
+                skillInfoTask, walletTask, portraitTask, locationTask, publicInfoTask
             )
 
             // 更新UI
@@ -930,6 +1094,11 @@ struct AccountsView: View {
                 if let index = self.viewModel.characters.firstIndex(where: {
                     $0.CharacterID == character.CharacterID
                 }) {
+                    // 更新组织信息
+                    self.viewModel.characters[index].corporationId = publicInfo.corporation_id
+                    self.viewModel.characters[index].allianceId = publicInfo.alliance_id
+                    self.viewModel.characters[index].factionId = publicInfo.faction_id
+                    
                     // 更新技能信息
                     self.viewModel.characters[index].totalSkillPoints = skillsResponse.total_sp
                     self.viewModel.characters[index].unallocatedSkillPoints =
@@ -1003,76 +1172,34 @@ struct CharacterRowView: View {
     let formatISK: (Double) -> String
     let formatSkillPoints: (Int) -> String
     let formatRemainingTime: (TimeInterval) -> String
+    
+    // 新增状态变量用于存储势力信息
+    @State private var factionInfo: (name: String, faction_id: Int, iconName: String, rank: Int?)?
 
     var body: some View {
         HStack {
-            if let portrait = portrait {
-                ZStack {
-                    Image(uiImage: portrait)
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 64, height: 64)
-                        .clipShape(Circle())
-
-                    if isRefreshing {
-                        Circle()
-                            .fill(Color.black.opacity(0.6))
-                            .frame(width: 64, height: 64)
-
-                        ProgressView()
-                            .scaleEffect(0.8)
-                    } else if refreshTokenhasExpired {
-                        // 使用TokenExpiredOverlay组件
-                        TokenExpiredOverlay()
-                    }
-                }
-                .overlay(
-                    Circle()
-                        .stroke(Color.primary.opacity(0.2), lineWidth: 3)
-                )
-                .background(
-                    Circle()
-                        .fill(Color.primary.opacity(0.05))
-                )
-                .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
-                .padding(4)
-            } else {
-                ZStack {
-                    Image("default_char")
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(width: 64, height: 64)
-                        .clipShape(Circle())
-
-                    if isRefreshing {
-                        Circle()
-                            .fill(Color.black.opacity(0.6))
-                            .frame(width: 64, height: 64)
-
-                        ProgressView()
-                            .scaleEffect(0.8)
-                    } else if refreshTokenhasExpired {
-                        // 使用TokenExpiredOverlay组件
-                        TokenExpiredOverlay()
-                    }
-                }
-                .overlay(
-                    Circle()
-                        .stroke(Color.primary.opacity(0.2), lineWidth: 3)
-                )
-                .background(
-                    Circle()
-                        .fill(Color.primary.opacity(0.05))
-                )
-                .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
-                .padding(4)
-            }
+            CharacterAvatarWithBadges(
+                character: character,
+                portrait: portrait,
+                isRefreshing: isRefreshing,
+                refreshTokenhasExpired: refreshTokenhasExpired
+            )
 
             VStack(alignment: .leading, spacing: 2) {
+                // HStack(spacing: 4) {
+                //     if let faction = factionInfo, let rank = faction.rank {
+                //         IconManager.shared.loadImage(for: "\(faction.faction_id)_\(rank)")
+                //             .resizable()
+                //             .frame(width: 20, height: 20)
+                //             .cornerRadius(2)
+                //     }
+                //     Text(character.CharacterName)
+                //         .font(.headline)
+                //         .frame(height: 20)
+                // }
                 Text(character.CharacterName)
-                    .font(.headline)
-                    .frame(height: 20)
-
+                        .font(.headline)
+                        .frame(height: 20)
                 VStack(alignment: .leading, spacing: 2) {
                     if isRefreshing {
                         // 位置信息占位
@@ -1141,7 +1268,7 @@ struct CharacterRowView: View {
                                 if let unallocatedSP = character.unallocatedSkillPoints,
                                     unallocatedSP > 0
                                 {
-                                    "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) SP (Free: \(formatSkillPoints(unallocatedSP)))"
+                                    "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) SP (\(NSLocalizedString("Main_Skill_Queue_Free_SP", comment: "")) \(formatSkillPoints(unallocatedSP)))"
                                 } else {
                                     "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) SP"
                                 }
@@ -1253,6 +1380,52 @@ struct CharacterRowView: View {
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
         .padding(.vertical, 4)
+        .onAppear {
+            loadFactionInfo()
+        }
+        .onChange(of: character.CharacterID) { _, _ in
+            loadFactionInfo()
+        }
+    }
+    
+    // 加载势力信息的方法
+    private func loadFactionInfo() {
+        Task {
+            do {
+                // 获取角色公共信息
+                let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(
+                    characterId: character.CharacterID
+                )
+                
+                // 如果角色有势力信息
+                if let factionId = publicInfo.faction_id {
+                    // 从数据库获取势力信息
+                    let query = "SELECT name, iconName FROM factions WHERE id = ?"
+                    if case let .success(rows) = DatabaseManager.shared.executeQuery(query, parameters: [factionId]),
+                       let row = rows.first,
+                       let name = row["name"] as? String,
+                       let iconName = row["iconName"] as? String {
+                        
+                        // 获取势力战争统计数据
+                        let fwStats = try? await CharacterFWStatsAPI.shared.getFWStats(
+                            characterId: character.CharacterID, 
+                            forceRefresh: false
+                        )
+                        
+                        await MainActor.run {
+                            self.factionInfo = (
+                                name: name, 
+                                faction_id: factionId, 
+                                iconName: iconName, 
+                                rank: fwStats?.current_rank
+                            )
+                        }
+                    }
+                }
+            } catch {
+                Logger.error("加载角色势力信息失败: \(error)")
+            }
+        }
     }
 }
 

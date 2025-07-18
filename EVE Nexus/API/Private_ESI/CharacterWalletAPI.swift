@@ -404,8 +404,8 @@ class CharacterWalletAPI {
                 }
                 return entries
             },
-            progressCallback: { page in
-                Logger.debug("正在获取第 \(page) 页钱包流水数据")
+            progressCallback: { currentPage, totalPages in
+                Logger.debug("正在获取第 \(currentPage)/\(totalPages) 页钱包流水数据")
             }
         )
 

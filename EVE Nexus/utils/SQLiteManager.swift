@@ -35,14 +35,22 @@ class SQLiteManager {
             dbLock.lock()
             defer { dbLock.unlock() }
 
-            if let databasePath = Bundle.main.path(forResource: name, ofType: "sqlite") {
-                if sqlite3_open(databasePath, &db) == SQLITE_OK {
-                    Logger.info("数据库连接成功: \(databasePath)")
-                    return true
-                }
+            guard let databasePath = Bundle.main.path(forResource: name, ofType: "sqlite") else {
+                let pathError = "[SQLite] 数据库文件不存在: \(name).sqlite"
+                Logger.error(pathError)
+                return false
             }
-            Logger.error("数据库连接失败")
-            return false
+            
+            let result = sqlite3_open(databasePath, &db)
+            if result == SQLITE_OK {
+                Logger.info("数据库连接成功: \(databasePath)")
+                return true
+            } else {
+                let errorMessage = String(cString: sqlite3_errmsg(db))
+                let connectionError = "[SQLite] 数据库连接失败 - 路径: \(databasePath), 错误代码: \(result), 错误信息: \(errorMessage)"
+                Logger.error(connectionError)
+                return false
+            }
         }
     }
 
@@ -56,6 +64,10 @@ class SQLiteManager {
     private func addQueryLog(query: String, parameters: [Any]) {
         logsQueue.async {
             self.queryLogs.append((query: query, parameters: parameters, timestamp: Date()))
+            // 限制日志条数，避免内存过度使用
+            if self.queryLogs.count > 1000 {
+                self.queryLogs.removeFirst(100)
+            }
         }
     }
 
@@ -103,38 +115,53 @@ class SQLiteManager {
             // 准备语句
             if sqlite3_prepare_v2(db, query, -1, &statement, nil) != SQLITE_OK {
                 let errorMessage = String(cString: sqlite3_errmsg(db))
-                Logger.error("[StaticDB] 准备语句失败: \(errorMessage)")
-                return .error("[StaticDB] 准备语句失败: \(errorMessage)")
+                let detailedError = "[SQLite] 准备语句失败 - SQL: \(query) - 错误: \(errorMessage)"
+                Logger.error(detailedError)
+                return .error(detailedError)
             }
 
             // 绑定参数 - 使用原始参数顺序，而不是排序后的参数
             for (index, parameter) in parameters.enumerated() {
                 let parameterIndex = Int32(index + 1)
+                var bindResult: Int32 = SQLITE_OK
+                
                 switch parameter {
                 case let value as Int:
-                    sqlite3_bind_int64(statement, parameterIndex, Int64(value))
+                    bindResult = sqlite3_bind_int64(statement, parameterIndex, Int64(value))
                 case let value as Double:
-                    sqlite3_bind_double(statement, parameterIndex, value)
+                    bindResult = sqlite3_bind_double(statement, parameterIndex, value)
                 case let value as String:
-                    sqlite3_bind_text(
+                    bindResult = sqlite3_bind_text(
                         statement, parameterIndex, (value as NSString).utf8String, -1, nil
                     )
                 case let value as Data:
                     value.withUnsafeBytes { bytes in
-                        _ = sqlite3_bind_blob(
+                        bindResult = sqlite3_bind_blob(
                             statement, parameterIndex, bytes.baseAddress, Int32(value.count), nil
                         )
                     }
                 case is NSNull:
-                    sqlite3_bind_null(statement, parameterIndex)
+                    bindResult = sqlite3_bind_null(statement, parameterIndex)
                 default:
                     sqlite3_finalize(statement)
-                    return .error("不支持的参数类型: \(type(of: parameter))")
+                    let typeError = "[SQLite] 不支持的参数类型: \(type(of: parameter)) - 参数索引: \(index) - SQL: \(query)"
+                    Logger.error(typeError)
+                    return .error(typeError)
+                }
+                
+                // 检查参数绑定是否成功
+                if bindResult != SQLITE_OK {
+                    let errorMessage = String(cString: sqlite3_errmsg(db))
+                    let bindError = "[SQLite] 参数绑定失败 - 参数索引: \(index), 参数值: \(parameter), 错误: \(errorMessage) - SQL: \(query)"
+                    Logger.error(bindError)
+                    sqlite3_finalize(statement)
+                    return .error(bindError)
                 }
             }
 
             // 执行查询
-            while sqlite3_step(statement) == SQLITE_ROW {
+            var stepResult = sqlite3_step(statement)
+            while stepResult == SQLITE_ROW {
                 var row: [String: Any] = [:]
                 let columnCount = sqlite3_column_count(statement)
 
@@ -147,6 +174,16 @@ class SQLiteManager {
 
                 // Logger.debug("查询结果行: \(row)")
                 results.append(row)
+                stepResult = sqlite3_step(statement)
+            }
+            
+            // 检查 SQL 执行是否出错
+            if stepResult != SQLITE_DONE {
+                let errorMessage = String(cString: sqlite3_errmsg(db))
+                let executionError = "[SQLite] SQL执行失败 - 错误代码: \(stepResult), 错误信息: \(errorMessage) - SQL: \(query) - 参数: \(parameters)"
+                Logger.error(executionError)
+                sqlite3_finalize(statement)
+                return .error(executionError)
             }
 
             // 释放语句
@@ -196,24 +233,36 @@ class SQLiteManager {
     }
 
     private func getValue(from statement: OpaquePointer?, column: Int32) -> Any? {
+        guard let statement = statement else {
+            Logger.error("[SQLite] getValue: statement 为 nil")
+            return nil
+        }
+        
         let type = sqlite3_column_type(statement, column)
+        let columnName = String(cString: sqlite3_column_name(statement, column))
+        
         switch type {
         case SQLITE_INTEGER:
             return Int(sqlite3_column_int64(statement, column))
         case SQLITE_FLOAT:
             return Double(sqlite3_column_double(statement, column))
         case SQLITE_TEXT:
-            guard let cString = sqlite3_column_text(statement, column) else { return nil }
+            guard let cString = sqlite3_column_text(statement, column) else {
+                Logger.error("[SQLite] getValue: 无法获取 TEXT 类型数据，列名: \(columnName)")
+                return nil
+            }
             return String(cString: cString)
         case SQLITE_NULL:
             return nil
         case SQLITE_BLOB:
-            if let blob = sqlite3_column_blob(statement, column) {
-                let size = Int(sqlite3_column_bytes(statement, column))
-                return Data(bytes: blob, count: size)
+            guard let blob = sqlite3_column_blob(statement, column) else {
+                Logger.error("[SQLite] getValue: 无法获取 BLOB 类型数据，列名: \(columnName)")
+                return nil
             }
-            return nil
+            let size = Int(sqlite3_column_bytes(statement, column))
+            return Data(bytes: blob, count: size)
         default:
+            Logger.error("[SQLite] getValue: 未知的列类型 \(type)，列名: \(columnName)")
             return nil
         }
     }
