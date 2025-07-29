@@ -9,11 +9,7 @@ struct CorporationLogoView: View {
     var body: some View {
         ZStack {
             if !iconFileName.isEmpty {
-                IconManager.shared.loadImage(for: iconFileName)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 36, height: 36)
-                    .cornerRadius(6)
+                CorporationIconView(corporationId: corporationId, iconFileName: iconFileName, size: 36)
             } else if let logo = corporationLogo {
                 Image(uiImage: logo)
                     .resizable()

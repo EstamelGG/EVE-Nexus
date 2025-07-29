@@ -112,7 +112,7 @@ class ServerStatusAPI {
             return cachedStatus
         }
 
-        let baseURL = "https://esi.evetech.net/latest/status/?datasource=tranquility"
+        let baseURL = "https://esi.evetech.net/status/?datasource=tranquility"
         let components = URLComponents(string: baseURL)
         guard let url = components?.url else {
             throw ServerStatusAPIError.invalidURL

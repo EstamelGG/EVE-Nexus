@@ -147,6 +147,7 @@ struct AllImplantsSelector: View {
             for row in rows {
                 if let id = row["id"] as? Int,
                    let name = row["name"] as? String,
+                   let enName = row["en_name"] as? String,
                    let categoryId = row["categoryID"] as? Int,
                    let slotNumber = row["slotNumber"] as? Double
                 {
@@ -175,6 +176,7 @@ struct AllImplantsSelector: View {
                     let item = DatabaseListItem(
                         id: id,
                         name: name,
+                        enName: enName,
                         iconFileName: iconFileName,
                         published: published == 1,
                         categoryID: categoryId,

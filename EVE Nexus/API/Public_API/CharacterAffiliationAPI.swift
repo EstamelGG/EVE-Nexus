@@ -13,7 +13,7 @@ class CharacterAffiliationAPI {
 
     func fetchAffiliations(characterIds: [Int]) async throws -> [CharacterAffiliation] {
         let urlString =
-            "https://esi.evetech.net/latest/characters/affiliation/?datasource=tranquility"
+            "https://esi.evetech.net/characters/affiliation/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }

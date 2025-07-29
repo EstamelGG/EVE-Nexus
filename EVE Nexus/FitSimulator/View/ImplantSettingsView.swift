@@ -229,6 +229,7 @@ struct ImplantSettingsView: View {
             let item = DatabaseListItem(
                 id: implant.typeId,
                 name: implant.name,
+                enName: nil,
                 iconFileName: implant.iconFileName ?? "",
                 published: true,
                 categoryID: 0,
@@ -509,6 +510,7 @@ struct ImplantSettingsView: View {
                 let item = DatabaseListItem(
                     id: typeId,
                     name: info.name,
+                    enName: nil,
                     iconFileName: info.iconFile,
                     published: true,
                     categoryID: 0,

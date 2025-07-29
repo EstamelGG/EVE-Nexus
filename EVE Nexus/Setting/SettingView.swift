@@ -69,6 +69,7 @@ class CacheManager {
         "mining_ledger_",
         "industry_jobs_",
         "location_info_",
+        "selectedLanguageMapLanguages",
     ]
 
     // 定义需要清理的目录列表
@@ -86,7 +87,9 @@ class CacheManager {
         "fw",  // 势力战争
         "CorpCache",  // 军团缓存
         "char_standings",  // 人物声望
-        "Structure_Orders"  // 建筑订单
+        "Structure_Orders",  // 建筑订单
+        "IndustryJobs", // 工业项目
+        "CharacterSkills" // 角色技能相关缓存（技能、技能队列、属性、克隆体、植入体、忠诚点）
     ]
 
     // 获取缓存目录列表

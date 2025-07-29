@@ -103,7 +103,7 @@ struct ImplantSelectorView: View {
         
         // 获取指定槽位的植入体信息
         let query = """
-            SELECT t.type_id as id, t.name, t.published, t.icon_filename as iconFileName,
+            SELECT t.type_id as id, t.name, t.en_name, t.published, t.icon_filename as iconFileName,
                    t.categoryID, t.groupID, t.group_name as groupName
             FROM types t
             JOIN typeAttributes ta ON t.type_id = ta.type_id
@@ -120,6 +120,7 @@ struct ImplantSelectorView: View {
             for row in rows {
                 if let id = row["id"] as? Int,
                    let name = row["name"] as? String,
+                   let enName = row["en_name"] as? String,
                    let categoryId = row["categoryID"] as? Int
                 {
                     let iconFileName = (row["iconFileName"] as? String) ?? "not_found"
@@ -130,6 +131,7 @@ struct ImplantSelectorView: View {
                     let item = DatabaseListItem(
                         id: id,
                         name: name,
+                        enName: enName,
                         iconFileName: iconFileName,
                         published: published == 1,
                         categoryID: categoryId,

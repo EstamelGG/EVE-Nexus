@@ -393,18 +393,24 @@ struct AccountsView: View {
                         Task {
                             // 强制刷新 scopes
                             Logger.info("手动强制刷新 scopes")
-                            let _ = await ScopeManager.shared.getLatestScopes(forceRefresh: true)
+                            let scopeResult = await ScopeManager.shared.getLatestScopesWithSource(forceRefresh: true)
 
                             // 更新 EVELogin 中的 scopes 配置
-                            let scopes = await EVELogin.shared.getScopes()
-                            Logger.info("成功刷新 scopes，获取到 \(scopes.count) 个权限")
+                            await MainActor.run {
+                                EVELogin.shared.config?.scopes = scopeResult.scopes
+                            }
+                            Logger.info("成功刷新 scopes，获取到 \(scopeResult.scopes.count) 个权限，来源: \(scopeResult.source)")
 
                             // 显示成功提示
                             await MainActor.run {
                                 isRefreshingScopes = false  // 重置刷新状态
+                                
+                                // 根据数据来源选择不同的消息
+                                let messageKey = scopeResult.source == .network ? "Scopes_Refresh_Success" : "Scopes_Local_Refresh_Success"
                                 successMessage = String(
-                                    format: NSLocalizedString(
-                                        "Scopes_Refresh_Success", comment: ""), scopes.count)
+                                    format: NSLocalizedString(messageKey, comment: ""), 
+                                    scopeResult.scopes.count
+                                )
                                 showingSuccess = true
                             }
                         }

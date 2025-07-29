@@ -108,69 +108,69 @@ public class CharacterSkillsAPI {
     public static let shared = CharacterSkillsAPI()
     private init() {}
 
-    // 保存技能数据到数据库
+    // 获取技能缓存文件路径
+    private func getSkillsCacheFilePath(characterId: Int) -> URL {
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let characterSkillsPath = documentsPath.appendingPathComponent("CharacterSkills")
+        
+        // 创建目录（如果不存在）
+        try? FileManager.default.createDirectory(at: characterSkillsPath, withIntermediateDirectories: true)
+        
+        return characterSkillsPath.appendingPathComponent("\(characterId)_all_skills.json")
+    }
+    
+    // 保存技能数据到本地文件
     private func saveSkillsToCache(characterId: Int, skills: CharacterSkillsResponse) -> Bool {
         do {
             let encoder = JSONEncoder()
             let jsonData = try encoder.encode(skills)
-
-            guard let jsonString = String(data: jsonData, encoding: .utf8) else {
-                Logger.error("技能数据JSON编码失败")
-                return false
-            }
-
-            let query = """
-                    INSERT OR REPLACE INTO character_skills (
-                        character_id, skills_data, unallocated_sp, total_sp, last_updated
-                    ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
-                """
-
-            if case let .error(error) = CharacterDatabaseManager.shared.executeQuery(
-                query,
-                parameters: [characterId, jsonString, skills.unallocated_sp, skills.total_sp]
-            ) {
-                Logger.error("保存技能数据失败: \(error)")
-                return false
-            }
-
-            Logger.debug("成功保存技能数据 - 角色ID: \(characterId)")
+            
+            let filePath = getSkillsCacheFilePath(characterId: characterId)
+            try jsonData.write(to: filePath)
+            
+            Logger.debug("成功缓存技能数据到文件 - 角色ID: \(characterId), 路径: \(filePath.path)")
             return true
         } catch {
-            Logger.error("技能数据序列化失败: \(error)")
+            Logger.error("保存技能数据到文件失败: \(error)")
             return false
         }
     }
 
-    // 从数据库读取技能数据
+    // 从本地文件读取技能数据
     private func loadSkillsFromCache(characterId: Int) -> CharacterSkillsResponse? {
-        let query = """
-                SELECT skills_data, last_updated 
-                FROM character_skills 
-                WHERE character_id = ? 
-                AND datetime(last_updated) > datetime('now', '-120 minutes')
-            """
-            // 缓存2h
-        if case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
-            query, parameters: [characterId]
-        ),
-            let row = rows.first,
-            let jsonString = row["skills_data"] as? String
-        {
-            do {
-                let decoder = JSONDecoder()
-                let jsonData = jsonString.data(using: .utf8)!
-                let skills = try decoder.decode(CharacterSkillsResponse.self, from: jsonData)
-
-                if let lastUpdated = row["last_updated"] as? String {
-                    Logger.debug("从缓存加载总技能数据 - 角色ID: \(characterId), 更新时间: \(lastUpdated)")
-                }
-
-                return skills
-            } catch {
-                Logger.error("技能数据解析失败: \(error)")
-            }
+        let filePath = getSkillsCacheFilePath(characterId: characterId)
+        
+        // 检查文件是否存在
+        guard FileManager.default.fileExists(atPath: filePath.path) else {
+            return nil
         }
-        return nil
+        
+        // 检查文件修改时间，缓存2小时
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: filePath.path)
+            if let modificationDate = attributes[.modificationDate] as? Date {
+                let cacheExpirationDate = modificationDate.addingTimeInterval(2 * 60 * 60) // 2小时
+                if Date() > cacheExpirationDate {
+                    Logger.debug("技能缓存已过期 - 角色ID: \(characterId)")
+                    return nil
+                }
+            }
+        } catch {
+            Logger.error("获取文件属性失败: \(error)")
+            return nil
+        }
+        
+        do {
+            let jsonData = try Data(contentsOf: filePath)
+            let decoder = JSONDecoder()
+            let skills = try decoder.decode(CharacterSkillsResponse.self, from: jsonData)
+            
+            Logger.debug("从文件缓存加载技能数据 - 角色ID: \(characterId), 文件路径: \(filePath.path)")
+            return skills
+        } catch {
+            Logger.error("从文件读取技能数据失败: \(error)")
+            return nil
+        }
     }
 
     // 获取角色技能信息
@@ -185,7 +185,7 @@ public class CharacterSkillsAPI {
         }
 
         // 从网络获取数据
-        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/skills/"
+        let urlString = "https://esi.evetech.net/characters/\(characterId)/skills/"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
@@ -198,9 +198,9 @@ public class CharacterSkillsAPI {
         do {
             let skills = try JSONDecoder().decode(CharacterSkillsResponse.self, from: data)
 
-            // 保存到数据库
+            // 保存到本地文件
             if saveSkillsToCache(characterId: characterId, skills: skills) {
-                Logger.debug("成功缓存技能数据")
+                Logger.debug("成功缓存技能数据到文件")
             }
 
             return skills
@@ -210,81 +210,78 @@ public class CharacterSkillsAPI {
         }
     }
 
-    // 保存技能队列到数据库
+    // 获取技能队列缓存文件路径
+    private func getSkillQueueCacheFilePath(characterId: Int) -> URL {
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let characterSkillsPath = documentsPath.appendingPathComponent("CharacterSkills")
+        
+        // 创建目录（如果不存在）
+        try? FileManager.default.createDirectory(at: characterSkillsPath, withIntermediateDirectories: true)
+        
+        return characterSkillsPath.appendingPathComponent("\(characterId)_skill_queue.json")
+    }
+
+    // 保存技能队列到本地文件
     private func saveSkillQueue(characterId: Int, queue: [SkillQueueItem]) -> Bool {
         do {
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .secondsSince1970
             let jsonData = try encoder.encode(queue)
-
-            guard let jsonString = String(data: jsonData, encoding: .utf8) else {
-                Logger.error("技能队列JSON编码失败")
-                return false
-            }
-
-            let query = """
-                    INSERT OR REPLACE INTO character_skill_queue (
-                        character_id, queue_data, last_updated
-                    ) VALUES (?, ?, CURRENT_TIMESTAMP)
-                """
-
-            if case let .error(error) = CharacterDatabaseManager.shared.executeQuery(
-                query,
-                parameters: [characterId, jsonString]
-            ) {
-                Logger.error("保存技能队列失败: \(error)")
-                return false
-            }
-
-            Logger.debug("成功保存技能队列 - 角色ID: \(characterId), 队列长度: \(queue.count)")
+            
+            let filePath = getSkillQueueCacheFilePath(characterId: characterId)
+            try jsonData.write(to: filePath)
+            
+            Logger.debug("成功缓存技能队列到文件 - 角色ID: \(characterId), 路径: \(filePath.path), 队列长度: \(queue.count)")
             return true
         } catch {
-            Logger.error("技能队列序列化失败: \(error)")
+            Logger.error("保存技能队列到文件失败: \(error)")
             return false
         }
     }
 
-    // 从数据库读取技能队列
+    // 从本地文件读取技能队列
     private func loadSkillQueue(characterId: Int) -> [SkillQueueItem]? {
-        let query = """
-                SELECT queue_data, last_updated 
-                FROM character_skill_queue 
-                WHERE character_id = ?
-                AND datetime(last_updated) > datetime('now', '-1 hours')
-            """
-
-        if case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
-            query, parameters: [characterId]
-        ),
-            let row = rows.first,
-            let jsonString = row["queue_data"] as? String
-        {
-            do {
-                let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .secondsSince1970
-                let jsonData = jsonString.data(using: .utf8)!
-                let queue = try decoder.decode([SkillQueueItem].self, from: jsonData)
-
-                // 获取上次更新时间
-                if let lastUpdated = row["last_updated"] as? String {
-                    Logger.debug(
-                        "从缓存加载技能队列 - 角色ID: \(characterId), 更新时间: \(lastUpdated), 队列长度: \(queue.count)"
-                    )
-                }
-
-                return queue
-            } catch {
-                Logger.error("技能队列解析失败: \(error)")
-            }
+        let filePath = getSkillQueueCacheFilePath(characterId: characterId)
+        
+        // 检查文件是否存在
+        guard FileManager.default.fileExists(atPath: filePath.path) else {
+            return nil
         }
-        return nil
+        
+        // 检查文件修改时间，缓存1小时
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: filePath.path)
+            if let modificationDate = attributes[.modificationDate] as? Date {
+                let cacheExpirationDate = modificationDate.addingTimeInterval(60 * 60) // 1小时
+                if Date() > cacheExpirationDate {
+                    Logger.debug("技能队列缓存已过期 - 角色ID: \(characterId)")
+                    return nil
+                }
+            }
+        } catch {
+            Logger.error("获取文件属性失败: \(error)")
+            return nil
+        }
+        
+        do {
+            let jsonData = try Data(contentsOf: filePath)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .secondsSince1970
+            let queue = try decoder.decode([SkillQueueItem].self, from: jsonData)
+            
+            Logger.debug("从文件缓存加载技能队列 - 角色ID: \(characterId), 文件路径: \(filePath.path), 队列长度: \(queue.count)")
+            return queue
+        } catch {
+            Logger.error("从文件读取技能队列失败: \(error)")
+            return nil
+        }
     }
 
     // 从服务器获取技能队列
     private func fetchSkillQueueFromServer(characterId: Int) async throws -> [SkillQueueItem] {
         let url = URL(
             string:
-                "https://esi.evetech.net/latest/characters/\(characterId)/skillqueue/?datasource=tranquility"
+                "https://esi.evetech.net/characters/\(characterId)/skillqueue/?datasource=tranquility"
         )!
 
         let data = try await NetworkManager.shared.fetchDataWithToken(
@@ -312,49 +309,77 @@ public class CharacterSkillsAPI {
         Logger.debug("从服务器获取技能队列 - 角色ID: \(characterId)")
         let queue = try await fetchSkillQueueFromServer(characterId: characterId)
 
-        // 保存到数据库
+        // 保存到本地文件
         if saveSkillQueue(characterId: characterId, queue: queue) {
-            Logger.debug("成功缓存技能队列")
+            Logger.debug("成功缓存技能队列到文件")
         }
 
         return queue
     }
 
-    // 从数据库读取属性数据
-    private func loadAttributesFromCache(characterId: Int) -> CharacterAttributes? {
-        let query = """
-                SELECT charisma, intelligence, memory, perception, willpower,
-                       bonus_remaps, accrued_remap_cooldown_date, last_remap_date, last_updated
-                FROM character_attributes 
-                WHERE character_id = ? 
-                AND datetime(last_updated) > datetime('now', '-1 hours')
-            """
+    // 获取角色属性缓存文件路径
+    private func getAttributesCacheFilePath(characterId: Int) -> URL {
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let characterSkillsPath = documentsPath.appendingPathComponent("CharacterSkills")
+        
+        // 创建目录（如果不存在）
+        try? FileManager.default.createDirectory(at: characterSkillsPath, withIntermediateDirectories: true)
+        
+        return characterSkillsPath.appendingPathComponent("\(characterId)_attributes.json")
+    }
 
-        if case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
-            query, parameters: [characterId]
-        ),
-            let row = rows.first
-        {
-            // 使用 NSNumber 转换来处理不同的数字类型
-            let charisma = (row["charisma"] as? NSNumber)?.intValue ?? 19
-            let intelligence = (row["intelligence"] as? NSNumber)?.intValue ?? 20
-            let memory = (row["memory"] as? NSNumber)?.intValue ?? 20
-            let perception = (row["perception"] as? NSNumber)?.intValue ?? 20
-            let willpower = (row["willpower"] as? NSNumber)?.intValue ?? 20
-            let bonusRemaps = (row["bonus_remaps"] as? NSNumber)?.intValue ?? 0
-
-            return CharacterAttributes(
-                charisma: charisma,
-                intelligence: intelligence,
-                memory: memory,
-                perception: perception,
-                willpower: willpower,
-                bonus_remaps: bonusRemaps,
-                accrued_remap_cooldown_date: row["accrued_remap_cooldown_date"] as? String,
-                last_remap_date: row["last_remap_date"] as? String
-            )
+    // 保存角色属性到本地文件
+    private func saveAttributesToCache(characterId: Int, attributes: CharacterAttributes) -> Bool {
+        do {
+            let encoder = JSONEncoder()
+            let jsonData = try encoder.encode(attributes)
+            
+            let filePath = getAttributesCacheFilePath(characterId: characterId)
+            try jsonData.write(to: filePath)
+            
+            Logger.debug("成功缓存角色属性到文件 - 角色ID: \(characterId), 路径: \(filePath.path)")
+            return true
+        } catch {
+            Logger.error("保存角色属性到文件失败: \(error)")
+            return false
         }
-        return nil
+    }
+
+    // 从本地文件读取角色属性
+    private func loadAttributesFromCache(characterId: Int) -> CharacterAttributes? {
+        let filePath = getAttributesCacheFilePath(characterId: characterId)
+        
+        // 检查文件是否存在
+        guard FileManager.default.fileExists(atPath: filePath.path) else {
+            return nil
+        }
+        
+        // 检查文件修改时间，缓存1小时
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: filePath.path)
+            if let modificationDate = attributes[.modificationDate] as? Date {
+                let cacheExpirationDate = modificationDate.addingTimeInterval(60 * 60) // 1小时
+                if Date() > cacheExpirationDate {
+                    Logger.debug("角色属性缓存已过期 - 角色ID: \(characterId)")
+                    return nil
+                }
+            }
+        } catch {
+            Logger.error("获取文件属性失败: \(error)")
+            return nil
+        }
+        
+        do {
+            let jsonData = try Data(contentsOf: filePath)
+            let decoder = JSONDecoder()
+            let attributes = try decoder.decode(CharacterAttributes.self, from: jsonData)
+            
+            Logger.debug("从文件缓存加载角色属性 - 角色ID: \(characterId), 文件路径: \(filePath.path)")
+            return attributes
+        } catch {
+            Logger.error("从文件读取角色属性失败: \(error)")
+            return nil
+        }
     }
 
     /// 获取角色属性点
@@ -376,7 +401,7 @@ public class CharacterSkillsAPI {
         Logger.debug("从服务器获取角色属性 - 角色ID: \(characterId)")
         let url = URL(
             string:
-                "https://esi.evetech.net/latest/characters/\(characterId)/attributes/?datasource=tranquility"
+                "https://esi.evetech.net/characters/\(characterId)/attributes/?datasource=tranquility"
         )!
 
         let data = try await NetworkManager.shared.fetchDataWithToken(
@@ -388,33 +413,9 @@ public class CharacterSkillsAPI {
             let decoder = JSONDecoder()
             let response = try decoder.decode(CharacterAttributes.self, from: data)
 
-            // 保存到数据库
-            let query = """
-                    INSERT OR REPLACE INTO character_attributes (
-                        character_id, charisma, intelligence, memory, perception, willpower,
-                        bonus_remaps, accrued_remap_cooldown_date, last_remap_date, last_updated
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                """
-
-            // 处理可选值，将nil转换为NSNull()
-            let parameters: [Any] = [
-                characterId,
-                response.charisma,
-                response.intelligence,
-                response.memory,
-                response.perception,
-                response.willpower,
-                response.bonus_remaps.map { $0 } ?? NSNull(),
-                response.accrued_remap_cooldown_date.map { $0 } ?? NSNull(),
-                response.last_remap_date.map { $0 } ?? NSNull(),
-            ]
-
-            if case let .error(error) = CharacterDatabaseManager.shared.executeQuery(
-                query, parameters: parameters
-            ) {
-                Logger.error("保存角色属性失败: \(error)")
-            } else {
-                Logger.debug("成功缓存角色属性数据")
+            // 保存到本地文件
+            if saveAttributesToCache(characterId: characterId, attributes: response) {
+                Logger.debug("成功缓存角色属性到文件")
             }
 
             return response

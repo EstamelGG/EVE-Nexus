@@ -202,28 +202,27 @@ struct UpdateLogListView: View {
     @StateObject private var updateLogManager = UpdateLogManager.shared
     
     var body: some View {
-        NavigationView {
-            List {
-                ForEach(updateLogManager.getAllUpdateLogs().reversed()) { log in
-                    NavigationLink(destination: UpdateLogDetailView(updateLog: log)) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text(NSLocalizedString("Update_Log_Version", comment: "版本") + " \(log.version)")
-                                .font(.headline)
-                            
-                            Text(log.date)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            
-                            Text(String(format: NSLocalizedString("Update_Log_Changes_Count", comment: "%d 项更新"), log.changes.count))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.vertical, 4)
+        List {
+            ForEach(updateLogManager.getAllUpdateLogs().reversed()) { log in
+                NavigationLink(destination: UpdateLogDetailView(updateLog: log)) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(NSLocalizedString("Update_Log_Version", comment: "版本") + " \(log.version)")
+                            .font(.headline)
+                        
+                        Text(log.date)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        Text(String(format: NSLocalizedString("Update_Log_Changes_Count", comment: "%d 项更新"), log.changes.count))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
+                    .padding(.vertical, 4)
                 }
             }
         }
         .navigationTitle(NSLocalizedString("Update_Log_History", comment: "更新历史"))
+        .navigationBarTitleDisplayMode(.large)
     }
 }
 

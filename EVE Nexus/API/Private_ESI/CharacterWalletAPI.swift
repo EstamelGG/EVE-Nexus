@@ -186,7 +186,7 @@ class CharacterWalletAPI {
             Logger.info("缓存未命中或已过期,需要从服务器获取钱包数据 - 角色ID: \(characterId)")
         }
 
-        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/wallet/"
+        let urlString = "https://esi.evetech.net/characters/\(characterId)/wallet/"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
@@ -387,7 +387,7 @@ class CharacterWalletAPI {
     // 从服务器获取钱包流水
     private func fetchJournalFromServer(characterId: Int) async throws -> [[String: Any]] {
         let baseUrlString =
-            "https://esi.evetech.net/latest/characters/\(characterId)/wallet/journal/?datasource=tranquility"
+            "https://esi.evetech.net/characters/\(characterId)/wallet/journal/?datasource=tranquility"
         guard let baseUrl = URL(string: baseUrlString) else {
             throw NetworkError.invalidURL
         }
@@ -597,7 +597,7 @@ class CharacterWalletAPI {
     // 从服务器获取交易记录
     private func fetchTransactionsFromServer(characterId: Int) async throws -> [[String: Any]] {
         let urlString =
-            "https://esi.evetech.net/latest/characters/\(characterId)/wallet/transactions/"
+            "https://esi.evetech.net/characters/\(characterId)/wallet/transactions/"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }

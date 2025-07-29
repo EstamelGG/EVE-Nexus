@@ -51,6 +51,7 @@ class SkillCategoryViewModel: ObservableObject {
     @Published var isLoading = true
     @Published var searchText = ""
     @Published var selectedFilter: SkillFilter = .all
+    @Published var isRefreshing = false // 添加下拉刷新状态
 
     private let characterId: Int
     private let databaseManager: DatabaseManager
@@ -86,26 +87,24 @@ class SkillCategoryViewModel: ObservableObject {
         }
     }
 
-    func loadSkills() async {
-        isLoading = true
-        defer { isLoading = false }
-
-        // 1. 从character_skills表获取技能数据
-        let skillsQuery = "SELECT skills_data FROM character_skills WHERE character_id = ?"
-
-        guard
-            case let .success(rows) = characterDatabaseManager.executeQuery(
-                skillsQuery, parameters: [characterId]),
-            let row = rows.first,
-            let skillsJson = row["skills_data"] as? String,
-            let data = skillsJson.data(using: .utf8)
-        else {
-            return
+    func loadSkills(forceRefresh: Bool = false) async {
+        if forceRefresh {
+            isRefreshing = true
+        } else {
+            isLoading = true
+        }
+        
+        defer { 
+            isLoading = false
+            isRefreshing = false
         }
 
         do {
-            let decoder = JSONDecoder()
-            let skillsResponse = try decoder.decode(CharacterSkillsResponse.self, from: data)
+            // 1. 直接调用API获取最新的技能数据
+            let skillsResponse = try await CharacterSkillsAPI.shared.fetchCharacterSkills(
+                characterId: characterId, 
+                forceRefresh: forceRefresh
+            )
 
             // 创建已学习技能的查找字典
             let learnedSkills = Dictionary(
@@ -237,7 +236,7 @@ class SkillCategoryViewModel: ObservableObject {
             }
 
         } catch {
-            Logger.error("解析技能数据失败: \(error)")
+            Logger.error("加载技能数据失败: \(error)")
         }
     }
 
@@ -574,6 +573,10 @@ struct SkillCategoryView: View {
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: NSLocalizedString("Main_Search_Placeholder", comment: "")
         )
+        .refreshable {
+            // 下拉刷新功能
+            await viewModel.loadSkills(forceRefresh: true)
+        }
         .onAppear {
             if isFirstAppear {
                 Task {
@@ -648,6 +651,10 @@ struct SkillGroupDetailView: View {
             }
         }
         .navigationTitle(group.name)
+        .refreshable {
+            // 下拉刷新功能
+            await viewModel.loadSkills(forceRefresh: true)
+        }
         .onAppear {
             Task {
                 await viewModel.loadSkills()

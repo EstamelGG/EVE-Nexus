@@ -155,7 +155,7 @@ class CharacterMiningAPI {
     // 从服务器获取挖矿记录
     private func fetchFromServer(characterId: Int) async throws -> [MiningLedgerEntry] {
         let baseUrlString =
-            "https://esi.evetech.net/latest/characters/\(characterId)/mining/?datasource=tranquility"
+            "https://esi.evetech.net/characters/\(characterId)/mining/?datasource=tranquility"
         guard let baseUrl = URL(string: baseUrlString) else {
             throw NetworkError.invalidURL
         }

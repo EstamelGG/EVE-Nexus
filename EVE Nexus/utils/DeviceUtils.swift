@@ -43,12 +43,6 @@ struct DeviceUtils {
         isIPhone && isLandscape
     }
     
-    // 获取当前界面方向
-    static var currentInterfaceOrientation: UIInterfaceOrientation {
-        let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene
-        return windowScene?.interfaceOrientation ?? .unknown
-    }
-    
     // MARK: - 布局模式相关
     
     // 获取当前布局模式

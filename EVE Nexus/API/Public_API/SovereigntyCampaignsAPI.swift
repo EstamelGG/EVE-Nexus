@@ -65,7 +65,7 @@ class SovereigntyCampaignsAPI {
         }
 
         // 构建URL
-        let baseURL = "https://esi.evetech.net/latest/sovereignty/campaigns/"
+        let baseURL = "https://esi.evetech.net/sovereignty/campaigns/"
         var components = URLComponents(string: baseURL)
         components?.queryItems = [
             URLQueryItem(name: "datasource", value: "tranquility")

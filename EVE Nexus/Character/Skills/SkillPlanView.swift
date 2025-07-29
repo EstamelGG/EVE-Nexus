@@ -400,30 +400,19 @@ struct SkillPlanView: View {
 
     // 添加加载已学习技能的方法
     private func loadLearnedSkills() async {
-        // 从character_skills表获取技能数据
-        let skillsQuery = "SELECT skills_data FROM character_skills WHERE character_id = ?"
-
-        guard
-            case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
-                skillsQuery, parameters: [characterId]
-            ),
-            let row = rows.first,
-            let skillsJson = row["skills_data"] as? String,
-            let data = skillsJson.data(using: .utf8)
-        else {
-            return
-        }
-
         do {
-            let decoder = JSONDecoder()
-            let skillsResponse = try decoder.decode(CharacterSkillsResponse.self, from: data)
+            // 调用API获取技能数据
+            let skillsResponse = try await CharacterSkillsAPI.shared.fetchCharacterSkills(
+                characterId: characterId, 
+                forceRefresh: false
+            )
 
             // 创建技能ID到技能信息的映射
             learnedSkills = Dictionary(
                 uniqueKeysWithValues: skillsResponse.skills.map { ($0.skill_id, $0) })
             Logger.debug("成功加载角色技能数量: \(learnedSkills.count)")
         } catch {
-            Logger.error("解析技能数据失败: \(error)")
+            Logger.error("获取技能数据失败: \(error)")
         }
     }
 }

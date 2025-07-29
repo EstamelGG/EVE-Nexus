@@ -22,7 +22,7 @@ class UniverseAPI {
         Logger.info("开始获取实体名称信息 - IDs: \(ids)")
 
         // 构建请求URL
-        let urlString = "https://esi.evetech.net/latest/universe/names/?datasource=tranquility"
+        let urlString = "https://esi.evetech.net/universe/names/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }

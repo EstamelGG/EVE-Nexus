@@ -273,7 +273,7 @@ class LPStoreAPI {
     
     /// 从ESI API获取LP商店数据
     private func fetchLPStoreDataFromAPI(corporationId: Int) async throws -> Data {
-        let baseURL = "https://esi.evetech.net/latest/loyalty/stores/\(corporationId)/offers/"
+        let baseURL = "https://esi.evetech.net/loyalty/stores/\(corporationId)/offers/"
         var components = URLComponents(string: baseURL)
         components?.queryItems = [
             URLQueryItem(name: "datasource", value: "tranquility")

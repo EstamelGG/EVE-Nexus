@@ -83,32 +83,53 @@ class MainViewModel: ObservableObject {
     // MARK: - Private Properties
 
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
+    // 缓存克隆冷却时间，避免重复计算
+    private var cachedCloneCooldownPeriod: TimeInterval?
+    private var lastCloneCooldownCalculation: Date?
+    private let cloneCooldownCacheTimeout: TimeInterval = 300 // 5分钟缓存
+    
     private var cloneCooldownPeriod: TimeInterval {
-        guard let character = selectedCharacter else { return Constants.baseCloneCooldown }
-
-        // 从character_skills表获取技能数据
-        let query = "SELECT skills_data FROM character_skills WHERE character_id = ?"
-        guard
-            case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
-                query, parameters: [character.CharacterID]
-            ),
-            let row = rows.first,
-            let skillsJson = row["skills_data"] as? String,
-            let data = skillsJson.data(using: .utf8),
-            let skillsResponse = try? JSONDecoder().decode(CharacterSkillsResponse.self, from: data)
-        else {
-            return Constants.baseCloneCooldown
+        // 检查缓存是否有效
+        if let cached = cachedCloneCooldownPeriod,
+           let lastCalculation = lastCloneCooldownCalculation,
+           Date().timeIntervalSince(lastCalculation) < cloneCooldownCacheTimeout {
+            return cached
         }
-
-        // 查找 Advanced Infomorph Psychology 技能等级
-        if let infomorphSkill = skillsResponse.skills.first(where: { $0.skill_id == 33399 }) {
-            // 每级减少1小时，从24小时开始
-            let reductionHours = infomorphSkill.trained_skill_level
-            let remainingHours = max(24 - reductionHours, 1)  // 最少保留1小时冷却时间
-            return Double(remainingHours * Constants.secondsInHour)
-        }
-
+        
+        // 如果没有缓存或缓存过期，返回默认值
+        // 实际的异步计算将在需要时进行
         return Constants.baseCloneCooldown
+    }
+    
+    // 异步计算克隆冷却时间
+    private func calculateCloneCooldownPeriod() async {
+        guard let character = selectedCharacter else { return }
+        
+        do {
+            // 调用API获取技能数据
+            let skillsResponse = try await CharacterSkillsAPI.shared.fetchCharacterSkills(
+                characterId: character.CharacterID,
+                forceRefresh: false
+            )
+            
+            // 查找 Advanced Infomorph Psychology 技能等级
+            var cooldownPeriod = Constants.baseCloneCooldown
+            if let infomorphSkill = skillsResponse.skills.first(where: { $0.skill_id == 33399 }) {
+                // 每级减少1小时，从24小时开始
+                let reductionHours = infomorphSkill.trained_skill_level
+                let remainingHours = max(24 - reductionHours, 1)  // 最少保留1小时冷却时间
+                cooldownPeriod = Double(remainingHours * Constants.secondsInHour)
+            }
+            
+            // 更新缓存
+            await MainActor.run {
+                self.cachedCloneCooldownPeriod = cooldownPeriod
+                self.lastCloneCooldownCalculation = Date()
+            }
+        } catch {
+            Logger.error("获取技能数据失败: \(error)")
+            // 保持默认值
+        }
     }
 
     // MARK: - Cache Management
@@ -137,27 +158,32 @@ class MainViewModel: ObservableObject {
 
     @MainActor
     private func updateCloneStatus(from cloneInfo: CharacterCloneInfo) {
-        if let lastJumpDate = cloneInfo.last_clone_jump_date {
-            let dateFormatter = ISO8601DateFormatter()
-            dateFormatter.formatOptions = [.withInternetDateTime]
+        // 异步计算克隆冷却时间
+        Task {
+            await calculateCloneCooldownPeriod()
+            
+            if let lastJumpDate = cloneInfo.last_clone_jump_date {
+                let dateFormatter = ISO8601DateFormatter()
+                dateFormatter.formatOptions = [.withInternetDateTime]
 
-            if let jumpDate = dateFormatter.date(from: lastJumpDate) {
-                let now = Date()
-                let timeSinceLastJump = now.timeIntervalSince(jumpDate)
+                if let jumpDate = dateFormatter.date(from: lastJumpDate) {
+                    let now = Date()
+                    let timeSinceLastJump = now.timeIntervalSince(jumpDate)
 
-                if timeSinceLastJump >= cloneCooldownPeriod {
-                    cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
-                    cloneCooldownEndDate = nil
-                } else {
-                    // 计算并缓存冷却完成时间，但不使用定时器更新
-                    cloneCooldownEndDate = jumpDate.addingTimeInterval(cloneCooldownPeriod)
-                    // 设置基本状态，具体倒计时由CloneCountdownView组件处理
-                    cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Available", comment: "")
+                    if timeSinceLastJump >= cloneCooldownPeriod {
+                        cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
+                        cloneCooldownEndDate = nil
+                    } else {
+                        // 计算并缓存冷却完成时间，但不使用定时器更新
+                        cloneCooldownEndDate = jumpDate.addingTimeInterval(cloneCooldownPeriod)
+                        // 设置基本状态，具体倒计时由CloneCountdownView组件处理
+                        cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Available", comment: "")
+                    }
                 }
+            } else {
+                cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
+                cloneCooldownEndDate = nil
             }
-        } else {
-            cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Ready", comment: "")
-            cloneCooldownEndDate = nil
         }
     }
 
@@ -443,6 +469,8 @@ class MainViewModel: ObservableObject {
 
         // 清除缓存的数据
         cache.clear()
+        cachedCloneCooldownPeriod = nil
+        lastCloneCooldownCalculation = nil
         cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Available", comment: "")
     }
 

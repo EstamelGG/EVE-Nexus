@@ -18,6 +18,8 @@ struct CorporationDetailView: View {
     @State private var myCorpInfo: (name: String, icon: UIImage?)?
     @State private var myAllianceInfo: (name: String, icon: UIImage?)?
     @State private var standingsLoaded = false
+    @State private var selectedTab = 0  // 添加选项卡状态
+    @State private var allianceHistory: [CorporationAllianceHistory] = []
 
     var body: some View {
         List {
@@ -211,18 +213,32 @@ struct CorporationDetailView: View {
                             }
                     }
                 }
-                Section(header: Text(NSLocalizedString("Standings", comment: ""))) {
-                    StandingsView(
-                        corporationId: corporationId,
-                        character: character,
-                        corporationInfo: corporationInfo,
-                        allianceInfo: allianceInfo,
-                        personalStandings: personalStandings,
-                        corpStandings: corpStandings,
-                        allianceStandings: allianceStandings,
-                        myCorpInfo: myCorpInfo,
-                        myAllianceInfo: myAllianceInfo
-                    )
+                // 添加Picker组件
+                Section {
+                    Picker(selection: $selectedTab, label: Text("")) {
+                        Text(NSLocalizedString("Standings", comment: ""))
+                            .tag(0)
+                        Text(NSLocalizedString("Alliance History", comment: ""))
+                            .tag(1)
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.vertical, 4)
+
+                    if selectedTab == 0 {
+                        StandingsView(
+                            corporationId: corporationId,
+                            character: character,
+                            corporationInfo: corporationInfo,
+                            allianceInfo: allianceInfo,
+                            personalStandings: personalStandings,
+                            corpStandings: corpStandings,
+                            allianceStandings: allianceStandings,
+                            myCorpInfo: myCorpInfo,
+                            myAllianceInfo: myAllianceInfo
+                        )
+                    } else if selectedTab == 1 {
+                        AllianceHistoryView(history: allianceHistory, corporationId: corporationId, corporationLogo: logo)
+                    }
                 }
             }
         }
@@ -240,20 +256,23 @@ struct CorporationDetailView: View {
 
         do {
             // 并发加载所有需要的数据
-            Logger.info("开始并发加载军团信息和Logo")
+            Logger.info("开始并发加载军团信息、Logo和联盟历史")
             async let corporationInfoTask = CorporationAPI.shared.fetchCorporationInfo(
                 corporationId: corporationId, forceRefresh: true
             )
             async let logoTask = CorporationAPI.shared.fetchCorporationLogo(
                 corporationId: corporationId)
+            async let allianceHistoryTask = CorporationAPI.shared.fetchAllianceHistory(
+                corporationId: corporationId)
 
             // 等待所有数据加载完成
-            let (info, logo) = try await (corporationInfoTask, logoTask)
+            let (info, logo, history) = try await (corporationInfoTask, logoTask, allianceHistoryTask)
             Logger.info("成功加载军团基本信息")
 
             // 更新状态
             corporationInfo = info
             self.logo = logo
+            allianceHistory = history
 
             // 加载CEO信息
             if let ceoInfo = try? await CharacterAPI.shared.fetchCharacterPublicInfo(
@@ -594,6 +613,155 @@ struct CorporationDetailView: View {
                     }
                 }
             }
+        }
+    }
+}
+
+// 联盟历史视图
+struct AllianceHistoryView: View {
+    let history: [CorporationAllianceHistory]
+    let corporationId: Int
+    let corporationLogo: UIImage?
+
+    var body: some View {
+        // 过滤掉没有联盟的记录（alliance_id为nil的记录）
+        let filteredHistory = history.filter { $0.alliance_id != nil }
+        
+        if filteredHistory.isEmpty {
+            ContentUnavailableView {
+                Label(
+                    NSLocalizedString("Misc_No_Data", comment: "无数据"),
+                    systemImage: "exclamationmark.triangle")
+            }
+        } else {
+            ForEach(Array(filteredHistory.enumerated()), id: \.element.record_id) { index, record in
+                if let startDate = parseDate(record.start_date),
+                   let allianceId = record.alliance_id {
+                    let endDate = index > 0 ? parseDate(filteredHistory[index - 1].start_date) : nil
+
+                    VStack(spacing: 0) {
+                        AllianceHistoryRowView(
+                            allianceId: allianceId,
+                            startDate: startDate,
+                            endDate: endDate,
+                            corporationId: corporationId,
+                            corporationLogo: corporationLogo
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private func parseDate(_ dateString: String) -> Date? {
+        let dateFormatter = DateFormatter()
+        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
+        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
+        dateFormatter.timeZone = TimeZone(identifier: "UTC")
+        return dateFormatter.date(from: dateString)
+    }
+}
+
+// 联盟历史行视图
+struct AllianceHistoryRowView: View {
+    let allianceId: Int
+    let startDate: Date
+    let endDate: Date?
+    let corporationId: Int
+    let corporationLogo: UIImage?
+    @State private var allianceInfo: (name: String, icon: UIImage?)?
+
+    var body: some View {
+        HStack(spacing: 6) {
+            // 联盟图标
+            if let icon = allianceInfo?.icon {
+                Image(uiImage: icon)
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(3)
+            } else {
+                Color.gray
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(3)
+            }
+
+            // 右侧信息
+            VStack(alignment: .leading, spacing: 2) {
+                // 联盟名称
+                Text(allianceInfo?.name ?? NSLocalizedString("Misc_Loading", comment: ""))
+                    .font(.system(size: 12))
+                    .lineLimit(1)
+
+                // 时间信息
+                HStack(spacing: 4) {
+                    Text(formatDateRange(start: startDate, end: endDate))
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                    Text(formatDuration(start: startDate, end: endDate))
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
+                }
+            }
+
+            Spacer()
+        }
+        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.clear)
+        .contentShape(Rectangle())
+        .contextMenu {
+            if let allianceName = allianceInfo?.name {
+                Button {
+                    UIPasteboard.general.string = allianceName
+                } label: {
+                    Label(NSLocalizedString("Misc_Copy_Alliance", comment: ""), systemImage: "doc.on.doc")
+                }
+            }
+        }
+        .task {
+            await loadAllianceInfo()
+        }
+    }
+
+    private func loadAllianceInfo() async {
+        // 获取联盟名称
+        if let allianceNames = try? await UniverseAPI.shared.getNamesWithFallback(ids: [allianceId]),
+           let name = allianceNames[allianceId]?.name {
+            // 并发加载联盟图标
+            let allianceIcon = try? await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
+            
+            await MainActor.run {
+                self.allianceInfo = (name: name, icon: allianceIcon)
+            }
+        }
+    }
+    
+
+
+    private func formatDateRange(start: Date, end: Date?) -> String {
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy.MM.dd"
+        let startStr = dateFormatter.string(from: start)
+
+        if let end = end {
+            let endStr = dateFormatter.string(from: end)
+            return "\(startStr) - \(endStr)"
+        } else {
+            return "\(startStr) - \(NSLocalizedString("Misc_Now", comment: "now"))"
+        }
+    }
+
+    private func formatDuration(start: Date, end: Date?) -> String {
+        let components = Calendar.current.dateComponents(
+            [.day, .hour], from: start, to: end ?? Date()
+        )
+        let days = components.day ?? 0
+        let hours = components.hour ?? 0
+
+        if days == 0 {
+            return "(\(String(format: NSLocalizedString("Time_Hours_Long", comment: ""), hours)))"
+        } else {
+            return "(\(String(format: NSLocalizedString("Time_Days_Long", comment: ""), days)))"
         }
     }
 }

@@ -63,7 +63,7 @@ class IncursionsAPI {
         }
 
         // 构建URL
-        let baseURL = "https://esi.evetech.net/latest/incursions/"
+        let baseURL = "https://esi.evetech.net/incursions/"
         var components = URLComponents(string: baseURL)
         components?.queryItems = [
             URLQueryItem(name: "datasource", value: "tranquility")

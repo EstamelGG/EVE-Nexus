@@ -33,7 +33,7 @@ class CharacterSearchAPI {
     ) async throws -> Data {
         // 构建URL
         var components = URLComponents(
-            string: "https://esi.evetech.net/latest/characters/\(characterId)/search/")
+            string: "https://esi.evetech.net/characters/\(characterId)/search/")
 
         // 将categories转换为字符串数组并用逗号连接
         let categoriesString = categories.map { $0.rawValue }.joined(separator: ",")

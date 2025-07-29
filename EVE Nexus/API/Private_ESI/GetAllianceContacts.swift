@@ -73,7 +73,7 @@ class GetAllianceContacts {
         }
 
         let baseUrlString =
-            "https://esi.evetech.net/latest/alliances/\(allianceId)/contacts/?datasource=tranquility"
+            "https://esi.evetech.net/alliances/\(allianceId)/contacts/?datasource=tranquility"
         guard let baseUrl = URL(string: baseUrlString) else {
             throw NetworkError.invalidURL
         }

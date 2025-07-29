@@ -120,8 +120,7 @@ struct DroneSelectorView: View {
                         dismiss()
                     },
                     lastVisitedGroupID: lastVisitedGroupID,
-                    initialSearchText: lastSearchKeyword,
-                    searchItemsByKeyword: searchItemsByKeyword
+                    initialSearchText: lastSearchKeyword
                 )
                 .interactiveDismissDisabled()
                 .onAppear {
@@ -149,37 +148,7 @@ struct DroneSelectorView: View {
         }
     }
 
-    // 使用本地数据进行搜索
-    private func searchItemsByKeyword(_ keyword: String) -> [DatabaseListItem] {
-        Logger.info("开始本地搜索，关键词: \"\(keyword)\"")
-        let startTime = Date()
 
-        // 过滤符合条件的无人机
-        let filteredInfos = droneInfos.filter { info in
-            // 匹配中文名、英文名或ID
-            info.name.localizedCaseInsensitiveContains(keyword)
-                || info.enName.localizedCaseInsensitiveContains(keyword)
-                || String(info.typeId) == keyword
-        }
-
-        let filteredTypeIDs = filteredInfos.map { $0.typeId }
-
-        // 如果没有匹配项，返回空数组
-        if filteredTypeIDs.isEmpty {
-            Logger.info("本地搜索没有找到匹配项，耗时: \(Date().timeIntervalSince(startTime) * 1000)ms")
-            return []
-        }
-
-        // 使用过滤后的ID列表从数据库加载完整信息
-        let typeIDsString = filteredTypeIDs.map { String($0) }.joined(separator: ",")
-        let whereClause = "t.type_id IN (\(typeIDsString))"
-
-        let results = databaseManager.loadMarketItems(whereClause: whereClause, parameters: [])
-        Logger.info(
-            "本地搜索找到 \(results.count) 个匹配项，耗时: \(Date().timeIntervalSince(startTime) * 1000)ms")
-
-        return results
-    }
 
     // 加载无人机的type_id及名称信息
     private func loadDroneData(databaseManager: DatabaseManager) -> [DroneInfo] {

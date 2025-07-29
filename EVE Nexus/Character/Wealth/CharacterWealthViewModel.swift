@@ -93,6 +93,9 @@ class CharacterWealthViewModel: ObservableObject {
     @Published var valuedImplants: [ValuedItem] = []
     @Published var valuedOrders: [ValuedItem] = []
     @Published var isLoadingDetails = false
+    
+    // 资产加载进度状态
+    @Published var assetsLoadingProgress: AssetLoadingProgress?
 
     private let characterId: Int
     private var marketPrices: [Int: Double] = [:]
@@ -208,10 +211,15 @@ class CharacterWealthViewModel: ObservableObject {
         var totalValue = 0.0
         var totalCount = 0
 
-        // 获取资产树JSON
+        // 获取资产树JSON，传入进度回调
         if let jsonString = try await CharacterAssetsJsonAPI.shared.generateAssetTreeJson(
             characterId: characterId,
-            forceRefresh: forceRefresh
+            forceRefresh: forceRefresh,
+            progressCallback: { progress in
+                DispatchQueue.main.async {
+                    self.assetsLoadingProgress = progress
+                }
+            }
         ), let jsonData = jsonString.data(using: .utf8) {
             // 解析JSON
             let wrapper = try JSONDecoder().decode(AssetTreeWrapper.self, from: jsonData)
@@ -239,6 +247,11 @@ class CharacterWealthViewModel: ObservableObject {
             for location in locations {
                 calculateNodeValue(location, isTopLevel: true)
             }
+        }
+        
+        // 清除进度状态
+        DispatchQueue.main.async {
+            self.assetsLoadingProgress = nil
         }
 
         return (totalValue, totalCount)

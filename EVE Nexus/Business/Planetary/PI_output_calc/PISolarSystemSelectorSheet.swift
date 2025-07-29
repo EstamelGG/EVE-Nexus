@@ -65,9 +65,6 @@ struct PISolarSystemSelectorSheet: View {
                 FROM universe u
                 JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
                 JOIN regions r ON r.regionID = u.region_id
-                WHERE NOT u.isJSpace -- 排除虫洞星系
-                AND u.region_id NOT IN (10000019, 10000004, 10000017, 10000070) -- 排除朱庇特星域与波赫文星域
-                AND u.solarsystem_id NOT IN (30100000) -- 排除扎尔扎克
                 ORDER BY s.solarSystemName
             """
 

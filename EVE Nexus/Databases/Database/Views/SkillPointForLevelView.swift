@@ -72,41 +72,19 @@ struct SkillPointForLevelView: View {
         }
     }
 
-    // 新增：从本地数据库加载角色属性
-    private func loadAttributesFromDatabase(characterId: Int) -> CharacterAttributes? {
-        let query = """
-            SELECT charisma, intelligence, memory, perception, willpower,
-                   bonus_remaps, accrued_remap_cooldown_date, last_remap_date
-            FROM character_attributes 
-            WHERE character_id = ?
-        """
-        
-        guard
-            case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
-                query, parameters: [characterId]),
-            let row = rows.first
-        else {
+    // 新增：从API加载角色属性
+    private func loadAttributesFromAPI(characterId: Int) async -> CharacterAttributes? {
+        do {
+            // 调用API获取角色属性
+            let attributes = try await CharacterSkillsAPI.shared.fetchAttributes(
+                characterId: characterId,
+                forceRefresh: false
+            )
+            return attributes
+        } catch {
+            Logger.error("获取角色属性失败: \(error)")
             return nil
         }
-        
-        // 使用 NSNumber 转换来处理不同的数字类型
-        let charisma = (row["charisma"] as? NSNumber)?.intValue ?? 19
-        let intelligence = (row["intelligence"] as? NSNumber)?.intValue ?? 20
-        let memory = (row["memory"] as? NSNumber)?.intValue ?? 20
-        let perception = (row["perception"] as? NSNumber)?.intValue ?? 20
-        let willpower = (row["willpower"] as? NSNumber)?.intValue ?? 20
-        let bonusRemaps = (row["bonus_remaps"] as? NSNumber)?.intValue ?? 0
-        
-        return CharacterAttributes(
-            charisma: charisma,
-            intelligence: intelligence,
-            memory: memory,
-            perception: perception,
-            willpower: willpower,
-            bonus_remaps: bonusRemaps,
-            accrued_remap_cooldown_date: row["accrued_remap_cooldown_date"] as? String,
-            last_remap_date: row["last_remap_date"] as? String
-        )
     }
 
     var body: some View {
@@ -168,13 +146,13 @@ struct SkillPointForLevelView: View {
                 skillSecondaryAttr = attrs.secondary
             }
 
-            // 获取角色属性（从本地数据库）
+            // 获取角色属性（从API）
             if let characterId = characterId {
-                characterAttributes = loadAttributesFromDatabase(characterId: characterId)
+                characterAttributes = await loadAttributesFromAPI(characterId: characterId)
                 if characterAttributes != nil {
-                    Logger.debug("从本地数据库加载角色属性成功")
+                    Logger.debug("从API加载角色属性成功")
                 } else {
-                    Logger.debug("本地数据库中未找到角色属性，使用默认值")
+                    Logger.debug("API中未找到角色属性，使用默认值")
                 }
             }
         }

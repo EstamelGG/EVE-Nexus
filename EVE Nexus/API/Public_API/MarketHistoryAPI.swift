@@ -162,7 +162,7 @@ class MarketHistoryAPI {
         }
 
         // 构建URL
-        let baseURL = "https://esi.evetech.net/latest/markets/\(regionID)/history/"
+        let baseURL = "https://esi.evetech.net/markets/\(regionID)/history/"
         var components = URLComponents(string: baseURL)
         components?.queryItems = [
             URLQueryItem(name: "type_id", value: "\(typeID)"),

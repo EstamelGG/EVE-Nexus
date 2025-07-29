@@ -103,8 +103,10 @@ enum RichTextProcessor {
     static func cleanRichText(_ text: String) -> String {
         var currentText = text
 
-        // 1. 处理换行标签
+        // 1. 处理换行标签（包括自闭合标签）
         currentText = currentText.replacingOccurrences(of: "<br></br>", with: "\n")
+        currentText = currentText.replacingOccurrences(of: "<br />", with: "\n")
+        currentText = currentText.replacingOccurrences(of: "<br/>", with: "\n")
         currentText = currentText.replacingOccurrences(of: "<br>", with: "\n")
         currentText = currentText.replacingOccurrences(of: "</br>", with: "\n")
 

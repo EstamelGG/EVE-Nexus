@@ -25,7 +25,7 @@ class MarketManager {
     func loadMarketGroups(databaseManager: DatabaseManager) -> [MarketGroup] {
         let query = """
                 SELECT group_id, name, icon_name, parentgroup_id
-                FROM marketGroups
+                FROM marketGroups where show = 1
                 ORDER BY group_id
             """
 
@@ -91,6 +91,7 @@ class MarketManager {
         for rootGroupId in allowedIDs {
             result.append(contentsOf: getAllSubGroupIDsFromID(groups, startingFrom: rootGroupId))
         }
+        Logger.info("[getAllSubGroupIDsFromIDs]找到可用市场目录: \(result.map { String($0) }.joined(separator: ","))")
         return result
     }
 

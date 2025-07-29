@@ -79,34 +79,32 @@ struct CharacterSkillsUtils {
     /// - Parameter characterId: 角色ID
     /// - Returns: 技能ID与等级的字典
     private static func getCharacterSkills(characterId: Int) -> [Int: Int] {
-        // 直接从数据库获取技能数据
-        let skillsQuery = "SELECT skills_data FROM character_skills WHERE character_id = ?"
+        // 使用信号量来同步异步调用
+        let semaphore = DispatchSemaphore(value: 0)
+        var skillsDict: [Int: Int] = [:]
         
-        guard
-            case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
-                skillsQuery, parameters: [characterId]),
-            let row = rows.first,
-            let skillsJson = row["skills_data"] as? String,
-            let data = skillsJson.data(using: .utf8)
-        else {
-            Logger.error("获取角色技能数据失败")
-            return [:]
-        }
-        
-        do {
-            let decoder = JSONDecoder()
-            let skillsResponse = try decoder.decode(CharacterSkillsResponse.self, from: data)
-            
-            // 将所有技能映射到字典中
-            var skillsDict = [Int: Int]()
-            for skill in skillsResponse.skills {
-                skillsDict[skill.skill_id] = skill.trained_skill_level
+        Task {
+            do {
+                // 调用API获取技能数据
+                let skillsResponse = try await CharacterSkillsAPI.shared.fetchCharacterSkills(
+                    characterId: characterId,
+                    forceRefresh: false
+                )
+                
+                // 将所有技能映射到字典中
+                for skill in skillsResponse.skills {
+                    skillsDict[skill.skill_id] = skill.trained_skill_level
+                }
+            } catch {
+                Logger.error("获取角色技能数据失败: \(error)")
             }
-            return skillsDict
-        } catch {
-            Logger.error("解析技能数据失败: \(error)")
-            return [:]
+            
+            semaphore.signal()
         }
+        
+        // 等待异步操作完成
+        semaphore.wait()
+        return skillsDict
     }
     
     /// 获取所有技能并设置为指定等级

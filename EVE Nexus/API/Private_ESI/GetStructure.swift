@@ -46,7 +46,7 @@ public class UniverseStructureAPI {
         -> UniverseStructureInfo
     {
         let urlString =
-            "https://esi.evetech.net/latest/universe/structures/\(structureId)/?datasource=tranquility"
+            "https://esi.evetech.net/universe/structures/\(structureId)/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }

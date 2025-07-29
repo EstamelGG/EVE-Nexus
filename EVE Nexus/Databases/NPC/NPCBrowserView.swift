@@ -86,6 +86,20 @@ struct NPCBaseView<Content: View>: View {
                                         .frame(width: 32, height: 32)
                                         .cornerRadius(6)
                                     Text(item.name)
+                                        .contextMenu {
+                                            Button {
+                                                UIPasteboard.general.string = item.name
+                                            } label: {
+                                                Label(NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc")
+                                            }
+                                            if !item.enName.isEmpty && item.enName != item.name {
+                                                Button {
+                                                    UIPasteboard.general.string = item.enName
+                                                } label: {
+                                                    Label(NSLocalizedString("Misc_Copy_Trans", comment: ""), systemImage: "translate")
+                                                }
+                                            }
+                                        }
                                 }
                             }
                             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
@@ -164,7 +178,7 @@ struct NPCBaseView<Content: View>: View {
         let parameters = searchParameters(text)
 
         let query = """
-                SELECT t.type_id, t.name, t.icon_filename
+                SELECT t.type_id, t.name, t.en_name, t.icon_filename
                 FROM types t
                 WHERE \(whereClause)
                 ORDER BY t.name
@@ -174,6 +188,7 @@ struct NPCBaseView<Content: View>: View {
             items = rows.compactMap { row in
                 guard let typeID = row["type_id"] as? Int,
                     let name = row["name"] as? String,
+                    let enName = row["en_name"] as? String,
                     let iconFileName = row["icon_filename"] as? String
                 else {
                     return nil
@@ -181,6 +196,7 @@ struct NPCBaseView<Content: View>: View {
                 return NPCItem(
                     typeID: typeID,
                     name: name,
+                    enName: enName,
                     iconFileName: iconFileName.isEmpty
                         ? DatabaseConfig.defaultItemIcon : iconFileName
                 )
@@ -315,6 +331,20 @@ struct NPCBrowserView: View {
                                         .frame(width: 32, height: 32)
                                         .cornerRadius(6)
                                     Text(item.name)
+                                        .contextMenu {
+                                            Button {
+                                                UIPasteboard.general.string = item.name
+                                            } label: {
+                                                Label(NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc")
+                                            }
+                                            if !item.enName.isEmpty && item.enName != item.name {
+                                                Button {
+                                                    UIPasteboard.general.string = item.enName
+                                                } label: {
+                                                    Label(NSLocalizedString("Misc_Copy_Trans", comment: ""), systemImage: "translate")
+                                                }
+                                            }
+                                        }
                                 }
                             }
                         }

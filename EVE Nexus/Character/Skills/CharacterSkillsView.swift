@@ -1027,51 +1027,14 @@ struct CharacterSkillsView: View {
 
     /// 获取角色总技能点数
     private func getCharacterTotalSP() async -> Int {
-        // 从数据库获取角色当前的总技能点数
-        let query = """
-                SELECT total_sp, unallocated_sp
-                FROM character_skills
-                WHERE character_id = ?
-            """
-        if case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
-            query, parameters: [characterId]
-        ),
-            let row = rows.first
-        {
-            // 处理total_sp
-            let totalSP: Int
-            if let value = row["total_sp"] as? Int {
-                totalSP = value
-            } else if let value = row["total_sp"] as? Int64 {
-                totalSP = Int(value)
-            } else {
-                totalSP = 0
-                Logger.error("无法解析total_sp")
-            }
-
-            // 处理unallocated_sp
-            let unallocatedSP: Int
-            if let value = row["unallocated_sp"] as? Int {
-                unallocatedSP = value
-            } else if let value = row["unallocated_sp"] as? Int64 {
-                unallocatedSP = Int(value)
-            } else {
-                unallocatedSP = 0
-                Logger.error("无法解析unallocated_sp")
-            }
-
-            let characterTotalSP = totalSP + unallocatedSP
-            Logger.debug("角色总技能点: \(characterTotalSP) (已分配: \(totalSP), 未分配: \(unallocatedSP))")
-            return characterTotalSP
-        }
-
-        // 如果无法从数据库获取，尝试从API获取
         do {
+            // 直接调用API获取技能数据
             let skillsInfo = try await CharacterSkillsAPI.shared.fetchCharacterSkills(
-                characterId: characterId, forceRefresh: true
+                characterId: characterId, 
+                forceRefresh: false
             )
             let characterTotalSP = skillsInfo.total_sp + skillsInfo.unallocated_sp
-            Logger.debug("从API获取角色总技能点: \(characterTotalSP)")
+            Logger.debug("从API获取角色总技能点: \(characterTotalSP) (已分配: \(skillsInfo.total_sp), 未分配: \(skillsInfo.unallocated_sp))")
             return characterTotalSP
         } catch {
             Logger.error("获取技能点数据失败: \(error)")

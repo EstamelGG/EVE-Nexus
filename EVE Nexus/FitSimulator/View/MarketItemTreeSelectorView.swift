@@ -60,7 +60,6 @@ struct MarketItemTreeSelectorView: View {
     let onDismiss: (_ lastVisitedGroupID: Int?, _ searchText: String?) -> Void
     let lastVisitedGroupID: Int?
     let initialSearchText: String?
-    let searchItemsByKeyword: ((String) -> [DatabaseListItem])?
     
     @State private var searchText = ""
     @State private var isSearchActive = false
@@ -73,6 +72,69 @@ struct MarketItemTreeSelectorView: View {
     
     var groupedSearchResults: [(id: Int, name: String, items: [DatabaseListItem])] {
         MarketItemGrouper.groupSearchResults(searchResults)
+    }
+    
+    // 获取当前市场树的所有市场组ID（递归）
+    private var allowedMarketGroupIDs: Set<Int> {
+        var groupIDs = Set<Int>()
+        
+        func collectGroupIDs(_ nodes: [MarketGroupNode]) {
+            for node in nodes {
+                groupIDs.insert(node.id)
+                collectGroupIDs(node.children)
+            }
+        }
+        
+        collectGroupIDs(marketGroupTree)
+        return groupIDs
+    }
+    
+    // 内建搜索方法，限制在当前市场树范围内
+    private func performTreeConstrainedSearch(with keyword: String) -> [DatabaseListItem] {
+        Logger.info("开始树限制搜索，关键词: \"\(keyword)\"")
+        let startTime = Date()
+        
+        let marketGroupIDs = allowedMarketGroupIDs
+        
+        // 如果没有允许的市场组ID，返回空数组
+        if marketGroupIDs.isEmpty {
+            Logger.warning("没有允许的市场组ID，返回空结果")
+            return []
+        }
+        
+        // 构建市场组ID限制条件
+        let marketGroupIDsString = marketGroupIDs.map { String($0) }.joined(separator: ",")
+        
+        // 构建搜索条件：名称匹配 + 市场组限制 + 类型ID限制
+        var whereConditions: [String] = []
+        var parameters: [Any] = []
+        
+        // 添加搜索条件（不区分大小写）
+        whereConditions.append("(LOWER(t.name) LIKE LOWER(?) OR LOWER(t.en_name) LIKE LOWER(?) OR t.type_id = ?)")
+        let searchPattern = "%\(keyword)%"
+        parameters.append(searchPattern)
+        parameters.append(searchPattern)
+        if let typeIdInt = Int(keyword) {
+            parameters.append(typeIdInt)
+        } else {
+            parameters.append(-1) // 不可能匹配的ID
+        }
+        
+        // 添加市场组限制
+        whereConditions.append("t.marketGroupID IN (\(marketGroupIDsString))")
+        
+        // 添加类型ID限制（如果有的话）
+        if !allowTypeIDs.isEmpty {
+            let typeIDsString = allowTypeIDs.map { String($0) }.joined(separator: ",")
+            whereConditions.append("t.type_id IN (\(typeIDsString))")
+        }
+        
+        let whereClause = whereConditions.joined(separator: " AND ")
+        
+        let results = databaseManager.loadMarketItems(whereClause: whereClause, parameters: parameters, limit: 100)
+        Logger.info("树限制搜索找到 \(results.count) 个匹配项，耗时: \(Date().timeIntervalSince(startTime) * 1000)ms")
+        
+        return results
     }
     
     var body: some View {
@@ -225,17 +287,11 @@ struct MarketItemTreeSelectorView: View {
     }
     
     private func performSearch(with text: String) {
-        guard let searchFunction = searchItemsByKeyword else {
-            Logger.warning("没有提供搜索函数，无法执行搜索")
-            isLoading = false
-            return
-        }
-        
         isLoading = true
-        Logger.info("执行本地搜索: \"\(text)\"")
+        Logger.info("执行树限制搜索: \"\(text)\"")
         
         DispatchQueue.global(qos: .userInitiated).async {
-            let results = searchFunction(text)
+            let results = performTreeConstrainedSearch(with: text)
             
             DispatchQueue.main.async {
                 searchResults = results

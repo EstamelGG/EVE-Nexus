@@ -323,7 +323,7 @@ class FWAPI {
         Logger.info("从网络获取FW星系数据，强制刷新: \(forceRefresh)")
 
         // 构建URL
-        let urlString = "https://esi.evetech.net/latest/fw/systems/?datasource=tranquility"
+        let urlString = "https://esi.evetech.net/fw/systems/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw FWAPIError.invalidURL
         }
@@ -352,7 +352,7 @@ class FWAPI {
         Logger.info("从网络获取FW战争数据，强制刷新: \(forceRefresh)")
 
         // 构建URL
-        let urlString = "https://esi.evetech.net/latest/fw/wars/?datasource=tranquility"
+        let urlString = "https://esi.evetech.net/fw/wars/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw FWAPIError.invalidURL
         }

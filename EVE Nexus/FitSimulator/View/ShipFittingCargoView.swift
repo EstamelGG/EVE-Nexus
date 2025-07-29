@@ -138,8 +138,7 @@ struct MarketItemSelectorWrapper: View {
                 dismiss()
             },
             lastVisitedGroupID: nil,
-            initialSearchText: nil,
-            searchItemsByKeyword: nil
+            initialSearchText: nil
         )
     }
 }

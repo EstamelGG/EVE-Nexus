@@ -82,7 +82,7 @@ class CharacterMarketAPI {
 
     private func fetchFromNetwork(characterId: Int64) async throws -> String {
         let urlString =
-            "https://esi.evetech.net/latest/characters/\(characterId)/orders/?datasource=tranquility"
+            "https://esi.evetech.net/characters/\(characterId)/orders/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }

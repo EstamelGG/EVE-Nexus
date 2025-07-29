@@ -117,7 +117,10 @@ class CharacterLocationAPI {
         let key = locationCachePrefix + String(characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
             Logger.debug("正在写入 UserDefaults，键: \(key), 数据大小: \(encoded.count) bytes")
-            UserDefaults.standard.set(encoded, forKey: key)
+            // 确保在主线程中保存到UserDefaults
+            DispatchQueue.main.async {
+                UserDefaults.standard.set(encoded, forKey: key)
+            }
         }
     }
 
@@ -148,7 +151,7 @@ class CharacterLocationAPI {
             Logger.info("缓存未命中或已过期,需要从服务器获取位置信息 - 角色ID: \(characterId)")
         }
 
-        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/location/"
+        let urlString = "https://esi.evetech.net/characters/\(characterId)/location/"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
@@ -204,7 +207,7 @@ class CharacterLocationAPI {
             Logger.info("缓存未命中或已过期,需要从服务器获取在线状态 - 角色ID: \(characterId)")
         }
 
-        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/online/"
+        let urlString = "https://esi.evetech.net/characters/\(characterId)/online/"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
@@ -274,13 +277,16 @@ class CharacterLocationAPI {
         let key = onlineStatusCachePrefix + String(characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
             Logger.debug("正在写入在线状态到 UserDefaults，键: \(key), 数据大小: \(encoded.count) bytes")
-            UserDefaults.standard.set(encoded, forKey: key)
+            // 确保在主线程中保存到UserDefaults
+            DispatchQueue.main.async {
+                UserDefaults.standard.set(encoded, forKey: key)
+            }
         }
     }
 
     // 获取当前飞船信息
     func fetchCharacterShip(characterId: Int) async throws -> CharacterShipInfo {
-        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/ship/"
+        let urlString = "https://esi.evetech.net/characters/\(characterId)/ship/"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }

@@ -171,18 +171,25 @@ enum FormatUtil {
         let billion = 1_000_000_000.0
         let million = 1_000_000.0
         let thousand = 1000.0
+        
+        // 处理负数：转为正数格式化，然后添加负号
+        let isNegative = value < 0
+        let absoluteValue = abs(value)
 
-        if value >= trillion {
-            return formatWithUnit(value, unit: "T ISK", threshold: trillion, maxFractionDigits: 2)
-        } else if value >= billion {
-            return formatWithUnit(value, unit: "B ISK", threshold: billion, maxFractionDigits: 2)
-        } else if value >= million {
-            return formatWithUnit(value, unit: "M ISK", threshold: million, maxFractionDigits: 2)
-        } else if value >= thousand {
-            return formatWithUnit(value, unit: "K ISK", threshold: thousand, maxFractionDigits: 2)
+        let formattedValue: String
+        if absoluteValue >= trillion {
+            formattedValue = formatWithUnit(absoluteValue, unit: "T ISK", threshold: trillion, maxFractionDigits: 2)
+        } else if absoluteValue >= billion {
+            formattedValue = formatWithUnit(absoluteValue, unit: "B ISK", threshold: billion, maxFractionDigits: 2)
+        } else if absoluteValue >= million {
+            formattedValue = formatWithUnit(absoluteValue, unit: "M ISK", threshold: million, maxFractionDigits: 2)
+        } else if absoluteValue >= thousand {
+            formattedValue = formatWithUnit(absoluteValue, unit: "K ISK", threshold: thousand, maxFractionDigits: 2)
         } else {
-            return formatNumber(value, maxFractionDigits: 1) + " ISK"
+            formattedValue = formatNumber(absoluteValue, maxFractionDigits: 1) + " ISK"
         }
+        
+        return isNegative ? "-\(formattedValue)" : formattedValue
     }
 
     /// 格式化时间（保留毫秒精度）

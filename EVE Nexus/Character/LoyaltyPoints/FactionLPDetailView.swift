@@ -90,11 +90,7 @@ struct FactionLPDetailView: View {
                             )
                         ) {
                             HStack {
-                                IconManager.shared.loadImage(for: corporation.iconFileName)
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 36, height: 36)
-                                    .cornerRadius(6)
+                                CorporationIconView(corporationId: corporation.id, iconFileName: corporation.iconFileName, size: 36)
 
                                 Text(corporation.name)
                                     .padding(.leading, 8)

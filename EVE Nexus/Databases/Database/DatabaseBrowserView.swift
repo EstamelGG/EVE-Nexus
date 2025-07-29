@@ -179,6 +179,7 @@ struct DatabaseBrowserView: View {
                 DatabaseListItem(
                     id: category.id,
                     name: category.name,
+                    enName: category.enName,
                     iconFileName: category.iconFileNew,
                     published: category.published,
                     categoryID: nil,
@@ -215,6 +216,7 @@ struct DatabaseBrowserView: View {
                 DatabaseListItem(
                     id: group.id,
                     name: group.name,
+                    enName: group.enName,
                     iconFileName: group.icon_filename,
                     published: group.published,
                     categoryID: group.categoryID,
@@ -261,6 +263,7 @@ struct DatabaseBrowserView: View {
                 DatabaseListItem(
                     id: item.id,
                     name: item.name,
+                    enName: item.enName,
                     iconFileName: item.iconFileName,
                     published: item.published,
                     categoryID: item.categoryID,
@@ -465,6 +468,13 @@ struct DatabaseListItemView: View {
                     UIPasteboard.general.string = item.name
                 } label: {
                     Label(NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc")
+                }
+                if let enName = item.enName, !enName.isEmpty && enName != item.name {
+                    Button {
+                        UIPasteboard.general.string = enName
+                    } label: {
+                        Label(NSLocalizedString("Misc_Copy_Trans", comment: ""), systemImage: "translate")
+                    }
                 }
             }
         }

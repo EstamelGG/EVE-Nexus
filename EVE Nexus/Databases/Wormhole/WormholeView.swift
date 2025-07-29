@@ -247,27 +247,27 @@ struct WormholeDetailView: View {
 
             // 详细信息部分
             Section {
-                InfoRow(
+                WHDetailInfoRow(
                     title: NSLocalizedString("Main_Market_WH_Leadsto", comment: ""),
                     value: wormhole.target,
                     iconName: "items_7_64_4.png"
                 )
-                InfoRow(
+                WHDetailInfoRow(
                     title: NSLocalizedString("Main_Market_WH_MaxStableTime", comment: ""),
                     value: wormhole.stableTime,
                     iconName: "items_22_32_16.png"
                 )
-                InfoRow(
+                WHDetailInfoRow(
                     title: NSLocalizedString("Main_Market_WH_MaxStableMass", comment: ""),
                     value: wormhole.maxStableMass,
                     iconName: "icon_1333_64.png"
                 )
-                InfoRow(
+                WHDetailInfoRow(
                     title: NSLocalizedString("Main_Market_WH_MaxJumpMass", comment: ""),
                     value: wormhole.maxJumpMass,
                     iconName: "items_9_64_5.png"
                 )
-                InfoRow(
+                WHDetailInfoRow(
                     title: NSLocalizedString("Main_Market_WH_Size", comment: ""),
                     value: wormhole.sizeType,
                     iconName: "items_22_32_15.png"
@@ -283,7 +283,7 @@ struct WormholeDetailView: View {
     }
 }
 
-struct InfoRow: View {
+struct WHDetailInfoRow: View {
     let title: String
     let value: String
     let iconName: String?

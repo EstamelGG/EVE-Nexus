@@ -125,10 +125,7 @@ struct CharacterLoyaltyPointsStoreView: View {
                                 )
                             ) {
                                 HStack {
-                                    IconManager.shared.loadImage(for: corporation.iconFileName)
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(width: 36)
+                                    CorporationIconView(corporationId: corporation.id, iconFileName: corporation.iconFileName, size: 36)
                                     Text(corporation.name)
                                         .padding(.leading, 8)
                                 }

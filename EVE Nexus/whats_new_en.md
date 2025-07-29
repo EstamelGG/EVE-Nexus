@@ -212,3 +212,15 @@ Fixes & Improvements:
 8. Add refresh button for some functions. (assets, corp structures etc.)
 9. Show available industry slots in Industry Jobs function.
 10. Improved the KM page view and database image rendering on landscape mode and iPad.
+
+# 1.7 July x, 2025
+
+1. Update localization string in Wallet Journal function.
+2. Add calendar function to show events in the future.
+3. Add corp industry function.
+4. Allow add items from clipboard to Market watch list function.
+5. Upgrade the "industrial jobs" function, adding support for filtering by job type, character, and solar system, as well as sorting by completion time, greatly improving usability.
+6. Allow pin selected structures / stations in assets function
+7. Allow hide functions user don't need in main page.
+8. Update icon for reaction blueprints.
+9. Add Blueprint calculator.

@@ -89,7 +89,7 @@ class GetCharContacts {
         }
 
         let baseUrlString =
-            "https://esi.evetech.net/latest/characters/\(characterId)/contacts/?datasource=tranquility"
+            "https://esi.evetech.net/characters/\(characterId)/contacts/?datasource=tranquility"
         guard let baseUrl = URL(string: baseUrlString) else {
             throw NetworkError.invalidURL
         }

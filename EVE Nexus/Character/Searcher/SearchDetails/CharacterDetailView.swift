@@ -783,8 +783,7 @@ struct CharacterDetailView: View {
 
                 Spacer()
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(Color.clear)
             .contentShape(Rectangle())

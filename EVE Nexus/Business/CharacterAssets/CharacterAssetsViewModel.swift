@@ -59,10 +59,23 @@ class CharacterAssetsViewModel: ObservableObject {
     private let databaseManager: DatabaseManager
 
     // MARK: - 计算属性
-    // 按星域分组的位置
-    var locationsByRegion: [(region: String, locations: [AssetTreeNode])] {
+    // 获取置顶的位置
+    var pinnedLocations: [AssetTreeNode] {
+        let pinnedIDs = UserDefaultsManager.shared.getPinnedAssetLocationIDs(for: characterId)
+        return assetLocations.filter { location in
+            pinnedIDs.contains(location.location_id)
+        }.sorted { $0.location_id < $1.location_id }
+    }
+    
+    // 获取非置顶的位置（按星域分组）
+    var unpinnedLocationsByRegion: [(region: String, locations: [AssetTreeNode])] {
+        let pinnedIDs = UserDefaultsManager.shared.getPinnedAssetLocationIDs(for: characterId)
+        let unpinnedLocations = assetLocations.filter { location in
+            !pinnedIDs.contains(location.location_id)
+        }
+        
         // 1. 按区域分组
-        let grouped = Dictionary(grouping: assetLocations) { location in
+        let grouped = Dictionary(grouping: unpinnedLocations) { location in
             if let regionId = location.region_id,
                 let regionName = regionNames[regionId]
             {
@@ -91,8 +104,45 @@ class CharacterAssetsViewModel: ObservableObject {
         self.characterId = characterId
         self.databaseManager = databaseManager
     }
-
+    
+    // MARK: - 置顶功能方法
+    // 切换置顶状态
+    func togglePinLocation(_ location: AssetTreeNode) {
+        let isPinned = UserDefaultsManager.shared.isAssetLocationPinned(location.location_id, for: characterId)
+        
+        if isPinned {
+            UserDefaultsManager.shared.removePinnedAssetLocation(location.location_id, for: characterId)
+        } else {
+            UserDefaultsManager.shared.addPinnedAssetLocation(location.location_id, for: characterId)
+        }
+        
+        // 触发UI更新
+        objectWillChange.send()
+    }
+    
     // MARK: - 私有辅助方法
+    // 清理无效的置顶位置ID
+    private func cleanupInvalidPinnedLocations() {
+        let currentLocationIds = Set(assetLocations.map { $0.location_id })
+        let pinnedLocationIds = UserDefaultsManager.shared.getPinnedAssetLocationIDs(for: characterId)
+        
+        // 找出不再存在于当前资产列表中的置顶ID
+        let invalidPinnedIds = pinnedLocationIds.filter { pinnedId in
+            !currentLocationIds.contains(pinnedId)
+        }
+        
+        // 如果有无效的置顶ID，从缓存中移除它们
+        if !invalidPinnedIds.isEmpty {
+            Logger.info("清理无效的置顶位置ID: \(invalidPinnedIds)")
+            
+            let validPinnedIds = pinnedLocationIds.filter { pinnedId in
+                currentLocationIds.contains(pinnedId)
+            }
+            
+            UserDefaultsManager.shared.setPinnedAssetLocationIDs(validPinnedIds, for: characterId)
+        }
+    }
+
     // 对位置进行排序
     private func sortLocations(_ locations: [AssetTreeNode]) -> [AssetTreeNode] {
         locations.sorted { loc1, loc2 in
@@ -286,6 +336,9 @@ class CharacterAssetsViewModel: ObservableObject {
 
                     // 成功加载数据后，清除错误状态
                     self.error = nil
+                    
+                    // 清理无效的置顶位置ID
+                    cleanupInvalidPinnedLocations()
                 }
             }
         } catch {

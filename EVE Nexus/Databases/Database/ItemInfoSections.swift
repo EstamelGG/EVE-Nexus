@@ -8,7 +8,7 @@ struct IndustrySection: View {
 
     var body: some View {
         let materials = databaseManager.getTypeMaterials(for: itemID)
-        let blueprintID = databaseManager.getBlueprintIDForProduct(itemID)
+        let blueprintIDs = databaseManager.getBlueprintIDsForProduct(itemID)
         let groups_should_show_source = [18, 1996, 423, 427]
         // 只针对矿物、突变残渣、化学元素、同位素等产物展示精炼来源
         let sourceMaterials:
@@ -24,27 +24,27 @@ struct IndustrySection: View {
         // 获取可以制造该物品的蓝图列表
         let blueprintDest = databaseManager.getBlueprintDest(for: itemID)
 
-        if materials != nil || blueprintID != nil || sourceMaterials != nil
+        if materials != nil || !blueprintIDs.isEmpty || sourceMaterials != nil
             || !blueprintDest.blueprints.isEmpty
         {
             Section(header: Text(NSLocalizedString("Industry", comment: "")).font(.headline)) {
-                // 蓝图按钮
-                if let blueprintID = blueprintID,
-                    let blueprintDetails = databaseManager.getItemDetails(for: blueprintID)
-                {
-                    NavigationLink {
-                        ItemInfoMap.getItemInfoView(
-                            itemID: blueprintID,
-                            databaseManager: databaseManager
-                        )
-                    } label: {
-                        HStack {
-                            IconManager.shared.loadImage(for: blueprintDetails.iconFileName)
-                                .resizable()
-                                .frame(width: 32, height: 32)
-                                .cornerRadius(6)
-                            Text(blueprintDetails.name)
-                            Spacer()
+                // 蓝图按钮列表
+                ForEach(blueprintIDs, id: \.self) { blueprintID in
+                    if let blueprintDetails = databaseManager.getItemDetails(for: blueprintID) {
+                        NavigationLink {
+                            ItemInfoMap.getItemInfoView(
+                                itemID: blueprintID,
+                                databaseManager: databaseManager
+                            )
+                        } label: {
+                            HStack {
+                                IconManager.shared.loadImage(for: blueprintDetails.iconFileName)
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                Text(blueprintDetails.name)
+                                Spacer()
+                            }
                         }
                     }
                 }

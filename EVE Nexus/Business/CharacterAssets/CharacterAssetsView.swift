@@ -258,7 +258,45 @@ struct CharacterAssetsView: View {
             }
             // 正常的资产列表
             else if !viewModel.isLoading && !viewModel.assetLocations.isEmpty {
-                ForEach(viewModel.locationsByRegion, id: \.region) { group in
+                // 置顶位置section
+                if !viewModel.pinnedLocations.isEmpty {
+                    Section(
+                        header: HStack {
+                            Image(systemName: "star.fill")
+                                .foregroundColor(.yellow)
+                                .font(.system(size: 16))
+                            Text(NSLocalizedString("Assets_Pinned_Locations", comment: ""))
+                                .fontWeight(.semibold)
+                                .font(.system(size: 18))
+                                .foregroundColor(.primary)
+                        }
+                        .textCase(.none)
+                    ) {
+                        ForEach(viewModel.pinnedLocations, id: \.item_id) { location in
+                            NavigationLink(
+                                destination: LocationAssetsView(
+                                    location: location,
+                                    preloadedItemInfo: viewModel.itemInfoCache,
+                                    stationNameCache: viewModel.stationNameCache,
+                                    solarSystemNameCache: viewModel.solarSystemNameCache)
+                            ) {
+                                LocationRowView(location: location)
+                                    .environmentObject(viewModel)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    viewModel.togglePinLocation(location)
+                                } label: {
+                                    Label(NSLocalizedString("Assets_Unpin", comment: ""), systemImage: "pin.slash")
+                                }
+                                .tint(.red)
+                            }
+                        }
+                    }
+                }
+                
+                // 其他位置按星域分组
+                ForEach(viewModel.unpinnedLocationsByRegion, id: \.region) { group in
                     Section(
                         header: Text(group.region)
                             .fontWeight(.semibold)
@@ -279,6 +317,14 @@ struct CharacterAssetsView: View {
                             ) {
                                 LocationRowView(location: location)
                                     .environmentObject(viewModel)
+                            }
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button {
+                                    viewModel.togglePinLocation(location)
+                                } label: {
+                                    Label(NSLocalizedString("Assets_Pin", comment: ""), systemImage: "pin")
+                                }
+                                .tint(.blue)
                             }
                         }
                     }

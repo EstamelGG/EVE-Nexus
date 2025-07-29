@@ -189,7 +189,7 @@ struct CharacterSheetView: View {
     }
 
     // 保存位置信息到缓存
-    private func saveLocationToCache(location: CharacterLocation, typeId: Int? = nil) {
+    private func saveLocationToCache(location: CharacterLocation, typeId: Int? = nil) async {
         let cache = LocationCache(
             solarSystemId: location.solar_system_id,
             stationId: location.station_id,
@@ -199,7 +199,9 @@ struct CharacterSheetView: View {
         )
 
         if let data = try? JSONEncoder().encode(cache) {
-            UserDefaults.standard.set(data, forKey: lastLocationKey)
+            await MainActor.run {
+                UserDefaults.standard.set(data, forKey: lastLocationKey)
+            }
         }
     }
 
@@ -248,7 +250,7 @@ struct CharacterSheetView: View {
                         self.locationStatus = location.locationStatus
                         self.locationTypeId = structureInfo?.type_id
                     }
-                    saveLocationToCache(location: location, typeId: structureInfo?.type_id)
+                    await saveLocationToCache(location: location, typeId: structureInfo?.type_id)
                 }
             } else if let stationId = location.station_id {
                 let query = "SELECT stationTypeID FROM stations WHERE stationID = ?"
@@ -269,7 +271,7 @@ struct CharacterSheetView: View {
                         self.locationStatus = location.locationStatus
                         self.locationTypeId = typeId
                     }
-                    saveLocationToCache(location: location, typeId: typeId)
+                    await saveLocationToCache(location: location, typeId: typeId)
                 }
             } else {
                 if let info = await getSolarSystemInfo(
@@ -281,7 +283,7 @@ struct CharacterSheetView: View {
                         self.locationStatus = location.locationStatus
                         self.locationTypeId = nil
                     }
-                    saveLocationToCache(location: location)
+                    await saveLocationToCache(location: location)
                 }
             }
 

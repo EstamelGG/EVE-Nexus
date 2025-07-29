@@ -131,7 +131,7 @@ extension DatabaseManager {
 
         // 然后获取这个父物品的所有变体
         let query = """
-                SELECT type_id, name, icon_filename, published, categoryID,
+                SELECT type_id, name, en_name, icon_filename, published, categoryID,
                        pg_need, cpu_need, rig_cost,
                        em_damage, them_damage, kin_damage, exp_damage,
                        high_slot, mid_slot, low_slot, rig_slot,
@@ -149,6 +149,7 @@ extension DatabaseManager {
             for row in rows {
                 guard let id = row["type_id"] as? Int,
                     let name = row["name"] as? String,
+                    let enName = row["en_name"] as? String,
                     let iconFilename = row["icon_filename"] as? String,
                     let categoryId = row["categoryID"] as? Int,
                     let metaGroupId = row["metaGroupID"] as? Int
@@ -161,6 +162,7 @@ extension DatabaseManager {
                 let item = DatabaseListItem(
                     id: id,
                     name: name,
+                    enName: enName,
                     iconFileName: iconFilename.isEmpty
                         ? DatabaseConfig.defaultItemIcon : iconFilename,
                     published: isPublished,

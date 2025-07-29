@@ -1,6 +1,7 @@
 import CommonCrypto
 import Foundation
 import SwiftUI
+import UserNotifications
 
 @main
 struct EVE_NexusApp: App {
@@ -18,6 +19,8 @@ struct EVE_NexusApp: App {
 
     init() {
         configureLanguage()
+        setupNotifications()
+        initializeLanguageMapSettings()
         Logger.info("App start at \(Date())")
         // 打印 UserDefaults 中的所有键值
         let defaults = UserDefaults.standard
@@ -73,6 +76,12 @@ struct EVE_NexusApp: App {
         validateRefreshTokens()
     }
 
+    private func setupNotifications() {
+        // 设置通知代理
+        UNUserNotificationCenter.current().delegate = NotificationDelegate.shared
+        Logger.info("通知代理设置完成")
+    }
+    
     private func configureLanguage() {
         // 只在首次启动或语言未设置时配置
         if selectedLanguage == nil {
@@ -98,6 +107,17 @@ struct EVE_NexusApp: App {
         }
     }
 
+    private func initializeLanguageMapSettings() {
+        // 检查是否已经设置过语言映射配置
+        if UserDefaults.standard.object(forKey: LanguageMapConstants.userDefaultsKey) == nil {
+            // 首次使用，设置默认语言映射配置
+            UserDefaults.standard.set(LanguageMapConstants.languageMapDefaultLanguages, forKey: LanguageMapConstants.userDefaultsKey)
+            Logger.info("首次使用，初始化语言映射配置为默认值: \(LanguageMapConstants.languageMapDefaultLanguages)")
+        } else {
+            Logger.debug("语言映射配置已存在，跳过初始化")
+        }
+    }
+    
     private func validateRefreshTokens() {
         // 获取所有有效的 token
         let characterIdsWithValidRefreshToken = SecureStorage.shared.listValidRefreshTokens()

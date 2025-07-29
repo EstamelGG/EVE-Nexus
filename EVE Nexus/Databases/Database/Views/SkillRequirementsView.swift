@@ -328,80 +328,60 @@ struct SkillRequirementsView: View {
             return
         }
         
-        let skillsQuery = "SELECT skills_data FROM character_skills WHERE character_id = ?"
-        
-        guard
-            case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
-                skillsQuery, parameters: [currentCharacterId]),
-            let row = rows.first,
-            let skillsJson = row["skills_data"] as? String,
-            let data = skillsJson.data(using: .utf8)
-        else {
-            characterSkills = [:]
-            return
-        }
-        
-        do {
-            let decoder = JSONDecoder()
-            let skillsResponse = try decoder.decode(CharacterSkillsResponse.self, from: data)
-            
-            // 将所有技能映射到字典中
-            var skillsDict = [Int: Int]()
-            for skill in skillsResponse.skills {
-                skillsDict[skill.skill_id] = skill.trained_skill_level
+        Task {
+            do {
+                // 调用API获取技能数据
+                let skillsResponse = try await CharacterSkillsAPI.shared.fetchCharacterSkills(
+                    characterId: currentCharacterId, 
+                    forceRefresh: false
+                )
+                
+                // 将所有技能映射到字典中
+                var skillsDict = [Int: Int]()
+                for skill in skillsResponse.skills {
+                    skillsDict[skill.skill_id] = skill.trained_skill_level
+                }
+                
+                await MainActor.run {
+                    characterSkills = skillsDict
+                }
+            } catch {
+                Logger.error("获取技能数据失败: \(error)")
+                await MainActor.run {
+                    characterSkills = [:]
+                }
             }
-            characterSkills = skillsDict
-        } catch {
-            Logger.error("解析技能数据失败: \(error)")
-            characterSkills = [:]
         }
         
         // 新增：加载角色属性点数
         loadCharacterAttributes()
     }
     
-    // 新增：加载角色属性点数（从本地数据库）
+    // 新增：加载角色属性点数（从API）
     private func loadCharacterAttributes() {
         guard currentCharacterId != 0 else {
             characterAttributes = nil
             return
         }
         
-        // 直接从数据库读取角色属性，不关心缓存时间
-        let query = """
-            SELECT charisma, intelligence, memory, perception, willpower,
-                   bonus_remaps, accrued_remap_cooldown_date, last_remap_date
-            FROM character_attributes 
-            WHERE character_id = ?
-        """
-        
-        guard
-            case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
-                query, parameters: [currentCharacterId]),
-            let row = rows.first
-        else {
-            characterAttributes = nil
-            return
+        Task {
+            do {
+                // 调用API获取角色属性
+                let attributes = try await CharacterSkillsAPI.shared.fetchAttributes(
+                    characterId: currentCharacterId,
+                    forceRefresh: false
+                )
+                
+                await MainActor.run {
+                    characterAttributes = attributes
+                }
+            } catch {
+                Logger.error("获取角色属性失败: \(error)")
+                await MainActor.run {
+                    characterAttributes = nil
+                }
+            }
         }
-        
-        // 使用 NSNumber 转换来处理不同的数字类型
-        let charisma = (row["charisma"] as? NSNumber)?.intValue ?? 19
-        let intelligence = (row["intelligence"] as? NSNumber)?.intValue ?? 20
-        let memory = (row["memory"] as? NSNumber)?.intValue ?? 20
-        let perception = (row["perception"] as? NSNumber)?.intValue ?? 20
-        let willpower = (row["willpower"] as? NSNumber)?.intValue ?? 20
-        let bonusRemaps = (row["bonus_remaps"] as? NSNumber)?.intValue ?? 0
-        
-        characterAttributes = CharacterAttributes(
-            charisma: charisma,
-            intelligence: intelligence,
-            memory: memory,
-            perception: perception,
-            willpower: willpower,
-            bonus_remaps: bonusRemaps,
-            accrued_remap_cooldown_date: row["accrued_remap_cooldown_date"] as? String,
-            last_remap_date: row["last_remap_date"] as? String
-        )
     }
 
     var body: some View {

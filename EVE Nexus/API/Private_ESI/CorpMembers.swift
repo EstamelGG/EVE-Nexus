@@ -62,7 +62,7 @@ public class CorpMembersAPI {
         Logger.info("开始获取军团成员信息 - 军团ID: \(corporationId)")
 
         let urlString =
-            "https://esi.evetech.net/latest/corporations/\(corporationId)/membertracking/?datasource=tranquility"
+            "https://esi.evetech.net/corporations/\(corporationId)/membertracking/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }

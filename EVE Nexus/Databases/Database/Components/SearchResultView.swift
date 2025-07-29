@@ -5,6 +5,7 @@ import SwiftUI
 struct DatabaseListItem: Identifiable {
     let id: Int
     let name: String
+    let enName: String?  // 添加英文名称
     let iconFileName: String
     let published: Bool
     let categoryID: Int?

@@ -23,88 +23,87 @@ struct JumpClone: Codable {
 
 class CharacterClonesAPI {
     static let shared = CharacterClonesAPI()
-    private let databaseManager = CharacterDatabaseManager.shared
     private init() {}
 
-    // 保存克隆体数据到数据库
-    private func saveClonesToDatabase(characterId: Int, clones: CharacterCloneInfo) -> Bool {
+    // 获取克隆体缓存文件路径
+    private func getClonesCacheFilePath(characterId: Int) -> URL {
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first!
+        let characterSkillsPath = documentsPath.appendingPathComponent("CharacterSkills")
+        
+        // 创建目录（如果不存在）
+        try? FileManager.default.createDirectory(at: characterSkillsPath, withIntermediateDirectories: true)
+        
+        return characterSkillsPath.appendingPathComponent("\(characterId)_clones.json")
+    }
+
+    // 保存克隆体数据到本地文件
+    private func saveClonesToCache(characterId: Int, clones: CharacterCloneInfo) -> Bool {
         do {
             let encoder = JSONEncoder()
             let jsonData = try encoder.encode(clones)
-
-            guard let jsonString = String(data: jsonData, encoding: .utf8) else {
-                Logger.error("克隆体数据JSON编码失败")
-                return false
-            }
-
-            let query = """
-                    INSERT OR REPLACE INTO clones (
-                        character_id, clones_data, home_location_id, last_clone_jump_date
-                    ) VALUES (?, ?, ?, ?)
-                """
-
-            if case let .error(error) = databaseManager.executeQuery(
-                query,
-                parameters: [
-                    characterId,
-                    jsonString,
-                    clones.home_location.location_id,
-                    clones.last_clone_jump_date ?? NSNull(),
-                ]
-            ) {
-                Logger.error("保存克隆体数据失败: \(error)")
-                return false
-            }
-
-            Logger.info("成功保存克隆体数据到数据库 - 角色ID: \(characterId)")
+            
+            let filePath = getClonesCacheFilePath(characterId: characterId)
+            try jsonData.write(to: filePath)
+            
+            Logger.debug("成功缓存克隆体数据到文件 - 角色ID: \(characterId), 路径: \(filePath.path)")
             return true
         } catch {
-            Logger.error("保存克隆体数据失败: \(error)")
+            Logger.error("保存克隆体数据到文件失败: \(error)")
             return false
         }
     }
 
-    // 从数据库加载克隆体数据
-    private func loadClonesFromDatabase(characterId: Int) -> CharacterCloneInfo? {
-        let query = """
-                SELECT clones_data FROM clones 
-                WHERE character_id = ? 
-                AND datetime(last_updated) > datetime('now', '-1 hour')
-            """
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [characterId]),
-            rows.count > 0,
-            let row = rows.first,
-            let jsonString = row["clones_data"] as? String,
-            let jsonData = jsonString.data(using: .utf8)
-        {
-            do {
-                let decoder = JSONDecoder()
-                let clones = try decoder.decode(CharacterCloneInfo.self, from: jsonData)
-                Logger.info("成功从数据库加载克隆体数据 - 角色ID: \(characterId)")
-                return clones
-            } catch {
-                Logger.error("解析克隆体数据失败: \(error)")
-                return nil
-            }
+    // 从本地文件读取克隆体数据
+    private func loadClonesFromCache(characterId: Int) -> CharacterCloneInfo? {
+        let filePath = getClonesCacheFilePath(characterId: characterId)
+        
+        // 检查文件是否存在
+        guard FileManager.default.fileExists(atPath: filePath.path) else {
+            return nil
         }
-        return nil
+        
+        // 检查文件修改时间，缓存1小时
+        do {
+            let attributes = try FileManager.default.attributesOfItem(atPath: filePath.path)
+            if let modificationDate = attributes[.modificationDate] as? Date {
+                let cacheExpirationDate = modificationDate.addingTimeInterval(60 * 60) // 1小时
+                if Date() > cacheExpirationDate {
+                    Logger.debug("克隆体缓存已过期 - 角色ID: \(characterId)")
+                    return nil
+                }
+            }
+        } catch {
+            Logger.error("获取文件属性失败: \(error)")
+            return nil
+        }
+        
+        do {
+            let jsonData = try Data(contentsOf: filePath)
+            let decoder = JSONDecoder()
+            let clones = try decoder.decode(CharacterCloneInfo.self, from: jsonData)
+            
+            Logger.debug("从文件缓存加载克隆体数据 - 角色ID: \(characterId), 文件路径: \(filePath.path)")
+            return clones
+        } catch {
+            Logger.error("从文件读取克隆体数据失败: \(error)")
+            return nil
+        }
     }
 
     // 获取克隆体信息
     func fetchCharacterClones(characterId: Int, forceRefresh: Bool = false) async throws
         -> CharacterCloneInfo
     {
-        // 如果不是强制刷新，先尝试从数据库加载
+        // 如果不是强制刷新，先尝试从缓存加载
         if !forceRefresh {
-            if let cachedClones = loadClonesFromDatabase(characterId: characterId) {
-                Logger.info("使用缓存的克隆体数据 - 角色ID: \(characterId)")
+            if let cachedClones = loadClonesFromCache(characterId: characterId) {
+                Logger.debug("使用缓存的克隆体数据 - 角色ID: \(characterId)")
                 return cachedClones
             }
         }
 
         let urlString =
-            "https://esi.evetech.net/latest/characters/\(characterId)/clones/?datasource=tranquility"
+            "https://esi.evetech.net/characters/\(characterId)/clones/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
@@ -116,9 +115,9 @@ class CharacterClonesAPI {
 
         let clones = try JSONDecoder().decode(CharacterCloneInfo.self, from: data)
 
-        // 保存到数据库
-        if saveClonesToDatabase(characterId: characterId, clones: clones) {
-            Logger.info("成功缓存克隆体数据 - 角色ID: \(characterId)")
+        // 保存到本地文件
+        if saveClonesToCache(characterId: characterId, clones: clones) {
+            Logger.debug("成功缓存克隆体数据到文件 - 角色ID: \(characterId)")
         }
 
         return clones

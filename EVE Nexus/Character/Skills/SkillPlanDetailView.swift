@@ -472,34 +472,35 @@ struct SkillPlanDetailView: View {
     }
     
     private static func getLearnedSkillsSync(skillIds: [Int], characterId: Int) -> [Int: CharacterSkill] {
-        // 从character_skills表获取技能数据
-        let skillsQuery = "SELECT skills_data FROM character_skills WHERE character_id = ?"
-
-        guard
-            case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
-                skillsQuery, parameters: [characterId]
-            ),
-            let row = rows.first,
-            let skillsJson = row["skills_data"] as? String,
-            let data = skillsJson.data(using: .utf8)
-        else {
-            return [:]
+        // 使用同步方式调用异步API（在后台队列中执行）
+        let semaphore = DispatchSemaphore(value: 0)
+        var result: [Int: CharacterSkill] = [:]
+        
+        Task {
+            do {
+                // 调用API获取技能数据
+                let skillsResponse = try await CharacterSkillsAPI.shared.fetchCharacterSkills(
+                    characterId: characterId, 
+                    forceRefresh: false
+                )
+                
+                // 创建技能ID到技能信息的映射
+                let skillsDict = Dictionary(
+                    uniqueKeysWithValues: skillsResponse.skills.map { ($0.skill_id, $0) })
+                
+                // 只返回请求的技能ID对应的技能信息
+                result = skillsDict.filter { skillIds.contains($0.key) }
+            } catch {
+                Logger.error("获取技能数据失败: \(error)")
+                result = [:]
+            }
+            
+            semaphore.signal()
         }
-
-        do {
-            let decoder = JSONDecoder()
-            let skillsResponse = try decoder.decode(CharacterSkillsResponse.self, from: data)
-
-            // 创建技能ID到技能信息的映射
-            let skillsDict = Dictionary(
-                uniqueKeysWithValues: skillsResponse.skills.map { ($0.skill_id, $0) })
-
-            // 只返回请求的技能ID对应的技能信息
-            return skillsDict.filter { skillIds.contains($0.key) }
-        } catch {
-            Logger.error("解析技能数据失败: \(error)")
-            return [:]
-        }
+        
+        // 等待异步操作完成
+        semaphore.wait()
+        return result
     }
 
     private func loadCharacterData() async {
@@ -863,51 +864,13 @@ struct SkillPlanDetailView: View {
     }
 
     private func getCharacterTotalSP() async -> Int {
-        // 从数据库获取角色当前的总技能点数
-        let query = """
-                SELECT total_sp, unallocated_sp
-                FROM character_skills
-                WHERE character_id = ?
-            """
-        if case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
-            query, parameters: [characterId]
-        ),
-            let row = rows.first
-        {
-            // 处理total_sp
-            let totalSP: Int
-            if let value = row["total_sp"] as? Int {
-                totalSP = value
-            } else if let value = row["total_sp"] as? Int64 {
-                totalSP = Int(value)
-            } else {
-                totalSP = 0
-                Logger.error("无法解析total_sp")
-            }
-
-            // 处理unallocated_sp
-            let unallocatedSP: Int
-            if let value = row["unallocated_sp"] as? Int {
-                unallocatedSP = value
-            } else if let value = row["unallocated_sp"] as? Int64 {
-                unallocatedSP = Int(value)
-            } else {
-                unallocatedSP = 0
-                Logger.error("无法解析unallocated_sp")
-            }
-
-            let characterTotalSP = totalSP + unallocatedSP
-            Logger.debug("角色总技能点: \(characterTotalSP) (已分配: \(totalSP), 未分配: \(unallocatedSP))")
-            return characterTotalSP
-        }
-
-        // 如果无法从数据库获取，尝试从API获取
+        // 直接从API获取角色当前的总技能点数
         do {
             let skillsInfo = try await CharacterSkillsAPI.shared.fetchCharacterSkills(
-                characterId: characterId, forceRefresh: true
+                characterId: characterId, forceRefresh: false
             )
             let characterTotalSP = skillsInfo.total_sp + skillsInfo.unallocated_sp
-            Logger.debug("从API获取角色总技能点: \(characterTotalSP)")
+            Logger.debug("从API获取角色总技能点: \(characterTotalSP) (已分配: \(skillsInfo.total_sp), 未分配: \(skillsInfo.unallocated_sp))")
             return characterTotalSP
         } catch {
             Logger.error("获取技能点数据失败: \(error)")

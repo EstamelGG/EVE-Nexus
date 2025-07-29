@@ -956,11 +956,14 @@ extension AttributeCompareUtil {
                 "处理属性: \(attributeIDString) (\(attributeName)), 物品ID: \(typeIDString), 值: \(value)")
         }
 
-        // 直接查询物品名称信息
-        let typeNamesQuery = """
+        // 查询 types 表中的额外属性值 - mass(4), capacity(38), volume(161)
+        let typesQuery = """
                 SELECT 
                     type_id, 
-                    name
+                    name,
+                    volume,
+                    capacity,
+                    mass
                 FROM 
                     types
                 WHERE 
@@ -968,7 +971,15 @@ extension AttributeCompareUtil {
             """
 
         var typeInfo: [String: String] = [:]
-        if case let .success(typeRows) = databaseManager.executeQuery(typeNamesQuery) {
+        
+        // 定义 types 表属性的真实属性ID映射
+        let typesAttributeMapping = [
+            (161, "volume"),    // 体积
+            (38, "capacity"),   // 容量  
+            (4, "mass")         // 质量
+        ]
+        
+        if case let .success(typeRows) = databaseManager.executeQuery(typesQuery) {
             for row in typeRows {
                 guard let typeID = row["type_id"] as? Int,
                     let name = row["name"] as? String
@@ -977,6 +988,25 @@ extension AttributeCompareUtil {
                 }
 
                 typeInfo[String(typeID)] = name
+                
+                // 处理 types 表中的属性值，使用真实的属性ID
+                for (realAttributeID, columnName) in typesAttributeMapping {
+                    if let value = row[columnName] as? Double {
+                        let attributeIDString = String(realAttributeID)
+                        let typeIDString = String(typeID)
+                        
+                        // 如果该属性ID还没有在结果字典中，添加它
+                        if attributeValues[attributeIDString] == nil {
+                            attributeValues[attributeIDString] = [:]
+                        }
+                        
+                        // 添加当前物品的属性值信息，单位ID先设为nil，后面从dogmaAttributes获取
+                        attributeValues[attributeIDString]?[typeIDString] = AttributeValueInfo(
+                            value: value, unitID: nil)
+                        
+                        Logger.debug("添加 types 属性: \(attributeIDString) (\(columnName)), 物品ID: \(typeIDString), 值: \(value)")
+                    }
+                }
             }
         }
 
@@ -989,7 +1019,10 @@ extension AttributeCompareUtil {
                     attribute_id, 
                     display_name,
                     name,
-                    highIsGood
+                    highIsGood,
+                    COALESCE(unitID, 0) as unitID,
+                    iconID,
+                    COALESCE(icon_filename, '') as icon_filename
                 FROM 
                     dogmaAttributes
                 WHERE 
@@ -999,8 +1032,6 @@ extension AttributeCompareUtil {
 
         // 已发布属性信息 (有display_name的)
         var publishedAttributeInfo: [String: String] = [:]
-        //         // 未发布属性信息 (只有name的)
-        //         var unpublishedAttributeInfo: [String: String] = [:]
 
         if case let .success(attributeRows) = databaseManager.executeQuery(attributeQuery) {
             for row in attributeRows {
@@ -1009,17 +1040,40 @@ extension AttributeCompareUtil {
                 }
 
                 let displayName = row["display_name"] as? String
-                //                 let name = row["name"] as? String
                 let attributeIDString = String(attributeID)
+                let unitID = row["unitID"] as? Int
+                let iconID = row["iconID"] as? Int
+                let iconFileName = (row["icon_filename"] as? String) ?? ""
+                let highIsGood = (row["highIsGood"] as? Int) == 1
 
                 if let displayName = displayName, !displayName.isEmpty {
                     // 有display_name的属性放入已发布列表
                     publishedAttributeInfo[attributeIDString] = displayName
                 }
-                //                 } else if let name = name {
-                //                     // 只有name的属性放入未发布列表
-                //                     unpublishedAttributeInfo[attributeIDString] = name
-                //                 }
+
+                // 更新 types 表属性的单位ID
+                if let attributeTypeValues = attributeValues[attributeIDString] {
+                    var updatedValues: [String: AttributeValueInfo] = [:]
+                    for (typeIDString, valueInfo) in attributeTypeValues {
+                        updatedValues[typeIDString] = AttributeValueInfo(
+                            value: valueInfo.value,
+                            unitID: unitID
+                        )
+                    }
+                    attributeValues[attributeIDString] = updatedValues
+                }
+
+                // 保存属性图标信息（只需保存一次）
+                if !attributeIcons.keys.contains(attributeIDString) && iconID != nil && iconID != 0 {
+                    let finalIconFileName =
+                        iconFileName.isEmpty ? DatabaseConfig.defaultIcon : iconFileName
+                    attributeIcons[attributeIDString] = finalIconFileName
+                }
+
+                // 保存属性的highIsGood信息（只需保存一次）
+                if !attributeHighIsGood.keys.contains(attributeIDString) {
+                    attributeHighIsGood[attributeIDString] = highIsGood
+                }
             }
         }
 

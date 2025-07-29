@@ -1046,10 +1046,12 @@ struct SystemSelectorSheet: View {
                                                 .frame(width: 36, height: 36)
                                         }
                                     } else {
-                                        // 无主权占位符
-                                        RoundedRectangle(cornerRadius: 6)
-                                            .fill(Color.gray.opacity(0.3))
+                                        // 无主权：显示faction_default图标
+                                        Image("faction_default")
+                                            .resizable()
+                                            .scaledToFit()
                                             .frame(width: 36, height: 36)
+                                            .cornerRadius(6)
                                     }
                                     
                                     // 右侧：星系信息

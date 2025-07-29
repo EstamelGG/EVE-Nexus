@@ -57,7 +57,7 @@ class DatabaseManager: ObservableObject {
     // 加载分类
     func loadCategories() -> ([Category], [Category]) {
         let query =
-            "SELECT category_id, name, published, icon_filename FROM categories ORDER BY category_id"
+            "SELECT category_id, name, en_name, published, icon_filename FROM categories ORDER BY category_id"
         let result = executeQuery(query)
 
         var published: [Category] = []
@@ -71,6 +71,7 @@ class DatabaseManager: ObservableObject {
                 // 确保所有必需的字段都存在且类型正确
                 guard let categoryId = row["category_id"] as? Int,
                     let name = row["name"] as? String,
+                    let enName = row["en_name"] as? String,
                     let iconFilename = row["icon_filename"] as? String
                 else {
                     Logger.error("行 \(index + 1) 数据不完整或类型不正确: \(row)")
@@ -82,6 +83,7 @@ class DatabaseManager: ObservableObject {
                 let category = Category(
                     id: categoryId,
                     name: name,
+                    enName: enName,
                     published: isPublished,
                     iconID: categoryId,  // 保持 iconID 为 categoryId
                     iconFileNew: iconFilename.isEmpty ? DatabaseConfig.defaultIcon : iconFilename
@@ -108,7 +110,7 @@ class DatabaseManager: ObservableObject {
     // 加载组
     func loadGroups(for categoryID: Int) -> ([Group], [Group]) {
         let query = """
-                SELECT g.group_id, g.name, g.categoryID, g.published, g.icon_filename
+                SELECT g.group_id, g.name, g.en_name, g.categoryID, g.published, g.icon_filename
                 FROM groups g
                 WHERE g.categoryID = ?
             """
@@ -123,6 +125,7 @@ class DatabaseManager: ObservableObject {
             for row in rows {
                 guard let groupId = row["group_id"] as? Int,
                     let name = row["name"] as? String,
+                    let enName = row["en_name"] as? String,
                     let catId = row["categoryID"] as? Int,
                     let iconFilename = row["icon_filename"] as? String
                 else {
@@ -134,6 +137,7 @@ class DatabaseManager: ObservableObject {
                 let group = Group(
                     id: groupId,
                     name: name,
+                    enName: enName,
                     iconID: groupId,  // 保持 iconID 为 groupId
                     categoryID: catId,
                     published: isPublished,
@@ -181,7 +185,7 @@ class DatabaseManager: ObservableObject {
 
         // 查询物品
         let query = """
-                SELECT t.type_id, t.name, t.icon_filename, t.published, t.metaGroupID, t.categoryID,
+                SELECT t.type_id, t.name, t.en_name, t.icon_filename, t.published, t.metaGroupID, t.categoryID,
                        t.pg_need, t.cpu_need, t.rig_cost, 
                        t.em_damage, t.them_damage, t.kin_damage, t.exp_damage,
                        t.high_slot, t.mid_slot, t.low_slot, t.rig_slot, t.gun_slot, t.miss_slot
@@ -200,6 +204,7 @@ class DatabaseManager: ObservableObject {
             for row in rows {
                 guard let typeId = row["type_id"] as? Int,
                     let name = row["name"] as? String,
+                    let enName = row["en_name"] as? String,
                     let iconFilename = row["icon_filename"] as? String,
                     let metaGroupId = row["metaGroupID"] as? Int,
                     let categoryId = row["categoryID"] as? Int,
@@ -235,6 +240,7 @@ class DatabaseManager: ObservableObject {
                     id: typeId,
                     typeID: typeId,
                     name: name,
+                    enName: enName,
                     iconFileName: iconFilename.isEmpty
                         ? DatabaseConfig.defaultItemIcon : iconFilename,
                     categoryID: categoryId,
@@ -274,7 +280,7 @@ class DatabaseManager: ObservableObject {
     ) {
         Logger.info("Search: \(searchText)")
         var query = """
-                SELECT t.type_id as id, t.name, t.published, t.icon_filename as iconFileName,
+                SELECT t.type_id as id, t.name, t.en_name, t.published, t.icon_filename as iconFileName,
                        t.categoryID, t.groupID, t.metaGroupID, t.marketGroupID,
                        t.pg_need as pgNeed, t.cpu_need as cpuNeed, t.rig_cost as rigCost,
                        t.em_damage as emDamage, t.them_damage as themDamage, t.kin_damage as kinDamage, t.exp_damage as expDamage,
@@ -313,6 +319,7 @@ class DatabaseManager: ObservableObject {
                     let name = row["name"] as? String,
                     let categoryId = row["categoryID"] as? Int
                 {
+                    let enName = row["en_name"] as? String
                     let iconFileName = (row["iconFileName"] as? String) ?? "not_found"
                     let published = (row["published"] as? Int) ?? 0
                     let groupID = row["groupID"] as? Int
@@ -327,6 +334,7 @@ class DatabaseManager: ObservableObject {
                         DatabaseListItem(
                             id: id,
                             name: name,
+                            enName: enName,
                             iconFileName: iconFileName,
                             published: published == 1,
                             categoryID: categoryId,
@@ -1051,8 +1059,8 @@ class DatabaseManager: ObservableObject {
         return nil
     }
 
-    // 根据物品ID获取对应的蓝图ID
-    func getBlueprintIDForProduct(_ typeID: Int) -> Int? {
+    // 根据物品ID获取对应的蓝图ID列表
+    func getBlueprintIDsForProduct(_ typeID: Int) -> [Int] {
         let query = """
                 SELECT DISTINCT blueprintTypeID
                 FROM blueprint_manufacturing_output
@@ -1064,19 +1072,90 @@ class DatabaseManager: ObservableObject {
             """
 
         let result = executeQuery(query, parameters: [typeID, typeID])
+        var blueprintIDs: [Int] = []
 
         switch result {
         case let .success(rows):
-            if let row = rows.first,
-                let blueprintID = row["blueprintTypeID"] as? Int
-            {
-                return blueprintID
+            for row in rows {
+                if let blueprintID = row["blueprintTypeID"] as? Int {
+                    blueprintIDs.append(blueprintID)
+                }
             }
         case let .error(error):
-            Logger.error("Error getting blueprint ID: \(error)")
+            Logger.error("Error getting blueprint IDs: \(error)")
         }
 
-        return nil
+        return blueprintIDs
+    }
+    
+    /// 批量获取多个产品的蓝图ID映射
+    /// - Parameter typeIDs: 产品类型ID数组
+    /// - Returns: 产品ID -> 蓝图ID数组的映射
+    func getBlueprintIDsForProducts(_ typeIDs: [Int]) -> [Int: [Int]] {
+        guard !typeIDs.isEmpty else { return [:] }
+        
+        let typeIDsString = typeIDs.map { String($0) }.joined(separator: ",")
+        let query = """
+                SELECT DISTINCT blueprintTypeID, typeID
+                FROM blueprint_manufacturing_output
+                WHERE typeID IN (\(typeIDsString))
+                UNION
+                SELECT DISTINCT blueprintTypeID, typeID
+                FROM blueprint_invention_products
+                WHERE typeID IN (\(typeIDsString))
+            """
+
+        let result = executeQuery(query)
+        var blueprintMapping: [Int: [Int]] = [:]
+
+        switch result {
+        case let .success(rows):
+            for row in rows {
+                if let blueprintID = row["blueprintTypeID"] as? Int,
+                   let typeID = row["typeID"] as? Int {
+                    if blueprintMapping[typeID] == nil {
+                        blueprintMapping[typeID] = []
+                    }
+                    blueprintMapping[typeID]?.append(blueprintID)
+                }
+            }
+        case let .error(error):
+            Logger.error("Error getting blueprint IDs for products: \(error)")
+        }
+
+        return blueprintMapping
+    }
+    
+    /// 批量获取蓝图信息
+    /// - Parameter blueprintIDs: 蓝图ID数组
+    /// - Returns: 蓝图ID -> 蓝图信息的映射
+    func getBlueprintInfos(_ blueprintIDs: [Int]) -> [Int: (name: String, iconFileName: String)] {
+        guard !blueprintIDs.isEmpty else { return [:] }
+        
+        let blueprintIDsString = blueprintIDs.map { String($0) }.joined(separator: ",")
+        let query = """
+            SELECT type_id, name, icon_filename
+            FROM types
+            WHERE type_id IN (\(blueprintIDsString)) AND published = 1
+        """
+        
+        let result = executeQuery(query)
+        var blueprintInfos: [Int: (name: String, iconFileName: String)] = [:]
+        
+        switch result {
+        case let .success(rows):
+            for row in rows {
+                if let blueprintID = row["type_id"] as? Int,
+                   let name = row["name"] as? String,
+                   let iconFileName = row["icon_filename"] as? String {
+                    blueprintInfos[blueprintID] = (name: name, iconFileName: iconFileName)
+                }
+            }
+        case let .error(error):
+            Logger.error("Error getting blueprint infos: \(error)")
+        }
+        
+        return blueprintInfos
     }
 
     // 获取蓝图源头
@@ -1324,12 +1403,12 @@ class DatabaseManager: ObservableObject {
     func getAllItemsRequiringSkill(skillID: Int) -> [Int: [(
         typeID: Int, name: String, iconFileName: String, categoryID: Int, categoryName: String
     )]] {
-        let query = """
-                SELECT DISTINCT typeid, typename, typeicon, required_skill_level, categoryID, category_name
+        // 获取物品依赖
+        let itemsQuery = """
+                SELECT typeid, typename, typeicon, required_skill_level, categoryID, category_name
                 FROM typeSkillRequirement
                 WHERE required_skill_id = ?
                 AND published = 1
-                ORDER BY required_skill_level, typename
             """
 
         var itemsByLevel:
@@ -1338,7 +1417,10 @@ class DatabaseManager: ObservableObject {
                 categoryName: String
             )]] = [:]
 
-        if case let .success(rows) = executeQuery(query, parameters: [skillID]) {
+        // 在内存中收集物品数据并去重
+        var processedItems = Set<Int>()
+        
+        if case let .success(rows) = executeQuery(itemsQuery, parameters: [skillID]) {
             for row in rows {
                 if let typeID = row["typeid"] as? Int,
                     let name = row["typename"] as? String,
@@ -1347,6 +1429,9 @@ class DatabaseManager: ObservableObject {
                     let categoryID = row["categoryID"] as? Int,
                     let categoryName = row["category_name"] as? String
                 {
+                    // 跳过已处理的物品
+                    guard !processedItems.contains(typeID) else { continue }
+                    
                     let item = (
                         typeID: typeID,
                         name: name,
@@ -1359,15 +1444,151 @@ class DatabaseManager: ObservableObject {
                     if itemsByLevel[level] == nil {
                         itemsByLevel[level] = []
                     }
-                    // 避免重复添加相同的物品
-                    if !itemsByLevel[level]!.contains(where: { $0.typeID == typeID }) {
-                        itemsByLevel[level]?.append(item)
-                    }
+                    itemsByLevel[level]?.append(item)
+                    processedItems.insert(typeID)
                 }
             }
         }
 
+        // 获取蓝图依赖
+        let blueprintsByLevel = getAllBlueprintsRequiringSkill(skillID: skillID)
+        
+        // 合并物品和蓝图结果
+        for (level, blueprints) in blueprintsByLevel {
+            if itemsByLevel[level] == nil {
+                itemsByLevel[level] = []
+            }
+            itemsByLevel[level]?.append(contentsOf: blueprints)
+        }
+
+        // 对每个等级内的物品按名称排序
+        for level in itemsByLevel.keys {
+            itemsByLevel[level]?.sort { $0.name < $1.name }
+        }
+
         return itemsByLevel
+    }
+    
+    // 获取所有需要特定技能的蓝图及其需求等级
+    private func getAllBlueprintsRequiringSkill(skillID: Int) -> [Int: [(
+        typeID: Int, name: String, iconFileName: String, categoryID: Int, categoryName: String
+    )]] {
+        // 获取所有蓝图技能要求数据
+        let blueprintSkillsQuery = """
+                SELECT 
+                    blueprintTypeID,
+                    level as required_skill_level
+                FROM (
+                    SELECT blueprintTypeID, typeID, level FROM blueprint_manufacturing_skills WHERE typeID = ?
+                    UNION ALL
+                    SELECT blueprintTypeID, typeID, level FROM blueprint_copying_skills WHERE typeID = ?
+                    UNION ALL
+                    SELECT blueprintTypeID, typeID, level FROM blueprint_invention_skills WHERE typeID = ?
+                    UNION ALL
+                    SELECT blueprintTypeID, typeID, level FROM blueprint_research_material_skills WHERE typeID = ?
+                    UNION ALL
+                    SELECT blueprintTypeID, typeID, level FROM blueprint_research_time_skills WHERE typeID = ?
+                )
+            """
+
+        // 在内存中收集所有蓝图ID和等级要求
+        var blueprintRequirements: [(blueprintID: Int, level: Int)] = []
+        var blueprintIDs = Set<Int>()
+        
+        if case let .success(rows) = executeQuery(blueprintSkillsQuery, parameters: [skillID, skillID, skillID, skillID, skillID]) {
+            for row in rows {
+                if let blueprintID = row["blueprintTypeID"] as? Int,
+                    let level = row["required_skill_level"] as? Int
+                {
+                    blueprintRequirements.append((blueprintID: blueprintID, level: level))
+                    blueprintIDs.insert(blueprintID)
+                }
+            }
+        }
+
+        // 如果没有找到蓝图，直接返回空结果
+        if blueprintIDs.isEmpty {
+            return [:]
+        }
+
+        // 从types表获取蓝图的详细信息
+        let placeholders = String(repeating: "?,", count: blueprintIDs.count).dropLast()
+        let blueprintDetailsQuery = """
+                SELECT 
+                    t.type_id,
+                    t.name,
+                    t.icon_filename,
+                    t.categoryID,
+                    t.published,
+                    c.name as category_name
+                FROM types t
+                LEFT JOIN categories c ON t.categoryID = c.category_id
+                WHERE t.type_id IN (\(placeholders))
+                AND t.published = 1
+            """
+
+        var blueprintDetails: [Int: (name: String, iconFileName: String, categoryID: Int, categoryName: String)] = [:]
+        
+        if case let .success(rows) = executeQuery(blueprintDetailsQuery, parameters: Array(blueprintIDs)) {
+            for row in rows {
+                if let typeID = row["type_id"] as? Int,
+                    let name = row["name"] as? String,
+                    let iconFileName = row["icon_filename"] as? String,
+                    let categoryID = row["categoryID"] as? Int,
+                    let categoryName = row["category_name"] as? String
+                {
+                    blueprintDetails[typeID] = (
+                        name: name,
+                        iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName,
+                        categoryID: categoryID,
+                        categoryName: categoryName
+                    )
+                }
+            }
+        }
+
+        // 在内存中按等级分组并去重
+        var blueprintsByLevel:
+            [Int: [(
+                typeID: Int, name: String, iconFileName: String, categoryID: Int,
+                categoryName: String
+            )]] = [:]
+
+        // 用于去重的Set
+        var processedBlueprints = Set<Int>()
+
+        for requirement in blueprintRequirements {
+            let blueprintID = requirement.blueprintID
+            let level = requirement.level
+            
+            // 跳过已处理的蓝图
+            guard !processedBlueprints.contains(blueprintID),
+                  let details = blueprintDetails[blueprintID] else {
+                continue
+            }
+            
+            let blueprint = (
+                typeID: blueprintID,
+                name: details.name,
+                iconFileName: details.iconFileName,
+                categoryID: details.categoryID,
+                categoryName: details.categoryName
+            )
+
+            if blueprintsByLevel[level] == nil {
+                blueprintsByLevel[level] = []
+            }
+            
+            blueprintsByLevel[level]?.append(blueprint)
+            processedBlueprints.insert(blueprintID)
+        }
+
+        // 对每个等级内的蓝图按名称排序
+        for level in blueprintsByLevel.keys {
+            blueprintsByLevel[level]?.sort { $0.name < $1.name }
+        }
+
+        return blueprintsByLevel
     }
 
     // 加载市场物品的通用查询
@@ -1375,7 +1596,7 @@ class DatabaseManager: ObservableObject {
         -> [DatabaseListItem]
     {
         var query = """
-                SELECT t.type_id as id, t.name, t.published, t.icon_filename as iconFileName,
+                SELECT t.type_id as id, t.name, t.en_name, t.published, t.icon_filename as iconFileName,
                        t.categoryID, t.groupID, t.metaGroupID, t.marketGroupID,
                        t.pg_need as pgNeed, t.cpu_need as cpuNeed, t.rig_cost as rigCost,
                        t.em_damage as emDamage, t.them_damage as themDamage, t.kin_damage as kinDamage, t.exp_damage as expDamage,
@@ -1396,6 +1617,7 @@ class DatabaseManager: ObservableObject {
                     let categoryId = row["categoryID"] as? Int
                 else { return nil }
 
+                let enName = row["en_name"] as? String
                 let iconFileName = (row["iconFileName"] as? String) ?? "not_found"
                 let published = (row["published"] as? Int) ?? 0
                 let groupID = row["groupID"] as? Int
@@ -1404,6 +1626,7 @@ class DatabaseManager: ObservableObject {
                 return DatabaseListItem(
                     id: id,
                     name: name,
+                    enName: enName,
                     iconFileName: iconFileName,
                     published: published == 1,
                     categoryID: categoryId,
@@ -1434,12 +1657,7 @@ class DatabaseManager: ObservableObject {
         return []
     }
 
-    // NPC浏览相关的数据结构
-    struct NPCItem {
-        let typeID: Int
-        let name: String
-        let iconFileName: String
-    }
+    // NPC浏览相关的数据结构 - 使用全局NPCItem模型
 
     // 获取所有NPC场景（一级目录）
     func getNPCScenes() -> [String] {
@@ -1507,7 +1725,7 @@ class DatabaseManager: ObservableObject {
     // 获取特定场景、阵营和类型下的所有物品
     func getNPCItems(for scene: String, faction: String, type: String) -> [NPCItem] {
         let query = """
-                SELECT type_id, name, icon_filename 
+                SELECT type_id, name, en_name, icon_filename 
                 FROM types 
                 WHERE npc_ship_scene = ? 
                 AND npc_ship_faction = ? 
@@ -1520,9 +1738,10 @@ class DatabaseManager: ObservableObject {
             for row in rows {
                 if let typeID = row["type_id"] as? Int,
                     let name = row["name"] as? String,
+                    let enName = row["en_name"] as? String,
                     let iconFileName = row["icon_filename"] as? String
                 {
-                    items.append(NPCItem(typeID: typeID, name: name, iconFileName: iconFileName))
+                    items.append(NPCItem(typeID: typeID, name: name, enName: enName, iconFileName: iconFileName))
                 }
             }
         }

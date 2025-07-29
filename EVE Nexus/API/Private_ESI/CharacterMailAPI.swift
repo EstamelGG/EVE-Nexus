@@ -86,7 +86,7 @@ class CharacterMailAPI {
 
         // 构建请求URL
         var urlString =
-            "https://esi.evetech.net/latest/characters/\(characterId)/mail/?datasource=tranquility"
+            "https://esi.evetech.net/characters/\(characterId)/mail/?datasource=tranquility"
         if let labelId = labelId {
             urlString += "&labels=\(labelId)"
         }
@@ -142,7 +142,7 @@ class CharacterMailAPI {
         do {
             // 构建请求URL
             let urlString =
-                "https://esi.evetech.net/latest/characters/\(characterId)/mail/labels/?datasource=tranquility"
+                "https://esi.evetech.net/characters/\(characterId)/mail/labels/?datasource=tranquility"
             guard let url = URL(string: urlString) else {
                 throw NetworkError.invalidURL
             }
@@ -354,7 +354,7 @@ class CharacterMailAPI {
 
         // 3. 从API获取数据
         let urlString =
-            "https://esi.evetech.net/latest/characters/\(characterId)/mail/\(mailId)/?datasource=tranquility"
+            "https://esi.evetech.net/characters/\(characterId)/mail/\(mailId)/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
@@ -466,7 +466,7 @@ class CharacterMailAPI {
 
         // 构建请求URL
         let urlString =
-            "https://esi.evetech.net/latest/characters/\(characterId)/mail/lists/?datasource=tranquility"
+            "https://esi.evetech.net/characters/\(characterId)/mail/lists/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
@@ -591,7 +591,7 @@ class CharacterMailAPI {
 
         // 构建请求URL
         let urlString =
-            "https://esi.evetech.net/latest/characters/\(characterId)/mail/?datasource=tranquility"
+            "https://esi.evetech.net/characters/\(characterId)/mail/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }

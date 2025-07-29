@@ -13,7 +13,7 @@ public class CharacterFatigueAPI {
 
     public func fetchCharacterFatigue(characterId: Int) async throws -> CharacterFatigue? {
         let urlString =
-            "https://esi.evetech.net/latest/characters/\(characterId)/fatigue/?datasource=tranquility"
+            "https://esi.evetech.net/characters/\(characterId)/fatigue/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }

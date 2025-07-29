@@ -131,7 +131,7 @@ class CharacterPlanetaryAPI {
         -> [CharacterPlanetaryInfo]
     {
         let urlString =
-            "https://esi.evetech.net/latest/characters/\(characterId)/planets/?datasource=tranquility"
+            "https://esi.evetech.net/characters/\(characterId)/planets/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw AssetError.invalidURL
         }
@@ -160,7 +160,7 @@ class CharacterPlanetaryAPI {
         async throws -> PlanetaryDetail
     {
         let urlString =
-            "https://esi.evetech.net/latest/characters/\(characterId)/planets/\(planetId)/?datasource=tranquility"
+            "https://esi.evetech.net/characters/\(characterId)/planets/\(planetId)/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw AssetError.invalidURL
         }

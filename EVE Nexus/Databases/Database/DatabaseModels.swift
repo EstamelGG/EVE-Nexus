@@ -4,13 +4,15 @@ import Foundation
 public struct Category: Identifiable {
     public let id: Int
     public let name: String
+    public let enName: String  // 添加英文名称
     public let published: Bool
     public let iconID: Int
     public let iconFileNew: String
 
-    public init(id: Int, name: String, published: Bool, iconID: Int, iconFileNew: String) {
+    public init(id: Int, name: String, enName: String, published: Bool, iconID: Int, iconFileNew: String) {
         self.id = id
         self.name = name
+        self.enName = enName
         self.published = published
         self.iconID = iconID
         self.iconFileNew = iconFileNew
@@ -21,16 +23,18 @@ public struct Category: Identifiable {
 public struct Group: Identifiable {
     public let id: Int
     public let name: String
+    public let enName: String  // 添加英文名称
     public let iconID: Int
     public let categoryID: Int
     public let published: Bool
     public let icon_filename: String
 
     public init(
-        id: Int, name: String, iconID: Int, categoryID: Int, published: Bool, icon_filename: String
+        id: Int, name: String, enName: String, iconID: Int, categoryID: Int, published: Bool, icon_filename: String
     ) {
         self.id = id
         self.name = name
+        self.enName = enName
         self.iconID = iconID
         self.categoryID = categoryID
         self.published = published
@@ -43,6 +47,7 @@ public struct DatabaseItem: Identifiable {
     public let id: Int
     public let typeID: Int
     public let name: String
+    public let enName: String  // 添加英文名称
     public let iconFileName: String
     public let categoryID: Int
     public let pgNeed: Double?
@@ -62,7 +67,7 @@ public struct DatabaseItem: Identifiable {
     public let published: Bool
 
     public init(
-        id: Int, typeID: Int, name: String, iconFileName: String, categoryID: Int, pgNeed: Double?,
+        id: Int, typeID: Int, name: String, enName: String, iconFileName: String, categoryID: Int, pgNeed: Double?,
         cpuNeed: Double?, rigCost: Int?, emDamage: Double?, themDamage: Double?, kinDamage: Double?,
         expDamage: Double?, highSlot: Int?, midSlot: Int?, lowSlot: Int?, rigSlot: Int?,
         gunSlot: Int?, missSlot: Int?, metaGroupID: Int, published: Bool
@@ -70,6 +75,7 @@ public struct DatabaseItem: Identifiable {
         self.id = id
         self.typeID = typeID
         self.name = name
+        self.enName = enName
         self.iconFileName = iconFileName
         self.categoryID = categoryID
         self.pgNeed = pgNeed

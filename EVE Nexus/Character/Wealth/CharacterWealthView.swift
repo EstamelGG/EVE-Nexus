@@ -80,7 +80,11 @@ struct CharacterWealthView: View {
                 ForEach(cachedWealthItems) { item in
                     if item.type == .wallet {
                         // 钱包余额不可点击
-                        WealthItemRow(item: item, isRefreshing: isTypeRefreshing(item.type))
+                        WealthItemRow(
+                            item: item, 
+                            isRefreshing: isTypeRefreshing(item.type),
+                            loadingProgress: nil
+                        )
                     } else {
                         // 其他项目可以点击查看详情
                         NavigationLink {
@@ -93,7 +97,11 @@ struct CharacterWealthView: View {
                                 wealthType: item.type
                             )
                         } label: {
-                            WealthItemRow(item: item, isRefreshing: isTypeRefreshing(item.type))
+                            WealthItemRow(
+                                item: item, 
+                                isRefreshing: isTypeRefreshing(item.type),
+                                loadingProgress: item.type == .assets ? viewModel.assetsLoadingProgress : nil
+                            )
                         }
                         .disabled(isTypeRefreshing(item.type))
                     }
@@ -172,6 +180,7 @@ struct CharacterWealthView: View {
 struct WealthItemRow: View {
     let item: WealthItem
     var isRefreshing: Bool
+    var loadingProgress: AssetLoadingProgress? = nil
 
     var body: some View {
         HStack {
@@ -184,9 +193,18 @@ struct WealthItemRow: View {
             // 名称和详情
             VStack(alignment: .leading, spacing: 2) {
                 Text(NSLocalizedString("Wealth_\(item.type.rawValue)", comment: ""))
-                Text(item.details)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                
+                // 显示详情或进度信息
+                if isRefreshing && item.type == .assets, let progress = loadingProgress {
+                    // 显示资产加载进度
+                    Text(getProgressText(progress))
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                } else {
+                    Text(item.details)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
 
             Spacer()
@@ -194,12 +212,33 @@ struct WealthItemRow: View {
             if isRefreshing {
                 ProgressView()
                     .padding(.horizontal, 8)
+            } else {
+                Text(item.formattedValue + " ISK")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
-
-            // 价值
-            Text(item.formattedValue + " ISK")
-                .font(.caption)
-                .foregroundColor(.secondary)
+        }
+    }
+    
+    // 获取进度文本
+    private func getProgressText(_ progress: AssetLoadingProgress) -> String {
+        switch progress {
+        case .loading(let page):
+            return String(format: NSLocalizedString("Assets_Loading_Page", comment: ""), page)
+        case .buildingTree:
+            return NSLocalizedString("Assets_Loading_BuildingTree", comment: "")
+        case .processingLocations:
+            return NSLocalizedString("Assets_Loading_ProcessingLocations", comment: "")
+        case .fetchingStructureInfo(let current, let total):
+            return String(format: NSLocalizedString("Assets_Loading_FetchingStructures", comment: ""), current, total)
+        case .preparingContainers:
+            return NSLocalizedString("Assets_Loading_PreparingContainers", comment: "")
+        case .loadingNames(let current, let total):
+            return String(format: NSLocalizedString("Assets_Loading_Names", comment: ""), current, total)
+        case .savingCache:
+            return NSLocalizedString("Assets_Loading_SavingCache", comment: "")
+        case .completed:
+            return NSLocalizedString("Assets_Loading_Completed", comment: "")
         }
     }
 }

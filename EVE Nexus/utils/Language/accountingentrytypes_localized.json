@@ -2346,5 +2346,167 @@
                 "派瑞根中心涂装交易"
             ]
         }
+    },
+    "skyhook_claim_fee": {
+        "entryTypeName": {
+            "en": [
+                "Skyhook claim fee"
+            ],
+            "zh": [
+                "天钩索赔费"
+            ]
+        },
+        "entryJournalMessage": {
+            "en": [
+                "Fee for {[location]arg1.name} Sovereignty Hub claiming one or more Skyhooks"
+            ],
+            "zh": [
+                "拥有一个或多个天钩的{[location]arg1.name}主权中心的费用"
+            ]
+        }
+    },
+    "air_career_program_reward": {
+        "entryTypeName": {
+            "en": [
+                "AIR Career Program Reward"
+            ],
+            "zh": [
+                "星空会职业计划奖励"
+            ]
+        },
+        "entryJournalMessage": {
+            "en": [
+                "Reward for completion of an AIR Career Program goal"
+            ],
+            "zh": [
+                "完成星空会职业计划目标后可获得的奖励"
+            ]
+        }
+    },
+    "freelance_jobs_duration_fee": {
+        "entryTypeName": {
+            "en": [
+                "Freelance Jobs Duration Fee"
+            ],
+            "zh": [
+                "自由任务时长费"
+            ]
+        },
+        "entryJournalMessage": {
+            "en": [
+                "Freelance Job - {project_name}"
+            ],
+            "zh": [
+                "自由任务 -{project_name}"
+            ]
+        }
+    },
+    "freelance_jobs_broadcasting_fee": {
+        "entryTypeName": {
+            "en": [
+                "Freelance Jobs Broadcasting Fee"
+            ],
+            "zh": [
+                "自由任务广播费"
+            ]
+        },
+        "entryJournalMessage": {
+            "en": [
+                "Freelance Job - {project_name}"
+            ],
+            "zh": [
+                "自由任务 -{project_name}"
+            ]
+        }
+    },
+    "freelance_jobs_reward_escrow": {
+        "entryTypeName": {
+            "en": [
+                "Freelance Jobs Reward Escrow"
+            ],
+            "zh": [
+                "自由任务奖励托管"
+            ]
+        },
+        "entryJournalMessage": {
+            "en": [
+                "Freelance Job - {project_name}"
+            ],
+            "zh": [
+                "自由任务 -{project_name}"
+            ]
+        }
+    },
+    "freelance_jobs_reward": {
+        "entryTypeName": {
+            "en": [
+                "Freelance Jobs Reward"
+            ],
+            "zh": [
+                "自由任务奖励"
+            ]
+        },
+        "entryJournalMessage": {
+            "en": [
+                "{corp_name} Freelance Job - {project_name}"
+            ],
+            "zh": [
+                "{corp_name}自由任务 -{project_name}"
+            ]
+        }
+    },
+    "freelance_jobs_escrow_refund": {
+        "entryTypeName": {
+            "en": [
+                "Freelance Jobs Escrow Refund"
+            ],
+            "zh": [
+                "自由任务托管退款"
+            ]
+        },
+        "entryJournalMessage": {
+            "en": [
+                "Freelance Job - {project_name}"
+            ],
+            "zh": [
+                "自由任务 -{project_name}"
+            ]
+        }
+    },
+    "freelance_jobs_reward_corporation_tax": {
+        "entryTypeName": {
+            "en": [
+                "Freelance Jobs Reward Corporation Tax"
+            ],
+            "zh": [
+                "自由任务奖励军团税"
+            ]
+        },
+        "entryJournalMessage": {
+            "en": [
+                "{corp_name} Freelance Job - {project_name}"
+            ],
+            "zh": [
+                "{corp_name}自由任务 -{project_name}"
+            ]
+        }
+    },
+    "gm_plex_fee_refund": {
+        "entryTypeName": {
+            "en": [
+                "GM Cash Transfer"
+            ],
+            "zh": [
+                "GM现金转帐"
+            ]
+        },
+        "entryJournalMessage": {
+            "en": [
+                "Reimbursement for PLEX market order fees"
+            ],
+            "zh": [
+                "补偿伊甸币市场订单费用"
+            ]
+        }
     }
 }

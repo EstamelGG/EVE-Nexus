@@ -4,15 +4,6 @@ import Foundation
 class StaticResourceManager {
     static let shared = StaticResourceManager()
     private let fileManager = FileManager.default
-    // 资源类型枚举
-    enum ResourceType: String, CaseIterable {
-        case factionIcons
-        case netRenders
-        case characterPortraits
-        var downloadTimeKey: String {
-            return "StaticResource_\(rawValue)_DownloadTime"
-        }
-    }
 
     private init() {}
 
@@ -46,11 +37,6 @@ class StaticResourceManager {
             try fileManager.createDirectory(
                 at: getNetRendersPath(), withIntermediateDirectories: true
             )
-        }
-
-        // 清理下载时间记录
-        for type in ResourceType.allCases {
-            UserDefaults.standard.removeObject(forKey: type.downloadTimeKey)
         }
 
         Logger.info("Cleared all static data")

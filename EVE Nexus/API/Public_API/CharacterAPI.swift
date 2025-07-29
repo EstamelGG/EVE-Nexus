@@ -165,7 +165,7 @@ final class CharacterAPI: @unchecked Sendable {
         }
 
         let urlString =
-            "https://esi.evetech.net/latest/characters/\(characterId)/?datasource=tranquility"  // 该接口缓存期较长 7 天，仅记录不重要信息
+            "https://esi.evetech.net/characters/\(characterId)/?datasource=tranquility"  // 该接口缓存期较长 7 天，仅记录不重要信息
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
@@ -299,7 +299,7 @@ final class CharacterAPI: @unchecked Sendable {
     // 获取角色雇佣历史
     func fetchEmploymentHistory(characterId: Int) async throws -> [CharacterEmploymentHistory] {
         let urlString =
-            "https://esi.evetech.net/latest/characters/\(characterId)/corporationhistory/?datasource=tranquility"
+            "https://esi.evetech.net/characters/\(characterId)/corporationhistory/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }

@@ -1,8 +1,18 @@
 import Foundation
 
+// 缓存数据结构
+private struct CharacterIndustryJobsCacheData: Codable {
+    let data: [CharacterIndustryAPI.IndustryJob]
+    let timestamp: Date
+
+    var isExpired: Bool {
+        // 设置缓存有效期为1小时
+        return Date().timeIntervalSince(timestamp) > 3600
+    }
+}
+
 class CharacterIndustryAPI {
     static let shared = CharacterIndustryAPI()
-    private let databaseManager = CharacterDatabaseManager.shared
 
     // 工业项目信息模型
     struct IndustryJob: Codable, Identifiable, Hashable {
@@ -45,11 +55,12 @@ class CharacterIndustryAPI {
 
     func fetchIndustryJobs(
         characterId: Int,
-        forceRefresh: Bool = false
+        forceRefresh: Bool = false,
+        includeCompleted: Bool = true
     ) async throws -> [IndustryJob] {
-        // 如果不是强制刷新，先尝试从数据库加载未过期数据
+        // 如果不是强制刷新，先尝试从文件缓存加载未过期数据
         if !forceRefresh {
-            if let cachedJobs = loadJobsFromDatabase(characterId: characterId) {
+            if let cachedJobs = loadJobsFromCache(characterId: characterId) {
                 Logger.info("使用缓存的工业项目数据 - 角色ID: \(characterId)")
                 return cachedJobs
             }
@@ -58,7 +69,7 @@ class CharacterIndustryAPI {
         // 从网络获取最新数据
         let url = URL(
             string:
-                "https://esi.evetech.net/latest/characters/\(characterId)/industry/jobs/?datasource=tranquility&include_completed=true"
+                "https://esi.evetech.net/characters/\(characterId)/industry/jobs/?datasource=tranquility&include_completed=\(includeCompleted)"
         )!
 
         let data = try await NetworkManager.shared.fetchDataWithToken(
@@ -71,72 +82,90 @@ class CharacterIndustryAPI {
 
         Logger.debug("从 API 获取到 \(jobs.count) 个工业项目")
         
-        // 保存到数据库
-        if saveJobsToDatabase(characterId: characterId, jobs: jobs) {
-            Logger.info("成功缓存工业项目数据 - 角色ID: \(characterId), 数量: \(jobs.count)")
-        }
+        // 保存到文件缓存
+        saveJobsToCache(jobs, characterId: characterId)
         
         return jobs
     }
 
-    // 从数据库加载工业项目数据（仅加载1小时内有效的数据）
-    private func loadJobsFromDatabase(characterId: Int) -> [IndustryJob]? {
-        let query = """
-            SELECT jobs_data FROM industry_jobs_data 
-            WHERE character_id = ? 
-            AND datetime(last_updated) > datetime('now', '-1 hour')
-            LIMIT 1
-        """
+    // MARK: - Cache Methods
 
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [characterId]),
-           rows.count > 0,
-           let row = rows.first,
-           let jsonString = row["jobs_data"] as? String,
-           let jsonData = jsonString.data(using: .utf8)
-        {
-            do {
-                let decoder = JSONDecoder()
-                decoder.dateDecodingStrategy = .iso8601
-                let jobs = try decoder.decode([IndustryJob].self, from: jsonData)
-                Logger.debug("成功从数据库加载工业项目数据 - 角色ID: \(characterId), 数量: \(jobs.count)")
-                return jobs
-            } catch {
-                Logger.error("解析工业项目数据失败: \(error)")
-                return nil
-            }
+    private func getCacheDirectory() -> URL? {
+        guard
+            let documentsDirectory = FileManager.default.urls(
+                for: .documentDirectory, in: .userDomainMask
+            ).first
+        else {
+            return nil
         }
-        return nil
+        let cacheDirectory = documentsDirectory.appendingPathComponent(
+            "IndustryJobs", isDirectory: true
+        )
+
+        // 确保缓存目录存在
+        try? FileManager.default.createDirectory(
+            at: cacheDirectory, withIntermediateDirectories: true, attributes: nil
+        )
+
+        return cacheDirectory
     }
 
-    // 保存工业项目数据到数据库
-    private func saveJobsToDatabase(characterId: Int, jobs: [IndustryJob]) -> Bool {
+    private func getCacheFilePath(characterId: Int) -> URL? {
+        guard let cacheDirectory = getCacheDirectory() else { return nil }
+        return cacheDirectory.appendingPathComponent("char_\(characterId).json")
+    }
+
+    private func loadJobsFromCache(characterId: Int) -> [IndustryJob]? {
+        guard let cacheFile = getCacheFilePath(characterId: characterId) else {
+            Logger.error("获取缓存文件路径失败 - 角色ID: \(characterId)")
+            return nil
+        }
+
+        Logger.info("尝试从缓存文件读取工业项目数据 - 路径: \(cacheFile.path)")
+
         do {
-            // 转换为JSON字符串
+            guard FileManager.default.fileExists(atPath: cacheFile.path) else {
+                Logger.info("缓存文件不存在 - 角色ID: \(characterId), 路径: \(cacheFile.path)")
+                return nil
+            }
+
+            let data = try Data(contentsOf: cacheFile)
+            let decoder = JSONDecoder()
+            decoder.dateDecodingStrategy = .iso8601
+            let cached = try decoder.decode(CharacterIndustryJobsCacheData.self, from: data)
+
+            if cached.isExpired {
+                Logger.info("缓存已过期 - 角色ID: \(characterId), 路径: \(cacheFile.path)")
+                try? FileManager.default.removeItem(at: cacheFile)
+                return nil
+            }
+
+            Logger.info("成功从缓存加载工业项目信息 - 角色ID: \(characterId), 路径: \(cacheFile.path), 数据条数: \(cached.data.count)")
+            return cached.data
+        } catch {
+            Logger.error("读取缓存文件失败 - 角色ID: \(characterId), 路径: \(cacheFile.path), 错误: \(error)")
+            // 删除损坏的缓存文件
+            try? FileManager.default.removeItem(at: cacheFile)
+            return nil
+        }
+    }
+
+    private func saveJobsToCache(_ jobs: [IndustryJob], characterId: Int) {
+        guard let cacheFile = getCacheFilePath(characterId: characterId) else {
+            Logger.error("获取缓存文件路径失败 - 角色ID: \(characterId)")
+            return
+        }
+
+        do {
+            let cachedData = CharacterIndustryJobsCacheData(data: jobs, timestamp: Date())
             let encoder = JSONEncoder()
             encoder.dateEncodingStrategy = .iso8601
-            let jsonData = try encoder.encode(jobs)
-            
-            guard let jsonString = String(data: jsonData, encoding: .utf8) else {
-                Logger.error("工业项目数据JSON编码失败")
-                return false
-            }
-            
-            // 使用INSERT OR REPLACE语句
-            let query = """
-                INSERT OR REPLACE INTO industry_jobs_data 
-                (character_id, jobs_data, last_updated) 
-                VALUES (?, ?, datetime('now'))
-            """
-            
-            if case let .error(error) = databaseManager.executeQuery(query, parameters: [characterId, jsonString]) {
-                Logger.error("保存工业项目数据失败: \(error)")
-                return false
-            }
-            
-            return true
+            let encodedData = try encoder.encode(cachedData)
+            try encodedData.write(to: cacheFile)
+            Logger.info("工业项目信息已缓存到文件 - 角色ID: \(characterId), 路径: \(cacheFile.path), 数据条数: \(jobs.count)")
         } catch {
-            Logger.error("保存工业项目数据失败: \(error)")
-            return false
+            Logger.error("保存工业项目信息缓存失败 - 角色ID: \(characterId), 路径: \(cacheFile.path), 错误: \(error)")
+            try? FileManager.default.removeItem(at: cacheFile)
         }
     }
 }

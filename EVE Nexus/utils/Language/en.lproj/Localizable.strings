@@ -6,6 +6,13 @@
   
 */
 
+// Features customization related
+"Features_Too_Many" = "Too many features?";
+"Features_Too_Many_With_Count" = "Too many features? (%d hidden)";
+"Features_Customize_Mode" = "Customize Mode";
+"Features_Exit_Customize" = "Exit Custom Mode";
+"Features_Restore_Default" = "Restore Default";
+
 "Main_Home" = "Home";
 "Main_Character" = "Character";
 "Main_Character_Sheet" = "Character Sheet";
@@ -28,6 +35,84 @@
 
 "Main_EVE_Mail" = "EVE Mail";
 "Main_Calendar" = "Calendar";
+
+// Calendar related strings
+"Calendar_Loading" = "Loading calendar data...";
+"Calendar_No_Events" = "No Calendar Events";
+"Calendar_No_Events_Description" = "There are currently no calendar events";
+"Calendar_Refresh" = "Refresh";
+"Calendar_Error" = "Error";
+"Calendar_OK" = "OK";
+"Calendar_Load_Failed" = "Failed to load calendar: %@";
+"Calendar_Unknown_Time" = "Unknown Time";
+"Calendar_Importance" = "Important";
+
+// Event response status
+"Calendar_Response_Accepted" = "Accepted";
+"Calendar_Response_Declined" = "Declined";
+"Calendar_Response_Tentative" = "Tentative";
+"Calendar_Response_Not_Responded" = "Not Responded";
+
+// Calendar date related
+"Calendar_Events_Count" = "events";
+"Calendar_No_Events_On_Date" = "No events on this date";
+
+// Calendar event detail
+"Calendar_Event_Detail" = "Event Detail";
+"Calendar_Event_Basic_Info" = "Basic Information";
+"Calendar_Event_Date" = "Date";
+"Calendar_Event_Duration" = "Duration";
+"Calendar_Event_Response" = "Response";
+"Calendar_Event_Organizer" = "Organizer";
+"Calendar_Event_Description" = "Description";
+"Calendar_Event_Time" = "Event Time";
+"Calendar_Load_Detail_Failed" = "Failed to load event detail: %@";
+"Calendar_Retry" = "Retry";
+"Calendar_Minutes" = "minutes";
+"Calendar_Hours" = "hours";
+"Calendar_Owner_Character" = "Character";
+"Calendar_Owner_Corporation" = "Corporation";
+"Calendar_Owner_Alliance" = "Alliance";
+
+// Notification related texts
+"Calendar_Add_Notification" = "Add Notification";
+"Calendar_Reminder_Title_Prefix" = "EVE Event: ";
+"Calendar_Reminder_Content_Header" = "EVE Online Calendar Event";
+"Calendar_Reminder_Event_Time" = "Event Time: ";
+"Calendar_Reminder_Organizer" = "Organizer: ";
+"Calendar_Reminder_Duration" = "Duration: ";
+"Calendar_Reminder_Description" = "Description:";
+"Calendar_Notification_Success" = "Notification scheduled successfully";
+"Calendar_Notification_Failed" = "Failed to schedule notification, please check permissions";
+"Calendar_Notification_Alert_Title" = "Notification";
+
+// Scheduled Notifications View
+"Calendar_Scheduled_Notifications" = "Scheduled Notifications";
+"Calendar_No_Scheduled_Notifications" = "No Scheduled Notifications";
+"Calendar_No_Scheduled_Notifications_Description" = "You haven't scheduled any event notifications yet";
+"Calendar_Notification_Time" = "Notification Time";
+"Calendar_Cancel_Notification" = "Cancel";
+"Calendar_Strategy_One_Hour_Before" = "1 hour before";
+"Calendar_Strategy_Thirty_Minutes_Before" = "30 minutes before";
+"Calendar_Strategy_At_Event_Time" = "At event time";
+"Calendar_Strategy_Minutes_Before" = "%d minutes before";
+
+// Custom notification time options
+"Calendar_Notification_Two_Hours_Before" = "2 hours before";
+"Calendar_Notification_One_Hour_Before" = "1 hour before";
+"Calendar_Notification_Thirty_Minutes_Before" = "30 minutes before";
+"Calendar_Notification_Fifteen_Minutes_Before" = "15 minutes before";
+"Calendar_Notification_At_Event_Time" = "At event time";
+"Calendar_Strategy_Two_Hours_Before" = "2 hours before";
+"Calendar_Strategy_Fifteen_Minutes_Before" = "15 minutes before";
+"Calendar_Select_Notification_Time" = "Select Notification Time";
+"Calendar_Notification_Time_Options" = "Notification Time Options";
+"Calendar_Notification_At_Event_Start" = "At event start";
+"Calendar_Notification_At" = "At";
+"Common_Cancel" = "Cancel";
+"Common_Confirm" = "Confirm";
+"Common_Done" = "Done";
+
 "Main_Wealth" = "Wealth";
 "Main_Wealth_ISK" = "Wallet: %@";
 "Main_Loyalty_Points" = "Loyalty Points";
@@ -159,10 +244,27 @@
 "Misc_Copy_Module_Name" = "Copy Module Name";
 "Misc_Copy_Item_Name" = "Copy Item Name";
 "Misc_Copy_Trans" = "Copy Translation";
+"Misc_Save_Render_Image" = "Save Render Image";
+"Misc_Save_Render_Image_Success" = "Render image saved to photo library";
+"Misc_Save_Render_Image_Error" = "Failed to save render image, please check photo library permissions";
+"Misc_Save_Render_Image_Error_Title" = "Save Failed";
 "Misc_Copy_Title" = "Copy Title";
 "Misc_Copy_LP_Offer_Name" = "Corp Offer Name";
 "Misc_Constellation" = "Constellation";
 "Misc_Copy_Structure" = "Copy Structure";
+"Industry_Copy_Installer_Name" = "Copy Installer: %@";
+
+// Industry Filter
+"Industry_Ready_For_Delivery" = "Ready";
+"Industry_Completed_Cancelled" = "Completed";
+"Industry_Filter_Title" = "Filter Settings";
+"Industry_Filter_Hide_Completed" = "Hide Completed & Cancelled";
+"Industry_Filter_Hide_Completed_Description" = "Hide delivered, cancelled, revoked and other completed jobs";
+"Industry_Filter_Activity_Types" = "Activity Types";
+"Industry_Filter_Installers" = "Installers";
+"Industry_Filter_Solar_Systems" = "Solar Systems";
+"Industry_Filter_Select_All" = "Select All";
+"Industry_Filtered_Count" = "Filtered %d items";
 
 // Structure Market Orders
 "Structure_Orders_Load" = "Load Market Orders";
@@ -174,6 +276,7 @@
 "Blueprint_Product" = "Product";
 "Blueprint_Success_Rate" = "Success Rate: %d%%";
 "Blueprint_Copy_Materials" = "Copy";
+"Blueprint_Copy_Materials_EN" = "Copy(EN)";
 "Blueprint_Copy_Success" = "Materials have been copied to clipboard";
 "Time_Year" = "y";
 "Time_Month" = "mon";
@@ -467,6 +570,15 @@
 "Assets_Loading_Page" = "Fetching page %d";
 "Assets_Loading_Calculating" = "Calculating...";
 "Assets_Loading_Fetching_Names" = "Fetching names";
+"Assets_Loading_Fetching_Structures" = "Fetching structure details (%d/%d)";
+"Assets_Loading_Saving_Cache" = "Saving to cache";
+"Assets_Loading_Completed" = "Loading completed";
+"Assets_Loading_BuildingTree" = "Building asset tree";
+"Assets_Loading_ProcessingLocations" = "Processing location information";
+"Assets_Loading_FetchingStructures" = "Fetching structure details (%d/%d)";
+"Assets_Loading_PreparingContainers" = "Preparing container information";
+"Assets_Loading_Names" = "Loading container names (%d/%d)";
+"Assets_Loading_SavingCache" = "Saving to cache";
 "Assets_Unknown_Location" = "Unknown Location";
 "Assets_Unknown_Region" = "Unknown Region";
 
@@ -478,6 +590,14 @@
 "Main_Market_Transactions_Unit_Price" = "Unit Price";
 "Main_Market_Transactions_Quantity" = "Quantity";
 "Main_Market_Transactions_Total" = "Total";
+
+// Wallet Transaction Settings
+"Wallet_Transaction_Settings" = "Settings";
+"Wallet_Transaction_Settings_Done" = "Done";
+"Wallet_Transaction_Merge_Similar" = "Merge Similar Transactions";
+"Wallet_Transaction_Merge_Similar_Description" = "Merge transactions of the same item, time, and location";
+"Wallet_Transaction_Average_Price" = "Average";
+
 "Wallet_Transaction_Type" = "Type";
 "Wallet_Transaction_Category" = "Category";
 "Wallet_Income" = "Income";
@@ -569,22 +689,32 @@
 "Industry_Status_Reaction" = "Reacting";
 
 // Industry Activity Types (Short)
-"Industry_Type_Manufacturing" = "MFG";
-"Industry_Type_Research_Time" = "TE";
-"Industry_Type_Research_Material" = "ME";
-"Industry_Type_Copying" = "Copy";
-"Industry_Type_Invention" = "Inv";
-"Industry_Type_Reaction" = "React";
+"Industry_Type_Manufacturing" = "Manufacturing";
+"Industry_Type_Research_Time" = "Time Efficiency Research";
+"Industry_Type_Research_Material" = "Material Efficiency Research";
+"Industry_Type_Manufacturing_Short" = "MFG";
+"Industry_Type_Research_Time_Short" = "TE Research";
+"Industry_Type_Research_Material_Short" = "ME Research";
+"Industry_Type_Copying" = "Copying";
+"Industry_Type_Invention" = "Invention";
+"Industry_Type_Reaction" = "Reactions";
 
 // Industry Slot Statistics
 "Industry_Slots_Header" = "Industry Slots";
 "Industry_Slots_Manufacturing" = "Manufacturing Jobs";
 "Industry_Slots_Research" = "Science Jobs";
 "Industry_Slots_Reaction" = "Reactions";
+"Industry_Range_Current_System" = "Current System";
+"Industry_Range_Jumps" = "%d Jumps";
+"Industry_Operation_Range" = "Operation Range";
+"Industry_Filtering_Data" = "Updating data...";
+"Industry_Task_List_Header" = "Task List";
 
 // Industry List Headers
 "Industry_Started_On" = "Started on %@";
 "Industry_In_Progress" = "In Progress";
+"Industry_In_Progress_Count" = "%d Active Jobs";
+"Industry_Soon_Complete" = "Completing Soon";
 
 // Industry Remaining Time
 "Industry_Remaining_Days_Hours" = "%dd %dh";
@@ -846,9 +976,12 @@
 "Transaction Dates" = "Transaction Dates";
 "transactions" = "trans";
 "Common_Error" = "Error";
+"Common_Unknown_Error" = "Unknown error occurred";
 "Net Balance" = "Net Balance";
 "Load More" = "Load More";
 "Balance" = "Balance: %@ ISK";
+
+"Total_volume" = "Total volume";
 
 // Optimal Attributes
 "Main_Skills_Optimal_Attributes" = "Optimal Attributes";
@@ -918,9 +1051,15 @@
 "Main_Search_Filter_Null_Sec" = "Null Sec";
 "Main_Search_Filter_Station" = "Station";
 "Main_Search_Filter_Structure" = "Structure";
+
+// Sort Options
+"Main_Search_Sort_Title" = "Sort By";
+"Main_Search_Sort_By_Type" = "By Structure Type";
+"Main_Search_Sort_By_Name" = "By Name";
+
 "Main_Search_Filter_Clear" = "Clear Filters";
-"Main_Search_Filter_Only_My_Corp" = "Only My Corporation Members";
-"Main_Search_Filter_Only_My_Alliance" = "Only My Alliance Members";
+"Main_Search_Filter_Only_My_Corp" = "Only My Corporation";
+"Main_Search_Filter_Only_My_Alliance" = "Only My Alliance";
 
 // Search Status
 "Main_Search_Status_Searching" = "Searching...";
@@ -953,6 +1092,7 @@
 // Character Detail View
 "Character_Detail_Organization" = "Organization";
 "Character_Detail_Employment_History" = "Employment History";
+"Character_Detail_Alliance_History" = "Alliance History";
 
 "Main_Search_Loading_Contacts" = "Loading contacts data...";
 "Main_Search_Loading_Failed" = "Failed to load contacts data";
@@ -960,6 +1100,7 @@
 // Standings Related
 "Standings" = "Standings";
 "Employment History" = "Employment History";
+"Alliance History" = "Alliance History";
 "Personal Standings" = "Personal Standings";
 "Corporation Standings" = "Corporation Standings";
 "Alliance Standings" = "Alliance Standings";
@@ -989,9 +1130,10 @@
 "Main_Market_Watch_List_Add_Item" = "Add Item";
 
 // Market Location
-"Main_Market_Location" = "Market Location";
+"Main_Market_Location" = "Market";
 "Main_Market_Order_Type" = "Order Type";
 "Main_Market_Price" = "Market Price";
+"Main_Market_Unit_Price" = "Unit Price: %@";
 "Main_Market_Price_Jita" = "Jita Market Price";
 "Main_Market_QuickBar_info" = "Basic Info";
 "Main_Market_Item_List" = "Item List";
@@ -1008,6 +1150,22 @@
 // Market Order Types
 "Main_Market_Order_Buy" = "Buy";
 "Main_Market_Order_Sell" = "Sell";
+
+// Clipboard import related
+"Main_Market_Clipboard_Import" = "Clipboard Import";
+"Main_Market_Clipboard_Empty" = "Clipboard is empty";
+"Main_Market_Clipboard_Success" = "Successfully imported %d items";
+"Main_Market_Clipboard_Failed" = "Failed to import %d items:";
+
+// Clipboard export related
+"Main_Market_Clipboard_Export" = "Clipboard Export";
+"Main_Market_Clipboard_Export_Success" = "Successfully exported %d items to clipboard";
+"Main_Market_Clipboard_Export_Empty" = "Watch list is empty, nothing to export";
+
+// Clipboard import confirmation related
+"Main_Market_Clipboard_Import_Confirm" = "Confirm Import";
+"Main_Market_Clipboard_Import_Confirm_Yes" = "Confirm Import";
+"Main_Market_Clipboard_Import_Confirm_Message" = "Current watch list has %d items. Importing will overwrite existing content. Are you sure you want to continue?";
 
 "Main_Battle" = "Battle";
 "Main_Killboard" = "KillBoard";
@@ -1372,6 +1530,7 @@
 // Success Messages
 "Operation_Success" = "Successful";
 "Scopes_Refresh_Success" = "Scopes refreshed, got %d permissions";
+"Scopes_Local_Refresh_Success" = "Scopes loaded from cache, got %d permissions";
 
 // Security Levels
 "Security_HighSec" = "High Sec";
@@ -1522,6 +1681,95 @@
 "Main_Database_Required_Mutaplasmids" = "Required Mutaplasmids";
 "Main_Database_Applicable_Blueprints" = "Required for";
 "Main_Database_Applicable_Blueprints_info" = "Blueprints that require this item";
+
+// Calculator
+"Blueprint_Calculator" = "Blueprint Calculator";
+"Blueprint_Calculator_Settings" = "Blueprint Settings";
+"Blueprint_Calculator_Material_Efficiency" = "Material Efficiency";
+"Blueprint_Calculator_Time_Efficiency" = "Time Efficiency";
+"Blueprint_Calculator_Select_Blueprint" = "Select Blueprint";
+"Blueprint_Calculator_No_Blueprint_Selected" = "No Blueprint Selected";
+"Blueprint_Calculator_Structure_Settings" = "Structure Settings";
+"Blueprint_Calculator_Select_Structure" = "Select Structure";
+"Blueprint_Calculator_No_Structure_Selected" = "No Structure Selected";
+"Blueprint_Calculator_Runs" = "Runs";
+"Blueprint_Calculator_Runs_Count" = "Runs: %d";
+"Blueprint_Calculator_Compatible" = "Compatible";
+"Blueprint_Calculator_Incompatible" = "Incompatible";
+"Blueprint_Calculator_Reaction_Need_Reaction_Structure" = "Reaction blueprints require reaction structures";
+"Blueprint_Calculator_Normal_Cannot_Use_Reaction_Structure" = "Normal blueprints cannot use reaction structures";
+"Blueprint_Calculator_Start_Calculation" = "Start Calc";
+"Blueprint_Calculator_Result" = "Calculation Result";
+"Blueprint_Calculator_Production_Info" = "Production Info";
+"Blueprint_Calculator_Production_Time" = "Production Time";
+"Blueprint_Calculator_Facility_Cost" = "Facility Cost";
+"Blueprint_Calculator_Profit_Estimation" = "Profit & Return";
+"Blueprint_Calculator_Materials_Required" = "Required Materials";
+"Blueprint_Calculator_Facility_Tax" = "Facility Tax";
+"Blueprint_Calculator_Product_Output" = "Output Market Settings";
+"Blueprint_Calculator_Product_Total_Price" = "Total Price: %@";
+"Blueprint_Calculator_Product_Market" = "Market";
+"Blueprint_Calculator_Material_Market" = "Market";
+"Blueprint_Calculator_Consider_Quantity" = "Buy All";
+"Blueprint_Calculator_Blueprints_Count" = "%d Blueprints";
+"Blueprint_Calculator_Reactions_Count" = "%d Reactions";
+"Blueprint_Calculator_Reaction_Label" = "Reaction";
+"Blueprint_Calculator_Material_Market_Settings" = "Material Market Settings";
+"Blueprint_Calculator_Fetching_Cost_Index" = "Fetching Cost Index";
+"Blueprint_Calculator_Calculating" = "Calculating";
+"Blueprint_Calculator_View_Blueprint" = "View";
+"Main_Market_Select_Location" = "Select Location";
+"Main_Market_Settings" = "Market Settings";
+"Time_Format_Days" = "%d days %02d:%02d:%02d";
+"Main_Database_Blueprints" = "Blueprints";
+"Main_Database_unknown_meta_group" = "Unknown Meta Group";
+"Main_Database_search_placeholder" = "Search";
+"Misc_Cancel" = "Cancel";
+
+// Structure Selector
+"Structure_Selector_Title" = "Select Structure";
+"Structure_Selector_Add_Structure" = "Add Structure";
+"Structure_Selector_Preset_Structures" = "Preset Structures";
+"Structure_Selector_No_Preset_Structures" = "No Preset Structures";
+"Structure_Selector_No_Rigs" = "No Rigs";
+"Structure_Selector_Default_Structure" = "Default Structure";
+"Structure_Selector_Unnamed_Structure" = "Unnamed Structure";
+
+// Structure Facility Selector
+"Structure_Facility_Selector_Title" = "Add Structure";
+"Structure_Facility_Selector_Structure" = "Structure";
+"Structure_Facility_Selector_Select_Structure" = "Select Structure";
+"Structure_Facility_Selector_No_Structure_Selected" = "No Structure Selected";
+"Structure_Facility_Selector_Custom_Name" = "Custom Name";
+"Structure_Facility_Selector_Name_Placeholder" = "Enter structure name";
+"Structure_Facility_Selector_Rigs" = "Rigs";
+"Structure_Facility_Selector_Add_Rigs" = "Add Rigs";
+"Structure_Facility_Selector_System" = "System";
+"Structure_Facility_Selector_Select_System" = "Select System";
+"Structure_Facility_Selector_No_System_Selected" = "No System Selected";
+"Structure_Facility_Selector_System_Selected" = "System Selected";
+"Structure_Facility_Selector_Selected_System" = "Selected System";
+"Structure_Facility_Selector_Unknown_System" = "Unknown System";
+"Structure_Facility_Selector_No_Sovereignty" = "No Sovereignty";
+"Structure_Facility_Selector_Clear_System" = "Clear System Selection";
+"Structure_Facility_Selector_Loading_Systems" = "Loading Systems...";
+
+"Structure_Facility_Selector_Select_Rigs" = "Select Rigs";
+"Structure_Facility_Selector_Save" = "Save";
+
+"Structure_Selector_Custom_Structures" = "Custom Structures";
+"Structure_Selector_Other_Rigs" = "and %d others";
+"Structure_Info_Detail_Title" = "Structure Details";
+"Structure_Info_System" = "System";
+"Structure_Info_Unknown_System" = "Unknown System";
+"Structure_Info_No_Sovereignty" = "No Sovereignty";
+"Structure_Info_All_Rigs" = "All Rigs";
+"Structure_Info_Rigs" = "Rigs";
+"Structure_Info_Done" = "Done";
+
+// Facility Rig Selector
+"Facility_Rig_Selector_Title" = "Select Rigs";
+"Facility_Rig_Selector_No_Compatible_Rigs" = "This facility does not support rigs";
 
 // Jump Navigation
 "Main_Jump_Navigation" = "Jump Navigation";
@@ -2094,3 +2342,23 @@
 "Structure_Orders_Reload_Message" = "Do you want to reload market orders for this structure?";
 "Structure_Orders_Reload_Cancel" = "Cancel";
 "Structure_Orders_Reload_Confirm" = "Confirm";
+
+// Corporation Industry
+"Loading_Corp_Industry_Jobs" = "Loading corporation industry jobs...";
+"Loading_Corp_Industry_Page_Progress" = "Loading page %d/%d ...";
+"Loading_Item_Names" = "Loading item names...";
+"Loading_Location_Names" = "Loading...";
+"Loading_Installer_Info" = "Loading...";
+"Processing_Data" = "Processing...";
+
+// Assets Pin Function
+"Assets_Pinned_Locations" = "Pinned Locations";
+"Assets_Pin" = "Pin";
+"Assets_Unpin" = "Unpin";
+
+// Language Map Settings
+"Language_Map_Settings_Title" = "Language Map Settings";
+"Language_Map_Settings_Description" = "Select languages to display in the language map. English is the default language, you need to select at least one other language.";
+"Language_Map_Settings_Select_Languages" = "Select Languages";
+"Language_Map_Settings_Minimum_Languages" = "Please select at least 2 languages";
+"Misc_Copy_All_Languages" = "Copy All Languages";

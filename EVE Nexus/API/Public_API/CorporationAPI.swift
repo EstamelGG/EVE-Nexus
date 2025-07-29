@@ -19,6 +19,13 @@ struct CorporationInfo: Codable {
     let faction_id: Int?
 }
 
+// 军团联盟历史记录数据模型
+struct CorporationAllianceHistory: Codable {
+    let alliance_id: Int?
+    let record_id: Int
+    let start_date: String
+}
+
 @globalActor actor CorporationAPIActor {
     static let shared = CorporationAPIActor()
 }
@@ -118,7 +125,7 @@ class CorporationAPI {
 
         // 从网络获取数据
         let urlString =
-            "https://esi.evetech.net/latest/corporations/\(corporationId)/?datasource=tranquility"
+            "https://esi.evetech.net/corporations/\(corporationId)/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
@@ -232,5 +239,97 @@ class CorporationAPI {
             alliance_id: info.alliance_id,
             faction_id: info.faction_id
         )
+    }
+    
+    // MARK: - 军团联盟历史相关方法
+    
+    /// 获取军团联盟历史
+    func fetchAllianceHistory(corporationId: Int, forceRefresh: Bool = false) async throws -> [CorporationAllianceHistory] {
+        // 创建缓存目录
+        let cacheDirectory = getAllianceHistoryCacheDirectory()
+        let cacheFilePath = cacheDirectory.appendingPathComponent("\(corporationId)_alliancehistory.json")
+        
+        // 检查文件缓存
+        if !forceRefresh, let cachedHistory = loadAllianceHistoryFromFile(filePath: cacheFilePath) {
+            Logger.info("[CorporationAPI]使用文件缓存的军团联盟历史 - 军团ID: \(corporationId)")
+            return cachedHistory
+        }
+
+        // 从网络获取数据
+        let urlString = "https://esi.evetech.net/corporations/\(corporationId)/alliancehistory/?datasource=tranquility"
+        guard let url = URL(string: urlString) else {
+            throw NetworkError.invalidURL
+        }
+
+        let data = try await NetworkManager.shared.fetchData(from: url)
+        let history = try JSONDecoder().decode([CorporationAllianceHistory].self, from: data)
+
+        // 按开始日期降序排序（最新的在前）
+        let sortedHistory = history.sorted { $0.start_date > $1.start_date }
+
+        // 保存到文件缓存
+        saveAllianceHistoryToFile(history: sortedHistory, filePath: cacheFilePath)
+
+        Logger.info("[CorporationAPI]成功获取军团联盟历史 - 军团ID: \(corporationId), 记录数: \(sortedHistory.count)")
+        return sortedHistory
+    }
+    
+    /// 获取联盟历史缓存目录
+    private func getAllianceHistoryCacheDirectory() -> URL {
+        let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let cacheDirectory = documentsPath.appendingPathComponent("CorpAllianceHistory")
+        
+        // 确保缓存目录存在
+        if !FileManager.default.fileExists(atPath: cacheDirectory.path) {
+            do {
+                try FileManager.default.createDirectory(at: cacheDirectory, withIntermediateDirectories: true)
+                Logger.info("[CorporationAPI]创建军团联盟历史缓存目录: \(cacheDirectory.path)")
+            } catch {
+                Logger.error("[CorporationAPI]创建军团联盟历史缓存目录失败: \(error)")
+            }
+        }
+        
+        return cacheDirectory
+    }
+    
+    /// 从文件加载联盟历史
+    private func loadAllianceHistoryFromFile(filePath: URL) -> [CorporationAllianceHistory]? {
+        guard FileManager.default.fileExists(atPath: filePath.path) else {
+            return nil
+        }
+        
+        do {
+            // 检查文件修改时间，如果超过12小时则视为过期
+            let attributes = try FileManager.default.attributesOfItem(atPath: filePath.path)
+            if let modificationDate = attributes[.modificationDate] as? Date {
+                let hoursSinceModification = Date().timeIntervalSince(modificationDate) / 3600
+                if hoursSinceModification > 12 {
+                    Logger.info("[CorporationAPI]军团联盟历史缓存文件已过期 - 军团ID: \(filePath.lastPathComponent)")
+                    return nil
+                } else {
+                    let remainingHours = 12 - hoursSinceModification
+                    Logger.info("[CorporationAPI]军团联盟历史缓存文件有效 - 军团ID: \(filePath.lastPathComponent), 剩余时间: \(String(format: "%.1f", remainingHours))小时")
+                }
+            }
+            
+            let data = try Data(contentsOf: filePath)
+            let history = try JSONDecoder().decode([CorporationAllianceHistory].self, from: data)
+            Logger.info("[CorporationAPI]成功从文件加载军团联盟历史 - 文件: \(filePath.lastPathComponent)")
+            return history
+        } catch {
+            Logger.error("[CorporationAPI]加载军团联盟历史缓存文件失败: \(error) - 文件: \(filePath.lastPathComponent)")
+            return nil
+        }
+    }
+    
+    /// 保存联盟历史到文件
+    private func saveAllianceHistoryToFile(history: [CorporationAllianceHistory], filePath: URL) {
+        do {
+            let data = try JSONEncoder().encode(history)
+            try data.write(to: filePath)
+            Logger.info("[CorporationAPI]成功保存军团联盟历史到文件 - 文件: \(filePath.lastPathComponent), 大小: \(data.count) bytes")
+        } catch {
+            Logger.error("[CorporationAPI]保存军团联盟历史到文件失败: \(error) - 文件: \(filePath.lastPathComponent)")
+        }
     }
 }

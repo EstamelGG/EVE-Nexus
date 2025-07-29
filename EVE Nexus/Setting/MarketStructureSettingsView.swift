@@ -371,14 +371,3 @@ struct StructureRowView: View {
         structureOrdersProgress = nil
     }
 }
-
-// MARK: - 日期格式化扩展
-
-extension DateFormatter {
-    static let shortDate: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateStyle = .short
-        formatter.timeStyle = .none
-        return formatter
-    }()
-} 

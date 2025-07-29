@@ -43,8 +43,8 @@ class StructureMarketManager {
     private let networkManager = NetworkManager.shared
     private init() {}
     
-    // 缓存时间：1小时
-    private let cacheTimeoutInterval: TimeInterval = 3600
+    // 缓存时间：4小时
+    private let cacheTimeoutInterval: TimeInterval = 4 * 60 * 60 // 4 小时有效期
     
     // Documents目录路径
     private var documentsDirectory: URL {
@@ -280,7 +280,7 @@ class StructureMarketManager {
         Logger.info("开始获取建筑物市场订单 - 建筑ID: \(structureId), 角色ID: \(characterId)")
         
         // 构建API URL
-        guard let url = URL(string: "https://esi.evetech.net/latest/markets/structures/\(structureId)/") else {
+        guard let url = URL(string: "https://esi.evetech.net/markets/structures/\(structureId)/") else {
             throw NetworkError.invalidURL
         }
         

@@ -379,6 +379,11 @@ struct ContentView: View {
     @AppStorage("selectedTheme") private var selectedTheme: String = "system"
     @AppStorage("showCorporationAffairs") private var showCorporationAffairs: Bool = false
     @AppStorage("lastVersion") private var lastVersion: String = ""
+    
+    // 功能自定义相关状态
+    @AppStorage("hiddenFeatures") private var hiddenFeaturesData: Data = Data()
+    @State private var isCustomizeMode: Bool = false
+    @State private var hiddenFeatures: Set<String> = []
     @Environment(\.colorScheme) var systemColorScheme
     @State private var columnVisibility = NavigationSplitViewVisibility.all
     @State private var selectedItem: String? = nil
@@ -405,11 +410,11 @@ struct ContentView: View {
                     loginSection
 
                     // 角色功能部分
-                    if currentCharacterId != 0 {
+                    if currentCharacterId != 0 || isCustomizeMode {
                         characterSection
 
                         // 军团部分（仅在开启设置且已登录时显示）
-                        if showCorporationAffairs {
+                        if showCorporationAffairs || isCustomizeMode {
                             corporationSection
                         }
                     }
@@ -421,7 +426,7 @@ struct ContentView: View {
                     businessSection
 
                     // 战斗部分(登录后显示)
-                    if currentCharacterId != 0 {
+                    if currentCharacterId != 0 || isCustomizeMode {
                         KillBoardSection
                     }
                     // 装配部分(无需登录)
@@ -436,7 +441,18 @@ struct ContentView: View {
                 .navigationTitle(NSLocalizedString("Main_Home", comment: ""))
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        logoutButton
+                        if isCustomizeMode {
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    isCustomizeMode = false
+                                }
+                            }) {
+                                Text(NSLocalizedString("Features_Exit_Customize", comment: ""))
+                                    .foregroundColor(.blue)
+                            }
+                        } else {
+                            logoutButton
+                        }
                     }
                 }
                 .navigationSplitViewColumnWidth(min: 300, ideal: geometry.size.width * 0.35)
@@ -487,7 +503,9 @@ struct ContentView: View {
                                 CharacterMailView(characterId: character.CharacterID)
                             }
                         case "calendar":
-                            Text("Calendar View")  // 待实现
+                            if let character = viewModel.selectedCharacter {
+                                CharacterCalendarView(characterId: character.CharacterID, databaseManager: databaseManager)
+                            }
                         case "character_wealth":
                             if let character = viewModel.selectedCharacter {
                                 CharacterWealthView(characterId: character.CharacterID)
@@ -591,8 +609,14 @@ struct ContentView: View {
                             if let character = viewModel.selectedCharacter {
                                 CorpMemberListView(characterId: character.CharacterID)
                             }
+                        case "corporation_industry":
+                            if let character = viewModel.selectedCharacter {
+                                CorpIndustryView(characterId: character.CharacterID)
+                            }
                         case "jump_navigation":
                             JumpNavigationView(databaseManager: databaseManager)
+                        case "calculator":
+                            CalculatorView()
                         case "fitting":
                             FittingMainView(
                                 characterId: viewModel.selectedCharacter?.CharacterID,
@@ -630,6 +654,9 @@ struct ContentView: View {
                     viewModel.resetCharacterInfo()
                 }
             }
+            
+            // 加载隐藏功能列表
+            loadHiddenFeatures()
             
             // 检查应用版本更新
             checkAppVersionUpdate()
@@ -670,6 +697,222 @@ struct ContentView: View {
     private func logSelectedItem(_ item: String?) -> Void {
         guard let item = item else { return }
         Logger.info("\n\n=== 用户访问功能: \(item) ===")
+    }
+    
+    // 功能自定义相关辅助函数
+    private func loadHiddenFeatures() {
+        do {
+            if !hiddenFeaturesData.isEmpty {
+                hiddenFeatures = try JSONDecoder().decode(Set<String>.self, from: hiddenFeaturesData)
+            }
+        } catch {
+            Logger.error("加载隐藏功能列表失败: \(error)")
+            hiddenFeatures = []
+        }
+    }
+    
+    private func saveHiddenFeatures() {
+        do {
+            hiddenFeaturesData = try JSONEncoder().encode(hiddenFeatures)
+        } catch {
+            Logger.error("保存隐藏功能列表失败: \(error)")
+        }
+    }
+    
+    private func isFeatureHidden(_ featureId: String) -> Bool {
+        return hiddenFeatures.contains(featureId)
+    }
+    
+    private func toggleFeatureVisibility(_ featureId: String) {
+        if hiddenFeatures.contains(featureId) {
+            hiddenFeatures.remove(featureId)
+        } else {
+            hiddenFeatures.insert(featureId)
+        }
+        saveHiddenFeatures()
+    }
+    
+    // 检查section是否有可见的功能
+    private func hasVisibleFeatures(in features: [String]) -> Bool {
+        if isCustomizeMode {
+            return true // 自定义模式下总是显示section
+        }
+        
+        // 检查是否有任何功能未被隐藏且满足登录要求
+        return features.contains { featureId in
+            let participatesInHiding = shouldParticipateInHiding(featureId)
+            let isHidden = participatesInHiding && isFeatureHidden(featureId)
+            return !isHidden && isFeatureAvailableForCurrentUser(featureId)
+        }
+    }
+    
+
+    
+    // 功能配置结构
+    struct FeatureConfig {
+        let id: String
+        let requiresLogin: Bool
+        let section: String
+    }
+    
+    // 所有功能的配置
+    private let featureConfigs: [FeatureConfig] = [
+        // 角色功能
+        FeatureConfig(id: "character_sheet", requiresLogin: true, section: "character"),
+        FeatureConfig(id: "character_clones", requiresLogin: true, section: "character"),
+        FeatureConfig(id: "character_skills", requiresLogin: true, section: "character"),
+        FeatureConfig(id: "character_mail", requiresLogin: true, section: "character"),
+        FeatureConfig(id: "calendar", requiresLogin: true, section: "character"),
+        FeatureConfig(id: "character_wealth", requiresLogin: true, section: "character"),
+        FeatureConfig(id: "character_lp", requiresLogin: true, section: "character"),
+        FeatureConfig(id: "searcher", requiresLogin: true, section: "character"),
+        
+        // 军团功能
+        FeatureConfig(id: "corporation_wallet", requiresLogin: true, section: "corporation"),
+        FeatureConfig(id: "corporation_members", requiresLogin: true, section: "corporation"),
+        FeatureConfig(id: "corporation_moon", requiresLogin: true, section: "corporation"),
+        FeatureConfig(id: "corporation_structures", requiresLogin: true, section: "corporation"),
+        FeatureConfig(id: "corporation_industry", requiresLogin: true, section: "corporation"),
+        
+        // 数据库功能
+        FeatureConfig(id: "database", requiresLogin: false, section: "database"),
+        FeatureConfig(id: "market", requiresLogin: false, section: "database"),
+        FeatureConfig(id: "vip_market_item", requiresLogin: false, section: "database"),
+        FeatureConfig(id: "attribute_compare", requiresLogin: false, section: "database"),
+        FeatureConfig(id: "npc", requiresLogin: false, section: "database"),
+        FeatureConfig(id: "npc_faction", requiresLogin: false, section: "database"),
+        FeatureConfig(id: "agents", requiresLogin: false, section: "database"),
+        FeatureConfig(id: "wormhole", requiresLogin: false, section: "database"),
+        FeatureConfig(id: "incursions", requiresLogin: false, section: "database"),
+        FeatureConfig(id: "faction_war", requiresLogin: false, section: "database"),
+        FeatureConfig(id: "sovereignty", requiresLogin: false, section: "database"),
+        FeatureConfig(id: "language_map", requiresLogin: false, section: "database"),
+        FeatureConfig(id: "jump_navigation", requiresLogin: false, section: "database"),
+        FeatureConfig(id: "calculator", requiresLogin: false, section: "database"),
+        
+        // 商业功能
+        FeatureConfig(id: "assets", requiresLogin: true, section: "business"),
+        FeatureConfig(id: "market_orders", requiresLogin: true, section: "business"),
+        FeatureConfig(id: "contracts", requiresLogin: true, section: "business"),
+        FeatureConfig(id: "market_transactions", requiresLogin: true, section: "business"),
+        FeatureConfig(id: "wallet_journal", requiresLogin: true, section: "business"),
+        FeatureConfig(id: "industry_jobs", requiresLogin: true, section: "business"),
+        FeatureConfig(id: "mining_ledger", requiresLogin: true, section: "business"),
+        FeatureConfig(id: "planetary", requiresLogin: false, section: "business"),
+        
+        // 战斗功能
+        FeatureConfig(id: "killboard", requiresLogin: true, section: "battle"),
+        
+        // 装配功能
+        FeatureConfig(id: "fitting", requiresLogin: false, section: "fitting"),
+        
+        // 其他功能
+        FeatureConfig(id: "settings", requiresLogin: false, section: "other"),
+        FeatureConfig(id: "update_history", requiresLogin: false, section: "other"),
+        FeatureConfig(id: "about", requiresLogin: false, section: "other")
+    ]
+    
+    // 获取指定section的所有功能ID
+    private func getFeatureIds(for section: String) -> [String] {
+        return featureConfigs
+            .filter { $0.section == section }
+            .map { $0.id }
+    }
+    
+    // 检查功能是否对当前用户可用
+    private func isFeatureAvailableForCurrentUser(_ featureId: String) -> Bool {
+        guard let config = featureConfigs.first(where: { $0.id == featureId }) else {
+            return true // 如果找不到配置，默认可用
+        }
+        
+        if config.requiresLogin {
+            return currentCharacterId != 0
+        }
+        
+        return true
+    }
+    
+    // 检查功能是否应该参与隐藏机制（other section中的功能不参与隐藏）
+    private func shouldParticipateInHiding(_ featureId: String) -> Bool {
+        guard let config = featureConfigs.first(where: { $0.id == featureId }) else {
+            return true
+        }
+        
+        // other section中的功能不参与隐藏
+        return config.section != "other"
+    }
+    
+    // 检查功能是否应该在编辑模式下显示选择圆圈（other section中的功能不显示选择圆圈）
+    private func shouldShowSelectionCircle(_ featureId: String) -> Bool {
+        guard let config = featureConfigs.first(where: { $0.id == featureId }) else {
+            return true
+        }
+        
+        // other section中的功能不显示选择圆圈
+        return config.section != "other"
+    }
+    
+    // 创建可自定义的NavigationLink
+    @ViewBuilder
+    private func customizableNavigationLink(
+        value: String,
+        title: String,
+        icon: String,
+        note: String? = nil,
+        noteView: AnyView? = nil
+    ) -> some View {
+        let participatesInHiding = shouldParticipateInHiding(value)
+        let isHidden = participatesInHiding && isFeatureHidden(value)
+        let showSelectionCircle = shouldShowSelectionCircle(value)
+        
+        let contentView = HStack {
+            Image(icon)
+                .resizable()
+                .frame(width: 36, height: 36)
+                .cornerRadius(6)
+                .drawingGroup()
+                .opacity(isCustomizeMode && isHidden ? 0.4 : 1.0)
+
+            VStack(alignment: .leading) {
+                Text(title)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .foregroundColor(isCustomizeMode && isHidden ? .gray : .primary)
+                if let noteView = noteView {
+                    noteView
+                } else if let note = note, !note.isEmpty {
+                    Text(note)
+                        .font(.system(size: 12))
+                        .foregroundColor(.gray)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(1)
+                }
+            }
+            Spacer()
+            
+            // 在自定义模式下显示选择圆环（仅对显示选择圆圈的功能显示）
+            if isCustomizeMode && showSelectionCircle {
+                Image(systemName: !isFeatureHidden(value) ? "checkmark.circle.fill" : "circle")
+                    .font(.title2)
+                    .foregroundColor(!isFeatureHidden(value) ? .blue : .gray)
+            }
+        }
+        
+        if isCustomizeMode {
+            // 编辑模式下，所有功能都变成不可点击的状态
+            contentView
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    // 只有参与隐藏且显示选择圆圈的功能才能响应点击
+                    if participatesInHiding && showSelectionCircle {
+                        toggleFeatureVisibility(value)
+                    }
+                }
+        } else {
+            NavigationLink(value: value) {
+                contentView
+            }
+            .isHidden(isHidden)
+        }
     }
     
     private func checkAppVersionUpdate() {
@@ -721,66 +964,65 @@ struct ContentView: View {
 
     private var characterSection: some View {
         Section {
-            NavigationLink(value: "character_sheet") {
-                RowView(
-                    title: NSLocalizedString("Main_Character_Sheet", comment: ""),
-                    icon: "charactersheet",
-                    note: viewModel.characterStats.skillPoints
-                )
-            }
+            customizableNavigationLink(
+                value: "character_sheet",
+                title: NSLocalizedString("Main_Character_Sheet", comment: ""),
+                icon: "charactersheet",
+                note: viewModel.characterStats.skillPoints
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
 
-            NavigationLink(value: "character_clones") {
-                RowView(
-                    title: NSLocalizedString("Main_Jump_Clones", comment: ""),
-                    icon: "jumpclones",
-                    noteView: AnyView(CloneCountdownView(targetDate: viewModel.cloneCooldownEndDate))
-                )
-            }
+            customizableNavigationLink(
+                value: "character_clones",
+                title: NSLocalizedString("Main_Jump_Clones", comment: ""),
+                icon: "jumpclones",
+                noteView: AnyView(CloneCountdownView(targetDate: viewModel.cloneCooldownEndDate))
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
 
-            NavigationLink(value: "character_skills") {
-                RowView(
-                    title: NSLocalizedString("Main_Skills", comment: ""),
-                    icon: "skills",
-                    noteView: AnyView(SkillQueueCountdownView(queueEndDate: viewModel.skillQueueEndDate, skillCount: viewModel.skillQueueCount))
-                )
-            }
+            customizableNavigationLink(
+                value: "character_skills",
+                title: NSLocalizedString("Main_Skills", comment: ""),
+                icon: "skills",
+                noteView: AnyView(SkillQueueCountdownView(queueEndDate: viewModel.skillQueueEndDate, skillCount: viewModel.skillQueueCount))
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
 
-            NavigationLink(value: "character_mail") {
-                RowView(
-                    title: NSLocalizedString("Main_EVE_Mail", comment: ""),
-                    icon: "evemail"
-                )
-            }
+            customizableNavigationLink(
+                value: "character_mail",
+                title: NSLocalizedString("Main_EVE_Mail", comment: ""),
+                icon: "evemail"
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
 
-            NavigationLink(value: "calendar") {
-                RowView(
-                    title: NSLocalizedString("Main_Calendar", comment: ""),
-                    icon: "calendar"
-                )
-            }
-            .isHidden(true)
+            customizableNavigationLink(
+                value: "calendar",
+                title: NSLocalizedString("Main_Calendar", comment: ""),
+                icon: "calendar"
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
 
-            NavigationLink(value: "character_wealth") {
-                RowView(
-                    title: NSLocalizedString("Main_Wealth", comment: ""),
-                    icon: "Folder",
-                    note: viewModel.characterStats.walletBalance
-                )
-            }
+            customizableNavigationLink(
+                value: "character_wealth",
+                title: NSLocalizedString("Main_Wealth", comment: ""),
+                icon: "Folder",
+                note: viewModel.characterStats.walletBalance
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
 
-            NavigationLink(value: "character_lp") {
-                RowView(
-                    title: NSLocalizedString("Main_Loyalty_Points", comment: ""),
-                    icon: "lpstore"
-                )
-            }
+            customizableNavigationLink(
+                value: "character_lp",
+                title: NSLocalizedString("Main_Loyalty_Points", comment: ""),
+                icon: "lpstore"
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
 
-            NavigationLink(value: "searcher") {
-                RowView(
-                    title: NSLocalizedString("Main_Contact_Search", comment: ""),
-                    icon: "peopleandplaces"
-                )
-            }
+            customizableNavigationLink(
+                value: "searcher",
+                title: NSLocalizedString("Main_Contact_Search", comment: ""),
+                icon: "peopleandplaces"
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
         } header: {
             Text(NSLocalizedString("Main_Character", comment: ""))
                 .fontWeight(.semibold)
@@ -788,65 +1030,45 @@ struct ContentView: View {
                 .foregroundColor(.primary)
                 .textCase(nil)
         }
+        .isHidden(!hasVisibleFeatures(in: getFeatureIds(for: "character")))
     }
 
     private var corporationSection: some View {
         Section {
-            NavigationLink(value: "corporation_wallet") {
-                RowView(
-                    title: NSLocalizedString("Main_Corporation_wallet", comment: ""),
-                    icon: "wallet"
-                )
-            }
+            customizableNavigationLink(
+                value: "corporation_wallet",
+                title: NSLocalizedString("Main_Corporation_wallet", comment: ""),
+                icon: "wallet"
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
 
-            NavigationLink(value: "corporation_members") {
-                RowView(
-                    title: NSLocalizedString("Main_Corporation_Members", comment: ""),
-                    icon: "corporation"
-                )
-            }
+            customizableNavigationLink(
+                value: "corporation_members",
+                title: NSLocalizedString("Main_Corporation_Members", comment: ""),
+                icon: "corporation"
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
 
-            NavigationLink(value: "corporation_moon") {
-                RowView(
-                    title: NSLocalizedString("Main_Corporation_Moon_Mining", comment: ""),
-                    icon: "satellite"
-                )
-            }
+            customizableNavigationLink(
+                value: "corporation_moon",
+                title: NSLocalizedString("Main_Corporation_Moon_Mining", comment: ""),
+                icon: "satellite"
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
 
-            NavigationLink(value: "corporation_structures") {
-                RowView(
-                    title: NSLocalizedString("Main_Corporation_Structures", comment: ""),
-                    icon: "Structurebrowser"
-                )
-            }
+            customizableNavigationLink(
+                value: "corporation_structures",
+                title: NSLocalizedString("Main_Corporation_Structures", comment: ""),
+                icon: "Structurebrowser"
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
 
-            // NavigationLink(value: "corporation_members") {
-            //     RowView(
-            //         title: NSLocalizedString("Main_Corporation_Members", comment: ""),
-            //         icon: "corporation"
-            //     )
-            // }
-
-            // NavigationLink(value: "corporation_contracts") {
-            //     RowView(
-            //         title: NSLocalizedString("Main_Corporation_Contracts", comment: ""),
-            //         icon: "contracts"
-            //     )
-            // }
-
-            // NavigationLink(value: "corporation_market_orders") {
-            //     RowView(
-            //         title: NSLocalizedString("Main_Corporation_Market_Orders", comment: ""),
-            //         icon: "marketdeliveries"
-            //     )
-            // }
-
-            // NavigationLink(value: "corporation_industry") {
-            //     RowView(
-            //         title: NSLocalizedString("Main_Corporation_Industry", comment: ""),
-            //         icon: "industry"
-            //     )
-            // }
+            customizableNavigationLink(
+                value: "corporation_industry",
+                title: NSLocalizedString("Main_Corporation_Industry", comment: ""),
+                icon: "industry"
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
         } header: {
             Text(NSLocalizedString("Main_Corporation", comment: ""))
                 .fontWeight(.semibold)
@@ -854,100 +1076,94 @@ struct ContentView: View {
                 .foregroundColor(.primary)
                 .textCase(nil)
         }
+        .isHidden(!hasVisibleFeatures(in: getFeatureIds(for: "corporation")))
     }
 
     private var databaseSection: some View {
         Section {
-            NavigationLink(value: "database") {
-                RowView(
-                    title: NSLocalizedString("Main_Database", comment: ""),
-                    icon: "items"
-                )
-            }
+            customizableNavigationLink(
+                value: "database",
+                title: NSLocalizedString("Main_Database", comment: ""),
+                icon: "items"
+            )
 
-            NavigationLink(value: "market") {
-                RowView(
-                    title: NSLocalizedString("Main_Market", comment: ""),
-                    icon: "market"
-                )
-            }
+            customizableNavigationLink(
+                value: "market",
+                title: NSLocalizedString("Main_Market", comment: ""),
+                icon: "market"
+            )
 
-            NavigationLink(value: "vip_market_item") {
-                RowView(
-                    title: NSLocalizedString("Main_Market_Watch_List", comment: ""),
-                    icon: "searchmarket"
-                )
-            }
+            customizableNavigationLink(
+                value: "vip_market_item",
+                title: NSLocalizedString("Main_Market_Watch_List", comment: ""),
+                icon: "searchmarket"
+            )
 
-            NavigationLink(value: "attribute_compare") {
-                RowView(
-                    title: NSLocalizedString("Main_Attribute_Compare", comment: "属性对比器"),
-                    icon: "comparetool"
-                )
-            }
+            customizableNavigationLink(
+                value: "attribute_compare",
+                title: NSLocalizedString("Main_Attribute_Compare", comment: "属性对比器"),
+                icon: "comparetool"
+            )
 
-            NavigationLink(value: "npc") {
-                RowView(
-                    title: NSLocalizedString("Main_NPC_entity", comment: ""),
-                    icon: "criminal"
-                )
-            }
+            customizableNavigationLink(
+                value: "npc",
+                title: NSLocalizedString("Main_NPC_entity", comment: ""),
+                icon: "criminal"
+            )
             
-            NavigationLink(value: "npc_faction") {
-                RowView(
-                    title: NSLocalizedString("Main_NPC_Faction", comment: ""),
-                    icon: "concord"
-                )
-            }
+            customizableNavigationLink(
+                value: "npc_faction",
+                title: NSLocalizedString("Main_NPC_Faction", comment: ""),
+                icon: "concord"
+            )
 
-            NavigationLink(value: "agents") {
-                RowView(
-                    title: NSLocalizedString("Main_Agents", comment: ""),
-                    icon: "agentfinder"
-                )
-            }
+            customizableNavigationLink(
+                value: "agents",
+                title: NSLocalizedString("Main_Agents", comment: ""),
+                icon: "agentfinder"
+            )
 
-            NavigationLink(value: "wormhole") {
-                RowView(
-                    title: NSLocalizedString("Main_WH", comment: ""),
-                    icon: "terminate"
-                )
-            }
+            customizableNavigationLink(
+                value: "wormhole",
+                title: NSLocalizedString("Main_WH", comment: ""),
+                icon: "terminate"
+            )
 
-            NavigationLink(value: "incursions") {
-                RowView(
-                    title: NSLocalizedString("Main_Incursions", comment: ""),
-                    icon: "incursions"
-                )
-            }
+            customizableNavigationLink(
+                value: "incursions",
+                title: NSLocalizedString("Main_Incursions", comment: ""),
+                icon: "incursions"
+            )
 
-            NavigationLink(value: "faction_war") {
-                RowView(
-                    title: NSLocalizedString("Main_Section_Frontlines", comment: ""),
-                    icon: "factionalwarfare"
-                )
-            }
+            customizableNavigationLink(
+                value: "faction_war",
+                title: NSLocalizedString("Main_Section_Frontlines", comment: ""),
+                icon: "factionalwarfare"
+            )
 
-            NavigationLink(value: "sovereignty") {
-                RowView(
-                    title: NSLocalizedString("Main_Sovereignty", comment: ""),
-                    icon: "sovereignty"
-                )
-            }
+            customizableNavigationLink(
+                value: "sovereignty",
+                title: NSLocalizedString("Main_Sovereignty", comment: ""),
+                icon: "sovereignty"
+            )
 
-            NavigationLink(value: "language_map") {
-                RowView(
-                    title: NSLocalizedString("Main_Language_Map", comment: ""),
-                    icon: "browser"
-                )
-            }
+            customizableNavigationLink(
+                value: "language_map",
+                title: NSLocalizedString("Main_Language_Map", comment: ""),
+                icon: "browser"
+            )
 
-            NavigationLink(value: "jump_navigation") {
-                RowView(
-                    title: NSLocalizedString("Main_Jump_Navigation", comment: ""),
-                    icon: "capitalnavigation"
-                )
-            }
+            customizableNavigationLink(
+                value: "jump_navigation",
+                title: NSLocalizedString("Main_Jump_Navigation", comment: ""),
+                icon: "capitalnavigation"
+            )
+
+            customizableNavigationLink(
+                value: "calculator",
+                title: NSLocalizedString("Blueprint_Calculator", comment: "蓝图计算器"),
+                icon: "calculator"
+            )
         } header: {
             Text(NSLocalizedString("Main_Databases", comment: ""))
                 .fontWeight(.semibold)
@@ -955,65 +1171,65 @@ struct ContentView: View {
                 .foregroundColor(.primary)
                 .textCase(nil)
         }
+        .isHidden(!hasVisibleFeatures(in: getFeatureIds(for: "database")))
     }
 
     private var businessSection: some View {
         Section {
-            NavigationLink(value: "assets") {
-                RowView(
-                    title: NSLocalizedString("Main_Assets", comment: ""),
-                    icon: "assets"
-                )
-            }.isHidden(currentCharacterId == 0)
+            customizableNavigationLink(
+                value: "assets",
+                title: NSLocalizedString("Main_Assets", comment: ""),
+                icon: "assets"
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
 
-            NavigationLink(value: "market_orders") {
-                RowView(
-                    title: NSLocalizedString("Main_Market_Orders", comment: ""),
-                    icon: "marketdeliveries"
-                )
-            }.isHidden(currentCharacterId == 0)
+            customizableNavigationLink(
+                value: "market_orders",
+                title: NSLocalizedString("Main_Market_Orders", comment: ""),
+                icon: "marketdeliveries"
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
 
-            NavigationLink(value: "contracts") {
-                RowView(
-                    title: NSLocalizedString("Main_Contracts", comment: ""),
-                    icon: "contracts"
-                )
-            }.isHidden(currentCharacterId == 0)
+            customizableNavigationLink(
+                value: "contracts",
+                title: NSLocalizedString("Main_Contracts", comment: ""),
+                icon: "contracts"
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
 
-            NavigationLink(value: "market_transactions") {
-                RowView(
-                    title: NSLocalizedString("Main_Market_Transactions", comment: ""),
-                    icon: "journal"
-                )
-            }.isHidden(currentCharacterId == 0)
+            customizableNavigationLink(
+                value: "market_transactions",
+                title: NSLocalizedString("Main_Market_Transactions", comment: ""),
+                icon: "journal"
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
 
-            NavigationLink(value: "wallet_journal") {
-                RowView(
-                    title: NSLocalizedString("Main_Wallet_Journal", comment: ""),
-                    icon: "wallet"
-                )
-            }.isHidden(currentCharacterId == 0)
+            customizableNavigationLink(
+                value: "wallet_journal",
+                title: NSLocalizedString("Main_Wallet_Journal", comment: ""),
+                icon: "wallet"
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
 
-            NavigationLink(value: "industry_jobs") {
-                RowView(
-                    title: NSLocalizedString("Main_Industry_Jobs", comment: ""),
-                    icon: "industry"
-                )
-            }.isHidden(currentCharacterId == 0)
+            customizableNavigationLink(
+                value: "industry_jobs",
+                title: NSLocalizedString("Main_Industry_Jobs", comment: ""),
+                icon: "industry"
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
 
-            NavigationLink(value: "mining_ledger") {
-                RowView(
-                    title: NSLocalizedString("Main_Mining_Ledger", comment: ""),
-                    icon: "miningledger"
-                )
-            }.isHidden(currentCharacterId == 0)
+            customizableNavigationLink(
+                value: "mining_ledger",
+                title: NSLocalizedString("Main_Mining_Ledger", comment: ""),
+                icon: "miningledger"
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
 
-            NavigationLink(value: "planetary") {
-                RowView(
-                    title: NSLocalizedString("Main_Planetary", comment: ""),
-                    icon: "planets"
-                )
-            }
+            customizableNavigationLink(
+                value: "planetary",
+                title: NSLocalizedString("Main_Planetary", comment: ""),
+                icon: "planets"
+            )
         } header: {
             Text(NSLocalizedString("Main_Business", comment: ""))
                 .fontWeight(.semibold)
@@ -1021,17 +1237,18 @@ struct ContentView: View {
                 .foregroundColor(.primary)
                 .textCase(nil)
         }
+        .isHidden(!hasVisibleFeatures(in: getFeatureIds(for: "business")))
     }
 
     private var KillBoardSection: some View {
         Section {
-            NavigationLink(value: "killboard") {
-                RowView(
-                    title: NSLocalizedString("Main_Killboard", comment: ""),
-                    icon: "killreport",
-                    note: NSLocalizedString("KillMail_Data_Source", comment: "")
-                )
-            }
+            customizableNavigationLink(
+                value: "killboard",
+                title: NSLocalizedString("Main_Killboard", comment: ""),
+                icon: "killreport",
+                note: NSLocalizedString("KillMail_Data_Source", comment: "")
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
         } header: {
             Text(NSLocalizedString("Main_Battle", comment: ""))
                 .fontWeight(.semibold)
@@ -1039,15 +1256,15 @@ struct ContentView: View {
                 .foregroundColor(.primary)
                 .textCase(nil)
         }
+        .isHidden(!hasVisibleFeatures(in: getFeatureIds(for: "battle")))
     }
     private var FittingSection: some View {
         Section {
-            NavigationLink(value: "fitting") {
-                RowView(
-                    title: NSLocalizedString("Main_Fitting_Simulation", comment: ""),
-                    icon: "fitting"
-                )
-            }
+            customizableNavigationLink(
+                value: "fitting",
+                title: NSLocalizedString("Main_Fitting_Simulation", comment: ""),
+                icon: "fitting"
+            )
         } header: {
             Text(NSLocalizedString("Main_Fitting", comment: ""))
                 .fontWeight(.semibold)
@@ -1055,36 +1272,94 @@ struct ContentView: View {
                 .foregroundColor(.primary)
                 .textCase(nil)
         }
+        .isHidden(!hasVisibleFeatures(in: getFeatureIds(for: "fitting")))
     }
     private var otherSection: some View {
         Section {
-            NavigationLink(value: "settings") {
-                RowView(
-                    title: NSLocalizedString("Main_Setting", comment: ""),
-                    icon: "Settings"
-                )
-            }
+            customizableNavigationLink(
+                value: "settings",
+                title: NSLocalizedString("Main_Setting", comment: ""),
+                icon: "Settings"
+            )
 
-            NavigationLink(value: "update_history") {
-                RowView(
-                    title: NSLocalizedString("Main_Update_History", comment: "更新历史"),
-                    icon: "log"
-                )
-            }
+            customizableNavigationLink(
+                value: "update_history",
+                title: NSLocalizedString("Main_Update_History", comment: "更新历史"),
+                icon: "log"
+            )
 
-            NavigationLink(value: "about") {
-                RowView(
-                    title: NSLocalizedString("Main_About", comment: ""),
-                    icon: "info"
-                )
-            }
+            customizableNavigationLink(
+                value: "about",
+                title: NSLocalizedString("Main_About", comment: ""),
+                icon: "info"
+            )
         } header: {
             Text(NSLocalizedString("Main_Other", comment: ""))
                 .fontWeight(.semibold)
                 .font(.system(size: 18))
                 .foregroundColor(.primary)
                 .textCase(nil)
+        } footer: {
+            VStack(spacing: 8) {
+                // 主要的切换按钮
+                HStack {
+                    Spacer()
+                    if isCustomizeMode {
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                isCustomizeMode = false
+                            }
+                        }) {
+                            Text(NSLocalizedString("Features_Exit_Customize", comment: ""))
+                                .font(.caption)
+                                .foregroundColor(.blue)
+                        }
+                    } else {
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                isCustomizeMode.toggle()
+                            }
+                        }) {
+                            let hiddenCount = hiddenFeatures.count
+                            if hiddenCount > 0 {
+                                Text(String(format: NSLocalizedString("Features_Too_Many_With_Count", comment: ""), hiddenCount))
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                            } else {
+                                Text(NSLocalizedString("Features_Too_Many", comment: ""))
+                                    .font(.caption)
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
+                    Spacer()
+                }
+                
+                if isCustomizeMode {
+                    // 恢复默认按钮
+                    HStack {
+                        Spacer()
+                        Button(action: {
+                            // 恢复默认 - 清空所有隐藏功能
+                            hiddenFeatures.removeAll()
+                            saveHiddenFeatures()
+                        }) {
+                            Text(NSLocalizedString("Features_Restore_Default", comment: ""))
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                        }
+                        Spacer()
+                    }
+                    
+                    // 自定义模式下的说明
+                    Text(NSLocalizedString("Features_Customize_Mode", comment: ""))
+                        .font(.caption)
+                        .foregroundColor(.gray)
+                }
+            }
+            .padding(.top, 8)
         }
+        .isHidden(!hasVisibleFeatures(in: getFeatureIds(for: "other")))
     }
 
     private var logoutButton: some View {
@@ -1112,7 +1387,6 @@ struct ContentView: View {
         let icon: String
         var note: String?
         var noteView: AnyView? = nil
-        var isVisible: Bool = true
 
         var body: some View {
             HStack {

@@ -62,7 +62,7 @@ public class CharacterFWStatsAPI {
         Logger.info("缓存未命中或强制刷新，从API获取派系战争统计数据，角色ID: \(characterId)")
         
         // 从API获取数据
-        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/fw/stats/?datasource=tranquility"
+        let urlString = "https://esi.evetech.net/characters/\(characterId)/fw/stats/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             Logger.error("无效的URL: \(urlString)")
             throw APIError.invalidURL

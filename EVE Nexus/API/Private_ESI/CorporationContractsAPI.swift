@@ -27,7 +27,7 @@ class CorporationContractsAPI {
     {
         let url = URL(
             string:
-                "https://esi.evetech.net/latest/corporations/\(corporationId)/contracts/\(contractId)/items/?datasource=tranquility"
+                "https://esi.evetech.net/corporations/\(corporationId)/contracts/\(contractId)/items/?datasource=tranquility"
         )!
 
         let data = try await NetworkManager.shared.fetchDataWithToken(
@@ -53,7 +53,7 @@ class CorporationContractsAPI {
         corporationId: Int, characterId: Int, progressCallback: ((Int) -> Void)? = nil
     ) async throws -> [ContractInfo] {
         let baseUrlString =
-            "https://esi.evetech.net/latest/corporations/\(corporationId)/contracts/?datasource=tranquility"
+            "https://esi.evetech.net/corporations/\(corporationId)/contracts/?datasource=tranquility"
         guard let baseUrl = URL(string: baseUrlString) else {
             throw NetworkError.invalidURL
         }

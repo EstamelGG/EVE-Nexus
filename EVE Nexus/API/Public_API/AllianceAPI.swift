@@ -107,7 +107,7 @@ class AllianceAPI {
 
         // 从网络获取数据
         let urlString =
-            "https://esi.evetech.net/latest/alliances/\(allianceId)/?datasource=tranquility"
+            "https://esi.evetech.net/alliances/\(allianceId)/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }

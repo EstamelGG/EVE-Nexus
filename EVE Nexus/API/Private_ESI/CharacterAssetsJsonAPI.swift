@@ -186,7 +186,7 @@ public class CharacterAssetsJsonAPI {
         progressCallback: ((AssetLoadingProgress) -> Void)? = nil
     ) async throws -> [CharacterAsset] {
         let baseUrlString =
-            "https://esi.evetech.net/latest/characters/\(characterId)/assets/?datasource=tranquility"
+            "https://esi.evetech.net/characters/\(characterId)/assets/?datasource=tranquility"
         guard let baseUrl = URL(string: baseUrlString) else {
             throw AssetError.invalidURL
         }
@@ -299,7 +299,7 @@ public class CharacterAssetsJsonAPI {
     {
         guard !containerIds.isEmpty else { return [:] }
 
-        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/assets/names/"
+        let urlString = "https://esi.evetech.net/characters/\(characterId)/assets/names/"
         guard let url = URL(string: urlString) else {
             throw AssetError.invalidURL
         }

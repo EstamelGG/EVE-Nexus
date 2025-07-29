@@ -32,7 +32,7 @@ public class CharacterFittingAPI {
         Logger.info("缓存未命中或强制刷新，从API获取数据")
         // 从API获取数据
         let urlString =
-            "https://esi.evetech.net/latest/characters/\(characterID)/fittings/?datasource=tranquility"
+            "https://esi.evetech.net/characters/\(characterID)/fittings/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             Logger.error("无效的URL: \(urlString)")
             throw APIError.invalidURL
@@ -65,7 +65,7 @@ public class CharacterFittingAPI {
         Logger.info("开始上传装配配置 - 角色ID: \(characterID), 装配名称: \(fitting.name)")
         
         // 构建URL
-        let urlString = "https://esi.evetech.net/latest/characters/\(characterID)/fittings/?datasource=tranquility"
+        let urlString = "https://esi.evetech.net/characters/\(characterID)/fittings/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             Logger.error("无效的URL: \(urlString)")
             throw APIError.invalidURL
@@ -123,7 +123,7 @@ public class CharacterFittingAPI {
         Logger.info("开始删除装配配置 - 角色ID: \(characterID), 装配ID: \(fittingID)")
         
         // 构建URL
-        let urlString = "https://esi.evetech.net/latest/characters/\(characterID)/fittings/\(fittingID)/?datasource=tranquility"
+        let urlString = "https://esi.evetech.net/characters/\(characterID)/fittings/\(fittingID)/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             Logger.error("无效的URL: \(urlString)")
             throw APIError.invalidURL

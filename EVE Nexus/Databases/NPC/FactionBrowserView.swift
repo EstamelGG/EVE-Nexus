@@ -45,6 +45,8 @@ func standingColor(_ standing: Double) -> Color {
     }
 }
 
+
+
 // 势力浏览器视图
 struct FactionBrowserView: View {
     @ObservedObject var databaseManager: DatabaseManager
@@ -130,7 +132,14 @@ struct FactionBrowserView: View {
                                                         Button {
                                                             UIPasteboard.general.string = faction.name
                                                         } label: {
-                                                            Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                                                            Label(NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc")
+                                                        }
+                                                        if !faction.enName.isEmpty && faction.enName != faction.name {
+                                                            Button {
+                                                                UIPasteboard.general.string = faction.enName
+                                                            } label: {
+                                                                Label(NSLocalizedString("Misc_Copy_Trans", comment: ""), systemImage: "translate")
+                                                            }
                                                         }
                                                     }
                                                 Spacer()
@@ -164,17 +173,21 @@ struct FactionBrowserView: View {
                                     )
                                 ) {
                                     HStack {
-                                        IconManager.shared.loadImage(for: corporation.iconFileName)
-                                            .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .cornerRadius(6)
+                                        CorporationIconView(corporationId: corporation.id, iconFileName: corporation.iconFileName, size: 32)
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(corporation.name)
                                                 .contextMenu {
                                                     Button {
                                                         UIPasteboard.general.string = corporation.name
                                                     } label: {
-                                                        Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                                                        Label(NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc")
+                                                    }
+                                                    if !corporation.enName.isEmpty && corporation.enName != corporation.name {
+                                                        Button {
+                                                            UIPasteboard.general.string = corporation.enName
+                                                        } label: {
+                                                            Label(NSLocalizedString("Misc_Copy_Trans", comment: ""), systemImage: "translate")
+                                                        }
                                                     }
                                                 }
                                             
@@ -236,7 +249,14 @@ struct FactionBrowserView: View {
                                                 Button {
                                                     UIPasteboard.general.string = faction.name
                                                 } label: {
-                                                    Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                                                    Label(NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc")
+                                                }
+                                                if !faction.enName.isEmpty && faction.enName != faction.name {
+                                                    Button {
+                                                        UIPasteboard.general.string = faction.enName
+                                                    } label: {
+                                                        Label(NSLocalizedString("Misc_Copy_Trans", comment: ""), systemImage: "translate")
+                                                    }
                                                 }
                                             }
                                         Spacer()
@@ -442,6 +462,13 @@ struct FactionDetailView: View {
                                 } label: {
                                     Label(NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc")
                                 }
+                                if !faction.enName.isEmpty && faction.enName != faction.name {
+                                    Button {
+                                        UIPasteboard.general.string = faction.enName
+                                    } label: {
+                                        Label(NSLocalizedString("Misc_Copy_Trans", comment: ""), systemImage: "translate")
+                                    }
+                                }
                             }
                         if !faction.shortDescription.isEmpty {
                             Text(faction.shortDescription)
@@ -477,19 +504,23 @@ struct FactionDetailView: View {
                             databaseManager: databaseManager
                         )
                     ) {
-                        HStack {
-                            IconManager.shared.loadImage(for: corporation.iconFileName)
-                                .resizable()
-                                .frame(width: 32, height: 32)
-                                .cornerRadius(6)
-                            VStack(alignment: .leading, spacing: 2) {
+                                                    HStack {
+                                CorporationIconView(corporationId: corporation.id, iconFileName: corporation.iconFileName, size: 32)
+                                VStack(alignment: .leading, spacing: 2) {
                                 HStack {
                                     Text(corporation.name)
                                         .contextMenu {
                                             Button {
                                                 UIPasteboard.general.string = corporation.name
                                             } label: {
-                                                Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                                                Label(NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc")
+                                            }
+                                            if !corporation.enName.isEmpty && corporation.enName != corporation.name {
+                                                Button {
+                                                    UIPasteboard.general.string = corporation.enName
+                                                } label: {
+                                                    Label(NSLocalizedString("Misc_Copy_Trans", comment: ""), systemImage: "translate")
+                                                }
                                             }
                                         }
                                     Spacer()
@@ -583,10 +614,7 @@ struct NPCCorporationDetailView: View {
             Section {
                 // 军团图标、名称和描述
                 HStack(spacing: 16) {
-                    IconManager.shared.loadImage(for: corporation.iconFileName)
-                        .resizable()
-                        .frame(width: 64, height: 64)
-                        .cornerRadius(8)
+                    CorporationIconView(corporationId: corporation.id, iconFileName: corporation.iconFileName, size: 64)
                     
                     Text(corporation.name)
                         .font(.title2)
@@ -596,6 +624,13 @@ struct NPCCorporationDetailView: View {
                                 UIPasteboard.general.string = corporation.name
                             } label: {
                                 Label(NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc")
+                            }
+                            if !corporation.enName.isEmpty && corporation.enName != corporation.name {
+                                Button {
+                                    UIPasteboard.general.string = corporation.enName
+                                } label: {
+                                    Label(NSLocalizedString("Misc_Copy_Trans", comment: ""), systemImage: "translate")
+                                }
                             }
                         }
                     

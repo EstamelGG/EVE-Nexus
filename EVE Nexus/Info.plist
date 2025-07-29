@@ -46,6 +46,8 @@
 		<string>processing</string>
 	</array>
 	<key>EVEDatabaseVersion</key>
-	<string>2025-07-07-002</string>
+	<string>2025-07-07-003</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>This app needs access to photo library to save item render images</string>
 </dict>
 </plist>

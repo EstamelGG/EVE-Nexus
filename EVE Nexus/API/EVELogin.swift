@@ -716,6 +716,19 @@ class ScopeManager {
     private let hardcodedScopesFileName = "scopes.json"
 
     private init() {}
+    
+    // 定义 scopes 获取来源枚举
+    enum ScopeSource {
+        case network
+        case localCache
+        case hardcoded
+    }
+    
+    // 定义返回结果结构
+    struct ScopeResult {
+        let scopes: [String]
+        let source: ScopeSource
+    }
 
     // 获取文档目录路径
     private var documentsDirectory: URL {
@@ -754,9 +767,9 @@ class ScopeManager {
         }
     }
 
-    // 从 swagger.json 获取最新的 scopes
+    // 从 api 获取最新的 scopes
     func fetchLatestScopes() async throws -> [String] {
-        guard let url = URL(string: "https://esi.evetech.net/latest/swagger.json") else {
+        guard let url = URL(string: "https://esi.evetech.net/meta/openapi.json") else {
             throw NetworkError.invalidURL
         }
 
@@ -766,13 +779,13 @@ class ScopeManager {
             method: "GET",
             headers: ["Accept": "application/json"],
             noRetryKeywords: nil,
-            timeouts: [2, 5, 5]
+            timeouts: [10, 20, 30]
         )
 
-        let swagger = try JSONDecoder().decode(SwaggerResponse.self, from: data)
+        let openapi = try JSONDecoder().decode(OpenAPIResponse.self, from: data)
 
-        // 从 securityDefinitions.evesso.scopes 中提取所有的 scope keys
-        let allScopes = swagger.securityDefinitions.evesso.scopes.keys.map { String($0) }
+        // 从 components.securitySchemes.OAuth2.flows.authorizationCode.scopes 中提取所有的 scope keys
+        let allScopes = openapi.components.securitySchemes.oauth2.flows.authorizationCode.scopes.keys.map { String($0) }
         
         // 获取不允许的 scopes 并过滤
         let notAllowedScopes = getNotAllowedScopes()
@@ -796,8 +809,8 @@ class ScopeManager {
         return Set(scopesDict["notAllowedScopes"] ?? [])
     }
 
-    // 获取 scopes
-    func getLatestScopes(forceRefresh: Bool = false) async -> [String] {
+    // 获取 scopes 并返回来源信息
+    func getLatestScopesWithSource(forceRefresh: Bool = false) async -> ScopeResult {
         // 检查是否需要刷新
         var shouldRefresh = forceRefresh
 
@@ -837,7 +850,8 @@ class ScopeManager {
         if shouldRefresh {
             do {
                 Logger.info("[EVELogin]尝试从网络获取最新 scopes")
-                return try await fetchLatestScopes()
+                let scopes = try await fetchLatestScopes()
+                return ScopeResult(scopes: scopes, source: .network)
             } catch {
                 Logger.error("[EVELogin]从网络获取 scopes 失败: \(error)，尝试使用本地文件")
             }
@@ -852,12 +866,19 @@ class ScopeManager {
             if notAllowedScopes.count > 0 && scopes.count != filteredScopes.count {
                 Logger.info("[EVELogin]对本地 scopes 应用过滤，原始: \(scopes.count)，过滤后: \(filteredScopes.count)")
             }
-            return filteredScopes
+            return ScopeResult(scopes: filteredScopes, source: .localCache)
         }
 
         // 如果本地文件加载失败，使用硬编码的 scopes
         Logger.info("[EVELogin]从本地文件加载失败，使用硬编码的 scopes")
-        return loadHardcodedScopes() ?? []
+        let scopes = loadHardcodedScopes() ?? []
+        return ScopeResult(scopes: scopes, source: .hardcoded)
+    }
+
+    // 获取 scopes（保持原有方法的兼容性）
+    func getLatestScopes(forceRefresh: Bool = false) async -> [String] {
+        let result = await getLatestScopesWithSource(forceRefresh: forceRefresh)
+        return result.scopes
     }
 
     // 从硬编码的 scopes.json 加载，并过滤掉不允许的 scopes
@@ -888,15 +909,31 @@ class ScopeManager {
     }
 }
 
-// 添加 SwaggerResponse 结构体
-private struct SwaggerResponse: Codable {
-    let securityDefinitions: SecurityDefinitions
+// 添加 OpenAPIResponse 结构体
+private struct OpenAPIResponse: Codable {
+    let components: Components
 
-    struct SecurityDefinitions: Codable {
-        let evesso: EveSSO
+    struct Components: Codable {
+        let securitySchemes: SecuritySchemes
 
-        struct EveSSO: Codable {
-            let scopes: [String: String]
+        struct SecuritySchemes: Codable {
+            let oauth2: OAuth2
+
+            private enum CodingKeys: String, CodingKey {
+                case oauth2 = "OAuth2"
+            }
+
+            struct OAuth2: Codable {
+                let flows: Flows
+
+                struct Flows: Codable {
+                    let authorizationCode: AuthorizationCode
+
+                    struct AuthorizationCode: Codable {
+                        let scopes: [String: String]
+                    }
+                }
+            }
         }
     }
 }

@@ -8,17 +8,10 @@ struct LanguageMapView: View {
     @State private var searchText = ""
     @State private var isSearchActive = false
     @State private var hasTypeIdMatch = false
+    @State private var showingSettings = false
+    @State private var selectedLanguages: [String] = LanguageMapConstants.languageMapDefaultLanguages
 
-    let availableLanguages = [
-        "de": "Deutsch:",
-        "en": "English:",
-        "es": "Español:",
-        "fr": "Français:",
-        "ja": "日本語:",
-        "ko": "한国語:",
-        "ru": "Русский:",
-        "zh": "中文:",
-    ]
+    let availableLanguages = LanguageMapConstants.availableLanguages
 
     var body: some View {
         VStack {
@@ -146,35 +139,65 @@ struct LanguageMapView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_Language_Map", comment: ""))
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    showingSettings = true
+                }) {
+                    Image(systemName: "gear")
+                }
+            }
+        }
+        .sheet(isPresented: $showingSettings) {
+            LanguageMapSettingsView()
+        }
+        .onAppear {
+            // 从UserDefaults读取选中的语言
+            selectedLanguages = UserDefaults.standard.stringArray(forKey: LanguageMapConstants.userDefaultsKey) ?? LanguageMapConstants.languageMapDefaultLanguages
+        }
     }
 
     // 提取结果行视图为单独的组件
     private struct ResultRow: View {
         let result: (id: Int, names: [String: String])
         let availableLanguages: [String: String]
+        @State private var selectedLanguages: [String] = LanguageMapConstants.languageMapDefaultLanguages
 
         var body: some View {
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(availableLanguages.keys).sorted(), id: \.self) { langCode in
+                ForEach(selectedLanguages.sorted(), id: \.self) { langCode in
                     if let name = result.names[langCode] {
                         HStack {
-                            Text(availableLanguages[langCode] ?? langCode)
+                            Text("\(availableLanguages[langCode] ?? langCode):")
                                 .foregroundColor(.gray)
                                 .frame(width: 80, alignment: .trailing)
                             Text(name)
                                 .contextMenu {
+                                    // 为每种选中的语言提供单独的复制按钮
+                                    ForEach(selectedLanguages.sorted(), id: \.self) { lang in
+                                        if let text = result.names[lang] {
+                                            Button {
+                                                UIPasteboard.general.string = text
+                                            } label: {
+                                                Label("\(NSLocalizedString("Misc_Copy", comment: "")) \(availableLanguages[lang] ?? lang)", systemImage: "doc.on.doc")
+                                            }
+                                        }
+                                    }
+                                    
+                                    Divider()
+                                    
                                     Button {
-                                        // 构建所有语言的文本
-                                        let allLanguagesText = availableLanguages.keys.sorted().compactMap { lang in
+                                        // 构建所有选中语言的文本
+                                        let allLanguagesText = selectedLanguages.sorted().compactMap { lang in
                                             if let text = result.names[lang] {
-                                                return "\(availableLanguages[lang] ?? lang) \(text)"
+                                                return "\(availableLanguages[lang] ?? lang): \(text)"
                                             }
                                             return nil
                                         }.joined(separator: "\n")
                                         
                                         UIPasteboard.general.string = allLanguagesText
                                     } label: {
-                                        Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+                                        Label(NSLocalizedString("Misc_Copy_All_Languages", comment: "复制所有语言"), systemImage: "doc.on.doc.fill")
                                     }
                                 }
                         }
@@ -182,10 +205,12 @@ struct LanguageMapView: View {
                 }
             }
             .padding(.vertical, 4)
+            .onAppear {
+                // 从UserDefaults读取选中的语言
+                selectedLanguages = UserDefaults.standard.stringArray(forKey: LanguageMapConstants.userDefaultsKey) ?? LanguageMapConstants.languageMapDefaultLanguages
+            }
         }
     }
-
-
 
     private func performSearch() {
         guard !searchText.isEmpty else {

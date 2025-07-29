@@ -262,3 +262,47 @@ func getBatchSolarSystemNames(solarSystemIds: [Int], databaseManager: DatabaseMa
 
     return result
 }
+
+// 简化的星系信息结构，用于快速查询
+public struct SimpleSystemInfo {
+    let name: String?
+    let security: Double?
+}
+
+// 获取简化的星系信息（同步版本）
+func getSystemInfo(systemId: Int, databaseManager: DatabaseManager) -> SimpleSystemInfo {
+    // 使用与 getSolarSystemInfo 相同的查询逻辑，但简化为同步版本
+    let query = """
+        SELECT s.solarSystemName, u.system_security
+        FROM solarsystems s
+        LEFT JOIN universe u ON u.solarsystem_id = s.solarSystemID
+        WHERE s.solarSystemID = ?
+    """
+    if case let .success(rows) = databaseManager.executeQuery(query, parameters: [systemId]),
+       let row = rows.first {
+        let systemName = row["solarSystemName"] as? String
+        let security = row["system_security"] as? Double
+        return SimpleSystemInfo(name: systemName, security: security)
+    }
+    return SimpleSystemInfo(name: nil, security: nil)
+}
+
+// 星系安全类别枚举
+public enum SecurityClass {
+    case highSec    // 高安
+    case lowSec     // 低安
+    case nullSecOrWH // 0.0或虫洞
+}
+
+// 根据安全等级判断星系安全类别
+func getSecurityClass(trueSec: Double) -> SecurityClass {
+    let displaySec = calculateDisplaySecurity(trueSec)
+    
+    if displaySec >= 0.5 {
+        return .highSec
+    } else if displaySec >= 0.0 {
+        return .lowSec
+    } else {
+        return .nullSecOrWH
+    }
+}

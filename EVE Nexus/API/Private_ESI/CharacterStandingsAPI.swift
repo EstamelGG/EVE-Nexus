@@ -29,7 +29,7 @@ public class CharacterStandingsAPI {
             }
         }
         
-        let urlString = "https://esi.evetech.net/latest/characters/\(characterId)/standings/?datasource=tranquility"
+        let urlString = "https://esi.evetech.net/characters/\(characterId)/standings/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }

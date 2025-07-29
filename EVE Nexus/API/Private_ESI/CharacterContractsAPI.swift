@@ -657,7 +657,7 @@ class CharacterContractsAPI {
         characterId: Int, progressCallback: ((Int) -> Void)? = nil
     ) async throws -> [ContractInfo] {
         let baseUrlString =
-            "https://esi.evetech.net/latest/characters/\(characterId)/contracts/?datasource=tranquility"
+            "https://esi.evetech.net/characters/\(characterId)/contracts/?datasource=tranquility"
         guard let baseUrl = URL(string: baseUrlString) else {
             throw NetworkError.invalidURL
         }
@@ -717,7 +717,7 @@ class CharacterContractsAPI {
         Logger.debug("开始从服务器获取合同物品 - 角色ID: \(characterId), 合同ID: \(contractId)")
         let url = URL(
             string:
-                "https://esi.evetech.net/latest/characters/\(characterId)/contracts/\(contractId)/items/?datasource=tranquility"
+                "https://esi.evetech.net/characters/\(characterId)/contracts/\(contractId)/items/?datasource=tranquility"
         )!
         Logger.debug("请求URL: \(url.absoluteString)")
 

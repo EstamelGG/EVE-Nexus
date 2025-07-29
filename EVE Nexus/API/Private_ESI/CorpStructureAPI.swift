@@ -74,7 +74,7 @@ public class CorpStructureAPI {
         Logger.info("开始获取军团建筑物信息 - 军团ID: \(corporationId)")
 
         let baseUrlString =
-            "https://esi.evetech.net/latest/corporations/\(corporationId)/structures/?datasource=tranquility&language=en"
+            "https://esi.evetech.net/corporations/\(corporationId)/structures/?datasource=tranquility&language=en"
         guard let baseUrl = URL(string: baseUrlString) else {
             throw NetworkError.invalidURL
         }

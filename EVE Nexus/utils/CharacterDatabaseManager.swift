@@ -341,22 +341,6 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                 CREATE INDEX IF NOT EXISTS idx_corporation_contracts_date ON corporation_contracts(date_issued);
                 CREATE INDEX IF NOT EXISTS idx_corporation_contracts_corp ON corporation_contracts(corporation_id);
 
-                -- 忠诚点数据表
-                CREATE TABLE IF NOT EXISTS loyalty_points (
-                    character_id INTEGER NOT NULL PRIMARY KEY,
-                    points_data TEXT NOT NULL,
-                    last_updated TEXT DEFAULT CURRENT_TIMESTAMP
-                );
-                CREATE INDEX IF NOT EXISTS idx_loyalty_points_last_updated ON loyalty_points(last_updated);
-
-                -- 工业制造数据表
-                CREATE TABLE IF NOT EXISTS industry_jobs_data (
-                    character_id INTEGER NOT NULL PRIMARY KEY,
-                    jobs_data TEXT NOT NULL,
-                    last_updated TEXT DEFAULT CURRENT_TIMESTAMP
-                );
-                CREATE INDEX IF NOT EXISTS idx_industry_jobs_data_last_updated ON industry_jobs_data(last_updated);
-
                 -- LP商店数据表
                 CREATE TABLE IF NOT EXISTS LPStoreOffers (
                     corporation_id INTEGER NOT NULL,
@@ -374,8 +358,6 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                 CREATE INDEX IF NOT EXISTS idx_wallet_journal_character_date ON wallet_journal(character_id, date);
                 CREATE INDEX IF NOT EXISTS idx_wallet_transactions_character_date ON wallet_transactions(character_id, date);
                 CREATE INDEX IF NOT EXISTS idx_mining_ledger_character_date ON mining_ledger(character_id, date);
-                CREATE INDEX IF NOT EXISTS idx_skill_queue_last_updated ON character_skill_queue(last_updated);
-                CREATE INDEX IF NOT EXISTS idx_character_skills_last_updated ON character_skills(last_updated);
                 CREATE INDEX IF NOT EXISTS idx_character_current_state_update ON character_current_state(last_update);
 
                 -- 建筑物缓存表
@@ -398,22 +380,6 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                     type_id INTEGER NOT NULL,
                     last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
                     PRIMARY KEY (character_id, date, type_id, solar_system_id)
-                );
-
-                -- 技能队列缓存表
-                CREATE TABLE IF NOT EXISTS character_skill_queue (
-                    character_id INTEGER NOT NULL PRIMARY KEY,
-                    queue_data TEXT,
-                    last_updated TEXT DEFAULT CURRENT_TIMESTAMP
-                );
-
-                -- 技能数据缓存表
-                CREATE TABLE IF NOT EXISTS character_skills (
-                    character_id INTEGER NOT NULL PRIMARY KEY,
-                    skills_data TEXT,
-                    unallocated_sp INTEGER NOT NULL DEFAULT 0,
-                    total_sp INTEGER NOT NULL DEFAULT 0,
-                    last_updated TEXT DEFAULT CURRENT_TIMESTAMP
                 );
 
                 -- 角色信息缓存表
@@ -444,35 +410,20 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                 );
                 CREATE INDEX IF NOT EXISTS idx_clones_last_updated ON clones(last_updated);
 
-                -- 植入体状态表
-                CREATE TABLE IF NOT EXISTS implants (
-                    character_id INTEGER NOT NULL PRIMARY KEY,
-                    implants_data TEXT NOT NULL,
-                    last_updated TEXT DEFAULT CURRENT_TIMESTAMP
-                );
-                CREATE INDEX IF NOT EXISTS idx_implants_last_updated ON implants(last_updated);
-
-                -- 角色属性点表
-                CREATE TABLE IF NOT EXISTS character_attributes (
-                    character_id INTEGER NOT NULL PRIMARY KEY,
-                    charisma INTEGER NOT NULL,
-                    intelligence INTEGER NOT NULL,
-                    memory INTEGER NOT NULL,
-                    perception INTEGER NOT NULL,
-                    willpower INTEGER NOT NULL,
-                    bonus_remaps INTEGER,
-                    accrued_remap_cooldown_date TEXT,
-                    last_remap_date TEXT,
-                    last_updated TEXT DEFAULT CURRENT_TIMESTAMP
-                );
-                CREATE INDEX IF NOT EXISTS idx_character_attributes_last_updated ON character_attributes(last_updated);
-
                 -- 市场价格表
                 CREATE TABLE IF NOT EXISTS market_prices (
                     type_id INTEGER NOT NULL PRIMARY KEY,
                     adjusted_price REAL,
                     average_price REAL
                 );
+
+                -- 日历缓存表（仅在网络失败时使用）
+                CREATE TABLE IF NOT EXISTS calendar_cache (
+                    character_id INTEGER NOT NULL PRIMARY KEY,
+                    calendar_data TEXT NOT NULL,
+                    last_updated TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+                CREATE INDEX IF NOT EXISTS idx_calendar_cache_last_updated ON calendar_cache(last_updated);
             """
 
         // 分割SQL语句并逐个执行
@@ -683,12 +634,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
             "DELETE FROM wallet_journal WHERE character_id = ?",
             "DELETE FROM wallet_transactions WHERE character_id = ?",
             "DELETE FROM character_info WHERE character_id = ?",
-            "DELETE FROM character_skill_queue WHERE character_id = ?",
-            "DELETE FROM character_skills WHERE character_id = ?",
             "DELETE FROM clones WHERE character_id = ?",
-            "DELETE FROM implants WHERE character_id = ?",
-            "DELETE FROM character_attributes WHERE character_id = ?",
-            "DELETE FROM loyalty_points WHERE character_id = ?",
             "DELETE FROM industry_jobs_data WHERE character_id = ?",
             "DELETE FROM mining_ledger WHERE character_id = ?",
             "DELETE FROM contracts WHERE character_id = ?",

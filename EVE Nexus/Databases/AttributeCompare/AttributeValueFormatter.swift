@@ -55,13 +55,6 @@ enum AttributeValueFormatter {
 
     /// 格式化数值
     private static func formatValue(_ value: Double) -> String {
-        // 如果是整数，不显示小数点
-        if value.truncatingRemainder(dividingBy: 1) == 0 {
-            return "\(Int(value))"
-        } else {
-            // 保留适当的小数位（对于小数，保留2位）
-            return String(format: "%.2f", value)
-                .replacingOccurrences(of: "\\.?0+$", with: "", options: .regularExpression)
-        }
+        return FormatUtil.format(value, true, maxFractionDigits: 2)
     }
 }

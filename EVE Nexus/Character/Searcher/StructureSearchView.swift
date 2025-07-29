@@ -388,8 +388,8 @@ struct StructureSearchView {
                 if priority1 != priority2 {
                     return priority1 < priority2
                 }
-                // 同类型按建筑ID排序
-                return result1.id < result2.id
+                // 同类型按建筑名称进行本地化比较排序
+                return result1.name.localizedCompare(result2.name) == .orderedAscending
             }
             
             // 如果只有一个在优先级列表中
@@ -400,8 +400,8 @@ struct StructureSearchView {
                 return false
             }
             
-            // 两个都不在优先级列表中，按建筑ID排序
-            return result1.id < result2.id
+            // 两个都不在优先级列表中，按建筑名称进行本地化比较排序
+            return result1.name.localizedCompare(result2.name) == .orderedAscending
         }
 
         searchResults = results

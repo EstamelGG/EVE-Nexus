@@ -36,9 +36,11 @@ struct SystemsListView: View {
                                     .frame(width: 32, height: 32)
                                     .cornerRadius(4)
                             } else {
-                                // 无主权或图标加载失败时显示的占位符
-                                Color.clear
+                                Image("faction_default")
+                                    .resizable()
+                                    .scaledToFit()
                                     .frame(width: 32, height: 32)
+                                    .cornerRadius(4)
                             }
                         }
 

@@ -152,7 +152,7 @@ class MarketOrdersAPI {
         }
 
         // 构建URL
-        let baseURL = "https://esi.evetech.net/latest/markets/\(actualRegionID)/orders/"
+        let baseURL = "https://esi.evetech.net/markets/\(actualRegionID)/orders/"
         var components = URLComponents(string: baseURL)
         components?.queryItems = [
             URLQueryItem(name: "type_id", value: "\(typeID)"),

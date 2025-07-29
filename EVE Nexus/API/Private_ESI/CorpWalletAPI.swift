@@ -78,7 +78,7 @@ class CorpWalletAPI {
 
         // 4. 构建请求
         let urlString =
-            "https://esi.evetech.net/latest/corporations/\(corporationId)/wallets/?datasource=tranquility"
+            "https://esi.evetech.net/corporations/\(corporationId)/wallets/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
@@ -142,7 +142,7 @@ class CorpWalletAPI {
 
         // 3. 构建请求
         let urlString =
-            "https://esi.evetech.net/latest/corporations/\(corporationId)/divisions/?datasource=tranquility"
+            "https://esi.evetech.net/corporations/\(corporationId)/divisions/?datasource=tranquility"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
@@ -231,7 +231,7 @@ class CorpWalletAPI {
         progressCallback: ((WalletLoadingProgress) -> Void)? = nil
     ) async throws -> [[String: Any]] {
         let baseUrlString =
-            "https://esi.evetech.net/latest/corporations/\(corporationId)/wallets/\(division)/journal/?datasource=tranquility"
+            "https://esi.evetech.net/corporations/\(corporationId)/wallets/\(division)/journal/?datasource=tranquility"
         guard let baseUrl = URL(string: baseUrlString) else {
             throw NetworkError.invalidURL
         }
@@ -511,7 +511,7 @@ class CorpWalletAPI {
         characterId: Int, corporationId: Int, division: Int
     ) async throws -> [[String: Any]] {
         let urlString =
-            "https://esi.evetech.net/latest/corporations/\(corporationId)/wallets/\(division)/transactions/"
+            "https://esi.evetech.net/corporations/\(corporationId)/wallets/\(division)/transactions/"
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }

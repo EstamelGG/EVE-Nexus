@@ -60,7 +60,7 @@ public class CorpMoonExtractionAPI {
         Logger.info("开始获取军团月矿提取信息 - 军团ID: \(corporationId)")
 
         let baseUrlString =
-            "https://esi.evetech.net/latest/corporation/\(corporationId)/mining/extractions/?datasource=tranquility"
+            "https://esi.evetech.net/corporation/\(corporationId)/mining/extractions/?datasource=tranquility"
         guard let baseUrl = URL(string: baseUrlString) else {
             throw NetworkError.invalidURL
         }
