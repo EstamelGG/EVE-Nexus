@@ -213,7 +213,7 @@ Fixes & Improvements:
 9. Show available industry slots in Industry Jobs function.
 10. Improved the KM page view and database image rendering on landscape mode and iPad.
 
-# 1.7 July x, 2025
+# 1.7 July 31, 2025
 
 1. Update localization string in Wallet Journal function.
 2. Add calendar function to show events in the future.
