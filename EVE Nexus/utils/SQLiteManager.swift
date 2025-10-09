@@ -35,20 +35,21 @@ class SQLiteManager {
             dbLock.lock()
             defer { dbLock.unlock() }
 
-            guard let databasePath = Bundle.main.path(forResource: name, ofType: "sqlite") else {
+            // 使用StaticResourceManager获取数据库路径
+            guard let finalDatabasePath = StaticResourceManager.shared.getDatabasePath(name: name) else {
                 let pathError = "[SQLite] 数据库文件不存在: \(name).sqlite"
                 Logger.error(pathError)
                 return false
             }
 
-            let result = sqlite3_open(databasePath, &db)
+            let result = sqlite3_open(finalDatabasePath, &db)
             if result == SQLITE_OK {
-                Logger.info("数据库连接成功: \(databasePath)")
+                Logger.info("数据库连接成功: \(finalDatabasePath)")
                 return true
             } else {
                 let errorMessage = String(cString: sqlite3_errmsg(db))
                 let connectionError =
-                    "[SQLite] 数据库连接失败 - 路径: \(databasePath), 错误代码: \(result), 错误信息: \(errorMessage)"
+                    "[SQLite] 数据库连接失败 - 路径: \(finalDatabasePath), 错误代码: \(result), 错误信息: \(errorMessage)"
                 Logger.error(connectionError)
                 return false
             }

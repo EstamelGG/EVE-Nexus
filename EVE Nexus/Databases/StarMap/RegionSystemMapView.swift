@@ -445,7 +445,7 @@ struct RegionSystemMapView: View {
     }
 
     private func loadMapData() -> SystemMapData? {
-        guard let url = Bundle.main.url(forResource: "systems_data", withExtension: "json"),
+        guard let url = StaticResourceManager.shared.getMapDataURL(filename: "systems_data"),
               let data = try? Data(contentsOf: url),
               let allSystemsData = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let regionData = allSystemsData[String(regionId)] as? [String: Any],

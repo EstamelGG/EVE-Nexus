@@ -229,7 +229,10 @@
 "Main_Setting_Cache_Expired" = "已过期";
 
 "Main_About" = "关于";
-"Main_About_Database_Version" = "数据库版本";
+"Main_About_Database_Version" = "SDE 数据库";
+"Main_About_Database_Update_Available" = "可更新";
+"Main_About_Build_Number" = "构建号";
+"Main_About_Patch_Number" = "补丁号";
 "Main_About_Author" = "作者";
 "Main_About_Github" = "Github";
 "Main_About_Report_Bug" = "报告缺陷";
@@ -751,12 +754,6 @@
 "Mining_Monthly_Summary" = "%@月采矿汇总";
 "Mining_Total_Volume" = "总量";
 
-"Main_Setting_Reset_Database" = "重置数据库";
-"Main_Setting_Reset_Database_Detail" = "删除并重新初始化角色数据库";
-"Main_Setting_Reset_Database_Title" = "重置数据库";
-"Main_Setting_Reset_Database_Message" = "这将删除所有角色数据库内容并重新初始化。此操作无法撤销，是否继续？";
-"Main_Setting_Reset_Database_Success_Title" = "重置完成";
-"Main_Setting_Reset_Database_Success_Message" = "数据库已成功重置。";
 "Common_info" = "基本信息";
 "Character_Security_Status" = "安全等级";
 "Character_Current_Ship" = "当前飞船";
@@ -964,7 +961,7 @@
 "Main_EVE_Mail_Searching" = "搜索中...";
 "Main_EVE_Mail_Search_Failed" = "搜索失败";
 
-"Main_Setting_Corporation_Affairs" = "军团事务";
+"Main_Setting_Function" = "功能设置";
 "Main_Setting_Show_Corporation_Affairs" = "展示军团事务";
 
 // Corporation Section
@@ -2546,3 +2543,33 @@
 "DNA_Fitting_Link_Save_Error" = "保存DNA装配失败";
 "DNA_Fitting_Link_Default_Name" = "DNA装配";
 "DNA_Fitting_Link_Default_Description" = "从DNA链接导入";
+
+// SDE静态数据相关字符串
+"Main_Setting_SDE_Static_Data" = "SDE静态数据";
+"Main_Setting_Checking_Updates" = "正在检查更新";
+"Main_Setting_No_Updates" = "暂无更新";
+"Main_Setting_Updates_Available" = "有更新可用";
+"Main_Setting_Updates_Available_With_Version" = "有更新可用 (v%@)";
+"Main_Setting_Check_Failed" = "检查失败";
+
+// SDE更新详情页面
+"SDE_Update_Details" = "SDE更新详情";
+"SDE_Data_Package" = "SDE数据包";
+"SDE_Icon_Package" = "图标包";
+"SDE_Current_Version" = "当前版本";
+"SDE_Latest_Version" = "最新版本";
+"SDE_Not_Available" = "不可用";
+"SDE_Already_Latest" = "已是最新";
+"SDE_Update" = "更新";
+"SDE_Exit" = "返回";
+"SDE_Update_Completed" = "更新完成！";
+"SDE_Done" = "完成";
+"SDE_Reset_Database" = "重置SDE数据库";
+"SDE_Reset_Database_Detail" = "删除本地SDE数据，使用内置数据库";
+"SDE_Reset_Confirm_Title" = "重置SDE数据库";
+"SDE_Reset_Cancel" = "取消";
+"SDE_Reset_Confirm" = "重置";
+"SDE_Reset_Message" = "这将删除所有本地SDE数据，应用将重新使用内置的数据库。此操作不可撤销。";
+"SDE_Reset_Success_Title" = "重置成功";
+"SDE_Reset_Success_Message" = "SDE 数据库已恢复到默认版本";
+"SDE_Reset_Section" = "重置 SDE";

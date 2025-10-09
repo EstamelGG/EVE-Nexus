@@ -8,25 +8,8 @@ public class LocalizationManager {
     private init() {}
 
     public func loadAccountingEntryTypes() {
-        // 调试：列出 bundle 中的所有资源
-        //        if let resourcePath = Bundle.main.resourcePath {
-        //            let fileManager = FileManager.default
-        //            do {
-        //                let items = try fileManager.contentsOfDirectory(atPath: resourcePath)
-        //                Logger.debug("Bundle 资源列表:")
-        //                for item in items {
-        //                    Logger.debug("- \(item)")
-        //                }
-        //            } catch {
-        //                Logger.error("无法列出 bundle 资源: \(error)")
-        //            }
-        //        }
-
-        guard
-            let path = Bundle.main.path(
-                forResource: "accountingentrytypes_localized", ofType: "json"
-            )
-        else {
+        // 使用StaticResourceManager获取本地化文件路径
+        guard let path = StaticResourceManager.shared.getLocalizationPath(filename: "accountingentrytypes_localized") else {
             Logger.error("无法找到账目类型本地化文件")
             return
         }

@@ -398,7 +398,7 @@ struct PIOutputCalculatorView: View {
         // 在后台线程执行
         DispatchQueue.global(qos: .userInitiated).async {
             // 加载星图数据
-            guard let path = Bundle.main.path(forResource: "neighbors_data", ofType: "json") else {
+            guard let path = StaticResourceManager.shared.getMapDataPath(filename: "neighbors_data") else {
                 Logger.error("无法找到星图文件路径")
                 DispatchQueue.main.async {
                     isCalculating = false

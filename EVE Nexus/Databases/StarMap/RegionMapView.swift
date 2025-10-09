@@ -384,7 +384,7 @@ struct RegionMapView: View {
     }
 
     private func loadRegionData() -> [RegionData] {
-        guard let url = Bundle.main.url(forResource: "regions_data", withExtension: "json"),
+        guard let url = StaticResourceManager.shared.getMapDataURL(filename: "regions_data"),
               let data = try? Data(contentsOf: url),
               let regions = try? JSONDecoder().decode([RegionData].self, from: data)
         else {

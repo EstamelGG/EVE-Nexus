@@ -123,7 +123,7 @@ class FWAPI {
     // MARK: - 私有方法
 
     private func loadNeighboursData() {
-        guard let url = Bundle.main.url(forResource: "neighbors_data", withExtension: "json")
+        guard let url = StaticResourceManager.shared.getMapDataURL(filename: "neighbors_data")
         else {
             Logger.error("找不到neighbors_data.json文件")
             return

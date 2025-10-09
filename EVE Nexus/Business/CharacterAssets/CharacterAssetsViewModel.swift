@@ -19,14 +19,14 @@ struct AssetSearchResult: Identifiable {
         // 如果路径少于2个节点，直接返回完整路径
         guard locationPath.count >= 2 else {
             return locationPath.map { node in
-                node.name ?? NSLocalizedString("Unknown_System", comment: "")
+                HTMLUtils.decodeHTMLEntities(node.name ?? NSLocalizedString("Unknown_System", comment: ""))
             }.joined(separator: " > ")
         }
 
         // 去掉最后一个节点（当前物品），只显示到倒数第二级
         let pathToShow = locationPath.dropLast()
         return pathToShow.map { node in
-            node.name ?? NSLocalizedString("Unknown_System", comment: "")
+            HTMLUtils.decodeHTMLEntities(node.name ?? NSLocalizedString("Unknown_System", comment: ""))
         }.joined(separator: " > ")
     }
 }

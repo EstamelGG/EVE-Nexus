@@ -1,3 +1,4 @@
+import CommonCrypto
 import Kingfisher
 import SwiftUI
 import UIKit
@@ -280,8 +281,8 @@ struct SettingView: View {
     @State private var loadingState: LoadingState = .processing
     @State private var showingLoadingView = false
     @State private var settingGroups: [SettingGroup] = []
-    @State private var showResetDatabaseAlert = false
-    @State private var showResetDatabaseSuccessAlert = false
+    @State private var showResetSDEDatabaseAlert = false
+    @State private var showResetSDEDatabaseSuccessAlert = false
     @State private var showingESIStatusView = false
     @State private var showingLogsBrowserView = false
     @State private var showingMarketStructureView = false
@@ -382,6 +383,7 @@ struct SettingView: View {
             createOthersGroup(),
             createLogsGroup(),
             createCacheGroup(),
+            createSDEResetGroup(),
         ]
     }
 
@@ -475,7 +477,7 @@ struct SettingView: View {
 
     private func createCorporationAffairsGroup() -> SettingGroup {
         SettingGroup(
-            header: NSLocalizedString("Main_Setting_Corporation_Affairs", comment: ""),
+            header: NSLocalizedString("Main_Setting_Function", comment: ""),
             items: [
                 SettingItem(
                     title: NSLocalizedString("Main_Setting_Show_Corporation_Affairs", comment: ""),
@@ -597,16 +599,24 @@ struct SettingView: View {
     }
 
     private func createCacheGroup() -> SettingGroup {
-        SettingGroup(
+        return SettingGroup(
             header: NSLocalizedString("Main_Setting_Cache", comment: ""),
             items: [
                 SettingItem(
                     title: NSLocalizedString("Main_Setting_Clean_Cache", comment: ""),
                     detail: cacheSize,
                     icon: isCleaningCache ? "arrow.triangle.2.circlepath" : "trash",
-                    iconColor: .red,
+                    iconColor: .orange,
                     action: { showingCleanCacheAlert = true }
                 ),
+            ]
+        )
+    }
+
+    private func createSDEResetGroup() -> SettingGroup {
+        return SettingGroup(
+            header: NSLocalizedString("SDE_Reset_Section", comment: "重置 SDE"),
+            items: [
                 SettingItem(
                     title: NSLocalizedString("Main_Setting_Reset_Icons", comment: ""),
                     detail: isReextractingIcons
@@ -614,15 +624,15 @@ struct SettingView: View {
                         : NSLocalizedString("Main_Setting_Reset_Icons_Detail", comment: ""),
                     icon: isReextractingIcons
                         ? "arrow.triangle.2.circlepath" : "arrow.triangle.2.circlepath",
-                    iconColor: .red,
+                    iconColor: .orange,
                     action: { showingDeleteIconsAlert = true }
                 ),
                 SettingItem(
-                    title: NSLocalizedString("Main_Setting_Reset_Database", comment: ""),
-                    detail: NSLocalizedString("Main_Setting_Reset_Database_Detail", comment: ""),
+                    title: NSLocalizedString("SDE_Reset_Database", comment: ""),
+                    detail: NSLocalizedString("SDE_Reset_Database_Detail", comment: ""),
                     icon: "arrow.triangle.2.circlepath",
                     iconColor: .red,
-                    action: { showResetDatabaseAlert = true }
+                    action: { showResetSDEDatabaseAlert = true }
                 ),
             ]
         )
@@ -732,24 +742,23 @@ struct SettingView: View {
             Text(NSLocalizedString("Main_Setting_Reset_Icons_Message", comment: ""))
         }
         .alert(
-            NSLocalizedString("Main_Setting_Reset_Database_Title", comment: ""),
-            isPresented: $showResetDatabaseAlert
+            NSLocalizedString("SDE_Reset_Confirm_Title", comment: ""),
+            isPresented: $showResetSDEDatabaseAlert
         ) {
-            Button(NSLocalizedString("Main_Setting_Cancel", comment: ""), role: .cancel) {}
-            Button(NSLocalizedString("Main_Setting_Reset", comment: ""), role: .destructive) {
-                CharacterDatabaseManager.shared.resetDatabase()
-                showResetDatabaseSuccessAlert = true
+            Button(NSLocalizedString("SDE_Reset_Cancel", comment: ""), role: .cancel) {}
+            Button(NSLocalizedString("SDE_Reset_Confirm", comment: ""), role: .destructive) {
+                resetSDEDatabase()
             }
         } message: {
-            Text(NSLocalizedString("Main_Setting_Reset_Database_Message", comment: ""))
+            Text(NSLocalizedString("SDE_Reset_Message", comment: ""))
         }
         .alert(
-            NSLocalizedString("Main_Setting_Reset_Database_Success_Title", comment: ""),
-            isPresented: $showResetDatabaseSuccessAlert
+            NSLocalizedString("SDE_Reset_Success_Title", comment: ""),
+            isPresented: $showResetSDEDatabaseSuccessAlert
         ) {
             Button(NSLocalizedString("Common_OK", comment: ""), role: .cancel) {}
         } message: {
-            Text(NSLocalizedString("Main_Setting_Reset_Database_Success_Message", comment: ""))
+            Text(NSLocalizedString("SDE_Reset_Success_Message", comment: ""))
         }
         .onAppear {
             updateAllData() // 首次加载时异步计算并更新缓存大小
@@ -814,12 +823,15 @@ struct SettingView: View {
                 // 清理所有缓存
                 await CacheManager.shared.clearAllCaches()
 
+                // 重置角色数据库
+                CharacterDatabaseManager.shared.resetDatabase()
+
                 // 更新UI
                 await MainActor.run {
                     updateAllData()
                 }
 
-                Logger.info("Cache cleaned successfully")
+                Logger.info("Cache and character database cleaned successfully")
             }
         }
     }
@@ -846,13 +858,14 @@ struct SettingView: View {
                 // 2. 重置解压状态
                 IconManager.shared.isExtractionComplete = false
 
-                // 3. 重新解压图标
+                // 3. 获取 Bundle 中的 icons.zip 路径
                 guard let bundleIconPath = Bundle.main.path(forResource: "icons", ofType: "zip")
                 else {
                     Logger.error("icons.zip file not found in bundle")
                     return
                 }
 
+                // 4. 重新解压图标
                 let iconURL = URL(fileURLWithPath: bundleIconPath)
                 try await IconManager.shared.unzipIcons(from: iconURL, to: iconPath) { progress in
                     Task { @MainActor in
@@ -861,6 +874,18 @@ struct SettingView: View {
                 }
 
                 Logger.info("Successfully reextracted icons")
+
+                // 5. 保存 Bundle 中的 metadata.json 到 icons 目录
+                if let bundleMetadata = MetadataManager.shared.readMetadataFromBundle() {
+                    do {
+                        try MetadataManager.shared.saveMetadataToIconsDirectory(bundleMetadata)
+                        Logger.info("Saved Bundle metadata.json to icons directory (icon_version: \(bundleMetadata.iconVersion))")
+                    } catch {
+                        Logger.error("Failed to save Bundle metadata.json: \(error)")
+                    }
+                } else {
+                    Logger.warning("Unable to read Bundle metadata.json")
+                }
 
                 await MainActor.run {
                     loadingState = .complete
@@ -875,6 +900,244 @@ struct SettingView: View {
             await MainActor.run {
                 isReextractingIcons = false
                 showingDeleteIconsAlert = false
+            }
+        }
+    }
+
+    // 重置SDE数据库
+    private func resetSDEDatabase() {
+        do {
+            // 重置SDE数据库
+            try StaticResourceManager.shared.resetSDEDatabase()
+
+            // 重新加载数据以使用Bundle中的数据库
+            reloadDataWithNewSDE()
+
+            Logger.info("SDE database reset completed")
+
+            // 显示成功提示
+            showResetSDEDatabaseSuccessAlert = true
+        } catch {
+            Logger.error("Failed to reset SDE database: \(error)")
+        }
+    }
+
+    // 重新加载数据以使用新的SDE数据
+    private func reloadDataWithNewSDE() {
+        Logger.info("Reloading data with new SDE...")
+
+        // 重新加载本地化数据
+        LocalizationManager.shared.loadAccountingEntryTypes()
+
+        // 重新加载数据库
+        DatabaseManager.shared.loadDatabase()
+
+        Logger.info("Data reload completed with new SDE")
+    }
+}
+
+// MARK: - 下载进度视图
+
+struct DownloadProgressView: View {
+    let progress: Double
+    let logs: [String]
+    let hasError: Bool
+    let isCompleted: Bool
+    let onExit: () -> Void
+
+    var body: some View {
+        ZStack {
+            // 黑色背景
+            Color.black
+                .ignoresSafeArea()
+
+            VStack {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(logs.indices, id: \.self) { index in
+                            let log = logs[index]
+
+                            // 所有日志行统一格式
+                            HStack {
+                                Text(log)
+                                    .font(.system(size: 14, design: .monospaced))
+                                    .foregroundColor(.white)
+                                Spacer()
+                            }
+                        }
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+
+                // 如果有错误，显示退出按钮
+                if hasError {
+                    VStack(spacing: 16) {
+                        Text("Update failed")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.red)
+
+                        Button(action: onExit) {
+                            Text("Exit")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 44)
+                                .background(Color.red)
+                                .cornerRadius(8)
+                        }
+                        .padding(.horizontal, 40)
+                    }
+                    .padding(.bottom, 40)
+                } else if isCompleted {
+                    // 如果完成，显示完成按钮
+                    VStack(spacing: 16) {
+                        Text(NSLocalizedString("SDE_Update_Completed", comment: ""))
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(.green)
+
+                        Button(action: onExit) {
+                            Text(NSLocalizedString("SDE_Done", comment: ""))
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 44)
+                                .background(Color.green)
+                                .cornerRadius(8)
+                        }
+                        .padding(.horizontal, 40)
+                    }
+                    .padding(.bottom, 40)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - SDE 更新详情视图
+
+struct SDEUpdateDetailView: View {
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var updateChecker = SDEUpdateChecker.shared
+    @StateObject private var updateManager = SDEUpdateManager.shared
+
+    var body: some View {
+        if updateManager.isDownloading {
+            // 全屏下载进度视图
+            DownloadProgressView(
+                progress: updateManager.downloadProgress,
+                logs: updateManager.downloadLogs,
+                hasError: updateManager.hasError,
+                isCompleted: updateManager.isCompleted,
+                onExit: {
+                    updateManager.reset()
+                    dismiss()
+                }
+            )
+        } else {
+            NavigationView {
+                List {
+                    // SDE数据包section
+                    Section {
+                        // 当前版本
+                        HStack {
+                            Text(NSLocalizedString("SDE_Current_Version", comment: "当前版本"))
+                                .font(.system(size: 16))
+                            Spacer()
+                            Text(updateChecker.currentSDEVersion)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(
+                                    updateChecker.currentSDEVersion == updateChecker.latestSDEVersion ?
+                                        .green : .orange
+                                )
+                        }
+
+                        // 最新版本
+                        HStack {
+                            Text(NSLocalizedString("SDE_Latest_Version", comment: "最新版本"))
+                                .font(.system(size: 16))
+                            Spacer()
+                            Text(updateChecker.latestSDEVersion)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(
+                                    updateChecker.currentSDEVersion == updateChecker.latestSDEVersion ?
+                                        .green : .secondary
+                                )
+                        }
+                    } header: {
+                        Text(NSLocalizedString("SDE_Data_Package", comment: "SDE数据包"))
+                            .fontWeight(.semibold)
+                            .font(.system(size: 18))
+                            .foregroundColor(.primary)
+                            .textCase(.none)
+                    }
+
+                    // 图标包section
+                    Section {
+                        // 当前版本
+                        HStack {
+                            Text(NSLocalizedString("SDE_Current_Version", comment: "当前版本"))
+                                .font(.system(size: 16))
+                            Spacer()
+                            Text("v\(updateChecker.currentIconVersion)")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(
+                                    updateChecker.currentIconVersion == updateChecker.latestIconVersion ?
+                                        .green : .orange
+                                )
+                        }
+
+                        // 最新版本
+                        HStack {
+                            Text(NSLocalizedString("SDE_Latest_Version", comment: "最新版本"))
+                                .font(.system(size: 16))
+                            Spacer()
+                            Text("v\(updateChecker.latestIconVersion)")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(
+                                    updateChecker.currentIconVersion == updateChecker.latestIconVersion ?
+                                        .green : .secondary
+                                )
+                        }
+                    } header: {
+                        Text(NSLocalizedString("SDE_Icon_Package", comment: "图标包"))
+                            .fontWeight(.semibold)
+                            .font(.system(size: 18))
+                            .foregroundColor(.primary)
+                            .textCase(.none)
+                    }
+
+                    // 操作按钮section
+                    Section {
+                        VStack(spacing: 12) {
+                            // 更新按钮
+                            Button(action: {
+                                updateManager.startUpdate()
+                            }) {
+                                Text(NSLocalizedString("SDE_Update", comment: "更新"))
+                                    .font(.system(size: 16, weight: .medium))
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 44)
+                            }
+                            .buttonStyle(.borderedProminent)
+
+                            // 退出按钮
+                            Button(action: {
+                                dismiss()
+                            }) {
+                                Text(NSLocalizedString("SDE_Exit", comment: "退出"))
+                                    .font(.system(size: 16, weight: .medium))
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 44)
+                            }
+                            .buttonStyle(.bordered)
+                        }
+                        .padding(.vertical, 8)
+                    }
+                }
+                .listStyle(.insetGrouped)
+                .navigationTitle(NSLocalizedString("SDE_Update_Details", comment: "SDE更新详情"))
+                .navigationBarTitleDisplayMode(.inline)
             }
         }
     }

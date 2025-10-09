@@ -1,4 +1,3 @@
-import CommonCrypto
 import Foundation
 import SwiftUI
 import UserNotifications
@@ -164,23 +163,12 @@ struct EVE_NexusApp: App {
         )[0].appendingPathComponent("Icons")
         let iconURL = URL(fileURLWithPath: iconPath)
 
-        // 计算当前 icons.zip 的 SHA256 值
-        let currentHash = calculateSHA256(filePath: iconPath)
-        let storedHash = UserDefaults.standard.string(forKey: "IconsZipHash")
+        // 获取当前 App 版本
+        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
 
-        // 如果哈希值不同，需要重新解压
-        let needsReExtract = currentHash != storedHash
-
-        // 检查是否已经成功解压过
-        if !needsReExtract,
-           IconManager.shared.isExtractionComplete,
-           FileManager.default.fileExists(atPath: destinationPath.path),
-           let contents = try? FileManager.default.contentsOfDirectory(
-               atPath: destinationPath.path),
-           !contents.isEmpty
-        {
-            Logger.debug(
-                "Icons folder exists and contains \(contents.count) files, skipping extraction.")
+        // 检查是否需要重新解压
+        if !shouldExtractIcons(destinationPath: destinationPath, appVersion: appVersion) {
+            Logger.info("Using existing icons, skipping extraction.")
             await MainActor.run {
                 databaseManager.loadDatabase()
                 isInitialized = true
@@ -188,12 +176,13 @@ struct EVE_NexusApp: App {
             return
         }
 
-        // 需要解压
+        // 需要重新解压
+        Logger.info("Extracting icons from Bundle...")
         await MainActor.run {
             needsUnzip = true
         }
 
-        // 如果目录存在但未完全解压，删除它重新解压
+        // 如果目录存在，删除它重新解压
         if FileManager.default.fileExists(atPath: destinationPath.path) {
             try? FileManager.default.removeItem(at: destinationPath)
         }
@@ -206,9 +195,16 @@ struct EVE_NexusApp: App {
                 }
             }
 
-            // 保存新的哈希值
-            if let hash = currentHash {
-                UserDefaults.standard.set(hash, forKey: "IconsZipHash")
+            // 保存 Bundle 中的 metadata.json 到 icons 目录
+            if let bundleMetadata = MetadataManager.shared.readMetadataFromBundle() {
+                do {
+                    try MetadataManager.shared.saveMetadataToIconsDirectory(bundleMetadata)
+                    Logger.info("Saved Bundle metadata.json to icons directory (icon_version: \(bundleMetadata.iconVersion))")
+                } catch {
+                    Logger.error("Failed to save Bundle metadata.json: \(error)")
+                }
+            } else {
+                Logger.warning("Unable to read Bundle metadata.json")
             }
 
             await MainActor.run {
@@ -222,18 +218,35 @@ struct EVE_NexusApp: App {
         }
     }
 
-    private func calculateSHA256(filePath: String) -> String? {
-        guard let data = try? Data(contentsOf: URL(fileURLWithPath: filePath)) else {
-            return nil
+    /// 检查是否需要重新解压图标（使用 metadata.json 中的 icon_version 进行比较）
+    /// - Returns: true 表示需要重新解压，false 表示可以使用现有图标
+    private func shouldExtractIcons(destinationPath: URL, appVersion _: String) -> Bool {
+        // 1. 检查目录是否存在且非空
+        let iconsExist = FileManager.default.fileExists(atPath: destinationPath.path)
+        let hasContents = (try? FileManager.default.contentsOfDirectory(atPath: destinationPath.path))?.isEmpty == false
+
+        guard iconsExist, hasContents, IconManager.shared.isExtractionComplete else {
+            Logger.info("Icons folder not found or incomplete, need extraction")
+            return true // 需要解压
         }
 
-        var digest = [UInt8](repeating: 0, count: Int(CC_SHA256_DIGEST_LENGTH))
-
-        _ = data.withUnsafeBytes { buffer in
-            CC_SHA256(buffer.baseAddress, CC_LONG(data.count), &digest)
+        // 2. 获取 Bundle 中的图标版本
+        guard let bundleMetadata = MetadataManager.shared.readMetadataFromBundle() else {
+            Logger.warning("Unable to read metadata from Bundle, will extract icons")
+            return true // 无法读取 Bundle metadata，需要解压
         }
 
-        return digest.reduce("") { $0 + String(format: "%02x", $1) }
+        // 3. 获取已解压图标的版本
+        guard let localMetadata = MetadataManager.shared.readMetadataFromIconsDirectory() else {
+            Logger.info("Local icons has no metadata.json, need extraction")
+            return true // 需要解压
+        }
+
+        // 4. 版本比较：如果 Bundle 中的版本更高，则需要重新解压
+        let needExtraction = bundleMetadata.iconVersion > localMetadata.iconVersion
+        Logger.info("Icon version comparison - Bundle: v\(bundleMetadata.iconVersion), Local: v\(localMetadata.iconVersion), Need Extraction: \(needExtraction)")
+
+        return needExtraction
     }
 
     private func initializeApp() async {

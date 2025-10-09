@@ -506,7 +506,7 @@ struct WalletJournalView: View {
                                             .font(.system(size: 16))
 
                                         Text(
-                                            "\(group.entries.count)\(NSLocalizedString("transactions", comment: ""))"
+                                            "\(group.entries.count) \(NSLocalizedString("transactions", comment: ""))"
                                         )
                                         .font(.caption)
                                         .foregroundColor(.secondary)

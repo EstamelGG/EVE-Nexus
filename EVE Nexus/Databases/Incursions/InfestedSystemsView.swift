@@ -23,11 +23,10 @@ class SystemInfo: NSObject, Identifiable, @unchecked Sendable, ObservableObject 
 @MainActor
 class InfestedSystemsViewModel: ObservableObject {
     @Published var systems: [SystemInfo] = []
-    @Published var incursion_isLoading: Bool = false
-    @Published var incursion_isRefreshing: Bool = false
+    @Published var isLoading: Bool = false
     let databaseManager: DatabaseManager
     private var loadingTasks: [Int: Task<Void, Never>] = [:]
-    private var systemIds: [Int] = []
+    let systemIds: [Int]
 
     private var allianceToSystems: [Int: [SystemInfo]] = [:]
     private var factionToSystems: [Int: [SystemInfo]] = [:]
@@ -42,25 +41,24 @@ class InfestedSystemsViewModel: ObservableObject {
     init(databaseManager: DatabaseManager, systemIds: [Int]) {
         self.databaseManager = databaseManager
         self.systemIds = systemIds
-
-        // 检查是否需要重新加载
-        let systemIdsSet = Set(systemIds)
-        if systemIdsSet == Self.systemIdsCache {
-            Logger.info("使用缓存的受影响星系ID列表: \(systemIds.count) 个星系")
-        } else {
-            Self.systemIdsCache = systemIdsSet
-        }
-
-        loadSystems(systemIds: systemIds)
     }
 
-    // 修改刷新方法
-    func refresh() async {
-        guard !incursion_isRefreshing else { return }
-        incursion_isRefreshing = true
+    // 加载数据方法
+    func loadData(forceRefresh: Bool = false) async {
+        // 检查是否需要重新加载
+        let systemIdsSet = Set(systemIds)
+        if !forceRefresh, systemIdsSet == Self.systemIdsCache, !systems.isEmpty {
+            Logger.info("使用缓存的受影响星系数据: \(systemIds.count) 个星系")
+            return
+        }
+
+        isLoading = true
+        defer { isLoading = false }
 
         // 清除缓存
-        Self.systemIdsCache.removeAll()
+        if forceRefresh {
+            Self.systemIdsCache.removeAll()
+        }
 
         // 取消所有现有的加载任务
         loadingTasks.values.forEach { $0.cancel() }
@@ -74,13 +72,13 @@ class InfestedSystemsViewModel: ObservableObject {
         var sovereigntyData: [SovereigntyData]?
         do {
             sovereigntyData = try await SovereigntyDataAPI.shared.fetchSovereigntyData(
-                forceRefresh: false)
+                forceRefresh: forceRefresh)
         } catch {
             Logger.error("无法获取主权数据: \(error)")
         }
 
         // 更新缓存
-        Self.systemIdsCache = Set(systemIds)
+        Self.systemIdsCache = systemIdsSet
 
         // 一次性获取所有星系信息
         let systemInfoMap = await getBatchSolarSystemInfo(
@@ -130,16 +128,6 @@ class InfestedSystemsViewModel: ObservableObject {
 
         // 开始加载图标
         loadAllIcons()
-
-        incursion_isRefreshing = false
-    }
-
-    private func loadSystems(systemIds _: [Int]) {
-        Task {
-            incursion_isLoading = true
-            await refresh()
-            incursion_isLoading = false
-        }
     }
 
     private func loadAllIcons() {
@@ -235,25 +223,26 @@ struct InfestedSystemsView: View {
     }
 
     var body: some View {
-        ZStack {
-            if viewModel.incursion_isLoading {
+        List {
+            if viewModel.isLoading {
                 ProgressView()
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .frame(maxWidth: .infinity)
             } else {
-                List {
-                    ForEach(viewModel.systems) { system in
-                        SystemRow(system: system)
-                    }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                ForEach(viewModel.systems) { system in
+                    SystemRow(system: system)
                 }
-                .listStyle(.insetGrouped)
-                .refreshable {
-                    Logger.info("用户触发下拉刷新")
-                    await viewModel.refresh()
-                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
         }
+        .listStyle(.insetGrouped)
         .navigationTitle(NSLocalizedString("Main_Infested_Systems", comment: ""))
+        .task {
+            await viewModel.loadData()
+        }
+        .refreshable {
+            Logger.info("用户触发下拉刷新")
+            await viewModel.loadData(forceRefresh: true)
+        }
     }
 }
 

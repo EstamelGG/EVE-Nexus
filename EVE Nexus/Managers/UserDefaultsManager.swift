@@ -14,6 +14,7 @@ class UserDefaultsManager {
         static let pinnedAssetLocationIDs = "pinnedAssetLocationIDs"
         static let mergeSimilarTransactions = "mergeSimilarTransactions"
         static let LPStoreUpdatetime = "LPStoreUpdatetime"
+        static let LPStoreFullLoadCount = "LPStoreFullLoadCount"
         static let refineryTaxRate = "refineryTaxRate"
     }
 
@@ -98,6 +99,16 @@ class UserDefaultsManager {
         }
         set {
             defaults.set(newValue, forKey: Keys.LPStoreUpdatetime)
+        }
+    }
+
+    // LP商店全量加载条数
+    var LPStoreFullLoadCount: Int {
+        get {
+            return defaults.integer(forKey: Keys.LPStoreFullLoadCount)
+        }
+        set {
+            defaults.set(newValue, forKey: Keys.LPStoreFullLoadCount)
         }
     }
 

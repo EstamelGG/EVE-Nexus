@@ -263,3 +263,11 @@ Fixes & Improvements:
 3. Fixed errors related to capacitor simulation and subsystem issues in the fitting simulation and fitting export functions.
 4. Add DPS and DPH attributes for NPC.
 5. Some UI improvements. 
+
+# v1.8 Oct 13, 2025
+
+1. Update to the latest SDE.
+2. Support manual updates for SDE.
+3. Optimize the LP store update logic to prevent incomplete data.
+4. Fixed an issue where the latest market order data would not display immediately.
+5. Some UI improvements.

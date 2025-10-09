@@ -104,35 +104,14 @@ class LPStoreAPI {
     private func loadMultipleCorporationsFromDatabase(corporationIds: [Int]) -> [Int:
         [LPStoreOffer]]?
     {
-        // 首先检查UserDefaults中的更新时间
-        guard let lastUpdateTime = UserDefaultsManager.shared.LPStoreUpdatetime else {
-            Logger.info("未找到LP商店数据更新时间记录")
+        // 首先检查全量加载条数记录
+        let cachedCount = UserDefaultsManager.shared.LPStoreFullLoadCount
+        if cachedCount == 0 {
+            Logger.info("未找到LP商店全量加载条数记录，需要全量加载")
             return nil
         }
 
-        let currentDate = Date()
-        let timeSinceUpdate = currentDate.timeIntervalSince(lastUpdateTime)
-
-        // 转换为本地时间用于日志显示
-        let localDateFormatter = DateFormatter()
-        localDateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        localDateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        localDateFormatter.timeZone = TimeZone.current
-
-        Logger.info("当前时间: \(localDateFormatter.string(from: currentDate))")
-        Logger.info("最后更新时间: \(localDateFormatter.string(from: lastUpdateTime))")
-        Logger.info("缓存时间: \(Int(timeSinceUpdate))秒, 缓存期限: \(Int(cacheDuration))秒")
-
-        if timeSinceUpdate >= cacheDuration {
-            Logger.info(
-                "LP商店数据缓存已过期 - 最后更新时间: \(localDateFormatter.string(from: lastUpdateTime)), 距离上次更新: \(Int(timeSinceUpdate))秒"
-            )
-            return nil
-        }
-
-        Logger.info(
-            "LP商店数据缓存有效 - 最后更新时间: \(localDateFormatter.string(from: lastUpdateTime)), 距离上次更新: \(Int(timeSinceUpdate))秒"
-        )
+        Logger.info("缓存的全量加载条数: \(cachedCount)")
 
         let query = """
             SELECT corporation_id, offer_id, type_id, offers_data
@@ -143,6 +122,20 @@ class LPStoreAPI {
 
         if case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(query) {
             Logger.info("从数据库查询到 \(rows.count) 条LP商店数据")
+
+            // 如果数据库为空，需要重新加载
+            if rows.isEmpty {
+                Logger.info("数据库中没有LP商店数据，需要全量加载")
+                return nil
+            }
+
+            // 比较缓存条数与数据库实际条数
+            if rows.count != cachedCount {
+                Logger.info("数据库条数(\(rows.count))与缓存条数(\(cachedCount))不匹配，需要全量加载")
+                return nil
+            }
+
+            Logger.info("数据库条数与缓存条数匹配，使用缓存数据")
 
             // 加载数据
             var results: [Int: [LPStoreOffer]] = [:]
@@ -193,7 +186,7 @@ class LPStoreAPI {
                 Logger.info("从数据库加载LP商店数据成功 - 军团数量: \(results.count)，解码失败: \(decodeFailCount) 条")
                 return results
             } else {
-                Logger.warning("所有LP商店数据解码失败")
+                Logger.warning("所有LP商店数据解码失败，需要重新加载")
                 return nil
             }
         }
@@ -262,6 +255,10 @@ class LPStoreAPI {
         // 所有网络请求完成后，批量保存数据
         if !results.isEmpty {
             await saveLPStoreOffersBatch(results)
+            // 计算总条数并设置全量加载条数
+            let totalCount = results.values.flatMap { $0 }.count
+            UserDefaultsManager.shared.LPStoreFullLoadCount = totalCount
+            Logger.info("设置LP商店全量加载条数: \(totalCount)")
         }
 
         return results
@@ -623,7 +620,7 @@ class LPStoreAPI {
                 // 根据执行结果提交或回滚事务
                 if success {
                     _ = CharacterDatabaseManager.shared.executeQuery("COMMIT")
-                    // 更新UserDefaults中的更新时间
+                    // 更新UserDefaults中的更新时间（单个军团加载不影响全量加载时间戳）
                     UserDefaultsManager.shared.LPStoreUpdatetime = Date()
                     Logger.info("保存LP商店数据到数据库 - 军团ID: \(corporationId), 总记录数: \(offers.count)")
                 } else {

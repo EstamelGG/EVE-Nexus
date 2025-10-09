@@ -11,39 +11,75 @@ enum AppConfiguration {
 
     // 数据库版本信息
     enum Database {
-        static var version: String {
-            // 从SDE数据库获取版本信息
-            if let versionInfo = getSDEVersionInfo() {
-                return versionInfo
+        struct VersionInfo {
+            let buildNumber: Int
+            let patchNumber: Int?
+            let releaseDate: String
+
+            var displayVersion: String {
+                return "\(buildNumber)"
             }
-            return NSLocalizedString("Unknown", comment: "")
-        }
 
-        private static func getSDEVersionInfo() -> String? {
-            let databaseManager = DatabaseManager.shared
+            var isPatchVersion: Bool {
+                guard let patch = patchNumber else { return false }
+                return patch > 0
+            }
 
-            let query = "SELECT build_number, release_date FROM version_info WHERE id = 1"
-
-            if case let .success(results) = databaseManager.executeQuery(query, useCache: false),
-               let row = results.first,
-               let buildNumber = row["build_number"] as? Int,
-               let releaseDateString = row["release_date"] as? String
-            {
-                // 解析日期并格式化为 YYYY-MM-DD 格式
+            var formattedReleaseDate: String {
                 let dateFormatter = ISO8601DateFormatter()
-                if let releaseDate = dateFormatter.date(from: releaseDateString) {
+                if let releaseDate = dateFormatter.date(from: releaseDate) {
                     let displayFormatter = DateFormatter()
                     displayFormatter.dateFormat = "yyyy-MM-dd"
-                    let formattedDate = displayFormatter.string(from: releaseDate)
-                    return "\(formattedDate)-\(buildNumber)"
+                    return displayFormatter.string(from: releaseDate)
                 } else {
-                    // 如果日期解析失败，直接使用原始字符串的前10位
-                    let datePrefix = String(releaseDateString.prefix(10))
-                    return "\(datePrefix)-\(buildNumber)"
+                    return String(releaseDate.prefix(10))
                 }
             }
 
+            var fullVersion: String {
+                return "\(formattedReleaseDate)-\(displayVersion)"
+            }
+        }
+
+        static var detailedVersionInfo: VersionInfo? {
+            return getSDEVersionInfo()
+        }
+
+        private static func getSDEVersionInfo() -> VersionInfo? {
+            let databaseManager = DatabaseManager.shared
+
+            let query = "SELECT build_number, patch_number, release_date FROM version_info WHERE id = 1"
+
+            if case let .success(results) = databaseManager.executeQuery(query, useCache: false),
+               let row = results.first,
+               let releaseDateString = row["release_date"] as? String
+            {
+                let buildNumber = getIntValue(from: row["build_number"])
+                let patchNumber = getIntValue(from: row["patch_number"])
+
+                return VersionInfo(
+                    buildNumber: buildNumber,
+                    patchNumber: patchNumber > 0 ? patchNumber : nil,
+                    releaseDate: releaseDateString
+                )
+            }
+
             return nil
+        }
+
+        // 处理可能是Int、Double或String的数值字段
+        private static func getIntValue(from value: Any?) -> Int {
+            if let intValue = value as? Int {
+                return intValue
+            } else if let doubleValue = value as? Double {
+                return Int(doubleValue)
+            } else if let int64Value = value as? Int64 {
+                return Int(int64Value)
+            } else if let stringValue = value as? String, let intValue = Int(stringValue) {
+                return intValue
+            } else {
+                return 0
+            }
         }
     }
 }

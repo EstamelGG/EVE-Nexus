@@ -98,13 +98,13 @@ extension AssetTreeNode {
     ) -> String {
         // 如果有自定义名称，优先使用
         if let name = name {
-            return name
+            return HTMLUtils.decodeHTMLEntities(name)
         }
 
         // 如果是空间站类型，从缓存中获取
         if location_type == "station", let cache = stationNameCache {
             if let name = cache[location_id] {
-                return name
+                return HTMLUtils.decodeHTMLEntities(name)
             }
         }
 
@@ -112,7 +112,7 @@ extension AssetTreeNode {
         if let systemId = system_id, let cache = solarSystemNameCache,
            let name = cache[systemId]
         {
-            return name
+            return HTMLUtils.decodeHTMLEntities(name)
         }
 
         // 最后的回退选项
@@ -269,7 +269,7 @@ struct AssetItemView: View {
                             if showCustomName, let customName = node.name, node.items != nil,
                                !customName.isEmpty, customName != "None"
                             {
-                                Text("[\(customName)]")
+                                Text("[\(HTMLUtils.decodeHTMLEntities(customName))]")
                                     .foregroundColor(.secondary)
                                     .lineLimit(1)
                             }

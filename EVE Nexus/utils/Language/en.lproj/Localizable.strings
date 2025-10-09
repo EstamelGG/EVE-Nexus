@@ -199,7 +199,10 @@
 "Main_Database_Show_Important_Only_Detail" = "Only show important attributes in database function";
 
 "Main_About" = "About";
-"Main_About_Database_Version" = "Database Version";
+"Main_About_Database_Version" = "SDE";
+"Main_About_Database_Update_Available" = "Update Available";
+"Main_About_Build_Number" = "Build";
+"Main_About_Patch_Number" = "Patch";
 "Main_About_Author" = "Author";
 "Main_About_Github" = "Github";
 "Main_About_Report_Bug" = "Report Bug";
@@ -744,12 +747,6 @@
 "Mining_Monthly_Summary" = "Mining Summary for %@";
 "Mining_Total_Volume" = "Total Volume";
 
-"Main_Setting_Reset_Database" = "Reset Database";
-"Main_Setting_Reset_Database_Detail" = "Delete and reinitialize character database";
-"Main_Setting_Reset_Database_Title" = "Reset Database";
-"Main_Setting_Reset_Database_Message" = "This will delete all character database content and reinitialize it. This action cannot be undone. Do you want to continue?";
-"Main_Setting_Reset_Database_Success_Title" = "Reset Complete";
-"Main_Setting_Reset_Database_Success_Message" = "Database has been successfully reset";
 "Common_info" = "Basic info";
 "Timer" = "Timer";
 
@@ -942,7 +939,7 @@
 "Main_EVE_Mail_Searching" = "Searching...";
 "Main_EVE_Mail_Search_Failed" = "Search Failed";
 
-"Main_Setting_Corporation_Affairs" = "Corporation Affairs";
+"Main_Setting_Function" = "Function Setting";
 "Main_Setting_Show_Corporation_Affairs" = "Show Corporation Affairs";
 
 // Corporation Section
@@ -2508,3 +2505,33 @@
 "Ore_Refinery_Remaining_List_Empty" = "Remaining Items List Empty";
 "Ore_Refinery_Output_List_Empty" = "Refinery Output List Empty";
 "Ore_Refinery_Result_Tax_Zero" = "0 ISK (Tax rate: %.1f%%)";
+
+// SDE Static Data related strings
+"Main_Setting_SDE_Static_Data" = "SDE Static Data";
+"Main_Setting_Checking_Updates" = "Checking for updates";
+"Main_Setting_No_Updates" = "No updates";
+"Main_Setting_Updates_Available" = "Updates available";
+"Main_Setting_Updates_Available_With_Version" = "Updates available (v%@)";
+"Main_Setting_Check_Failed" = "Check failed";
+
+// SDE Update Details Page
+"SDE_Update_Details" = "SDE Update Details";
+"SDE_Data_Package" = "SDE Data Package";
+"SDE_Icon_Package" = "Icon Package";
+"SDE_Current_Version" = "Current Version";
+"SDE_Latest_Version" = "Latest Version";
+"SDE_Not_Available" = "Not Available";
+"SDE_Already_Latest" = "Already Latest";
+"SDE_Update" = "Update";
+"SDE_Exit" = "Dismiss";
+"SDE_Update_Completed" = "Update completed successfully!";
+"SDE_Done" = "Done";
+"SDE_Reset_Database" = "Reset SDE Database";
+"SDE_Reset_Database_Detail" = "Delete local SDE data and use built-in database";
+"SDE_Reset_Confirm_Title" = "Reset SDE Database";
+"SDE_Reset_Cancel" = "Cancel";
+"SDE_Reset_Confirm" = "Reset";
+"SDE_Reset_Message" = "This will delete all local SDE data and the app will use the built-in database again. This action cannot be undone.";
+"SDE_Reset_Success_Title" = "Reset Successful";
+"SDE_Reset_Success_Message" = "SDE database has been restored to default version";
+"SDE_Reset_Section" = "Reset SDE";
