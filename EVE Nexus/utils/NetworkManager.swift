@@ -162,12 +162,12 @@ class NetworkManager: NSObject, @unchecked Sendable {
         }
 
         return try await retrier.execute(noRetryKeywords: noRetryKeywords, timeouts: timeouts) {
-            Logger.info(
-                "[HTTP-Request] HTTP \(method) Request to: \(url), User-Agent: \(request.value(forHTTPHeaderField: "User-Agent") ?? "N/A")"
-            )
+//            Logger.info(
+//                "[HTTP-Request] HTTP \(method) Request to: \(url), User-Agent: \(request.value(forHTTPHeaderField: "User-Agent") ?? "N/A")"
+//            )
 
             // 使用Task.detached确保在后台线程执行，并设置合适的QoS
-            return try await Task.detached(priority: .userInitiated) {
+            try await Task.detached(priority: .userInitiated) {
                 let (data, response) = try await self.session.data(for: request)
 
                 guard let httpResponse = response as? HTTPURLResponse else {
@@ -196,7 +196,9 @@ class NetworkManager: NSObject, @unchecked Sendable {
                 }
                 // 解析频率限制信息
                 let rateLimitInfo = RateLimitInfo(from: httpResponse)
-                Logger.debug("[HTTP-Response] URL: \(url.absoluteString), Code: \(httpResponse.statusCode), Body Length: \(data.count) bytes, Rate Limit: \(rateLimitInfo.logString)")
+                if rateLimitInfo.remaining ?? 100 <= 20 {
+                    Logger.warning("[HTTP-Response] URL: \(url.absoluteString), Code: \(httpResponse.statusCode), Body Length: \(data.count) bytes, Rate Limit: \(rateLimitInfo.logString)")
+                }
                 return data
             }.value
         }

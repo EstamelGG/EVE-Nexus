@@ -67,11 +67,6 @@ struct PlanetDetailView: View {
         return sorted[index]
     }
 
-    // 将分钟数转换为小时数（用于显示）
-    private func minutesToHours(_ minutes: Int) -> Double {
-        return Double(minutes) / 60.0
-    }
-
     // 找到下一个可用的快照时间点（分钟数）
     private func nextAvailableMinutes(after minutes: Int) -> Int? {
         let sorted = availableSnapShot

@@ -44,13 +44,115 @@ class SecureStorage {
                 throw KeychainError.unhandledError(status: updateStatus)
             }
             Logger.info("SecureStorage: 成功更新了 refresh token - 角色ID: \(characterId)")
+            // 保存更新时间戳
+            saveTokenUpdateTimestamp(for: characterId)
         } else if status != errSecSuccess {
             Logger.error(
                 "SecureStorage: 保存 refresh token 失败 - 角色ID: \(characterId), 错误码: \(status)")
             throw KeychainError.unhandledError(status: status)
         } else {
             Logger.info("SecureStorage: 成功保存新的 refresh token - 角色ID: \(characterId)")
+            // 保存更新时间戳
+            saveTokenUpdateTimestamp(for: characterId)
         }
+    }
+
+    /// 保存 refresh token 更新时间戳到 Keychain
+    private func saveTokenUpdateTimestamp(for characterId: Int) {
+        let timestamp = Date().timeIntervalSince1970
+        let timestampString = String(timestamp)
+
+        guard let timestampData = timestampString.data(using: .utf8) else {
+            Logger.error("SecureStorage: 无法将时间戳转换为数据 - 角色ID: \(characterId)")
+            return
+        }
+
+        let query: [String: Any] = [
+            String(kSecClass): kSecClassGenericPassword,
+            String(kSecAttrAccount): "token_timestamp_\(characterId)",
+            String(kSecValueData): timestampData,
+            String(kSecAttrAccessible): kSecAttrAccessibleAfterFirstUnlock,
+        ]
+
+        let status = SecItemAdd(query as CFDictionary, nil)
+        if status == errSecDuplicateItem {
+            // 如果已存在，则更新
+            let updateQuery: [String: Any] = [
+                String(kSecClass): kSecClassGenericPassword,
+                String(kSecAttrAccount): "token_timestamp_\(characterId)",
+            ]
+            let updateAttributes: [String: Any] = [
+                String(kSecValueData): timestampData,
+            ]
+            let updateStatus = SecItemUpdate(
+                updateQuery as CFDictionary, updateAttributes as CFDictionary
+            )
+            if updateStatus != errSecSuccess {
+                Logger.error(
+                    "SecureStorage: 更新时间戳失败 - 角色ID: \(characterId), 错误码: \(updateStatus)"
+                )
+            } else {
+                Logger.info("SecureStorage: 成功更新时间戳 - 角色ID: \(characterId), 时间戳: \(timestampString)")
+            }
+        } else if status != errSecSuccess {
+            Logger.error(
+                "SecureStorage: 保存时间戳失败 - 角色ID: \(characterId), 错误码: \(status)")
+        } else {
+            Logger.info("SecureStorage: 成功保存时间戳 - 角色ID: \(characterId), 时间戳: \(timestampString)")
+        }
+    }
+
+    /// 从 Keychain 读取 refresh token 更新时间戳
+    private func loadTokenUpdateTimestamp(for characterId: Int) -> Date? {
+        let query: [String: Any] = [
+            String(kSecClass): kSecClassGenericPassword,
+            String(kSecAttrAccount): "token_timestamp_\(characterId)",
+            String(kSecReturnData): true,
+            String(kSecMatchLimit): kSecMatchLimitOne,
+        ]
+
+        var result: AnyObject?
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+
+        if status == errSecItemNotFound {
+            Logger.info("SecureStorage: 未找到时间戳记录 - 角色ID: \(characterId)，尝试为已存在的 token 初始化时间戳")
+            // 如果 token 存在但没有时间戳，尝试初始化并返回当前时间
+            if let initializedDate = initializeTimestampIfTokenExists(for: characterId) {
+                return initializedDate
+            }
+            return nil
+        } else if status != errSecSuccess {
+            Logger.error(
+                "SecureStorage: 从 Keychain 加载时间戳失败 - 角色ID: \(characterId), 错误码: \(status)"
+            )
+            return nil
+        }
+
+        guard let data = result as? Data,
+              let timestampString = String(data: data, encoding: .utf8),
+              let timestamp = Double(timestampString)
+        else {
+            Logger.error(
+                "SecureStorage: 时间戳数据格式错误 - 角色ID: \(characterId)")
+            return nil
+        }
+
+        let date = Date(timeIntervalSince1970: timestamp)
+        Logger.info("SecureStorage: 成功加载时间戳 - 角色ID: \(characterId), 时间: \(date)")
+        return date
+    }
+
+    /// 如果 token 存在但没有时间戳，则初始化时间戳并返回当前时间
+    private func initializeTimestampIfTokenExists(for characterId: Int) -> Date? {
+        // 检查 token 是否存在
+        if (try? loadToken(for: characterId)) != nil {
+            Logger.info("SecureStorage: 发现已存在的 token 但没有时间戳，正在初始化 - 角色ID: \(characterId)")
+            // 使用当前时间作为初始时间戳
+            let currentTime = Date()
+            saveTokenUpdateTimestamp(for: characterId)
+            return currentTime
+        }
+        return nil
     }
 
     func loadToken(for characterId: Int) throws -> String? {
@@ -107,6 +209,23 @@ class SecureStorage {
         if status != errSecSuccess, status != errSecItemNotFound {
             throw KeychainError.unhandledError(status: status)
         }
+
+        // 同时删除时间戳
+        deleteTokenUpdateTimestamp(for: characterId)
+    }
+
+    /// 删除 refresh token 更新时间戳
+    private func deleteTokenUpdateTimestamp(for characterId: Int) {
+        let query: [String: Any] = [
+            String(kSecClass): kSecClassGenericPassword,
+            String(kSecAttrAccount): "token_timestamp_\(characterId)",
+        ]
+
+        let status = SecItemDelete(query as CFDictionary)
+        if status != errSecSuccess, status != errSecItemNotFound {
+            Logger.error(
+                "SecureStorage: 删除时间戳失败 - 角色ID: \(characterId), 错误码: \(status)")
+        }
     }
 
     // 列出所有有效的 refresh token
@@ -153,6 +272,13 @@ class SecureStorage {
 
         Logger.success("SecureStorage: 共找到 \(validCharacterIds.count) 个有效的 refresh token")
         return validCharacterIds
+    }
+
+    /// 获取指定角色的 refresh token 上次更新时间
+    /// - Parameter characterId: 角色ID
+    /// - Returns: 上次更新的时间，如果未找到则返回 nil
+    func getLastRefreshTokenUpdateTime(for characterId: Int) -> Date? {
+        return loadTokenUpdateTimestamp(for: characterId)
     }
 }
 
@@ -332,6 +458,13 @@ actor AuthTokenManager: NSObject {
         )
         Logger.info("开始主动刷新 access token - 角色ID: \(characterId)")
         return try await refreshAccessToken(for: characterId)
+    }
+
+    /// 获取指定角色的 refresh token 上次更新时间
+    /// - Parameter characterId: 角色ID
+    /// - Returns: 上次更新的时间，如果未找到则返回 nil
+    func getLastRefreshTokenUpdateTime(for characterId: Int) -> Date? {
+        return SecureStorage.shared.getLastRefreshTokenUpdateTime(for: characterId)
     }
 
     /// 清除所有 token（包括 access token 和 refresh token）

@@ -30,8 +30,17 @@ class Logger {
         let logPath = StaticResourceManager.shared.getStaticDataSetPath().appendingPathComponent("Logs")
         try? fileManager.createDirectory(at: logPath, withIntermediateDirectories: true)
         let storeURL = logPath.appendingPathComponent("Pulse.store")
+
+        // 配置日志存储：限制大小为 100MB，启用自动清理
+        // sizeLimit: 100MB，当达到此大小后会自动清理旧数据
+        // maxAge: 默认 14 天，超过此时间的日志会被自动删除
+        // sweep: 默认已启用，会自动定期清理
+        var configuration = LoggerStore.Configuration(sizeLimit: 40 * 1_000_000) // 40 MB
+        configuration.maxAge = 7 * 86400 // 14 天
+
         // LoggerStore 初始化可能抛出错误，使用 try? 处理
-        if let store = try? LoggerStore(storeURL: storeURL) {
+        // 默认选项包含 .create 和 .sweep，启用自动清理功能
+        if let store = try? LoggerStore(storeURL: storeURL, options: [.create, .sweep], configuration: configuration) {
             loggerStore = store
         } else {
             // 如果创建失败，使用默认的 shared store

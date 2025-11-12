@@ -57,21 +57,8 @@ class ColonySimulation {
 
         // 如果目标时间早于当前模拟时间，直接返回
         if targetTime <= simulatedColony.currentSimTime {
-            Logger.info("目标时间(\(targetTime))早于或等于当前模拟时间(\(simulatedColony.currentSimTime))，无需模拟")
             return simulatedColony
         }
-
-        // 格式化时间
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        let startTimeString = dateFormatter.string(from: simulatedColony.currentSimTime)
-        let endTimeString = dateFormatter.string(from: targetTime)
-
-        Logger.info("======== 开始模拟殖民地 ========")
-        Logger.info("殖民地ID: \(simulatedColony.id)")
-        Logger.info("模拟时间范围: 从 \(startTimeString) 到 \(endTimeString)")
-        Logger.info("设施数量: \(simulatedColony.pins.count), 路由数量: \(simulatedColony.routes.count)")
 
         // 记录设施类型统计
         var extractorCount = 0
@@ -94,10 +81,6 @@ class ColonySimulation {
             }
         }
 
-        Logger.info(
-            "设施类型统计: 提取器=\(extractorCount), 工厂=\(factoryCount), 存储设施=\(storageCount), 指挥中心=\(commandCenterCount), 发射台=\(launchpadCount)"
-        )
-
         // 检查并处理已经在生产周期中的工厂
         for pin in simulatedColony.pins {
             if let factory = pin as? Pin.Factory,
@@ -109,8 +92,6 @@ class ColonySimulation {
 
                 // 如果生产周期在模拟开始前已经结束，但产品尚未被收集
                 if cycleEndTime <= simulatedColony.currentSimTime {
-                    Logger.info("模拟开始前发现已完成生产周期的工厂(\(factory.id))，处理其产出")
-
                     // 添加产出
                     let outputType = schematic.outputType
                     let outputQuantity = schematic.outputQuantity
@@ -132,32 +113,21 @@ class ColonySimulation {
                         currentTime: simulatedColony.currentSimTime, eventQueue: &tempEventQueue
                     )
                 }
-                // 如果工厂正在生产中，但尚未完成，确保它在事件队列中被正确处理
-                else if cycleEndTime > simulatedColony.currentSimTime {
-                    Logger.info(
-                        "模拟开始前发现正在生产中的工厂(\(factory.id))，周期结束时间: \(dateFormatter.string(from: cycleEndTime))"
-                    )
-                    // 不需要特殊处理，因为initializeSimulation会将其添加到事件队列中
-                }
             }
         }
 
-        Logger.info("开始初始化事件队列...")
         // 创建局部事件队列，避免并发冲突
         var eventQueue: [(date: Date, pinId: Int64)] = []
         // 初始化事件队列 - 使用targetTime而不是.untilNow，确保未来模拟正确
         initializeSimulation(colony: simulatedColony, endCondition: .untilTimestamp(targetTime), eventQueue: &eventQueue)
         simEndTime = nil
-        Logger.info("事件队列初始化完成，队列长度: \(eventQueue.count)")
 
-        Logger.info("开始运行事件驱动的模拟...")
         // 运行事件驱动的模拟
         let startTime = simulatedColony.currentSimTime
         runEventDrivenSimulation(
             colony: &simulatedColony, targetTime: targetTime, startTime: startTime,
             eventQueue: &eventQueue, progressCallback: progressCallback
         )
-        Logger.info("事件驱动模拟完成")
 
         // 更新设施状态
         updatePinStatuses(colony: simulatedColony)
@@ -168,10 +138,6 @@ class ColonySimulation {
         // 更新殖民地概览
         simulatedColony.overview = getColonyOverview(
             routes: simulatedColony.routes, pins: simulatedColony.pins
-        )
-
-        Logger.info(
-            "殖民地模拟完成: 状态: \(simulatedColony.status), 最终产品数量: \(simulatedColony.overview.finalProducts.count)"
         )
 
         // 记录模拟后的设施状态统计
@@ -191,11 +157,6 @@ class ColonySimulation {
                 }
             }
         }
-
-        Logger.info(
-            "模拟后设施状态: 活跃提取器=\(activeExtractorCount)/\(extractorCount), 活跃工厂=\(activeFactoryCount)/\(factoryCount), 正在生产的工厂=\(runningFactoryCount)/\(factoryCount)"
-        )
-        Logger.info("======== 殖民地模拟结束 ========")
 
         // 打印殖民地模拟详细信息
         printColonySimulationDetails(colony: simulatedColony)
@@ -304,27 +265,10 @@ class ColonySimulation {
         // 清空事件队列
         eventQueue.removeAll()
 
-        // 格式化时间
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-
-        // 添加日志，显示当前模拟的时间范围
-        let currentTimeString = dateFormatter.string(from: colony.currentSimTime)
-        let endTimeString = dateFormatter.string(from: endCondition.getSimEndTime())
-        Logger.info(
-            "初始化事件队列，当前时间: \(currentTimeString)，结束条件: \(endCondition)，结束时间: \(endTimeString)")
-        Logger.info("殖民地共有 \(colony.pins.count) 个设施")
-
         // 为每个可运行的设施安排事件
         for pin in colony.pins {
-            // 记录当前处理的设施
-            let pinType = getPinTypeName(pin: pin)
-            Logger.info("检查设施: \(pinType)(\(pin.id)) - \(pin.name)")
-
             // 跳过存储类设施
             if isStorage(pin: pin) {
-                Logger.info("  - 跳过存储类设施: \(pinType)(\(pin.id))")
                 continue
             }
 
@@ -338,101 +282,14 @@ class ColonySimulation {
 
                 // 如果生产周期尚未结束，直接将其添加到事件队列
                 if cycleEndTime > colony.currentSimTime {
-                    Logger.info(
-                        "将正在生产中的工厂(\(factory.id))添加到事件队列，周期结束时间: \(dateFormatter.string(from: cycleEndTime))"
-                    )
                     eventQueue.append((cycleEndTime, factory.id))
                     continue
-                } else {
-                    Logger.info("工厂(\(factory.id))的生产周期已结束，不添加到事件队列")
                 }
-            } else if let factory = pin as? Pin.Factory {
-                // 记录工厂状态
-                Logger.info(
-                    "  - 工厂(\(factory.id)) 状态: isActive=\(factory.isActive), hasSchematic=\(factory.schematic != nil)"
-                )
-                if let schematic = factory.schematic {
-                    Logger.info(
-                        "  - 工厂配方: \(schematic.id) (输出: \(schematic.outputType.name)×\(schematic.outputQuantity))"
-                    )
-
-                    // 记录输入缓冲区状态
-                    var bufferStatus = ""
-                    for (inputType, requiredQuantity) in schematic.inputs {
-                        let availableQuantity = factory.contents[inputType] ?? 0
-                        let ratio = Double(availableQuantity) / Double(requiredQuantity)
-                        bufferStatus +=
-                            "\(inputType.name): \(availableQuantity)/\(requiredQuantity) (\(Int(ratio * 100))%), "
-                    }
-                    if !bufferStatus.isEmpty {
-                        bufferStatus.removeLast(2)
-                        Logger.info("  - 工厂缓冲区状态: [\(bufferStatus)]")
-                    } else {
-                        Logger.info("  - 工厂无输入材料需求")
-                    }
-
-                    // 记录生产状态
-                    if let lastCycleStartTime = factory.lastCycleStartTime {
-                        let cycleEndTime = lastCycleStartTime.addingTimeInterval(
-                            schematic.cycleTime)
-                        Logger.info(
-                            "  - 工厂上次生产周期开始时间: \(dateFormatter.string(from: lastCycleStartTime))")
-                        Logger.info("  - 工厂生产周期结束时间: \(dateFormatter.string(from: cycleEndTime))")
-                    }
-                    if let lastRunTime = factory.lastRunTime {
-                        Logger.info("  - 工厂上次运行时间: \(dateFormatter.string(from: lastRunTime))")
-                    }
-                }
-            } else if let extractor = pin as? Pin.Extractor {
-                // 记录提取器状态
-                Logger.info(
-                    "  - 提取器(\(extractor.id)) 状态: isActive=\(extractor.isActive), hasProductType=\(extractor.productType != nil)"
-                )
-                if let productType = extractor.productType {
-                    Logger.info("  - 提取器产品类型: \(productType.name)")
-                }
-                if let lastRunTime = extractor.lastRunTime {
-                    Logger.info("  - 提取器上次运行时间: \(dateFormatter.string(from: lastRunTime))")
-                }
-                if let cycleTime = extractor.cycleTime {
-                    Logger.info("  - 提取器周期时间: \(Int(cycleTime)) 秒")
-                }
-                if let expiryTime = extractor.expiryTime {
-                    Logger.info("  - 提取器过期时间: \(dateFormatter.string(from: expiryTime))")
-                }
-            }
-
-            // 检查设施是否可以运行
-            let canRunResult = canRun(pin: pin, time: endCondition.getSimEndTime())
-            Logger.info("  - 设施可以运行: \(canRunResult)")
-
-            // 检查设施是否可以激活
-            let canActivateResult = canActivate(pin: pin)
-            Logger.info("  - 设施可以激活: \(canActivateResult)")
-
-            // 检查设施是否处于激活状态
-            let isActiveResult = isActive(pin: pin)
-            Logger.info("  - 设施处于激活状态: \(isActiveResult)")
-
-            // 如果是工厂，检查是否有足够的输入材料
-            if let factory = pin as? Pin.Factory {
-                let hasEnoughInputsResult = hasEnoughInputs(factory: factory)
-                Logger.info("  - 工厂有足够的输入材料: \(hasEnoughInputsResult)")
-            }
-
-            // 获取下一次运行时间
-            if let nextRunTime = getNextRunTime(pin: pin) {
-                Logger.info("  - 下一次运行时间: \(dateFormatter.string(from: nextRunTime))")
-            } else {
-                Logger.info("  - 下一次运行时间: 立即运行")
             }
 
             // 处理其他可运行的设施
             if canRun(pin: pin, time: endCondition.getSimEndTime()) {
-                Logger.info("  - 设施可以运行，安排到事件队列")
                 schedulePin(pin: pin, currentTime: colony.currentSimTime, eventQueue: &eventQueue)
-            } else {
-                Logger.info("  - 设施不能运行，不添加到事件队列")
             }
         }
 
@@ -442,26 +299,6 @@ class ColonySimulation {
                 return event1.pinId < event2.pinId
             }
             return event1.date < event2.date
-        }
-
-        // 记录事件队列信息
-        if !eventQueue.isEmpty {
-            Logger.info("初始化事件队列完成，共 \(eventQueue.count) 个事件:")
-            for (index, event) in eventQueue.prefix(5).enumerated() {
-                let pinId = event.pinId
-                let eventTime = event.date
-                let pinType =
-                    colony.pins.first(where: { $0.id == pinId }).map { getPinTypeName(pin: $0) }
-                        ?? "未知"
-                Logger.info(
-                    "  \(index + 1). \(pinType)(\(pinId)) 将在 \(dateFormatter.string(from: eventTime)) 运行"
-                )
-            }
-            if eventQueue.count > 5 {
-                Logger.info("  ... 以及 \(eventQueue.count - 5) 个其他事件")
-            }
-        } else {
-            Logger.warning("初始化事件队列完成，但队列为空！没有设施需要运行。")
         }
     }
 
@@ -483,80 +320,8 @@ class ColonySimulation {
         var lastReportedProgress: Double = -1.0
         var eventCount = 0
 
-        // 格式化时间
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-
-        Logger.info(
-            "开始事件驱动模拟，从 \(dateFormatter.string(from: currentSimTime)) 到 \(dateFormatter.string(from: targetTime))"
-        )
-
-        // 记录殖民地状态
-        Logger.info("殖民地ID: \(colony.id), 设施数量: \(colony.pins.count), 路由数量: \(colony.routes.count)")
-
         // 检查事件队列
         if eventQueue.isEmpty {
-            Logger.warning("事件队列为空，无法进行模拟！")
-            Logger.info("检查殖民地状态...")
-
-            // 记录设施状态
-            var hasActiveExtractors = false
-            var hasActiveFactories = false
-            var hasRunningFactories = false
-
-            for pin in colony.pins {
-                if let extractor = pin as? Pin.Extractor {
-                    Logger.info(
-                        "提取器(\(extractor.id)) 状态: isActive=\(extractor.isActive), hasProductType=\(extractor.productType != nil)"
-                    )
-                    if extractor.isActive && extractor.productType != nil {
-                        hasActiveExtractors = true
-                    }
-                } else if let factory = pin as? Pin.Factory {
-                    Logger.info(
-                        "工厂(\(factory.id)) 状态: isActive=\(factory.isActive), hasSchematic=\(factory.schematic != nil)"
-                    )
-
-                    if factory.isActive {
-                        hasActiveFactories = true
-                    }
-
-                    if let lastCycleStartTime = factory.lastCycleStartTime,
-                       let schematic = factory.schematic
-                    {
-                        let cycleEndTime = lastCycleStartTime.addingTimeInterval(
-                            schematic.cycleTime)
-                        if cycleEndTime > currentSimTime {
-                            hasRunningFactories = true
-                            Logger.info(
-                                "工厂(\(factory.id)) 正在生产中，周期结束时间: \(dateFormatter.string(from: cycleEndTime))"
-                            )
-                        }
-                    }
-
-                    // 记录工厂缓冲区状态
-                    if let schematic = factory.schematic {
-                        var bufferStatus = ""
-                        for (inputType, requiredQuantity) in schematic.inputs {
-                            let availableQuantity = factory.contents[inputType] ?? 0
-                            let ratio = Double(availableQuantity) / Double(requiredQuantity)
-                            bufferStatus +=
-                                "\(inputType.name): \(availableQuantity)/\(requiredQuantity) (\(Int(ratio * 100))%), "
-                        }
-                        if !bufferStatus.isEmpty {
-                            bufferStatus.removeLast(2)
-                            Logger.info("工厂(\(factory.id)) 缓冲区状态: [\(bufferStatus)]")
-                        }
-                    }
-                }
-            }
-
-            Logger.info(
-                "殖民地状态摘要: 有活跃提取器=\(hasActiveExtractors), 有活跃工厂=\(hasActiveFactories), 有正在生产的工厂=\(hasRunningFactories)"
-            )
-            Logger.warning("事件队列空，结束模拟")
-
             // 更新殖民地的当前模拟时间
             colony.currentSimTime = targetTime
             return
@@ -572,17 +337,11 @@ class ColonySimulation {
             // 检查模拟结束条件
             // 1. 如果已设置模拟结束时间且事件时间超过结束时间，结束模拟
             if let endTime = simEndTime, eventTime > endTime {
-                Logger.info(
-                    "事件时间 \(dateFormatter.string(from: eventTime)) 超过模拟结束时间 \(dateFormatter.string(from: endTime))，结束模拟"
-                )
                 break
             }
 
             // 2. 如果事件时间超过目标时间，结束模拟
             if eventTime > targetTime {
-                Logger.info(
-                    "事件时间 \(dateFormatter.string(from: eventTime)) 超过目标时间 \(dateFormatter.string(from: targetTime))，结束模拟"
-                )
                 break
             }
 
@@ -607,44 +366,16 @@ class ColonySimulation {
 
             // 获取要处理的设施
             guard let pin = colony.pins.first(where: { $0.id == pinId }) else {
-                Logger.warning("找不到ID为 \(pinId) 的设施，跳过该事件")
                 continue
             }
-
-            // 记录事件处理信息
-            let pinType = getPinTypeName(pin: pin)
-            Logger.debug(
-                "[行星开发-事件模拟器] \(dateFormatter.string(from: currentSimTime)): 处理 \(pinType)(\(pin.id)) 的事件")
 
             // 检查设施是否可以激活或已经激活，如果都不是，则检查是否是工厂且有足够的输入材料
             if !canActivate(pin: pin), !isActive(pin: pin) {
                 // 特殊处理工厂：如果是工厂且有足够的输入材料，即使canActivate返回false也应该继续处理
                 if let factory = pin as? Pin.Factory, hasEnoughInputs(factory: factory) {
                     // 继续处理，不跳过
-                    Logger.info(
-                        "\(dateFormatter.string(from: currentSimTime)): 工厂(\(factory.id)) 有足够的输入材料，继续处理"
-                    )
                 } else {
-                    Logger.info(
-                        "\(dateFormatter.string(from: currentSimTime)): 设施 \(pinType)(\(pin.id)) 既不能激活也不处于激活状态，跳过"
-                    )
                     continue
-                }
-            }
-
-            // 检查工厂是否正在生产中
-            if let factory = pin as? Pin.Factory,
-               let lastCycleStartTime = factory.lastCycleStartTime,
-               let schematic = factory.schematic,
-               factory.isActive
-            {
-                let cycleEndTime = lastCycleStartTime.addingTimeInterval(schematic.cycleTime)
-
-                // 如果当前时间已经达到或超过了周期结束时间，记录详细信息
-                if currentSimTime >= cycleEndTime {
-                    Logger.info(
-                        "\(dateFormatter.string(from: currentSimTime)): 工厂(\(factory.id))的生产周期已完成，开始于 \(dateFormatter.string(from: lastCycleStartTime))，周期时间 \(Int(schematic.cycleTime)) 秒"
-                    )
                 }
             }
 
@@ -676,7 +407,6 @@ class ColonySimulation {
                 // 如果设施不能运行，但可以激活，仍然需要安排下一次运行，避免无限循环
                 // 这通常发生在工厂尚未到达下一个生产周期的情况
                 if canActivate(pin: pin) || isActive(pin: pin) {
-                    Logger.debug("设施(\(pin.id)) 不能运行但可以激活，安排下一次运行以避免无限循环")
                     schedulePin(pin: pin, currentTime: currentSimTime, eventQueue: &eventQueue)
                 }
             }
@@ -725,24 +455,12 @@ class ColonySimulation {
                factory.schematic != nil,
                hasEnoughInputs(factory: factory)
             {
-                Logger.info("模拟结束后发现工厂(\(factory.id))有足够材料但未开始生产，立即开始生产周期")
-
                 // 立即运行工厂，开始生产周期
                 // 注意：这里需要创建一个临时事件队列，因为这是在模拟结束后调用的
                 var tempEventQueue: [(date: Date, pinId: Int64)] = []
-                let productionStatus = runFactory(factory: factory, time: colony.currentSimTime, eventQueue: &tempEventQueue)
-
-                if productionStatus == .startedCycle {
-                    Logger.info("工厂(\(factory.id))已成功开始生产周期")
-                } else {
-                    Logger.warning("工厂(\(factory.id))未能开始生产周期，状态: \(productionStatus)")
-                }
+                _ = runFactory(factory: factory, time: colony.currentSimTime, eventQueue: &tempEventQueue)
             }
         }
-
-        // 记录模拟结束信息
-        Logger.info("事件驱动模拟结束，最终模拟时间: \(dateFormatter.string(from: colony.currentSimTime))")
-        Logger.info("剩余事件队列长度: \(eventQueue.count)")
 
         // 清除当前模拟的殖民地引用
         self.colony = nil
@@ -800,7 +518,6 @@ class ColonySimulation {
               let installTime = extractor.installTime,
               let cycleTime = extractor.cycleTime
         else {
-            Logger.warning("提取器缺少必要信息，无法运行: \(extractor.designator)")
             return
         }
 
@@ -811,14 +528,6 @@ class ColonySimulation {
             currentTime: time,
             cycleTime: cycleTime
         )
-
-        // 格式化时间
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        let timeString = dateFormatter.string(from: time)
-
-        Logger.info("\(timeString): 提取器(\(extractor.id)) 生产 [\(productType.name)×\(output)]")
 
         // 将产出的资源添加到存储中
         let currentQuantity = extractor.contents[productType] ?? 0
@@ -833,7 +542,6 @@ class ColonySimulation {
         // 检查是否过期
         if let expiryTime = extractor.expiryTime, expiryTime <= time {
             extractor.isActive = false
-            Logger.info("\(timeString): 提取器(\(extractor.id)) 已过期")
         }
     }
 
@@ -854,15 +562,8 @@ class ColonySimulation {
     ///   - eventQueue: 事件队列（inout参数）
     /// - Returns: 工厂生产状态
     private static func runFactory(factory: Pin.Factory, time: Date, eventQueue: inout [(date: Date, pinId: Int64)]) -> FactoryProductionStatus {
-        // 格式化时间
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        let timeString = dateFormatter.string(from: time)
-
         // 首先检查是否有配方
         guard let schematic = factory.schematic else {
-            Logger.warning("工厂 \(factory.designator) 没有配置配方，无法运行")
             return .notProduced
         }
 
@@ -881,10 +582,6 @@ class ColonySimulation {
                 // 更新容量使用情况
                 factory.capacityUsed += outputType.volume * Double(outputQuantity)
 
-                Logger.info(
-                    "\(timeString): 工厂(\(factory.id)) 完成生产周期，生产 [\(outputType.name)×\(outputQuantity)]"
-                )
-
                 // 清除上一个周期的开始时间，表示已经完成了这个周期
                 factory.lastCycleStartTime = nil
                 factory.isActive = false
@@ -894,7 +591,6 @@ class ColonySimulation {
                 refillFactoryBuffer(factory: factory, time: time, eventQueue: &eventQueue)
 
                 if hasEnoughInputs(factory: factory) {
-                    Logger.info("\(timeString): 工厂(\(factory.id)) 完成周期后立即有足够材料，开始新的生产周期")
                     // 立即开始新的生产周期
                     factory.isActive = true
                     factory.lastCycleStartTime = time
@@ -920,7 +616,6 @@ class ColonySimulation {
             }
 
             // 当前时间还未到达周期结束时间，继续等待
-            Logger.debug("工厂(\(factory.id)) 正在生产中，等待周期结束")
             return .startedCycle
         }
 
@@ -929,26 +624,9 @@ class ColonySimulation {
             let nextRunTime = lastRunTime.addingTimeInterval(schematic.cycleTime)
             // 特殊处理：如果工厂有足够的输入材料，允许立即开始新的生产周期，不受上一次运行时间的限制
             if time < nextRunTime && !hasEnoughInputs(factory: factory) {
-                Logger.debug("工厂(\(factory.id)) 尚未到达下一个生产周期")
                 return .notProduced
             }
         }
-
-        // 记录工厂缓冲区状态
-        var bufferStatus = ""
-        for (inputType, requiredQuantity) in schematic.inputs {
-            let availableQuantity = factory.contents[inputType] ?? 0
-            let ratio = Double(availableQuantity) / Double(requiredQuantity)
-            bufferStatus +=
-                "\(inputType.name): \(availableQuantity)/\(requiredQuantity) (\(Int(ratio * 100))%), "
-        }
-
-        // 移除最后的逗号和空格
-        if !bufferStatus.isEmpty {
-            bufferStatus.removeLast(2)
-        }
-
-        Logger.info("\(timeString): 工厂(\(factory.id)) 运行前缓冲区状态: [\(bufferStatus)]")
 
         // 检查是否有足够的输入材料
         var canConsume = true
@@ -961,15 +639,8 @@ class ColonySimulation {
         }
 
         if canConsume {
-            // 记录输入材料消耗
-            var inputsLog = ""
+            // 消耗输入材料
             for (inputType, requiredQuantity) in schematic.inputs {
-                if !inputsLog.isEmpty {
-                    inputsLog += ", "
-                }
-                inputsLog += "\(inputType.name)×\(requiredQuantity)"
-
-                // 消耗输入材料
                 let currentQuantity = factory.contents[inputType] ?? 0
                 factory.contents[inputType] = currentQuantity - requiredQuantity
 
@@ -977,30 +648,9 @@ class ColonySimulation {
                 factory.capacityUsed -= inputType.volume * Double(requiredQuantity)
             }
 
-            Logger.info("\(timeString): 工厂(\(factory.id)) 消耗 [\(inputsLog)]")
-            Logger.info(
-                "\(timeString): 工厂(\(factory.id)) 开始生产 [\(schematic.outputType.name)×\(schematic.outputQuantity)]，需要 \(Int(schematic.cycleTime)) 秒"
-            )
-
             // 更新状态
             factory.isActive = true
             factory.lastCycleStartTime = time
-
-            // 记录工厂运行后的缓冲区状态
-            bufferStatus = ""
-            for (inputType, requiredQuantity) in schematic.inputs {
-                let availableQuantity = factory.contents[inputType] ?? 0
-                let ratio = Double(availableQuantity) / Double(requiredQuantity)
-                bufferStatus +=
-                    "\(inputType.name): \(availableQuantity)/\(requiredQuantity) (\(Int(ratio * 100))%), "
-            }
-
-            // 移除最后的逗号和空格
-            if !bufferStatus.isEmpty {
-                bufferStatus.removeLast(2)
-            }
-
-            Logger.info("\(timeString): 工厂(\(factory.id)) 运行后缓冲区状态: [\(bufferStatus)]")
 
             // 更新运行时间和输入状态
             factory.lastRunTime = time
@@ -1017,7 +667,6 @@ class ColonySimulation {
             factory.receivedInputsLastCycle = factory.hasReceivedInputs
             factory.hasReceivedInputs = false
 
-            Logger.info("\(timeString): 工厂(\(factory.id)) 缺少材料，无法开始生产")
             return .notProduced
         }
     }
@@ -1029,14 +678,6 @@ class ColonySimulation {
     private static func schedulePin(pin: Pin, currentTime: Date, eventQueue: inout [(date: Date, pinId: Int64)]) {
         // 获取下一次运行时间
         let nextRunTime = getNextRunTime(pin: pin)
-
-        // 调试日志：记录调度信息
-        if let factory = pin as? Pin.Factory {
-            let dateFormatter = DateFormatter()
-            dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-            dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-            Logger.debug("调度工厂(\(factory.id)): isActive=\(factory.isActive), lastCycleStartTime=\(factory.lastCycleStartTime != nil ? dateFormatter.string(from: factory.lastCycleStartTime!) : "nil"), lastRunTime=\(factory.lastRunTime != nil ? dateFormatter.string(from: factory.lastRunTime!) : "nil"), nextRunTime=\(nextRunTime != nil ? dateFormatter.string(from: nextRunTime!) : "nil"), currentTime=\(dateFormatter.string(from: currentTime))")
-        }
 
         // 添加检查：如果是工厂且没有足够的输入材料，确保不会在当前时间点调度
         if let factory = pin as? Pin.Factory,
@@ -1072,12 +713,6 @@ class ColonySimulation {
                         return event1.date < event2.date
                     }
                 }
-
-                // 记录日志
-                let dateFormatter = DateFormatter()
-                dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-                dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-                Logger.info("工厂(\(factory.id)) 材料不足，安排在 \(dateFormatter.string(from: nextTime)) 运行")
 
                 return
             }
@@ -1153,9 +788,7 @@ class ColonySimulation {
             // 特殊处理工厂：如果是工厂且有足够的输入材料，即使canActivate返回false也应该继续处理
             if let factory = pin as? Pin.Factory, hasEnoughInputs(factory: factory) {
                 // 继续处理，不返回false
-                Logger.debug("工厂(\(pin.id)) 虽然不能激活且不处于激活状态，但有足够的输入材料，可以运行")
             } else {
-                Logger.debug("设施(\(pin.id)) 既不能激活也不处于激活状态，不能运行")
                 return false
             }
         }
@@ -1169,19 +802,11 @@ class ColonySimulation {
            && !hasEnoughInputs(factory: factory)
         {
             // 只有当下一次运行时间小于等于当前时间时才运行
-            let canRun = nextRunTime != nil && nextRunTime! <= time
-            if !canRun {
-                Logger.debug("工厂(\(pin.id)) 收到了输入但材料不足，且下一次运行时间未到，不能运行")
-            }
-            return canRun
+            return nextRunTime != nil && nextRunTime! <= time
         }
 
         // 如果没有下一次运行时间或者下一次运行时间小于等于当前时间，则可以运行
-        let canRun = nextRunTime == nil || nextRunTime! <= time
-        if !canRun {
-            Logger.debug("设施(\(pin.id)) 下一次运行时间未到，不能运行")
-        }
-        return canRun
+        return nextRunTime == nil || nextRunTime! <= time
     }
 
     /// 检查设施是否可以激活
@@ -1191,30 +816,22 @@ class ColonySimulation {
         if let extractor = pin as? Pin.Extractor {
             // 提取器需要是激活状态并且有产品类型
             if !extractor.isActive {
-                Logger.debug("提取器(\(pin.id)) 未激活，不能激活")
                 return false
             }
-            let canActivate = extractor.productType != nil
-            if !canActivate {
-                Logger.debug("提取器(\(pin.id)) 没有产品类型，不能激活")
-            }
-            return canActivate
+            return extractor.productType != nil
         } else if let factory = pin as? Pin.Factory {
             // 工厂需要有配方
             if factory.schematic == nil {
-                Logger.debug("工厂(\(pin.id)) 没有配方，不能激活")
                 return false
             }
 
             // 如果已经激活，返回true
             if isActive(pin: factory) {
-                Logger.debug("工厂(\(pin.id)) 已经处于激活状态")
                 return true
             }
 
             // 如果工厂收到了输入（不管材料是否足够），返回true
             if factory.hasReceivedInputs || factory.receivedInputsLastCycle {
-                Logger.debug("工厂(\(pin.id)) 收到了输入，可以激活")
                 return true
             }
 
@@ -1222,12 +839,10 @@ class ColonySimulation {
             // 这看起来反直觉，但配合getNextRunTime是正确的：
             // getNextRunTime会对有足够材料的未激活工厂返回nil（立即运行）
             if hasEnoughInputs(factory: factory) {
-                Logger.debug("工厂(\(pin.id)) 有足够材料但未收到输入标记，返回false（将通过getNextRunTime立即运行）")
                 return false
             }
         }
         // 这对于刚初始化的工厂很重要
-        Logger.debug("设施(\(pin.id)) canActivate默认返回true")
         return true
     }
 
@@ -1354,25 +969,8 @@ class ColonySimulation {
                 currentTime: currentTime
             )
 
-            // 如果转移了资源，记录日志和更新接收记录
+            // 如果转移了资源，更新接收记录
             if let type = type, transferredQuantity > 0 {
-                // 获取设施类型名称
-                let sourcePinType = getPinTypeName(pin: sourcePin)
-                let destinationPinType = getPinTypeName(pin: destinationPin)
-
-                // 格式化时间
-                let dateFormatter = DateFormatter()
-                dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-                dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-                let timeString = dateFormatter.string(from: currentTime)
-
-                Logger.info(
-                    "\(timeString): \(sourcePinType)(\(sourcePin.id)) 输出 [\(type.name)×\(transferredQuantity)] 到 \(destinationPinType)(\(destinationPin.id))"
-                )
-                Logger.info(
-                    "\(timeString): \(destinationPinType)(\(destinationPin.id)) 接收 [\(type.name)×\(transferredQuantity)] 从 \(sourcePinType)(\(sourcePin.id))"
-                )
-
                 // 更新接收记录
                 if !pinsReceivingCommodities.keys.contains(destinationPin.id) {
                     pinsReceivingCommodities[destinationPin.id] = [:]
@@ -1416,27 +1014,6 @@ class ColonySimulation {
         var (processorRoutes, storageRoutes) = getSortedRoutesForPin(
             colony: colony, pinId: sourcePin.id, commodities: commodities
         )
-
-        // 记录路由排序信息
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        let timeString = dateFormatter.string(from: currentTime)
-
-        if !processorRoutes.isEmpty {
-            var routeInfo = ""
-            for route in processorRoutes {
-                if let destinationPin = colony.pins.first(where: { $0.id == route.destinationId }) {
-                    let pinType = getPinTypeName(pin: destinationPin)
-                    routeInfo +=
-                        "\(pinType)(\(destinationPin.id)): 缓冲区状态 \(Int(route.sortingKey * 100))%, "
-                }
-            }
-            if !routeInfo.isEmpty {
-                routeInfo.removeLast(2)
-                Logger.info("\(timeString): 处理器路由排序: [\(routeInfo)]")
-            }
-        }
 
         // 优先处理处理器路由（工厂优先）
         var done = false
@@ -1666,7 +1243,7 @@ class ColonySimulation {
         quantity: Int64,
         commodities: [ItemType: Int64],
         maxAmount: Int64? = nil,
-        currentTime: Date
+        currentTime _: Date
     ) -> (ItemType?, Int64) {
         // 检查资源是否存在
         if !commodities.keys.contains(type) {
@@ -1709,41 +1286,6 @@ class ColonySimulation {
         // 如果目标是工厂，标记为已接收输入并记录缓冲区状态
         if let factory = destinationPin as? Pin.Factory {
             factory.hasReceivedInputs = true
-
-            // 计算并记录缓冲区状态
-            if let schematic = factory.schematic {
-                var bufferStatus = ""
-                var totalRatio = 0.0
-                var itemCount = 0
-
-                for (inputType, requiredQuantity) in schematic.inputs {
-                    let availableQuantity = factory.contents[inputType] ?? 0
-                    let ratio = Double(availableQuantity) / Double(requiredQuantity)
-                    totalRatio += ratio
-                    itemCount += 1
-
-                    bufferStatus +=
-                        "\(inputType.name): \(availableQuantity)/\(requiredQuantity) (\(Int(ratio * 100))%), "
-                }
-
-                // 移除最后的逗号和空格
-                if !bufferStatus.isEmpty {
-                    bufferStatus.removeLast(2)
-                }
-
-                // 计算总体缓冲区状态
-                let overallBufferState = itemCount > 0 ? totalRatio / Double(itemCount) : 0.0
-
-                // 格式化时间
-                let dateFormatter = DateFormatter()
-                dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-                dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-                let timeString = dateFormatter.string(from: currentTime)
-
-                Logger.info(
-                    "\(timeString): 工厂(\(factory.id)) 缓冲区状态: [\(bufferStatus)] 总体完成度: \(Int(overallBufferState * 100))%"
-                )
-            }
         }
 
         return (type, amountAccepted)
@@ -1825,123 +1367,8 @@ class ColonySimulation {
 
     /// 打印殖民地模拟详细信息
     /// - Parameter colony: 模拟后的殖民地
-    static func printColonySimulationDetails(colony: Colony) {
-        Logger.info("========== 殖民地模拟概览 ==========")
-        Logger.info("殖民地ID: \(colony.id)")
-
-        // 格式化时间
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        let timeString = dateFormatter.string(from: colony.currentSimTime)
-
-        Logger.info("当前模拟时间: \(timeString)")
-        Logger.info("殖民地状态: \(colony.status)")
-
-        // 记录最终产品详情
-        if !colony.overview.finalProducts.isEmpty {
-            Logger.info("最终产品:")
-            for product in colony.overview.finalProducts {
-                Logger.info("- \(product.name) (ID: \(product.id))")
-            }
-        }
-
-        // 记录仓储内容
-        Logger.info("========== 仓储内容 ==========")
-        for pin in colony.pins {
-            if pin is Pin.Storage || pin is Pin.CommandCenter || pin is Pin.Launchpad {
-                Logger.info("\(getPinTypeName(pin: pin))(\(pin.id)) 内容:")
-                if pin.contents.isEmpty {
-                    Logger.info("- 空")
-                } else {
-                    for (type, quantity) in pin.contents {
-                        Logger.info(
-                            "- \(type.name)×\(quantity) (体积: \(type.volume * Double(quantity)))")
-                    }
-                }
-
-                // 显示容量使用情况
-                if let capacity = getCapacity(for: pin) {
-                    let usedPercentage = Int((pin.capacityUsed / Double(capacity)) * 100)
-                    Logger.info("容量使用: \(Int(pin.capacityUsed))/\(capacity) (\(usedPercentage)%)")
-                }
-                Logger.info("----------------------------")
-            }
-        }
-
-        // 记录工厂缓冲区状态
-        Logger.info("========== 工厂缓冲区状态 ==========")
-        for pin in colony.pins {
-            if let factory = pin as? Pin.Factory {
-                Logger.info("工厂(\(factory.id)) 缓冲区状态:")
-
-                if let schematic = factory.schematic {
-                    Logger.info(
-                        "配方: \(schematic.id) (输出: \(schematic.outputType.name)×\(schematic.outputQuantity))"
-                    )
-
-                    // 显示输入缓冲区状态
-                    if schematic.inputs.isEmpty {
-                        Logger.info("- 无需输入材料")
-                    } else {
-                        for (inputType, requiredQuantity) in schematic.inputs {
-                            let availableQuantity = factory.contents[inputType] ?? 0
-                            let ratio = Double(availableQuantity) / Double(requiredQuantity)
-                            Logger.info(
-                                "- \(inputType.name): \(availableQuantity)/\(requiredQuantity) (\(Int(ratio * 100))%)"
-                            )
-                        }
-                    }
-
-                    // 显示生产状态
-                    if let lastCycleStartTime = factory.lastCycleStartTime {
-                        // 如果有lastCycleStartTime，说明工厂正在生产周期中
-                        let cycleEndTime = lastCycleStartTime.addingTimeInterval(
-                            schematic.cycleTime)
-                        let remainingTime = cycleEndTime.timeIntervalSince(colony.currentSimTime)
-                        if remainingTime > 0 {
-                            Logger.info("生产状态: 正在生产，剩余时间 \(Int(remainingTime)) 秒")
-                        } else {
-                            Logger.info("生产状态: 已完成生产周期")
-                        }
-                    } else if factory.isActive {
-                        // 没有lastCycleStartTime但isActive为true，表示工厂有足够材料但尚未开始生产
-                        Logger.info("生产状态: 活跃但未开始生产")
-                    } else if hasEnoughInputs(factory: factory) {
-                        // 没有lastCycleStartTime，isActive为false，但有足够的输入材料，表示工厂准备生产
-                        Logger.info("生产状态: 准备生产")
-                    } else {
-                        // 既没有lastCycleStartTime，isActive为false，也没有足够的输入材料，表示工厂缺少材料
-                        Logger.info("生产状态: 等待材料")
-                    }
-                } else {
-                    Logger.info("- 未配置配方")
-                }
-                Logger.info("----------------------------")
-            }
-        }
-
-        Logger.info("========== 模拟概览结束 ==========")
-    }
-
-    /// 获取设施类型名称
-    /// - Parameter pin: 设施
-    /// - Returns: 设施类型名称
-    private static func getPinTypeName(pin: Pin) -> String {
-        switch pin {
-        case is Pin.Extractor:
-            return "提取器"
-        case is Pin.Factory:
-            return "工厂"
-        case is Pin.Storage:
-            return "存储设施"
-        case is Pin.CommandCenter:
-            return "指挥中心"
-        case is Pin.Launchpad:
-            return "发射台"
-        default:
-            return "未知设施"
-        }
+    static func printColonySimulationDetails(colony _: Colony) {
+        // 此函数已移除所有日志输出
     }
 
     /// 从仓储设施重新填充工厂缓冲区
@@ -1954,18 +1381,9 @@ class ColonySimulation {
             return
         }
 
-        // 格式化时间
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        let timeString = dateFormatter.string(from: time)
-
-        Logger.info("\(timeString): 尝试为工厂(\(factory.id))重新填充缓冲区")
-
         // 获取所有指向该工厂的路由
         let incomingRoutes = colony.routes.filter { $0.destinationPinId == factory.id }
         if incomingRoutes.isEmpty {
-            Logger.info("\(timeString): 工厂(\(factory.id))没有输入路由，无法填充缓冲区")
             return
         }
 
@@ -2011,10 +1429,6 @@ class ColonySimulation {
                 )
 
                 if transferredQuantity > 0 {
-                    Logger.info(
-                        "\(timeString): 从\(getPinTypeName(pin: sourcePin))(\(sourcePin.id))转移 [\(inputType.name)×\(transferredQuantity)] 到工厂(\(factory.id))"
-                    )
-
                     // 更新工厂的输入状态
                     factory.hasReceivedInputs = true
 
@@ -2026,24 +1440,8 @@ class ColonySimulation {
             }
         }
 
-        // 记录填充后的缓冲区状态
-        var bufferStatus = ""
-        for (inputType, requiredQuantity) in schematic.inputs {
-            let availableQuantity = factory.contents[inputType] ?? 0
-            let ratio = Double(availableQuantity) / Double(requiredQuantity)
-            bufferStatus +=
-                "\(inputType.name): \(availableQuantity)/\(requiredQuantity) (\(Int(ratio * 100))%), "
-        }
-
-        // 移除最后的逗号和空格
-        if !bufferStatus.isEmpty {
-            bufferStatus.removeLast(2)
-            Logger.info("\(timeString): 工厂(\(factory.id)) 填充后缓冲区状态: [\(bufferStatus)]")
-        }
-
         // 如果工厂已经有足够的材料可以开始下一个周期，重新安排它
         if hasEnoughInputs(factory: factory) {
-            Logger.info("\(timeString): 工厂(\(factory.id)) 已有足够材料，安排下一次运行")
             schedulePin(pin: factory, currentTime: time, eventQueue: &eventQueue)
         }
     }
@@ -2131,14 +1529,11 @@ class ColonySimulationManager {
 
         // 如果没有找到任何周期，使用默认值（0.1小时）
         guard let minCycleTime = allCycleTimes.min(), minCycleTime > 0 else {
-            Logger.info("未找到设施运转周期，使用默认采样间隔: 0.1小时")
             return 0.1
         }
 
         // 使用最短周期的1/2作为采样间隔（转换为小时）
         let samplingInterval = minCycleTime / 2.0 / 3600.0 // 秒转小时
-
-        Logger.info("找到最短运转周期: \(Int(minCycleTime))秒（\(String(format: "%.2f", minCycleTime / 60.0))分钟），采样间隔: \(String(format: "%.2f", samplingInterval))小时（\(String(format: "%.0f", samplingInterval * 60.0))分钟）")
 
         return samplingInterval
     }
@@ -2150,10 +1545,6 @@ class ColonySimulationManager {
     /// - Parameter colony: 殖民地
     /// - Returns: 快照字典 [分钟数: 殖民地状态]，分钟数从0开始（0 = 当前时间），使用分钟数作为key以保留精度
     func generateHourlySnapshots(colony: Colony) -> [Int: Colony] {
-        Logger.info("========================================")
-        Logger.info("开始生成快照...")
-        Logger.info("起始时间: \(formatDate(colony.currentSimTime))")
-
         var snapshots: [Int: Colony] = [:]
         let startTime = colony.currentSimTime
         let maxHours = 30 * 24 // 最多30天
@@ -2161,11 +1552,9 @@ class ColonySimulationManager {
 
         // 根据设施运转周期计算采样间隔
         let samplingInterval = calculateSamplingIntervalFromCycles(colony: colony)
-        Logger.info("采样间隔: \(String(format: "%.2f", samplingInterval))小时（\(String(format: "%.0f", samplingInterval * 60))分钟）")
 
         // 第0分钟 = 初始状态（当前时间）
         snapshots[0] = currentColony.clone()
-        Logger.info("第0分钟（初始状态）快照已生成")
 
         // 使用计算出的采样间隔生成快照
         var snapshotIndex = 0
@@ -2199,26 +1588,17 @@ class ColonySimulationManager {
             // 检查提取器是否过期（动态检测停工时间）
             let currentExpireTime = getExpireTime(colony: simulatedColony)
             if let expire = currentExpireTime, expire <= targetTime {
-                Logger.info(" 第\(String(format: "%.2f", totalElapsedHours))小时（\(minutesKey)分钟）检测到提取器过期，终止快照生成")
                 break
-            }
-
-            // 每10个快照输出一次进度
-            if snapshotIndex % 10 == 0 {
-                Logger.info("第\(String(format: "%.2f", totalElapsedHours))小时（\(minutesKey)分钟）快照已生成，是否工作: \(isWorking)")
             }
 
             // 如果停工，终止生成
             if !isWorking {
-                Logger.info(" 第\(String(format: "%.2f", totalElapsedHours))小时（\(minutesKey)分钟）停工，终止快照生成")
                 break
             }
 
             // 更新当前殖民地状态，用于下一次增量模拟
             currentColony = simulatedColony
         }
-
-        Logger.info("第一阶段完成: 共\(snapshots.count)个采样点（采样间隔: \(String(format: "%.2f", samplingInterval))小时）")
 
         // 第二阶段：智能二次采样，将采样点压缩
         let targetSnapshotCount = 300
@@ -2228,9 +1608,6 @@ class ColonySimulationManager {
             // 计算采样点间隔倍数（每N个采样点保留1个）
             let ratio = Double(currentCount) / Double(targetSnapshotCount)
             let multiplier = max(1, Int(ratio.rounded())) // 四舍五入取整，但至少为1
-
-            Logger.info("第二阶段：智能二次采样")
-            Logger.info("当前采样点数: \(currentCount)，目标: \(targetSnapshotCount)，间隔倍数: \(multiplier)（每\(multiplier)个采样点保留1个）")
 
             // 从现有快照中按索引间隔提取
             var finalSnapshots: [Int: Colony] = [:]
@@ -2251,26 +1628,10 @@ class ColonySimulationManager {
                 }
             }
 
-            Logger.info("第二阶段完成: 从\(currentCount)个采样点精简到\(finalSnapshots.count)个采样点")
-            Logger.success("快照生成完成: 共\(finalSnapshots.count)个采样点")
-            Logger.info("========================================")
-
             return finalSnapshots
         } else {
             // 如果采样点数量已经小于等于目标数量，直接返回
-            Logger.info("采样点数量(\(currentCount))已满足要求(<=\(targetSnapshotCount))，无需二次采样")
-            Logger.success("快照生成完成: 共\(snapshots.count)个采样点（采样间隔: \(String(format: "%.2f", samplingInterval))小时）")
-            Logger.info("========================================")
-
             return snapshots
         }
-    }
-
-    /// 格式化日期
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter.string(from: date)
     }
 }

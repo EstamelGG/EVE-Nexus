@@ -113,7 +113,7 @@ class ImageCacheManager {
         if backgroundUpdate && !forceRefresh {
             // 先尝试从缓存加载
             if let cachedImage = try await loadImageFromCacheWithoutValidation(url: url) {
-                Logger.info("返回缓存图片，后台验证更新: \(urlString)")
+                // Logger.info("返回缓存图片，后台验证更新: \(urlString)")
 
                 // 在后台验证并更新
                 Task { @ImageCacheManagerActor in
@@ -139,7 +139,7 @@ class ImageCacheManager {
 
             // 如果不是强制刷新，先尝试从缓存加载（带验证）
             if !forceRefresh, let cachedImage = try await loadImageFromCache(url: url) {
-                Logger.info("从缓存加载图片: \(urlString)")
+                // Logger.info("从缓存加载图片: \(urlString)")
                 return cachedImage
             }
 
@@ -216,13 +216,13 @@ class ImageCacheManager {
         if let etag = metadata.etag, !etag.isEmpty {
             let isValid = try await validateETag(url: url, cachedETag: etag)
             if !isValid {
-                Logger.info("ETag 验证失败，需要重新下载: \(urlString)")
+                Logger.error("ETag 验证失败，需要重新下载: \(urlString)")
                 return nil
             }
         } else {
             // 无 ETag 的情况，检查时间是否过期（8小时）
             if metadata.isExpired(timeoutHours: 8) {
-                Logger.info("无 ETag 缓存已过期（8小时），需要重新下载: \(urlString)")
+                // Logger.info("无 ETag 缓存已过期（8小时），需要重新下载: \(urlString)")
                 return nil
             }
         }
@@ -254,15 +254,13 @@ class ImageCacheManager {
         if let etag = metadata.etag, !etag.isEmpty {
             let isValid = try await validateETag(url: url, cachedETag: etag)
             if !isValid {
-                Logger.info("后台检测到更新，重新下载: \(urlString)")
+                // Logger.info("后台检测到更新，重新下载: \(urlString)")
                 _ = try await downloadAndCacheImage(url: url)
-            } else {
-                Logger.debug("ETag 验证通过，无需更新: \(urlString)")
             }
         } else {
             // 无 ETag 的情况，检查是否过期（8小时）
             if metadata.isExpired(timeoutHours: 8) {
-                Logger.info("后台检测到缓存过期，重新下载: \(urlString)")
+                // Logger.info("后台检测到缓存过期，重新下载: \(urlString)")
                 _ = try await downloadAndCacheImage(url: url)
             }
         }
@@ -281,12 +279,12 @@ class ImageCacheManager {
                let serverETag = httpResponse.value(forHTTPHeaderField: "ETag")
             {
                 let isValid = serverETag == cachedETag
-                Logger.debug("ETag 验证: 缓存=\(cachedETag), 服务器=\(serverETag), 有效=\(isValid)")
+                // Logger.debug("ETag 验证: 缓存=\(cachedETag), 服务器=\(serverETag), 有效=\(isValid)")
                 return isValid
             }
 
             // 如果服务器不返回 ETag，认为缓存有效
-            Logger.debug("服务器未返回 ETag，使用缓存")
+            // Logger.debug("服务器未返回 ETag，使用缓存")
             return true
         } catch {
             // 网络错误时使用缓存
@@ -326,7 +324,7 @@ class ImageCacheManager {
         // 保存原始图片数据到磁盘（不进行格式转换）
         try await saveImageToCache(imageData: data, url: url, etag: etag)
 
-        Logger.info("下载完成: \(urlString), 大小: \(data.count) bytes, ETag: \(etag ?? "无")")
+        // Logger.info("下载完成: \(urlString), 大小: \(data.count) bytes, ETag: \(etag ?? "无")")
 
         return image
     }
@@ -355,7 +353,7 @@ class ImageCacheManager {
         metadataMap[urlString] = metadata
         saveMetadata()
 
-        Logger.info("保存图片: \(fileName), 大小: \(imageData.count) bytes")
+        // Logger.info("保存图片: \(fileName), 大小: \(imageData.count) bytes")
 
         // 检查缓存大小
         await checkCacheSizeAndCleanup()

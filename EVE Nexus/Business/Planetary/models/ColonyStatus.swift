@@ -12,34 +12,6 @@ enum ColonyStatus {
     case producing(pins: [Pin])
     /// 采集中
     case extracting(pins: [Pin])
-
-    /// 排序顺序
-    var order: Int {
-        switch self {
-        case .notSetup: return 1
-        case .needsAttention: return 2
-        case .idle: return 3
-        case .producing: return 4
-        case .extracting: return 5
-        }
-    }
-
-    /// 是否正在工作
-    var isWorking: Bool {
-        switch self {
-        case .notSetup, .needsAttention, .idle: return false
-        case .producing, .extracting: return true
-        }
-    }
-
-    /// 相关的设施
-    var pins: [Pin] {
-        switch self {
-        case let .notSetup(pins), let .needsAttention(pins), let .idle(pins), let .producing(pins),
-             let .extracting(pins):
-            return pins
-        }
-    }
 }
 
 /// 获取殖民地状态

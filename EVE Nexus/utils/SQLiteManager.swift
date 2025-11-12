@@ -99,14 +99,14 @@ class SQLiteManager {
 
             // 如果启用缓存且缓存中存在结果，直接返回
             if useCache, let cachedResult = queryCache.object(forKey: cacheKey) as? [[String: Any]] {
-                Logger.debug("从缓存中获取 \(cacheKey) 的结果: \(cachedResult.count)行")
+                // Logger.debug("从缓存中获取 \(cacheKey) 的结果: \(cachedResult.count)行")
                 return .success(cachedResult)
             }
 
             // 记录开始时间
             let startTime = CFAbsoluteTimeGetCurrent()
 
-            Logger.info("[SQLite executeQuery]\(query)?#\(parameters)")
+            Logger.info("\(query)?#\(parameters)")
             // 记录查询日志
             addQueryLog(query: query, parameters: parameters)
 
@@ -198,7 +198,9 @@ class SQLiteManager {
             let elapsedTime = (endTime - startTime) * 1000 // 转换为毫秒
 
             // 记录查询耗时和结果行数
-            Logger.info("查询完成: \(results.count)行, 耗时: \(String(format: "%.2f", elapsedTime))ms")
+            if elapsedTime >= 500 {
+                Logger.warning("查询完成: \(results.count)行, 耗时过长: \(String(format: "%.2f", elapsedTime))ms")
+            }
 
             // 缓存结果
             if useCache {

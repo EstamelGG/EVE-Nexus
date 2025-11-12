@@ -1451,7 +1451,7 @@
 "Planet_Detail_Realtime" = "Realtime";
 "Planet_Detail_Expire" = "Expire";
 "Planet_Detail_Simulating" = "Simulating...";
-"Planet_Detail_Extractor_Expiry_Time" = "Extractor expiry time";
+"Planet_Detail_Extractor_Expiry_Time" = "Extractor expiry after";
 "Planet_Detail_Extractor_Expired" = "Extractor expired";
 "Storage_Change_Chart" = "Storage Chart";
 

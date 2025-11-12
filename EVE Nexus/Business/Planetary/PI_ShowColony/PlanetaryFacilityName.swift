@@ -45,7 +45,7 @@ struct PlanetaryFacility {
 
         // 将结果存入缓存
         nameCache[identifier] = pinName
-        Logger.debug("\(identifier):\(pinName)")
+        // Logger.debug("\(identifier):\(pinName)")
         return pinName
     }
 }

@@ -297,3 +297,7 @@ Fixes & Improvements:
 2. Optimize planetary industry calculation logic and parts of the UI design.
 3. Provide future-time data simulation for planetary industry, and enable viewing of storage facility inventory change charts.
 4. Allow renaming of the skill list, market watchlist, and attribute comparison list (how did I only think of this now?).
+
+# v1.8.5 Nov 13, 2025
+
+1. Resolved a performance issue in Pulse caused by excessive logging from the planetary development feature."

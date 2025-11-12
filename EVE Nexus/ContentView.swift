@@ -241,6 +241,41 @@ struct ServerStatusView: View {
     }
 }
 
+// MARK: - Refresh Token 更新时间视图
+
+struct RefreshTokenUpdateTimeView: View {
+    let characterId: Int
+    @State private var lastUpdateTime: Date?
+
+    private var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .short
+        formatter.timeStyle = .short
+        formatter.locale = Locale.current
+        return formatter
+    }
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Text("Refresh Token:")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            if let updateTime = lastUpdateTime {
+                Text(dateFormatter.string(from: updateTime))
+                    .font(.monospacedDigit(.caption)())
+                    .foregroundColor(.secondary)
+            } else {
+                Text("Null")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .task {
+            lastUpdateTime = await AuthTokenManager.shared.getLastRefreshTokenUpdateTime(for: characterId)
+        }
+    }
+}
+
 // MARK: - 自定义按钮样式
 
 struct ScaleButtonStyle: ButtonStyle {
@@ -477,6 +512,7 @@ struct ContentView: View {
     @AppStorage("selectedTheme") private var selectedTheme: String = "system"
     @AppStorage("showCorporationAffairs") private var showCorporationAffairs: Bool = false
     @AppStorage("lastVersion") private var lastVersion: String = ""
+    @AppStorage("enableLogging") private var enableLogging: Bool = false
 
     // 功能自定义相关状态
     @AppStorage("hiddenFeatures") private var hiddenFeaturesData: Data = .init()
@@ -1153,7 +1189,14 @@ struct ContentView: View {
                 }
             }
         } footer: {
-            ServerStatusView(mainViewModel: viewModel)
+            VStack(alignment: .leading, spacing: 4) {
+                ServerStatusView(mainViewModel: viewModel)
+
+                // 在调试模式下显示 refresh token 更新时间
+                if enableLogging && currentCharacterId != 0 {
+                    RefreshTokenUpdateTimeView(characterId: currentCharacterId)
+                }
+            }
         }
     }
 

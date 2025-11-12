@@ -2168,7 +2168,7 @@ class FitConvert {
             }
         }
 
-        Logger.info("批量查询完成：输入\(itemNames.count)个物品名称，匹配到\(nameToTypeIdMap.count)个typeId")
+        // Logger.info("批量查询完成：输入\(itemNames.count)个物品名称，匹配到\(nameToTypeIdMap.count)个typeId")
         return nameToTypeIdMap
     }
 

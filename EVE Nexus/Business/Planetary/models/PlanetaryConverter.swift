@@ -169,15 +169,8 @@ class PlanetaryConverter {
                         ))
                 }
 
-                Logger.info(
-                    "提取器 ID: \(planetaryPin.pinId), 名称: \(pinName), 产品: \(productType?.name ?? "无"), 周期时间: \(cycleTime ?? 0)"
-                )
-
                 // 使用updateDate（模拟初始时间）而不是Date()（系统当前时间）
                 let isActive = expiryTime != nil && expiryTime! > updateDate
-                Logger.info(
-                    "提取器 ID: \(planetaryPin.pinId) 过期时间: \(String(describing: expiryTime)), 模拟初始时间: \(updateDate), 激活状态: \(isActive)"
-                )
 
                 return Pin.Extractor(
                     id: planetaryPin.pinId,
@@ -220,20 +213,12 @@ class PlanetaryConverter {
         case 1028: // 处理设施/工厂组
             // 工厂
             // 添加调试日志，打印所有属性
-            Logger.info(
-                "工厂 ID: \(planetaryPin.pinId), typeId: \(planetaryPin.typeId), 直接schematicId: \(String(describing: planetaryPin.schematicId)), factoryDetails: \(String(describing: planetaryPin.factoryDetails))"
-            )
-
             // 获取配方ID，首先尝试从factoryDetails获取，如果不存在则直接使用schematicId
             var schematicId: Int? = nil
             if let factoryDetails = planetaryPin.factoryDetails {
                 schematicId = factoryDetails.schematicId
-                Logger.info(
-                    "工厂 ID: \(planetaryPin.pinId), 从factoryDetails获取配方ID: \(factoryDetails.schematicId)"
-                )
             } else if let pinSchematicId = planetaryPin.schematicId {
                 schematicId = pinSchematicId
-                Logger.info("工厂 ID: \(planetaryPin.pinId), 直接获取配方ID: \(pinSchematicId)")
             } else {
                 Logger.warning("工厂 ID: \(planetaryPin.pinId) 没有配方详情")
             }
@@ -241,15 +226,10 @@ class PlanetaryConverter {
             // 从数据库获取配方信息
             var schematic: Schematic? = nil
             if let id = schematicId {
-                Logger.info("正在加载工厂配方，工厂ID: \(planetaryPin.pinId), 配方ID: \(id)")
                 schematic = getSchematic(id)
 
                 if schematic == nil {
                     Logger.warning("无法获取工厂配方，工厂ID: \(planetaryPin.pinId), 配方ID: \(id)")
-                } else {
-                    Logger.info(
-                        "成功加载工厂配方，工厂ID: \(planetaryPin.pinId), 配方ID: \(id), 输出产品: \(schematic!.outputType.name)"
-                    )
                 }
             }
 
@@ -259,10 +239,6 @@ class PlanetaryConverter {
             let lastCycleAgo =
                 lastCycleStart != nil ? updateDate.timeIntervalSince(lastCycleStart!) : Double.infinity
             let activityState = lastCycleAgo < cycleTime && schematicId != nil
-
-            Logger.info(
-                "工厂 ID: \(planetaryPin.pinId), 活跃状态: \(activityState), 上次周期开始: \(String(describing: lastCycleStart)), 周期时间: \(cycleTime), 已过时间: \(lastCycleAgo)"
-            )
 
             return Pin.Factory(
                 id: planetaryPin.pinId,
@@ -285,18 +261,6 @@ class PlanetaryConverter {
             )
 
         case 1029: // 存储设施组
-            // 存储设施
-            Logger.info("存储设施 ID: \(planetaryPin.pinId), 名称: \(pinName), 初始容量使用: \(capacityUsed)")
-            // 记录初始库存
-            if !contents.isEmpty {
-                Logger.info("存储设施 \(planetaryPin.pinId) 初始库存:")
-                for (type, quantity) in contents {
-                    Logger.info(
-                        "  - \(type.name): \(quantity) 个 (体积: \(type.volume * Double(quantity)))")
-                }
-            } else {
-                Logger.info("存储设施 \(planetaryPin.pinId) 初始库存为空")
-            }
 
             return Pin.Storage(
                 id: planetaryPin.pinId,
@@ -313,18 +277,6 @@ class PlanetaryConverter {
             )
 
         case 1030: // 太空港/发射台组
-            // 发射台
-            Logger.info("发射台 ID: \(planetaryPin.pinId), 名称: \(pinName), 初始容量使用: \(capacityUsed)")
-            // 记录初始库存
-            if !contents.isEmpty {
-                Logger.info("发射台 \(planetaryPin.pinId) 初始库存:")
-                for (type, quantity) in contents {
-                    Logger.info(
-                        "  - \(type.name): \(quantity) 个 (体积: \(type.volume * Double(quantity)))")
-                }
-            } else {
-                Logger.info("发射台 \(planetaryPin.pinId) 初始库存为空")
-            }
 
             return Pin.Launchpad(
                 id: planetaryPin.pinId,
@@ -345,16 +297,6 @@ class PlanetaryConverter {
             Logger.info(
                 "指挥中心 ID: \(planetaryPin.pinId), 名称: \(pinName), 等级: \(upgradeLevel), 初始容量使用: \(capacityUsed)"
             )
-            // 记录初始库存
-            if !contents.isEmpty {
-                Logger.info("指挥中心 \(planetaryPin.pinId) 初始库存:")
-                for (type, quantity) in contents {
-                    Logger.info(
-                        "  - \(type.name): \(quantity) 个 (体积: \(type.volume * Double(quantity)))")
-                }
-            } else {
-                Logger.info("指挥中心 \(planetaryPin.pinId) 初始库存为空")
-            }
 
             return Pin.CommandCenter(
                 id: planetaryPin.pinId,
@@ -443,9 +385,6 @@ class PlanetaryConverter {
     /// - Parameter schematicId: 配方ID
     /// - Returns: 配方
     private static func getSchematic(_ schematicId: Int) -> Schematic? {
-        // 添加调试日志
-        Logger.info("尝试获取配方 ID: \(schematicId)")
-
         // 从数据库获取配方信息
         let query = """
             SELECT schematic_id, output_typeid, name, cycle_time, output_value, input_typeid, input_value
@@ -453,22 +392,12 @@ class PlanetaryConverter {
             WHERE schematic_id = ?
         """
 
-        // 记录查询结果
         let result = DatabaseManager.shared.executeQuery(query, parameters: [schematicId])
         switch result {
         case let .success(rows):
             if rows.isEmpty {
                 Logger.warning("未找到配方数据，配方ID: \(schematicId)")
                 return nil
-            }
-            Logger.success("成功查询到配方数据，配方ID: \(schematicId), 行数: \(rows.count)")
-
-            // 记录第一行数据的内容
-            if let row = rows.first {
-                let keys = Array(row.keys).sorted()
-                Logger.info(
-                    "配方数据: \(keys.map { "\($0)=\(String(describing: row[$0]))" }.joined(separator: ", "))"
-                )
             }
         case let .error(errorMessage):
             Logger.error("查询配方失败，配方ID: \(schematicId), 错误: \(errorMessage)")
@@ -500,10 +429,6 @@ class PlanetaryConverter {
             id: outputTypeId, name: outputTypeInfo.name, volume: outputTypeInfo.volume
         )
 
-        Logger.info(
-            "配方输出: \(outputTypeInfo.name) (ID: \(outputTypeId)), 数量: \(outputValue), 单位体积: \(outputType.volume)"
-        )
-
         // 解析输入类型ID和数量
         var inputs: [Type: Int64] = [:]
         if let inputTypeIdString = row["input_typeid"] as? String,
@@ -524,8 +449,6 @@ class PlanetaryConverter {
                     let typeInfo = getTypeInfo(typeId)
                     let type = Type(id: typeId, name: typeInfo.name, volume: typeInfo.volume)
                     inputs[type] = Int64(quantity)
-
-                    Logger.info("配方输入: \(typeInfo.name) (ID: \(typeId)), 数量: \(quantity)")
                 }
             } else {
                 Logger.warning("输入类型ID和数量不匹配，配方ID: \(schematicId)")
