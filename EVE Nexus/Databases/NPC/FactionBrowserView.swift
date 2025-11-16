@@ -20,6 +20,14 @@ struct CorporationItem: Identifiable {
     let description: String
     let iconFileName: String
     let factionId: Int // 添加势力ID字段
+    let militiaFaction: Int? // 添加民兵势力ID字段
+
+    var isMilitia: Bool {
+        if let militia = militiaFaction, militia > 0 {
+            return true
+        }
+        return false
+    }
 }
 
 // 声望数据模型
@@ -192,35 +200,47 @@ struct FactionBrowserView: View {
                                             iconFileName: corporation.iconFileName, size: 32
                                         )
                                         VStack(alignment: .leading, spacing: 2) {
-                                            Text(corporation.name)
-                                                .contextMenu {
-                                                    Button {
-                                                        UIPasteboard.general.string =
-                                                            corporation.name
-                                                    } label: {
-                                                        Label(
-                                                            NSLocalizedString(
-                                                                "Misc_Copy_Name", comment: ""
-                                                            ),
-                                                            systemImage: "doc.on.doc"
-                                                        )
-                                                    }
-                                                    if !corporation.enName.isEmpty
-                                                        && corporation.enName != corporation.name
-                                                    {
+                                            HStack {
+                                                Text(corporation.name)
+                                                    .contextMenu {
                                                         Button {
                                                             UIPasteboard.general.string =
-                                                                corporation.enName
+                                                                corporation.name
                                                         } label: {
                                                             Label(
                                                                 NSLocalizedString(
-                                                                    "Misc_Copy_Trans", comment: ""
+                                                                    "Misc_Copy_Name", comment: ""
                                                                 ),
-                                                                systemImage: "translate"
+                                                                systemImage: "doc.on.doc"
                                                             )
                                                         }
+                                                        if !corporation.enName.isEmpty
+                                                            && corporation.enName != corporation.name
+                                                        {
+                                                            Button {
+                                                                UIPasteboard.general.string =
+                                                                    corporation.enName
+                                                            } label: {
+                                                                Label(
+                                                                    NSLocalizedString(
+                                                                        "Misc_Copy_Trans", comment: ""
+                                                                    ),
+                                                                    systemImage: "translate"
+                                                                )
+                                                            }
+                                                        }
                                                     }
+                                                Spacer()
+                                                // 显示声望在右侧
+                                                if let standing = standings[corporation.id] {
+                                                    Text(String(format: "%.2f", standing.standing))
+                                                        .font(.caption)
+                                                        .foregroundColor(standingColor(standing.standing))
+                                                } else if characterId != nil && isLoadingStandings {
+                                                    ProgressView()
+                                                        .scaleEffect(0.7)
                                                 }
+                                            }
 
                                             // 显示所属势力
                                             if let factionName = factions.first(where: {
@@ -232,14 +252,15 @@ struct FactionBrowserView: View {
                                             }
                                         }
                                         Spacer()
-                                        // 显示声望在右侧
-                                        if let standing = standings[corporation.id] {
-                                            Text(String(format: "%.2f", standing.standing))
+                                        // 显示民兵tag
+                                        if corporation.isMilitia {
+                                            Text(NSLocalizedString("Main_LP_Militia", comment: ""))
                                                 .font(.caption)
-                                                .foregroundColor(standingColor(standing.standing))
-                                        } else if characterId != nil && isLoadingStandings {
-                                            ProgressView()
-                                                .scaleEffect(0.7)
+                                                .padding(.horizontal, 6)
+                                                .padding(.vertical, 2)
+                                                .background(Color.purple.opacity(0.8))
+                                                .foregroundColor(.white)
+                                                .cornerRadius(4)
                                         }
                                     }
                                 }
@@ -410,7 +431,7 @@ struct FactionBrowserView: View {
     // 加载所有军团
     private func loadAllCorporations() async -> [CorporationItem] {
         let query =
-            "SELECT corporation_id, name, en_name, zh_name, description, icon_filename, faction_id FROM npcCorporations"
+            "SELECT corporation_id, name, en_name, zh_name, description, icon_filename, faction_id, militia_faction FROM npcCorporations"
 
         var corporations: [CorporationItem] = []
         if case let .success(rows) = databaseManager.executeQuery(query) {
@@ -423,6 +444,7 @@ struct FactionBrowserView: View {
                    let iconFileName = row["icon_filename"] as? String,
                    let factionId = row["faction_id"] as? Int
                 {
+                    let militiaFaction = row["militia_faction"] as? Int
                     corporations.append(
                         CorporationItem(
                             id: corporationId,
@@ -432,7 +454,8 @@ struct FactionBrowserView: View {
                             description: description,
                             iconFileName: iconFileName.isEmpty
                                 ? "corporation_default" : iconFileName,
-                            factionId: factionId
+                            factionId: factionId,
+                            militiaFaction: militiaFaction
                         ))
                 }
             }
@@ -613,6 +636,16 @@ struct FactionDetailView: View {
                                 }
                             }
                             Spacer()
+                            // 显示民兵tag
+                            if corporation.isMilitia {
+                                Text(NSLocalizedString("Main_LP_Militia", comment: ""))
+                                    .font(.caption)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(Color.purple.opacity(0.8))
+                                    .foregroundColor(.white)
+                                    .cornerRadius(4)
+                            }
                         }
                     }
                 }

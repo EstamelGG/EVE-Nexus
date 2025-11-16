@@ -5,6 +5,8 @@ struct MissileInfo {
     let ammoID: Int
     let damages: (em: Double, therm: Double, kin: Double, exp: Double)
     let multiplier: Double
+    let flightTime: Double? // 属性281，单位：ms
+    let flightSpeed: Double? // 属性37，单位：米/s
 
     var totalDamage: Double {
         damages.em + damages.therm + damages.kin + damages.exp
@@ -80,7 +82,7 @@ struct MissileDamageView: View {
         self.damageMultiplier = damageMultiplier
 
         // 在初始化时计算所有值
-        missileInfo = MissileInfo(ammoID: 0, damages: damages, multiplier: damageMultiplier)
+        missileInfo = MissileInfo(ammoID: 0, damages: damages, multiplier: damageMultiplier, flightTime: nil, flightSpeed: nil)
         percentages = missileInfo.getDamagePercentages()
         actualDamages = missileInfo.actualDamages
     }
@@ -157,8 +159,7 @@ extension AttributeGroupView {
     func getMissileInfo() -> MissileInfo? {
         // 检查是否存在导弹属性和ID
         guard let ammoID = allAttributes[507].map({ Int($0) }),
-              let damages = databaseManager.getItemDamages(for: ammoID),
-              damages.em + damages.therm + damages.kin + damages.exp > 0
+              let missileData = databaseManager.getMissileAttributes(for: ammoID)
         else {
             return nil
         }
@@ -166,7 +167,13 @@ extension AttributeGroupView {
         // 获取伤害倍增系数
         let multiplier = allAttributes[212] ?? 1.0
 
-        return MissileInfo(ammoID: ammoID, damages: damages, multiplier: multiplier)
+        return MissileInfo(
+            ammoID: ammoID,
+            damages: missileData.damages,
+            multiplier: multiplier,
+            flightTime: missileData.flightTime,
+            flightSpeed: missileData.flightSpeed
+        )
     }
 
     @ViewBuilder

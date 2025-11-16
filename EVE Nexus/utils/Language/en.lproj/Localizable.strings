@@ -91,6 +91,7 @@
 "Industry_Settings_Multi_Character" = "Multi-Character Aggregation";
 "Industry_Settings_Multi_Character_Description" = "Aggregate industry job data from multiple characters";
 "Industry_Settings_Select_Characters" = "Select Characters";
+"Industry_Loading_Progress" = "Loading characters %d/%d";
 
 // Mining Settings
 "Mining_Settings_Title" = "Settings";
@@ -98,12 +99,23 @@
 "Mining_Settings_Multi_Character_Description" = "Aggregate mining ledger data from multiple characters";
 "Mining_Settings_Select_Characters" = "Select Characters";
 "Mining_Filter_Select_All" = "Select All";
+"Mining_Loading_Progress" = "Loading characters %d/%d";
+
+// Planetary Settings
+"Planetary_Settings_Title" = "Settings";
+"Planetary_Settings_Multi_Character" = "Multi-Character Aggregation";
+"Planetary_Settings_Multi_Character_Description" = "Aggregate planetary data from multiple characters";
+"Planetary_Settings_Select_Characters" = "Select Characters";
+"Planetary_Filter_Select_All" = "Select All";
+"Planetary_Loading_Progress" = "Loading characters %d/%d";
 
 // Mining Detail
 "Mining_Detail" = "Detail";
 "Mining_Detail_Title" = "Mining Detail";
 "Mining_Detail_This_Week" = "This Week";
+"Mining_Detail_Last_7_Days" = "Last 7 Days";
 "Mining_Detail_Other" = "Other";
+"Mining_Detail_Overview" = "Overview";
 "Mining_Detail_Total_Volume" = "Total Volume";
 "Mining_Detail_Total_Quantity" = "Total Quantity";
 "Mining_Detail_Ore_Types" = "Ore Types";
@@ -238,6 +250,7 @@
 "Main_About" = "About";
 "Main_About_Database_Version" = "SDE";
 "Main_About_Database_Update_Available" = "Update Available";
+"Main_SDE_Update_Available" = "New SDE";
 "Main_About_Build_Number" = "Build";
 "Main_About_Patch_Number" = "Patch";
 "Main_About_Author" = "Author";
@@ -375,7 +388,7 @@
 "Item_details_notfound" = "Details not found";
 
 "Main_Setting_Clean_Cache_Title" = "Clean Cache";
-"Main_Setting_Clean_Cache_Message" = "This will clean app cache, including network cache and temporary files. Are you sure?";
+"Main_Setting_Clean_Cache_Message" = "Warning: This will clean app cache, including wallet record history, network cache and temporary files. Are you sure?";
 "Main_Setting_Reset_Icons" = "Reset Icons Cache";
 "Main_Setting_Reset_Icons_Detail" = "Delete all icon cache and re-release";
 "Main_Setting_Reset_Icons_Title" = "Reset Icons Cache";
@@ -2135,6 +2148,7 @@
 "Fitting_stat_firepower" = "Firepower";
 "Fitting_volley" = "Volley(DPH)";
 "Fitting_dps" = "DPS";
+"Fitting_range" = "Range";
 "Fitting_damage_profile" = "Dmg Type";
 
 "Fitting_Add_Fighters" = "Add Fighters";

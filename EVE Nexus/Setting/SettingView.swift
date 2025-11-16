@@ -279,57 +279,27 @@ struct SettingView: View {
 
     private func updateAllData() {
         Task {
-            // 统计 StaticDataSet 目录大小
-            let staticDataSetPath = StaticResourceManager.shared.getStaticDataSetPath()
+            // 目录统计信息结构
+            struct DirectoryStats {
+                let name: String
+                var fileCount: Int = 0
+                var totalSize: Int64 = 0
+            }
+
             var totalSize: Int64 = 0
             var fileCount = 0
             let largeFileThreshold: Int64 = 10 * 1024 * 1024 // 10MB
             let fileCountThreshold = 200
-
-            if FileManager.default.fileExists(atPath: staticDataSetPath.path) {
-                if let enumerator = FileManager.default.enumerator(
-                    at: staticDataSetPath,
-                    includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey],
-                    options: [.skipsHiddenFiles]
-                ) {
-                    while let fileURL = enumerator.nextObject() as? URL {
-                        do {
-                            let resourceValues = try fileURL.resourceValues(forKeys: [
-                                .isRegularFileKey,
-                            ])
-                            // 只统计文件，跳过目录
-                            if resourceValues.isRegularFile == true {
-                                let attributes = try FileManager.default.attributesOfItem(
-                                    atPath: fileURL.path)
-                                if let fileSize = attributes[.size] as? Int64 {
-                                    totalSize += fileSize
-                                    fileCount += 1
-
-                                    // 只有当文件大小超过10MB时才记录警告
-                                    if fileSize > largeFileThreshold {
-                                        Logger.warning(
-                                            "大文件: \(fileURL.path) - \(FormatUtil.formatFileSize(fileSize))"
-                                        )
-                                    }
-                                }
-                            }
-                        } catch {
-                            Logger.error(
-                                "计算文件大小失败 - \(fileURL.path): \(error)")
-                        }
-                    }
-                } else {
-                    Logger.error("创建目录枚举器失败")
-                }
-            }
+            var directoryStats: [DirectoryStats] = []
 
             // 计算缓存目录大小
             let documentPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            // 使用CacheManager中的缓存目录列表
+            // 使用CacheManager中的缓存目录列表（包含StaticDataSet）
             let cacheDirs = CacheManager.shared.getCacheDirs()
 
             for dirName in cacheDirs {
                 let dirPath = documentPath.appendingPathComponent(dirName)
+                var dirStats = DirectoryStats(name: dirName)
 
                 if fileManager.fileExists(atPath: dirPath.path),
                    let enumerator = fileManager.enumerator(
@@ -350,6 +320,8 @@ struct SettingView: View {
                                 if let fileSize = attributes[.size] as? Int64 {
                                     totalSize += fileSize
                                     fileCount += 1
+                                    dirStats.fileCount += 1
+                                    dirStats.totalSize += fileSize
 
                                     // 只有当文件大小超过10MB时才记录警告
                                     if fileSize > largeFileThreshold {
@@ -365,11 +337,27 @@ struct SettingView: View {
                         }
                     }
                 }
+
+                if dirStats.fileCount > 0 {
+                    directoryStats.append(dirStats)
+                }
             }
 
-            // 如果文件总数超过100个，记录警告
+            // 如果文件总数超过阈值，记录警告并显示前3个文件最多的目录
             if fileCount > fileCountThreshold {
-                Logger.warning("缓存文件较多（\(fileCount)个）")
+                // 按文件数排序，取前3个
+                let topDirectories = directoryStats
+                    .sorted { $0.fileCount > $1.fileCount }
+                    .prefix(3)
+
+                var warningMessage = "缓存文件较多（\(fileCount)个），文件数最多的目录："
+                for (index, dir) in topDirectories.enumerated() {
+                    if index > 0 {
+                        warningMessage += "、"
+                    }
+                    warningMessage += "\(dir.name)(\(dir.fileCount)个文件, \(FormatUtil.formatFileSize(dir.totalSize)))"
+                }
+                Logger.warning(warningMessage)
             }
 
             // 更新界面

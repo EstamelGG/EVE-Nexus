@@ -1463,6 +1463,14 @@
       "zh": [
         "行星进口税"
       ]
+    },
+    "entryJournalMessage": {
+      "en": [
+        "Planetary Import Tax: {name1} imported to {location}"
+      ],
+      "zh": [
+        "行星进口税: 由 {name1} 进口到 {location}"
+      ]
     }
   },
   "planetary_export_tax": {
@@ -1472,6 +1480,14 @@
       ],
       "zh": [
         "行星出口税"
+      ]
+    },
+    "entryJournalMessage": {
+      "en": [
+        "Planetary Export Tax: {name1} exported from {location}"
+      ],
+      "zh": [
+        "行星出口税: 由 {name1} 从 {location} 出口"
       ]
     }
   },

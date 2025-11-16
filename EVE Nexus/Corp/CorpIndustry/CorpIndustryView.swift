@@ -801,6 +801,7 @@ struct CorpIndustryJobRow: View {
     let installerName: String?
     let installerImage: UIImage?
     @StateObject private var databaseManager = DatabaseManager()
+    @Environment(\.colorScheme) private var colorScheme
 
     // 带颜色的状态文本结构体
     struct StatusText {
@@ -971,9 +972,38 @@ struct CorpIndustryJobRow: View {
 
                     VStack(alignment: .leading, spacing: 4) {
                         // 蓝图名称和状态
-                        Text(blueprintName)
-                            .font(.headline)
-                            .lineLimit(1)
+                        HStack(spacing: 6) {
+                            // 工业类型图标
+                            if colorScheme == .light {
+                                IconManager.shared.loadImage(
+                                    for: getActivityTypeIcon(for: job.activity_id)
+                                )
+                                .resizable()
+                                .frame(width: 14, height: 14)
+                                .cornerRadius(2)
+                                .colorInvert()
+                            } else {
+                                IconManager.shared.loadImage(
+                                    for: getActivityTypeIcon(for: job.activity_id)
+                                )
+                                .resizable()
+                                .frame(width: 14, height: 14)
+                                .cornerRadius(2)
+                            }
+
+                            Text(blueprintName)
+                                .font(.headline)
+                                .lineLimit(1)
+
+                            Spacer()
+
+                            // 已完成可交付标记
+                            if job.status == "ready" || (job.status == "active" && currentTime >= job.end_date) {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                                    .font(.system(size: 16))
+                            }
+                        }
 
                         // 数量信息
                         HStack {
@@ -1006,54 +1036,73 @@ struct CorpIndustryJobRow: View {
                     .padding(.vertical, 4)
 
                 // 第二行：位置信息和发起人信息
-                GeometryReader { geometry in
-                    HStack(spacing: 8) {
-                        // 左侧 2/3：位置信息
-                        LocationInfoView(
-                            stationName: locationInfo?.stationName,
-                            solarSystemName: locationInfo?.solarSystemName,
-                            security: locationInfo?.security,
-                            font: .caption,
-                            textColor: .secondary
-                        )
-                        .lineLimit(1)
-                        .frame(width: geometry.size.width * 0.67, alignment: .leading)
+                if installerName != nil {
+                    GeometryReader { geometry in
+                        HStack(spacing: 8) {
+                            // 左侧 2/3：位置信息
+                            LocationInfoView(
+                                stationName: locationInfo?.stationName,
+                                solarSystemName: locationInfo?.solarSystemName,
+                                security: locationInfo?.security,
+                                font: .caption,
+                                textColor: .secondary
+                            )
+                            .lineLimit(1)
+                            .frame(width: geometry.size.width * 0.67, alignment: .leading)
 
-                        Spacer()
+                            Spacer()
 
-                        // 右侧 1/3：发起人信息
-                        if let installerName = installerName {
-                            HStack(spacing: 4) {
-                                // 发起人头像
-                                if let installerImage = installerImage {
-                                    Image(uiImage: installerImage)
-                                        .resizable()
-                                        .frame(width: 18, height: 18)
-                                        .clipShape(RoundedRectangle(cornerRadius: 3))
-                                } else {
-                                    RoundedRectangle(cornerRadius: 3)
-                                        .fill(Color.gray.opacity(0.3))
-                                        .frame(width: 18, height: 18)
+                            // 右侧 1/3：发起人信息
+                            if let installerName = installerName {
+                                HStack(spacing: 4) {
+                                    // 发起人头像
+                                    if let installerImage = installerImage {
+                                        Image(uiImage: installerImage)
+                                            .resizable()
+                                            .frame(width: 18, height: 18)
+                                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                                    } else {
+                                        RoundedRectangle(cornerRadius: 3)
+                                            .fill(Color.gray.opacity(0.3))
+                                            .frame(width: 18, height: 18)
+                                    }
+
+                                    // 发起人名称
+                                    Text(installerName)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                        .lineLimit(1)
                                 }
-
-                                // 发起人名称
-                                Text(installerName)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(1)
+                                .frame(width: geometry.size.width * 0.33 - 8, alignment: .trailing)
                             }
-                            .frame(width: geometry.size.width * 0.33 - 8, alignment: .trailing)
                         }
                     }
+                    .frame(height: 16)
+                } else {
+                    // 没有发起人信息：只显示位置信息
+                    LocationInfoView(
+                        stationName: locationInfo?.stationName,
+                        solarSystemName: locationInfo?.solarSystemName,
+                        security: locationInfo?.security,
+                        font: .caption,
+                        textColor: .secondary
+                    )
+                    .lineLimit(1)
                 }
-                .frame(height: 16)
                 HStack {
                     let statusInfo = getActivityStatus()
                     Text(statusInfo.text)
                         .font(.caption)
                         .foregroundColor(statusInfo.color)
                     Spacer()
-                    Text("\(NSLocalizedString("Finished_on", comment: "")) \(getTimeDisplay())")
+
+                    // 根据完成状态显示不同的时间前缀
+                    let isCompleted = job.status == "delivered" || job.status == "ready" || currentTime >= job.end_date
+                    let timePrefix = isCompleted
+                        ? NSLocalizedString("Industry_Completed_At", comment: "已完成于")
+                        : NSLocalizedString("Finished_on", comment: "")
+
+                    Text("\(timePrefix) \(getTimeDisplay())")
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }

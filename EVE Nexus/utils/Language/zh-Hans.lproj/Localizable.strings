@@ -93,6 +93,7 @@
 "Industry_Settings_Multi_Character" = "多人物聚合";
 "Industry_Settings_Multi_Character_Description" = "聚合显示多个角色的工业项目数据";
 "Industry_Settings_Select_Characters" = "选择角色";
+"Industry_Loading_Progress" = "已加载人物 %d/%d";
 
 // 挖矿设置相关
 "Mining_Settings_Title" = "设置";
@@ -100,12 +101,23 @@
 "Mining_Settings_Multi_Character_Description" = "聚合显示多个角色的挖矿记录数据";
 "Mining_Settings_Select_Characters" = "选择角色";
 "Mining_Filter_Select_All" = "全选";
+"Mining_Loading_Progress" = "已加载人物 %d/%d";
+
+// 行星设置相关
+"Planetary_Settings_Title" = "设置";
+"Planetary_Settings_Multi_Character" = "多人物聚合";
+"Planetary_Settings_Multi_Character_Description" = "聚合显示多个角色的行星数据";
+"Planetary_Settings_Select_Characters" = "选择角色";
+"Planetary_Filter_Select_All" = "全选";
+"Planetary_Loading_Progress" = "已加载人物 %d/%d";
 
 // 挖矿明细相关
 "Mining_Detail" = "明细";
 "Mining_Detail_Title" = "挖矿明细";
 "Mining_Detail_This_Week" = "本周";
+"Mining_Detail_Last_7_Days" = "近7天";
 "Mining_Detail_Other" = "其他";
+"Mining_Detail_Overview" = "总览";
 "Mining_Detail_Total_Volume" = "总体积";
 "Mining_Detail_Total_Quantity" = "总挖矿量";
 "Mining_Detail_Ore_Types" = "矿石种类";
@@ -232,7 +244,7 @@
 "Main_Setting_Select_Language" = "选择语言";
 "Main_Setting_Clean_Cache" = "清理缓存";
 "Main_Setting_Clean_Cache_Title" = "清理缓存";
-"Main_Setting_Clean_Cache_Message" = "这将清理应用缓存，包括网络缓存和临时文件。是否确认？";
+"Main_Setting_Clean_Cache_Message" = "警告：这将清理应用缓存，包括钱包历史、网络缓存和临时文件。是否确认？";
 "Main_Setting_Reset_Icons" = "重置图标缓存";
 "Main_Setting_Reset_Icons_Detail" = "删除图标缓存并重新释放(只有缺失图标时使用)";
 "Main_Setting_Reset_Icons_Title" = "重置图标缓存";
@@ -260,6 +272,7 @@
 "Main_About" = "关于";
 "Main_About_Database_Version" = "SDE 数据库";
 "Main_About_Database_Update_Available" = "可更新";
+"Main_SDE_Update_Available" = "可更新";
 "Main_About_Build_Number" = "构建号";
 "Main_About_Patch_Number" = "补丁号";
 "Main_About_Author" = "作者";
@@ -2167,6 +2180,7 @@
 "Fitting_stat_firepower" = "舰船火力";
 "Fitting_volley" = "齐射(DPH)";
 "Fitting_dps" = "秒伤(DPS)";
+"Fitting_range" = "射程";
 "Fitting_damage_profile" = "伤害分布";
 
 "Fitting_Add_Fighters" = "添加舰载机";

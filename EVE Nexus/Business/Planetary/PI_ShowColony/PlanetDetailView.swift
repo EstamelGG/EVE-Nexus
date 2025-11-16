@@ -42,12 +42,6 @@ struct PlanetDetailView: View {
         return simulatedColony
     }
 
-    // 判断当前显示的殖民地是否已停工（用于显示状态）
-    private var isColonyStopped: Bool {
-        guard let colony = displayColony else { return false }
-        return !ColonySimulation.isColonyStillWorking(colony: colony)
-    }
-
     // 判断当前现实时间的殖民地是否已停工（用于禁用控件和显示提示）
     private var isRealtimeColonyStopped: Bool {
         // 只有在实时模式（selectedMinutes == 0）时才检查

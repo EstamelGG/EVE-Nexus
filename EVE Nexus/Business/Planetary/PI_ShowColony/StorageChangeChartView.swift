@@ -1,5 +1,12 @@
 import SwiftUI
 
+/// 容量状态枚举
+private enum CapacityStatus {
+    case normal // 正常（< 90%）
+    case nearFull // 接近满（>= 90% 且 < 100%）
+    case exceeded // 已满（>= 100%）
+}
+
 /// 仓储变化图表视图
 struct StorageChangeChartView: View {
     let pinId: Int64
@@ -214,53 +221,81 @@ struct StorageChangeChartView: View {
                                     return nil
                                 }()
 
-                                // 计算每个点的坐标和是否超过或等于上限
-                                let points: [(x: CGFloat, y: CGFloat, exceedsCapacity: Bool)] = chartData.enumerated().map { index, data in
+                                // 计算每个点的坐标和容量状态
+                                let points: [(x: CGFloat, y: CGFloat, status: CapacityStatus)] = chartData.enumerated().map { index, data in
                                     let x = CGFloat(index) * pointSpacing
                                     let y = chartHeight - (CGFloat(data.volume) / CGFloat(maxVolume) * chartHeight)
-                                    let exceedsCapacity = data.volume >= capacity
-                                    return (x: x, y: y, exceedsCapacity: exceedsCapacity)
+                                    let capacityRatio = capacity > 0 ? data.volume / capacity : 0.0
+                                    let status: CapacityStatus = {
+                                        if capacityRatio >= 1.0 {
+                                            return .exceeded // 已满：红色
+                                        } else if capacityRatio >= 0.9 {
+                                            return .nearFull // 接近满：橘色
+                                        } else {
+                                            return .normal // 正常：蓝色
+                                        }
+                                    }()
+                                    return (x: x, y: y, status: status)
                                 }
 
-                                // 分段绘制填充区域和折线（根据是否超过上限使用不同颜色）
+                                // 分段绘制填充区域和折线（根据容量状态使用不同颜色）
                                 // 找到所有状态改变的位置
-                                let segmentRanges: [(start: Int, end: Int, exceedsCapacity: Bool)] = {
-                                    var ranges: [(start: Int, end: Int, exceedsCapacity: Bool)] = []
+                                let segmentRanges: [(start: Int, end: Int, status: CapacityStatus)] = {
+                                    var ranges: [(start: Int, end: Int, status: CapacityStatus)] = []
                                     var segmentStart = 0
-                                    var currentExceeds = points.first?.exceedsCapacity ?? false
+                                    var currentStatus = points.first?.status ?? .normal
 
                                     for i in 1 ..< points.count {
-                                        if points[i].exceedsCapacity != currentExceeds {
+                                        if points[i].status != currentStatus {
                                             // 状态改变，保存前一段
-                                            ranges.append((start: segmentStart, end: i - 1, exceedsCapacity: currentExceeds))
+                                            ranges.append((start: segmentStart, end: i - 1, status: currentStatus))
                                             segmentStart = i
-                                            currentExceeds = points[i].exceedsCapacity
+                                            currentStatus = points[i].status
                                         }
                                     }
                                     // 添加最后一段
                                     if segmentStart < points.count {
-                                        ranges.append((start: segmentStart, end: points.count - 1, exceedsCapacity: currentExceeds))
+                                        ranges.append((start: segmentStart, end: points.count - 1, status: currentStatus))
                                     }
                                     return ranges
                                 }()
 
-                                // 绘制每一段
-                                ForEach(Array(segmentRanges.enumerated()), id: \.offset) { _, segment in
+                                // 先绘制所有段的填充（包括到下一段的连接点，使用前一个点的颜色）
+                                ForEach(Array(segmentRanges.enumerated()), id: \.offset) { index, segment in
                                     let segmentPoints = Array(points[segment.start ... segment.end])
-                                    let segmentColor = segment.exceedsCapacity ? PlanetaryFacilityColors.storageChartExceeded : PlanetaryFacilityColors.storageChartNormal
+                                    let segmentColor: Color = {
+                                        switch segment.status {
+                                        case .normal:
+                                            return PlanetaryFacilityColors.storageChartNormal
+                                        case .nearFull:
+                                            return PlanetaryFacilityColors.storageChartNearFull
+                                        case .exceeded:
+                                            return PlanetaryFacilityColors.storageChartExceeded
+                                        }
+                                    }()
 
-                                    // 绘制填充
+                                    // 绘制填充：从当前段的第一个点到最后一个点，并包含到下一段的连接点（使用当前段的颜色）
                                     Path { path in
                                         if let firstPoint = segmentPoints.first {
                                             path.move(to: CGPoint(x: firstPoint.x, y: firstPoint.y))
+                                            // 绘制当前段内的所有点
                                             for point in segmentPoints.dropFirst() {
                                                 path.addLine(to: CGPoint(x: point.x, y: point.y))
                                             }
-                                            if let lastPoint = segmentPoints.last {
-                                                path.addLine(to: CGPoint(x: lastPoint.x, y: chartHeight))
-                                                path.addLine(to: CGPoint(x: firstPoint.x, y: chartHeight))
-                                                path.closeSubpath()
+                                            // 如果这不是最后一段，包含到下一段的第一个点（使用当前段的颜色）
+                                            let lastPointOnLine: CGPoint
+                                            if index < segmentRanges.count - 1 {
+                                                let nextSegment = segmentRanges[index + 1]
+                                                let nextFirstPoint = points[nextSegment.start]
+                                                path.addLine(to: CGPoint(x: nextFirstPoint.x, y: nextFirstPoint.y))
+                                                lastPointOnLine = CGPoint(x: nextFirstPoint.x, y: nextFirstPoint.y)
+                                            } else {
+                                                lastPointOnLine = CGPoint(x: segmentPoints.last!.x, y: segmentPoints.last!.y)
                                             }
+                                            // 闭合到底部：从最后一个点垂直到底部，然后水平回到起点，再垂直回到起点
+                                            path.addLine(to: CGPoint(x: lastPointOnLine.x, y: chartHeight))
+                                            path.addLine(to: CGPoint(x: firstPoint.x, y: chartHeight))
+                                            path.closeSubpath()
                                         }
                                     }
                                     .fill(
@@ -273,35 +308,30 @@ struct StorageChangeChartView: View {
                                             endPoint: .bottom
                                         )
                                     )
-
-                                    // 绘制折线
-                                    Path { path in
-                                        if let firstPoint = segmentPoints.first {
-                                            path.move(to: CGPoint(x: firstPoint.x, y: firstPoint.y))
-                                            for point in segmentPoints.dropFirst() {
-                                                path.addLine(to: CGPoint(x: point.x, y: point.y))
-                                            }
-                                        }
-                                    }
-                                    .stroke(segmentColor, lineWidth: 2)
                                 }
 
-                                // 绘制段之间的连接线（如果状态改变）
-                                ForEach(0 ..< (segmentRanges.count - 1), id: \.self) { i in
-                                    let currentSegment = segmentRanges[i]
-                                    let nextSegment = segmentRanges[i + 1]
+                                // 绘制折线：为每一对相邻的点绘制一条线段，使用前一个点的颜色（确保连接点有颜色）
+                                ForEach(0 ..< (points.count - 1), id: \.self) { i in
+                                    let currentPoint = points[i]
+                                    let nextPoint = points[i + 1]
 
-                                    if currentSegment.exceedsCapacity != nextSegment.exceedsCapacity {
-                                        // 状态改变，在两个段之间绘制连接线
-                                        let lastPoint = points[currentSegment.end]
-                                        let firstPoint = points[nextSegment.start]
-
-                                        Path { path in
-                                            path.move(to: CGPoint(x: lastPoint.x, y: lastPoint.y))
-                                            path.addLine(to: CGPoint(x: firstPoint.x, y: firstPoint.y))
+                                    // 使用前一个点的颜色
+                                    let lineColor: Color = {
+                                        switch currentPoint.status {
+                                        case .normal:
+                                            return PlanetaryFacilityColors.storageChartNormal
+                                        case .nearFull:
+                                            return PlanetaryFacilityColors.storageChartNearFull
+                                        case .exceeded:
+                                            return PlanetaryFacilityColors.storageChartExceeded
                                         }
-                                        .stroke(currentSegment.exceedsCapacity ? PlanetaryFacilityColors.storageChartExceeded : PlanetaryFacilityColors.storageChartNormal, lineWidth: 2)
+                                    }()
+
+                                    Path { path in
+                                        path.move(to: CGPoint(x: currentPoint.x, y: currentPoint.y))
+                                        path.addLine(to: CGPoint(x: nextPoint.x, y: nextPoint.y))
                                     }
+                                    .stroke(lineColor, lineWidth: 2)
                                 }
 
                                 // 绘制当前时间点的垂直线

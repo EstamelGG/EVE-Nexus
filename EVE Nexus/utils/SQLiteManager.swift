@@ -42,6 +42,15 @@ class SQLiteManager {
                 return false
             }
 
+            // 关闭旧数据库连接（如果存在）
+            if let oldDb = db {
+                sqlite3_close(oldDb)
+                db = nil
+            }
+
+            // 清理查询缓存，确保使用新数据库时不会使用旧缓存
+            clearCache()
+
             let result = sqlite3_open(finalDatabasePath, &db)
             if result == SQLITE_OK {
                 Logger.info("数据库连接成功: \(finalDatabasePath)")

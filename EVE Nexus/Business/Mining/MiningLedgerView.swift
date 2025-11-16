@@ -1,6 +1,23 @@
-import SwiftUI
 import Charts
+import SwiftUI
 import UIKit
+
+// 进度更新 Actor（用于线程安全地更新进度）
+actor MiningProgressActor {
+    private var current: Int = 0
+    private let total: Int
+    private let onUpdate: (Int, Int) -> Void
+
+    init(total: Int, onUpdate: @escaping (Int, Int) -> Void) {
+        self.total = total
+        self.onUpdate = onUpdate
+    }
+
+    func increment() {
+        current += 1
+        onUpdate(current, total)
+    }
+}
 
 // 按月份分组的挖矿记录
 struct MiningMonthGroup: Identifiable {
@@ -39,6 +56,7 @@ final class MiningLedgerViewModel: ObservableObject {
     @Published private(set) var monthGroups: [MiningMonthGroup] = []
     @Published var isLoading = true
     @Published var errorMessage: String?
+    @Published var loadingProgress: (current: Int, total: Int)? = nil // 加载进度 (已加载/总数)
     private var initialLoadDone = false
 
     // 多人物聚合相关
@@ -254,6 +272,7 @@ final class MiningLedgerViewModel: ObservableObject {
                     self.monthGroups = groups
                     Logger.debug("UI更新完成，monthGroups数量：\(self.monthGroups.count)")
                     self.isLoading = false
+                    self.loadingProgress = nil
                     self.initialLoadDone = true
                 }
 
@@ -277,24 +296,60 @@ final class MiningLedgerViewModel: ObservableObject {
         var allEntries: [MiningLedgerEntryWithOwner] = []
 
         if multiCharacterMode, selectedCharacterIds.count > 1 {
-            // 多人物模式：获取所有选中人物的挖矿记录
-            for characterId in selectedCharacterIds {
-                do {
-                    let entries = try await CharacterMiningAPI.shared.getMiningLedger(
-                        characterId: characterId,
-                        forceRefresh: forceRefresh
-                    )
+            // 多人物模式：并发获取所有选中人物的挖矿记录
+            let totalCharacters = selectedCharacterIds.count
 
-                    // 为每个记录添加所有者信息
-                    for entry in entries {
-                        allEntries.append(
-                            MiningLedgerEntryWithOwner(entry: entry, ownerId: characterId)
-                        )
-                    }
-                } catch {
-                    Logger.error("获取角色\(characterId)挖矿记录失败: \(error)")
-                    // 继续获取其他角色的数据，不因为一个角色失败而停止
+            // 初始化加载进度
+            await MainActor.run {
+                self.loadingProgress = (current: 0, total: totalCharacters)
+            }
+
+            // 使用 Actor 来线程安全地更新进度
+            let progressActor = MiningProgressActor(total: totalCharacters) { current, total in
+                Task { @MainActor in
+                    self.loadingProgress = (current: current, total: total)
                 }
+            }
+
+            await withTaskGroup(of: (Int, Result<[CharacterMiningAPI.MiningLedgerEntry], Error>).self) { group in
+                for characterId in selectedCharacterIds {
+                    group.addTask {
+                        do {
+                            let entries = try await CharacterMiningAPI.shared.getMiningLedger(
+                                characterId: characterId,
+                                forceRefresh: forceRefresh
+                            )
+                            return (characterId, .success(entries))
+                        } catch {
+                            Logger.error("获取角色\(characterId)挖矿记录失败: \(error)")
+                            return (characterId, .failure(error))
+                        }
+                    }
+                }
+
+                // 收集结果
+                for await (characterId, result) in group {
+                    switch result {
+                    case let .success(entries):
+                        // 为每个记录添加所有者信息
+                        for entry in entries {
+                            allEntries.append(
+                                MiningLedgerEntryWithOwner(entry: entry, ownerId: characterId)
+                            )
+                        }
+                    case .failure:
+                        // 失败时继续处理，不中断
+                        break
+                    }
+
+                    // 更新进度
+                    await progressActor.increment()
+                }
+            }
+
+            // 清除加载进度
+            await MainActor.run {
+                self.loadingProgress = nil
             }
         } else {
             // 单人物模式：只获取当前角色或选中的唯一角色
@@ -432,14 +487,19 @@ struct MiningLedgerView: View {
         }
     }
 
-    // 判断日期是否在本周内
-    private func isDateInThisWeek(_ date: Date) -> Bool {
+    // 判断日期是否在近7天内
+    private func isDateInLast7Days(_ date: Date) -> Bool {
         let now = Date()
-        let weekOfYear = calendar.component(.weekOfYear, from: now)
-        let year = calendar.component(.year, from: now)
-        let dateWeekOfYear = calendar.component(.weekOfYear, from: date)
-        let dateYear = calendar.component(.year, from: date)
-        return weekOfYear == dateWeekOfYear && year == dateYear
+        // 获取今天的开始时间（去掉时分秒）
+        let todayStart = calendar.startOfDay(for: now)
+        // 获取7天前的开始时间
+        guard let sevenDaysAgo = calendar.date(byAdding: .day, value: -7, to: todayStart) else {
+            return false
+        }
+        // 获取日期的开始时间
+        let dateStart = calendar.startOfDay(for: date)
+        // 判断日期是否在7天前到今天之间（包含今天）
+        return dateStart >= sevenDaysAgo && dateStart <= todayStart
     }
 
     var body: some View {
@@ -447,21 +507,32 @@ struct MiningLedgerView: View {
 
         List {
             if viewModel.isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
+                VStack(alignment: .center, spacing: 12) {
+                    ProgressView()
+                        .progressViewStyle(.circular)
+
+                    // 显示加载进度（如果有多人物模式且正在加载）
+                    if let progress = viewModel.loadingProgress, progress.total > 1 {
+                        Text(String(format: NSLocalizedString("Mining_Loading_Progress", comment: "已加载人物 %d/%d"), progress.current, progress.total))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.vertical, 8)
             } else if dailySummaries.isEmpty {
                 Section {
                     NoDataSection()
                 }
             } else {
-                // 分离本周和其他数据
-                let thisWeekSummaries = dailySummaries.filter { isDateInThisWeek($0.date) }
-                let otherSummaries = dailySummaries.filter { !isDateInThisWeek($0.date) }
+                // 分离近7天和其他数据
+                let last7DaysSummaries = dailySummaries.filter { isDateInLast7Days($0.date) }
+                let otherSummaries = dailySummaries.filter { !isDateInLast7Days($0.date) }
 
-                // 本周 Section
-                if !thisWeekSummaries.isEmpty {
-                    Section(header: Text(NSLocalizedString("Mining_Detail_This_Week", comment: "本周"))) {
-                        ForEach(thisWeekSummaries) { summary in
+                // 近7天 Section
+                if !last7DaysSummaries.isEmpty {
+                    Section(header: Text(NSLocalizedString("Mining_Detail_Last_7_Days", comment: "近7天"))) {
+                        ForEach(last7DaysSummaries) { summary in
                             NavigationLink(destination: DailyMiningDetailView(
                                 summary: summary,
                                 databaseManager: viewModel.databaseManager
@@ -716,7 +787,7 @@ enum MiningChartSortType: String, CaseIterable {
     case volume = "Volume"
     case quantity = "Quantity"
     case price = "Price"
-    
+
     var localizedName: String {
         switch self {
         case .volume:
@@ -745,7 +816,7 @@ struct DailyMiningDetailView: View {
     var body: some View {
         List {
             // 统计信息卡片
-            Section {
+            Section(header: Text(NSLocalizedString("Mining_Detail_Overview", comment: "总览"))) {
                 HStack(alignment: .center, spacing: 0) {
                     // 左侧栏：总体积
                     VStack(alignment: .leading, spacing: 4) {
@@ -757,9 +828,9 @@ struct DailyMiningDetailView: View {
                             .fontDesign(.monospaced)
                             .foregroundColor(Color(red: 204 / 255, green: 153 / 255, blue: 0 / 255))
                     }
-                    
+
                     Spacer(minLength: 0)
-                    
+
                     // 右侧内容（右对齐）
                     VStack(alignment: .trailing, spacing: 8) {
                         // 上边：矿石种类（右对齐）
@@ -772,7 +843,7 @@ struct DailyMiningDetailView: View {
                                 .fontDesign(.monospaced)
                                 .foregroundColor(.green)
                         }
-                        
+
                         // 下边：参与人物（右对齐，如果有多个）
                         HStack(spacing: 4) {
                             Text(NSLocalizedString("Mining_Detail_Characters", comment: "参与人物"))
@@ -952,10 +1023,10 @@ struct DailyMiningDetailView: View {
             for row in rows {
                 if let systemId = (row["solarSystemID"] as? Int64).map(Int.init)
                     ?? (row["solarSystemID"] as? Int),
-                   let systemName = row["solarSystemName"] as? String
+                    let systemName = row["solarSystemName"] as? String
                 {
                     names[systemId] = systemName
-                    
+
                     // 加载安全等级
                     if let security = (row["system_security"] as? Double) ?? (row["system_security"] as? Int).map(Double.init) {
                         securities[systemId] = security
@@ -963,11 +1034,11 @@ struct DailyMiningDetailView: View {
                 }
             }
         }
-        
+
         solarSystemNames = names
         solarSystemSecurities = securities
     }
-    
+
     // 矿石列表 Header（带复制按钮）
     private var oreListHeader: some View {
         HStack {
@@ -999,11 +1070,11 @@ struct DailyMiningDetailView: View {
             }
         }
     }
-    
+
     // 复制矿石列表
     private func copyOreList(useEnglish: Bool) {
         var textLines: [String] = []
-        
+
         for entry in summary.entries {
             let name: String
             if useEnglish {
@@ -1012,27 +1083,28 @@ struct DailyMiningDetailView: View {
             } else {
                 name = entry.name
             }
-            
+
             let quantity = FormatUtil.format(Double(entry.totalQuantity))
             textLines.append("\(name)\t\(quantity)")
         }
-        
+
         let text = textLines.joined(separator: "\n")
         UIPasteboard.general.string = text
     }
-    
+
     // 获取英文名称
     private func getEnglishName(for typeId: Int) -> String? {
         let query = "SELECT en_name FROM types WHERE type_id = ?"
         if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]) {
             if let row = rows.first,
-               let enName = row["en_name"] as? String {
+               let enName = row["en_name"] as? String
+            {
                 return enName
             }
         }
         return nil
     }
-    
+
     // 估价 Footer
     private var estimatePriceFooter: some View {
         HStack {
@@ -1058,7 +1130,7 @@ struct DailyMiningDetailView: View {
         }
         .padding(.vertical, 4)
     }
-    
+
     // 加载矿石颜色（从数据库 ore_colors 表）
     private func loadOreColors() async {
         let typeIds = summary.entries.map { $0.id }
@@ -1069,23 +1141,24 @@ struct DailyMiningDetailView: View {
             }
             return
         }
-        
+
         let placeholders = Array(repeating: "?", count: typeIds.count).joined(separator: ",")
         let query = "SELECT type_id, hex_color FROM ore_colors WHERE type_id IN (\(placeholders))"
         let parameters = typeIds.map { $0 as Any }
-        
+
         var colors: [Int: Color] = [:]
-        
+
         Logger.debug("开始查询矿石颜色，typeIds: \(typeIds)")
-        
+
         let queryResult = databaseManager.executeQuery(query, parameters: parameters)
-        
+
         switch queryResult {
-        case .success(let rows):
+        case let .success(rows):
             Logger.debug("查询到 \(rows.count) 条颜色记录")
             for row in rows {
                 if let typeId = row["type_id"] as? Int,
-                   let hexColor = row["hex_color"] as? String {
+                   let hexColor = row["hex_color"] as? String
+                {
                     Logger.debug("找到颜色: typeId=\(typeId), hexColor=\(hexColor)")
                     // 使用 Color(hex:) 扩展来创建颜色
                     // 注意：Color(hex:) 扩展在 PlanetaryFacilityColors.swift 中定义
@@ -1096,41 +1169,41 @@ struct DailyMiningDetailView: View {
                     Logger.warning("颜色数据格式错误: typeId=\(row["type_id"] ?? "nil"), hexColor=\(row["hex_color"] ?? "nil")")
                 }
             }
-        case .error(let error):
+        case let .error(error):
             Logger.error("查询矿石颜色失败: \(error)")
             // 即使查询失败，也继续显示图表（使用图标提取的颜色作为兜底）
         }
-        
+
         Logger.debug("最终加载了 \(colors.count) 个矿石颜色")
-        
+
         await MainActor.run {
             oreColors = colors
             oreColorsLoaded = true // 标记颜色已加载完成（即使查询失败也要标记，以便图表可以显示）
         }
     }
-    
+
     // 加载市场价格
     private func loadMarketPrices() async {
         let typeIds = summary.entries.map { $0.id }
         guard !typeIds.isEmpty else { return }
-        
+
         let prices = await MarketPriceUtil.getMarketPrices(typeIds: typeIds)
         await MainActor.run {
             marketPrices = prices
         }
     }
-    
+
     // 计算总估价
     private func calculateTotalEstimatePrice() -> Double {
         var total: Double = 0
-        
+
         for entry in summary.entries {
             if let priceData = marketPrices[entry.id] {
                 // 使用 averagePrice 进行估价
                 total += priceData.averagePrice * Double(entry.totalQuantity)
             }
         }
-        
+
         return total
     }
 }
@@ -1190,4 +1263,3 @@ struct DailyMiningItemRow: View {
         }
     }
 }
-

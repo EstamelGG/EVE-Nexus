@@ -190,23 +190,20 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
             );
             CREATE INDEX IF NOT EXISTS idx_mail_lists_character_id ON mail_lists(character_id);
 
-            -- 钱包流水表
-            CREATE TABLE IF NOT EXISTS wallet_journal (
+            -- 角色钱包流水表
+            CREATE TABLE IF NOT EXISTS char_wallet_journal (
                 id INTEGER NOT NULL,
                 character_id INTEGER NOT NULL,
                 amount REAL,
                 balance REAL,
-                context_id INTEGER,
-                context_id_type TEXT,
                 date TEXT,
                 description TEXT,
                 first_party_id INTEGER,
                 reason TEXT,
                 ref_type TEXT,
                 second_party_id INTEGER,
-                tax REAL,
-                tax_receiver_id INTEGER,
-                last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
+                context_id INTEGER,
+                context_id_type TEXT,
                 PRIMARY KEY (character_id, id)
             );
 
@@ -231,8 +228,8 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
             CREATE INDEX IF NOT EXISTS idx_corp_wallet_journal_date ON corp_wallet_journal(date);
             CREATE INDEX IF NOT EXISTS idx_corp_wallet_journal_division ON corp_wallet_journal(corporation_id, division);
 
-            -- 钱包交易记录表
-            CREATE TABLE IF NOT EXISTS wallet_transactions (
+            -- 角色钱包交易记录表
+            CREATE TABLE IF NOT EXISTS char_wallet_transactions (
                 transaction_id INTEGER NOT NULL,
                 character_id INTEGER NOT NULL,
                 client_id INTEGER,
@@ -244,7 +241,6 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                 quantity INTEGER,
                 type_id INTEGER,
                 unit_price REAL,
-                last_updated TEXT DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (character_id, transaction_id)
             );
 
@@ -373,8 +369,8 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
             CREATE INDEX IF NOT EXISTS idx_alliance_contracts_alliance ON alliance_contracts(alliance_id);
 
             -- 创建索引以提高查询性能
-            CREATE INDEX IF NOT EXISTS idx_wallet_journal_character_date ON wallet_journal(character_id, date);
-            CREATE INDEX IF NOT EXISTS idx_wallet_transactions_character_date ON wallet_transactions(character_id, date);
+            CREATE INDEX IF NOT EXISTS idx_char_wallet_journal_character_date ON char_wallet_journal(character_id, date);
+            CREATE INDEX IF NOT EXISTS idx_char_wallet_transactions_character_date ON char_wallet_transactions(character_id, date);
             CREATE INDEX IF NOT EXISTS idx_character_current_state_update ON character_current_state(last_update);
 
             -- 建筑物缓存表
@@ -633,8 +629,8 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
             "DELETE FROM character_current_state WHERE character_id = ?",
             "DELETE FROM mailbox WHERE character_id = ?",
             "DELETE FROM mail_lists WHERE character_id = ?",
-            "DELETE FROM wallet_journal WHERE character_id = ?",
-            "DELETE FROM wallet_transactions WHERE character_id = ?",
+            "DELETE FROM char_wallet_journal WHERE character_id = ?",
+            "DELETE FROM char_wallet_transactions WHERE character_id = ?",
             "DELETE FROM character_info WHERE character_id = ?",
             "DELETE FROM clones WHERE character_id = ?",
             "DELETE FROM industry_jobs_data WHERE character_id = ?",

@@ -17,7 +17,7 @@ class IndustryRefreshTask: BaseProcessingTask {
 
         // 获取工业设置中的多人物模式状态
         let multiCharacterMode = UserDefaults.standard.bool(forKey: "multiCharacterMode_industry")
-        
+
         // 获取选中的角色ID列表
         let savedCharacterIds = UserDefaults.standard.array(forKey: "selectedCharacterIds_industry") as? [Int] ?? []
         let selectedCharacterIds = Set(savedCharacterIds)
@@ -82,4 +82,3 @@ class IndustryRefreshTask: BaseProcessingTask {
         Logger.success("后台工业项目数据更新完成")
     }
 }
-

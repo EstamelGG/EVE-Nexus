@@ -6,7 +6,6 @@ struct WormholeView: View {
     @State private var targetOrder: [String] = []
     @State private var searchText = ""
     @State private var isSearchActive = false
-    @State private var showingInfoSheet = false
 
     var filteredWormholes: [String: [WormholeInfo]] {
         if searchText.isEmpty {
@@ -100,13 +99,6 @@ struct WormholeView: View {
         wormholes = tempWormholes
         targetOrder = tempTargetOrder
     }
-}
-
-// 状态类型枚举
-enum WormholeStatusType {
-    case good
-    case warning
-    case critical
 }
 
 struct WormholeDetailView: View {

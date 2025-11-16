@@ -356,31 +356,36 @@ struct AttributeGroupView: View {
 
                 // 只在包含507属性的组中显示导弹伤害信息
                 if hasMissileAttribute {
-                    missileInfoView()
+                    missileInfoView().listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
 
                     // 导弹DPH显示
                     if let dph = getMissileDPH() {
-                        missileDPHView(dph: dph)
+                        missileDPHView(dph: dph).listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                     }
 
                     // 导弹DPS显示
                     if let dps = getMissileDPS() {
-                        missileDPSView(dps: dps)
+                        missileDPSView(dps: dps).listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                    }
+
+                    // 导弹射程显示
+                    if let range = getMissileRange() {
+                        missileRangeView(range: range).listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                     }
                 }
 
                 // 显示武器伤害信息
                 if hasWeaponDamageAttributes {
-                    weaponDamageView()
+                    weaponDamageView().listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
 
                     // 武器DPH显示
                     if let dph = getWeaponDPH() {
-                        weaponDPHView(dph: dph)
+                        weaponDPHView(dph: dph).listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                     }
 
                     // 武器DPS显示
                     if let dps = getWeaponDPS() {
-                        weaponDPSView(dps: dps)
+                        weaponDPSView(dps: dps).listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                     }
                 }
 
@@ -441,6 +446,35 @@ struct AttributeGroupView: View {
         // actualDamages已经包含了属性64的倍增，不需要再乘一次
 
         return totalDamage / (rateOfFire / 1000.0) // 转换为秒
+    }
+
+    // 计算导弹射程
+    // 如果飞行时间(281)或飞行速度(37)查不到，返回nil，射程将不显示
+    private func getMissileRange() -> Double? {
+        // 获取导弹信息
+        guard let missileInfo = getMissileInfo() else { return nil }
+
+        // 获取导弹基础属性
+        // 如果飞行时间或飞行速度任何一个查不到，无法计算射程，返回nil
+        guard let baseFlightTime = missileInfo.flightTime,
+              let baseFlightSpeed = missileInfo.flightSpeed
+        else {
+            return nil
+        }
+
+        // 获取物品属性加成（645是速度加成，646是飞行时间加成）
+        // 如果加成属性不存在，默认使用1.0（无加成）
+        let speedMultiplier = allAttributes[645] ?? 1.0
+        let timeMultiplier = allAttributes[646] ?? 1.0
+
+        // 计算实际飞行速度和飞行时间
+        let actualFlightSpeed = baseFlightSpeed * speedMultiplier // 米/秒
+        let actualFlightTime = baseFlightTime * timeMultiplier // 毫秒
+
+        // 计算射程：速度 × 时间（需要将毫秒转换为秒）
+        let range = actualFlightSpeed * (actualFlightTime / 1000.0) // 米
+
+        return range > 0 ? range : nil
     }
 
     // 导弹DPH显示视图
@@ -521,6 +555,27 @@ struct AttributeGroupView: View {
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.trailing)
         }
+    }
+
+    // 导弹射程显示视图
+    @ViewBuilder
+    private func missileRangeView(range: Double) -> some View {
+        HStack {
+            Image("target_range")
+                .resizable()
+                .frame(width: 32, height: 32)
+
+            Text(NSLocalizedString("Fitting_range", comment: "射程"))
+                .font(.body)
+
+            Spacer()
+
+            Text("\(FormatUtil.format(range)) m")
+                .font(.body)
+                .foregroundColor(.secondary)
+                .multilineTextAlignment(.trailing)
+        }
+        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
     }
 }
 

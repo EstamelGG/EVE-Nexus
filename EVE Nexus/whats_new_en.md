@@ -307,3 +307,11 @@ Fixes & Improvements:
 1. Fixed an issue in the mining ledger feature where data could not be displayed due to a parsing error.
 2. Added a background data update feature to periodically refresh contracts, wallet, market orders, and asset data at an appropriate frequency. 
 3. Enhanced mining record functionality, summarizing multi-character mining data through various charts.
+
+# v1.8.7 Nov 20, 2025
+
+1. Update SDE database.
+2. Supports scrolling through wallet and transaction history, making it easier to look up earlier data.
+3. Optimize the UI design for corp wallets, transaction records, and industrial projects.
+4. Support aggregating planetary industry data for multiple characters.
+5. Create an indicator for SDE updates on the home page.

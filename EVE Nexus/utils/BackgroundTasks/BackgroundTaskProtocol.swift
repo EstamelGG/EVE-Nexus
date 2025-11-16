@@ -38,10 +38,10 @@ protocol ProcessingTaskProtocol {
 protocol AnyBackgroundTask {
     /// 任务标识符
     var identifier: String { get }
-    
+
     /// 取消任务
     func cancel()
-    
+
     /// 安排任务
     func schedule()
 }

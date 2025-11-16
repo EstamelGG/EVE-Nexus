@@ -116,9 +116,9 @@ struct CharacterLoyaltyPointsView: View {
                                             .font(.caption)
                                             .foregroundColor(.secondary)
                                     }
-                                    
+
                                     Spacer()
-                                    
+
                                     if loyalty.isMilitia {
                                         Text(NSLocalizedString("Main_LP_Militia", comment: ""))
                                             .font(.caption)

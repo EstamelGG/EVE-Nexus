@@ -50,11 +50,21 @@ struct StorageFacilityView: View {
 
                 // 容量进度条
                 let total = calculateStorageVolume()
+                let capacityRatio = capacity > 0 ? total / capacity : 0.0
+                let progressColor: Color = {
+                    if capacityRatio >= 1.0 {
+                        return PlanetaryFacilityColors.storageProgressFull // 已满：红色
+                    } else if capacityRatio >= 0.9 {
+                        return PlanetaryFacilityColors.storageProgressNearFull // 接近满：橘色
+                    } else {
+                        return PlanetaryFacilityColors.storageProgressNormal // 正常：蓝色
+                    }
+                }()
                 VStack(alignment: .leading, spacing: 2) {
                     ProgressView(value: total, total: capacity)
                         .progressViewStyle(.linear)
                         .frame(height: 6)
-                        .tint(capacity > 0 ? (total / capacity >= 0.9 ? PlanetaryFacilityColors.storageProgressFull : PlanetaryFacilityColors.storageProgressNormal) : PlanetaryFacilityColors.storageProgressNormal) // 容量快满时标红提示
+                        .tint(progressColor)
 
                     Text("\(Int(total.rounded()))m³ / \(Int(capacity))m³")
                         .font(.caption)

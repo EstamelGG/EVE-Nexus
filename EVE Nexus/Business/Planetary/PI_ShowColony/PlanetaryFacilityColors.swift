@@ -37,7 +37,10 @@ enum PlanetaryFacilityColors {
     /// 存储进度条 - 正常状态（容量 < 90%）
     static let storageProgressNormal = Color.blue
 
-    /// 存储进度条 - 快满状态（容量 >= 90%）
+    /// 存储进度条 - 接近满状态（容量 >= 90% 且 < 100%）
+    static let storageProgressNearFull = Color.orange
+
+    /// 存储进度条 - 已满状态（容量 >= 100%）
     static let storageProgressFull = Color.red
 
     // MARK: - 图表颜色
@@ -48,10 +51,13 @@ enum PlanetaryFacilityColors {
     /// 提取器产量图表 - 其他周期柱状图
     static let extractorChartOtherCycle = Color.gray.opacity(0.6)
 
-    /// 存储变化图表 - 正常状态（未超过容量）
+    /// 存储变化图表 - 正常状态（容量 < 90%）
     static let storageChartNormal = Color.blue
 
-    /// 存储变化图表 - 超容量状态
+    /// 存储变化图表 - 接近满状态（容量 >= 90% 且 < 100%）
+    static let storageChartNearFull = Color.orange
+
+    /// 存储变化图表 - 超容量状态（容量 >= 100%）
     static let storageChartExceeded = Color.red
 
     /// 存储变化图表 - 当前时间垂直线

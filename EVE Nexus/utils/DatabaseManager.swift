@@ -1859,6 +1859,53 @@ class DatabaseManager: ObservableObject {
         return hasData ? damages : nil
     }
 
+    // 获取导弹相关属性（伤害、飞行时间、飞行速度）
+    func getMissileAttributes(for itemID: Int) -> (damages: (em: Double, therm: Double, kin: Double, exp: Double), flightTime: Double?, flightSpeed: Double?)? {
+        var damages: (em: Double, therm: Double, kin: Double, exp: Double) = (0, 0, 0, 0)
+        var flightTime: Double?
+        var flightSpeed: Double?
+        var hasData = false
+
+        // 一次性查询所有需要的属性：伤害(114,116,117,118)、飞行时间(281)、飞行速度(37)
+        let query = """
+            SELECT attribute_id, value 
+            FROM typeAttributes 
+            WHERE type_id = ? AND attribute_id IN (114, 116, 117, 118, 281, 37)
+        """
+
+        let result = executeQuery(query, parameters: [itemID])
+
+        switch result {
+        case let .success(rows):
+            for row in rows {
+                if let attributeID = row["attribute_id"] as? Int,
+                   let value = row["value"] as? Double
+                {
+                    switch attributeID {
+                    case 114: damages.em = value
+                    case 118: damages.therm = value
+                    case 117: damages.kin = value
+                    case 116: damages.exp = value
+                    case 281: flightTime = value
+                    case 37: flightSpeed = value
+                    default: break
+                    }
+                    hasData = true
+                }
+            }
+        case let .error(error):
+            Logger.error("Error fetching missile attributes for item \(itemID): \(error)")
+            return nil
+        }
+
+        // 至少需要有伤害数据才返回
+        guard hasData, damages.em + damages.therm + damages.kin + damages.exp > 0 else {
+            return nil
+        }
+
+        return (damages: damages, flightTime: flightTime, flightSpeed: flightSpeed)
+    }
+
     // 获取具有特定属性值的物品
     func getItemsByAttributeValue(attributeID: Int, value: Double) -> [(
         typeID: Int, name: String, iconFileName: String

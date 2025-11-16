@@ -89,6 +89,11 @@ struct EVE_NexusApp: App {
         BackgroundTaskManager.shared.scheduleStructureOrdersRefresh()
         BackgroundTaskManager.shared.scheduleIndustryRefresh()
         BackgroundTaskManager.shared.scheduleWalletRefresh()
+
+        // 后台检查SDE更新
+        Task { @MainActor in
+            await SDEUpdateChecker.shared.checkForUpdates()
+        }
     }
 
     private func setupNotifications() {
@@ -185,10 +190,8 @@ struct EVE_NexusApp: App {
         // 检查是否需要重新解压
         if !shouldExtractIcons(destinationPath: destinationPath, appVersion: appVersion) {
             Logger.info("Using existing icons, skipping extraction.")
-            await MainActor.run {
-                databaseManager.loadDatabase()
-                isInitialized = true
-            }
+            // 即使不需要解压，也要执行初始化
+            await initializeApp()
             return
         }
 
@@ -224,13 +227,17 @@ struct EVE_NexusApp: App {
             }
 
             await MainActor.run {
-                databaseManager.loadDatabase()
                 loadingState = .complete
             }
+
+            // 解压完成后执行初始化
+            await initializeApp()
         } catch {
             Logger.error("Error during icons extraction: \(error)")
             // 解压失败时重置状态
             IconManager.shared.isExtractionComplete = false
+            // 即使解压失败，也要执行初始化，避免应用卡在加载状态
+            await initializeApp()
         }
     }
 
@@ -282,6 +289,16 @@ struct EVE_NexusApp: App {
             await MainActor.run {
                 databaseManager.loadDatabase()
                 CharacterDatabaseManager.shared.loadDatabase()
+
+                // 清理钱包旧数据（在后台线程执行，不阻塞初始化）
+                Task.detached(priority: .background) {
+                    let journalDeleted = WalletJournalAPI.shared.cleanupOldData()
+                    let transactionsDeleted = WalletTransactionsAPI.shared.cleanupOldData()
+                    if journalDeleted > 0 || transactionsDeleted > 0 {
+                        Logger.info("钱包数据清理完成 - 流水: \(journalDeleted)条, 交易: \(transactionsDeleted)条")
+                    }
+                }
+
                 isInitialized = true
             }
         }
@@ -294,9 +311,7 @@ struct EVE_NexusApp: App {
                     ContentView(databaseManager: databaseManager)
                 } else if needsUnzip {
                     LoadingView(loadingState: $loadingState, progress: unzipProgress) {
-                        Task {
-                            await initializeApp()
-                        }
+                        // 解压完成后会在 checkAndExtractIcons 中调用 initializeApp
                     }
                 } else {
                     Color.clear

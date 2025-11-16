@@ -127,11 +127,7 @@ final class CorpWalletJournalViewModel: ObservableObject {
     init(characterId: Int, division: Int) {
         self.characterId = characterId
         self.division = division
-
-        // 在初始化时立即开始加载数据
-        loadingTask = Task {
-            await loadJournalData()
-        }
+        // 不在这里自动加载，由视图的 .task 或显式调用 loadJournalData() 来控制加载时机
     }
 
     deinit {
@@ -278,6 +274,11 @@ final class CorpWalletJournalViewModel: ObservableObject {
                 }
 
             } catch {
+                // 忽略取消错误，这是预期的行为
+                if error is CancellationError {
+                    return
+                }
+
                 Logger.error("加载军团钱包流水失败: \(error.localizedDescription)")
                 if !Task.isCancelled {
                     await MainActor.run {
@@ -300,13 +301,7 @@ struct CorpWalletJournalDayDetailView: View {
     @State private var displayedEntries: [CorpWalletJournalEntry] = []
     @State private var showingCount = 100
 
-    private let displayDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.timeZone = TimeZone(identifier: "UTC")!
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter
-    }()
+    // 使用FormatUtil进行日期处理，无需自定义格式化器
 
     var body: some View {
         List {
@@ -328,7 +323,7 @@ struct CorpWalletJournalDayDetailView: View {
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(displayDateFormatter.string(from: group.date))
+        .navigationTitle(FormatUtil.formatDateToLocalDate(group.date))
         .onAppear {
             // 初始加载前100条
             loadMoreEntries()
@@ -345,13 +340,7 @@ struct CorpWalletJournalDayDetailView: View {
 struct CorpWalletJournalView: View {
     @ObservedObject var viewModel: CorpWalletJournalViewModel
 
-    private let displayDateFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        formatter.timeZone = TimeZone(identifier: "UTC")!
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter
-    }()
+    // 使用FormatUtil进行日期处理，无需自定义格式化器
 
     var filterView: some View {
         NavigationView {
@@ -573,18 +562,33 @@ struct CorpWalletJournalView: View {
                                 destination: CorpWalletJournalDayDetailView(group: group)
                             ) {
                                 HStack {
-                                    Text(displayDateFormatter.string(from: group.date))
-                                        .font(.system(size: 16))
+                                    // 左侧：日期和交易数垂直排列
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(FormatUtil.formatDateToLocalDate(group.date))
+                                            .font(.system(size: 16))
+
+                                        Text(
+                                            "\(group.entries.count) \(NSLocalizedString("transactions", comment: ""))"
+                                        )
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    }
 
                                     Spacer()
 
+                                    // 右侧：净收益
+                                    let dayNetIncome = group.entries.reduce(0.0) { $0 + $1.amount }
                                     Text(
-                                        "\(group.entries.count) \(NSLocalizedString("transactions", comment: ""))"
+                                        "\(dayNetIncome >= 0 ? "+" : "")\(FormatUtil.formatISK(dayNetIncome))"
                                     )
                                     .font(.caption)
-                                    .foregroundColor(.secondary)
+                                    .foregroundColor(
+                                        dayNetIncome > 0
+                                            ? .green : dayNetIncome < 0 ? .red : .secondary)
                                 }
+                                .padding(.vertical, 4)
                             }
+                            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
 

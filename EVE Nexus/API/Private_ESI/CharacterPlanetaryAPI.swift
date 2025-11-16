@@ -146,7 +146,7 @@ class CharacterPlanetaryAPI {
             from: url,
             characterId: characterId
         )
-        Logger.debug("Fetched from Netowrk.")
+        Logger.debug("Fetched from Network.")
         // 解析数据
         let planetaryInfo = try JSONDecoder().decode([CharacterPlanetaryInfo].self, from: data)
 
@@ -178,7 +178,7 @@ class CharacterPlanetaryAPI {
             from: url,
             characterId: characterId
         )
-        Logger.debug("Fetched from Netowrk.")
+        Logger.debug("Fetched from Network.")
         // 解析数据
         let planetaryDetail = try JSONDecoder().decode(PlanetaryDetail.self, from: data)
 

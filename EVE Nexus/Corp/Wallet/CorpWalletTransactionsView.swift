@@ -11,7 +11,7 @@ struct CorpWalletTransactionEntry: Codable, Identifiable {
     let client_id: Int
     let date: String
     let is_buy: Bool
-    let is_personal: Bool
+    let is_personal: Bool? // 某些交易记录可能没有此字段
     let journal_ref_id: Int64
     let location_id: Int64
     let quantity: Int
@@ -20,6 +20,11 @@ struct CorpWalletTransactionEntry: Codable, Identifiable {
     let unit_price: Double
 
     var id: Int64 { transaction_id }
+
+    // 提供默认值，如果字段缺失则默认为 false（非个人）
+    var isPersonal: Bool {
+        return is_personal ?? false
+    }
 }
 
 // 合并后的军团交易记录条目
@@ -102,11 +107,7 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
         self.division = division
         self.databaseManager = databaseManager
         mergeSimilarTransactions = UserDefaultsManager.shared.mergeSimilarTransactions
-
-        // 在初始化时立即开始加载数据
-        loadingTask = Task {
-            await loadTransactionData()
-        }
+        // 不在这里自动加载，由视图的 .task 或显式调用 loadTransactionData() 来控制加载时机
     }
 
     deinit {
@@ -217,22 +218,30 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
             errorMessage = nil
 
             do {
-                guard
-                    let jsonString = try await CorpWalletAPI.shared.getCorpWalletTransactions(
-                        characterId: characterId, division: division, forceRefresh: forceRefresh
-                    )
-                else {
+                let jsonString = try await CorpWalletAPI.shared.getCorpWalletTransactions(
+                    characterId: characterId, division: division, forceRefresh: forceRefresh
+                )
+
+                guard let jsonString = jsonString else {
+                    Logger.error("加载军团交易记录失败: API 返回 nil (characterId: \(characterId), division: \(division))")
                     throw NetworkError.invalidResponse
                 }
 
                 if Task.isCancelled { return }
 
-                guard let jsonData = jsonString.data(using: .utf8),
-                      let entries = try? JSONDecoder().decode(
-                          [CorpWalletTransactionEntry].self, from: jsonData
-                      )
-                else {
+                guard let jsonData = jsonString.data(using: .utf8) else {
+                    Logger.error("加载军团交易记录失败: 无法将 JSON 字符串转换为 Data (长度: \(jsonString.count))")
                     throw NetworkError.invalidResponse
+                }
+
+                let entries: [CorpWalletTransactionEntry]
+                do {
+                    entries = try JSONDecoder().decode([CorpWalletTransactionEntry].self, from: jsonData)
+                } catch let decodeError {
+                    let preview = String(jsonString.prefix(5000))
+                    Logger.error("加载军团交易记录失败: JSON 解码失败 - \(decodeError.localizedDescription)")
+                    Logger.error("JSON 预览 (前5000字符): \(preview)")
+                    throw decodeError
                 }
 
                 if Task.isCancelled { return }
@@ -287,7 +296,17 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
                 }
 
             } catch {
+                // 忽略取消错误，这是预期的行为
+                if error is CancellationError {
+                    return
+                }
+
                 Logger.error("加载军团交易记录失败: \(error.localizedDescription)")
+                Logger.error("错误类型: \(type(of: error))")
+                if let networkError = error as? NetworkError {
+                    Logger.error("网络错误详情: \(networkError)")
+                }
+
                 if !Task.isCancelled {
                     await MainActor.run {
                         self.errorMessage = error.localizedDescription
@@ -476,32 +495,65 @@ struct CorpWalletTransactionsView: View {
                                     )
                                 ) {
                                     HStack {
-                                        Text(displayDateFormatter.string(from: group.date))
-                                            .font(.system(size: 16))
+                                        // 左侧：日期和交易信息垂直排列
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(FormatUtil.formatDateToLocalDate(group.date))
+                                                .font(.system(size: 16))
+
+                                            let (buyCount, sellCount) =
+                                                if viewModel.mergeSimilarTransactions {
+                                                    (
+                                                        group.mergedEntries.filter { $0.is_buy }.count,
+                                                        group.mergedEntries.filter { !$0.is_buy }.count
+                                                    )
+                                                } else {
+                                                    (
+                                                        group.entries.filter { $0.is_buy }.count,
+                                                        group.entries.filter { !$0.is_buy }.count
+                                                    )
+                                                }
+                                            Text(
+                                                "\(NSLocalizedString("Main_Market_Transactions_Buy", comment: "")): \(buyCount), \(NSLocalizedString("Main_Market_Transactions_Sell", comment: "")): \(sellCount)"
+                                            )
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                        }
 
                                         Spacer()
 
-                                        let (buyCount, sellCount) =
-                                            if viewModel.mergeSimilarTransactions {
-                                                (
-                                                    group.mergedEntries.filter { $0.is_buy }.count,
-                                                    group.mergedEntries.filter { !$0.is_buy }.count
-                                                )
-                                            } else {
-                                                (
-                                                    group.entries.filter { $0.is_buy }.count,
-                                                    group.entries.filter { !$0.is_buy }.count
-                                                )
-                                            }
-                                        Text(
-                                            "\(NSLocalizedString("Main_Market_Transactions_Buy", comment: "")): \(buyCount), \(NSLocalizedString("Main_Market_Transactions_Sell", comment: "")): \(sellCount)"
-                                        )
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        // 右侧：净收益
+                                        if viewModel.mergeSimilarTransactions {
+                                            let sellIncome = group.mergedEntries.filter { !$0.is_buy }
+                                                .reduce(0.0) { $0 + $1.totalAmount }
+                                            let buyExpense = group.mergedEntries.filter { $0.is_buy }
+                                                .reduce(0.0) { $0 + $1.totalAmount }
+                                            let netProfit = sellIncome - buyExpense
+
+                                            Text(
+                                                "\(netProfit >= 0 ? "+" : "")\(FormatUtil.formatISK(netProfit))"
+                                            )
+                                            .font(.caption)
+                                            .foregroundColor(
+                                                netProfit > 0 ? .green : netProfit < 0 ? .red : .secondary)
+                                        } else {
+                                            let sellIncome = group.entries.filter { !$0.is_buy }.reduce(0.0)
+                                                { $0 + ($1.unit_price * Double($1.quantity)) }
+                                            let buyExpense = group.entries.filter { $0.is_buy }.reduce(0.0)
+                                                { $0 + ($1.unit_price * Double($1.quantity)) }
+                                            let netProfit = sellIncome - buyExpense
+
+                                            Text(
+                                                "\(netProfit >= 0 ? "+" : "")\(FormatUtil.formatISK(netProfit))"
+                                            )
+                                            .font(.caption)
+                                            .foregroundColor(
+                                                netProfit > 0 ? .green : netProfit < 0 ? .red : .secondary)
+                                        }
                                     }
                                     .padding(.vertical, 4)
                                 }
                             }
+                            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                 }
@@ -633,7 +685,7 @@ struct CorpWalletTransactionEntryRow: View {
         .contextMenu {
             if currentCharacter != nil {
                 NavigationLink {
-                    navigationDestination(for: entry.client_id, isPersonal: entry.is_personal)
+                    navigationDestination(for: entry.client_id, isPersonal: entry.isPersonal)
                 } label: {
                     Label(
                         entry.is_buy
@@ -772,10 +824,10 @@ struct CorpMergedTransactionEntryRow: View {
                     var seen = Set<String>()
                     var result: [(Int, Bool)] = []
                     for entry in entry.originalEntries {
-                        let key = "\(entry.client_id)_\(entry.is_personal)"
+                        let key = "\(entry.client_id)_\(entry.isPersonal)"
                         if !seen.contains(key) {
                             seen.insert(key)
-                            result.append((entry.client_id, entry.is_personal))
+                            result.append((entry.client_id, entry.isPersonal))
                         }
                     }
                     return result
@@ -945,7 +997,7 @@ struct CorpTransactionClientListSheet: View {
     private func getPlaceholderCount() -> Int {
         var seen = Set<String>()
         for entry in entry.originalEntries {
-            let key = "\(entry.client_id)_\(entry.is_personal)"
+            let key = "\(entry.client_id)_\(entry.isPersonal)"
             seen.insert(key)
         }
         return seen.count
@@ -956,10 +1008,10 @@ struct CorpTransactionClientListSheet: View {
         var seen = Set<String>()
         var uniqueClients: [(clientId: Int, isPersonal: Bool)] = []
         for entry in entry.originalEntries {
-            let key = "\(entry.client_id)_\(entry.is_personal)"
+            let key = "\(entry.client_id)_\(entry.isPersonal)"
             if !seen.contains(key) {
                 seen.insert(key)
-                uniqueClients.append((entry.client_id, entry.is_personal))
+                uniqueClients.append((entry.client_id, entry.isPersonal))
             }
         }
 

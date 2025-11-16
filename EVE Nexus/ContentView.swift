@@ -528,6 +528,8 @@ struct ContentView: View {
     @State private var isRefreshTokenExpired = false // 添加token过期状态
     @State private var navigationAvatarItemVisible = false // 改为使用滚动位置判断
     @State private var hasInitialLayout = false // 添加初始布局标记
+    @StateObject private var sdeUpdateChecker = SDEUpdateChecker.shared // 观察SDE更新状态
+    @State private var showingSDEUpdateSheet = false // 控制SDE更新sheet显示
 
     // 使用计算属性来确定当前的颜色方案
     private var currentColorScheme: ColorScheme? {
@@ -588,44 +590,7 @@ struct ContentView: View {
                     updateTokenStatus()
                 }
                 .toolbar {
-                    // 在导航栏左侧显示人物头像（仅当滚动且已登录时）
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        if currentCharacterId != 0, viewModel.selectedCharacter != nil,
-                           navigationAvatarItemVisible
-                        {
-                            Button(action: {
-                                // 跳转到人物选择页面
-                                selectedItem = "accounts"
-                            }) {
-                                NavigationBarAvatarView(
-                                    characterPortrait: viewModel.characterPortrait,
-                                    isRefreshTokenExpired: isRefreshTokenExpired,
-                                    isRefreshing: viewModel.isRefreshing
-                                )
-                            }
-                            .buttonStyle(ScaleButtonStyle())
-                            .transition(
-                                .asymmetric(
-                                    insertion: .opacity.combined(with: .scale(scale: 0.8)),
-                                    removal: .opacity.combined(with: .scale(scale: 0.8))
-                                ))
-                        }
-                    }
-
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        if isCustomizeMode {
-                            Button(action: {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    isCustomizeMode = false
-                                }
-                            }) {
-                                Text(NSLocalizedString("Features_Exit_Customize", comment: ""))
-                                    .foregroundColor(.blue)
-                            }
-                        } else if currentCharacterId != 0 {
-                            logoutButton
-                        }
-                    }
+                    toolbarContent
                 }
                 .navigationSplitViewColumnWidth(min: 300, ideal: geometry.size.width * 0.35)
                 .onFrameChange(HeaderFrame.self) { frames in
@@ -906,6 +871,15 @@ struct ContentView: View {
             }
         } message: {
             Text(NSLocalizedString("App_Updated_Message", comment: "应用已更新到新版本"))
+        }
+        .sheet(isPresented: $showingSDEUpdateSheet, onDismiss: {
+            // 更新完成后重新检查更新状态
+            Task { @MainActor in
+                await SDEUpdateChecker.shared.checkForUpdates()
+            }
+        }) {
+            SDEUpdateDetailView()
+                .interactiveDismissDisabled()
         }
     }
 
@@ -1619,6 +1593,75 @@ struct ContentView: View {
             .padding(.top, 8)
         }
         .isHidden(!hasVisibleFeatures(in: getFeatureIds(for: "other")))
+    }
+
+    // MARK: - Toolbar Content
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        // 在导航栏左侧显示人物头像（仅当滚动且已登录时）
+        ToolbarItem(placement: .navigationBarLeading) {
+            if currentCharacterId != 0, viewModel.selectedCharacter != nil,
+               navigationAvatarItemVisible
+            {
+                Button(action: {
+                    // 跳转到人物选择页面
+                    selectedItem = "accounts"
+                }) {
+                    NavigationBarAvatarView(
+                        characterPortrait: viewModel.characterPortrait,
+                        isRefreshTokenExpired: isRefreshTokenExpired,
+                        isRefreshing: viewModel.isRefreshing
+                    )
+                }
+                .buttonStyle(ScaleButtonStyle())
+                .transition(
+                    .asymmetric(
+                        insertion: .opacity.combined(with: .scale(scale: 0.8)),
+                        removal: .opacity.combined(with: .scale(scale: 0.8))
+                    ))
+            }
+        }
+
+        // SDE更新下载按钮（仅当有更新时显示，在登出按钮左边）
+        ToolbarItem(placement: .navigationBarTrailing) {
+            if sdeUpdateChecker.updateStatus == .hasUpdate {
+                Button(action: {
+                    showingSDEUpdateSheet = true
+                }) {
+                    HStack(spacing: 4) {
+                        Text(NSLocalizedString("Main_SDE_Update_Available", comment: ""))
+                            .font(.caption)
+                            .foregroundColor(.green)
+                        Image(systemName: "arrow.down.circle.fill")
+                            .resizable()
+                            .frame(width: 20, height: 20)
+                            .foregroundColor(.green)
+                    }
+                }
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .scale(scale: 0.8)),
+                    removal: .opacity.combined(with: .scale(scale: 0.8))
+                ))
+                .animation(.easeInOut(duration: 0.3), value: sdeUpdateChecker.updateStatus)
+            }
+        }
+
+        // 登出按钮或退出自定义模式按钮
+        ToolbarItem(placement: .navigationBarTrailing) {
+            if isCustomizeMode {
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        isCustomizeMode = false
+                    }
+                }) {
+                    Text(NSLocalizedString("Features_Exit_Customize", comment: ""))
+                        .foregroundColor(.blue)
+                }
+            } else if currentCharacterId != 0 {
+                logoutButton
+            }
+        }
     }
 
     private var logoutButton: some View {

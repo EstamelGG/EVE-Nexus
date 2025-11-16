@@ -6,14 +6,16 @@
 //  挖矿体积图表视图组件，用于显示按星系、人物、矿石类型分组的挖矿体积数据
 //
 
-import SwiftUI
 import Charts
+import SwiftUI
 
 // MARK: - 图表配置常量
+
 /// 图表最大显示数据点数量（避免纹理创建失败）
 let MAX_CHART_DATA_POINTS = 50
 
 // MARK: - 颜色工具
+
 /// 加深颜色
 func darkenColor(_ color: Color, factor: CGFloat) -> Color {
     // 将 SwiftUI Color 转换为 UIColor 以提取 RGB 值
@@ -22,15 +24,15 @@ func darkenColor(_ color: Color, factor: CGFloat) -> Color {
     var green: CGFloat = 0
     var blue: CGFloat = 0
     var alpha: CGFloat = 0
-    
+
     uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
-    
+
     // 应用暗化因子
     return Color(red: red * factor, green: green * factor, blue: blue * factor, opacity: alpha)
 }
 
-
 // MARK: - 各星系挖矿量图表（横向柱状图）
+
 struct MiningSystemVolumeChartView: View {
     let entries: [MiningLedgerEntryWithOwner]
     let itemVolumes: [Int: Double]
@@ -51,7 +53,7 @@ struct MiningSystemVolumeChartView: View {
             let totalQuantity = entry.quantity
             let priceData = marketPrices[entry.type_id]
             let totalPrice = (priceData?.averagePrice ?? 0.0) * Double(entry.quantity)
-            
+
             let existing = dataBySystem[entry.solar_system_id] ?? (0.0, Int64(0), 0.0)
             dataBySystem[entry.solar_system_id] = (
                 volume: existing.volume + totalVolume,
@@ -86,7 +88,7 @@ struct MiningSystemVolumeChartView: View {
                 .foregroundColor(.secondary)
         } else {
             Chart {
-                ForEach(Array(systemData.enumerated()), id: \.element.systemId) { index, item in
+                ForEach(Array(systemData.enumerated()), id: \.element.systemId) { _, item in
                     // 根据安全等级获取颜色并加深
                     let baseColor = item.security.map { getSecurityColor($0) } ?? .blue
                     let barColor = darkenColor(baseColor, factor: 0.7)
@@ -145,7 +147,7 @@ struct MiningSystemVolumeChartView: View {
             }
         }
     }
-    
+
     // 格式化显示值
     private func formatValue(_ value: Double) -> String {
         switch sortType {
@@ -160,13 +162,14 @@ struct MiningSystemVolumeChartView: View {
 }
 
 // MARK: - 各人物挖矿量图表（横向柱状图）
+
 struct MiningCharacterVolumeChartView: View {
     let entries: [MiningLedgerEntryWithOwner]
     let itemVolumes: [Int: Double]
     let dataCount: Int // 数据点数量，用于计算固定高度
     let sortType: MiningChartSortType
     let marketPrices: [Int: MarketPriceData]
-    
+
     @State private var characterPortraits: [Int: UIImage] = [:] // 角色头像缓存
 
     // 获取所有角色信息
@@ -185,7 +188,7 @@ struct MiningCharacterVolumeChartView: View {
             let totalQuantity = entry.quantity
             let priceData = marketPrices[entry.type_id]
             let totalPrice = (priceData?.averagePrice ?? 0.0) * Double(entry.quantity)
-            
+
             let existing = dataByCharacter[entryWithOwner.ownerId] ?? (0.0, Int64(0), 0.0)
             dataByCharacter[entryWithOwner.ownerId] = (
                 volume: existing.volume + totalVolume,
@@ -220,7 +223,7 @@ struct MiningCharacterVolumeChartView: View {
                     .foregroundColor(.secondary)
             } else {
                 Chart {
-                    ForEach(Array(characterData.enumerated()), id: \.element.characterId) { index, item in
+                    ForEach(Array(characterData.enumerated()), id: \.element.characterId) { _, item in
                         // 使用浅蓝色并加深
                         let baseColor = Color(red: 115 / 255, green: 203 / 255, blue: 244 / 255) // 浅蓝色
                         let barColor = darkenColor(baseColor, factor: 0.7)
@@ -294,7 +297,7 @@ struct MiningCharacterVolumeChartView: View {
             await loadCharacterPortraits(characterIds: Array(characterIds))
         }
     }
-    
+
     // 格式化显示值
     private func formatValue(_ value: Double) -> String {
         switch sortType {
@@ -306,7 +309,7 @@ struct MiningCharacterVolumeChartView: View {
             return FormatUtil.formatISK(value)
         }
     }
-    
+
     // 加载角色头像
     private func loadCharacterPortraits(characterIds: [Int]) async {
         for characterId in characterIds {
@@ -317,7 +320,7 @@ struct MiningCharacterVolumeChartView: View {
             if alreadyLoaded {
                 continue
             }
-            
+
             do {
                 let portrait = try await CharacterAPI.shared.fetchCharacterPortrait(
                     characterId: characterId,
@@ -335,6 +338,7 @@ struct MiningCharacterVolumeChartView: View {
 }
 
 // MARK: - 各矿石类型挖矿量图表（横向柱状图）
+
 struct MiningOreTypeVolumeChartView: View {
     let entries: [MiningItemSummary]
     let itemVolumes: [Int: Double]
@@ -342,7 +346,7 @@ struct MiningOreTypeVolumeChartView: View {
     let sortType: MiningChartSortType
     let marketPrices: [Int: MarketPriceData]
     let databaseColors: [Int: Color] // 从数据库预加载的矿石颜色
-    
+
     @State private var itemIcons: [Int: Image] = [:] // 矿石图标缓存
     @State private var itemColors: [Int: Color] = [:] // 矿石颜色缓存（优先使用数据库颜色，否则从图标中心点采样）
 
@@ -354,7 +358,7 @@ struct MiningOreTypeVolumeChartView: View {
             let totalQuantity = Double(entry.totalQuantity)
             let priceData = marketPrices[entry.id]
             let totalPrice = (priceData?.averagePrice ?? 0.0) * Double(entry.totalQuantity)
-            
+
             let value: Double
             switch sortType {
             case .volume:
@@ -379,7 +383,7 @@ struct MiningOreTypeVolumeChartView: View {
                     .foregroundColor(.secondary)
             } else {
                 Chart {
-                    ForEach(Array(oreTypeData.enumerated()), id: \.element.typeId) { index, item in
+                    ForEach(Array(oreTypeData.enumerated()), id: \.element.typeId) { _, item in
                         // 从图标提取主题色，如果没有则使用默认绿色，并加深
                         let baseColor = itemColors[item.typeId] ?? .green
                         let barColor = darkenColor(baseColor, factor: 0.7)
@@ -454,7 +458,7 @@ struct MiningOreTypeVolumeChartView: View {
                     let icon = IconManager.shared.loadImage(for: entry.iconFileName)
                     itemIcons[entry.id] = icon
                 }
-                
+
                 // 优先使用数据库中的颜色，如果没有则从图标提取主题色
                 if let dbColor = databaseColors[entry.id] {
                     Logger.debug("使用数据库颜色: typeId=\(entry.id)")
@@ -480,7 +484,7 @@ struct MiningOreTypeVolumeChartView: View {
             }
         }
     }
-    
+
     // 格式化显示值
     private func formatValue(_ value: Double) -> String {
         switch sortType {
@@ -493,4 +497,3 @@ struct MiningOreTypeVolumeChartView: View {
         }
     }
 }
-

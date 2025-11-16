@@ -47,7 +47,9 @@ public class LocalizationManager {
     }
 
     public func processTemplate(
-        targetTemplate: String, englishTemplate: String, esiText: String,
+        targetTemplate: String,
+        englishTemplate: String,
+        esiText: String,
         enTemplateMustMatch: Bool = false
     )
         -> String

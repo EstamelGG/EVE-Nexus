@@ -20,18 +20,56 @@ struct ExtractorStatus {
     let expiringSoonCount: Int // 即将在1小时内停工的采集器数量
 }
 
+// 扩展CharacterPlanetaryInfo来包含角色归属信息
+struct PlanetWithOwner {
+    let planet: CharacterPlanetaryInfo
+    let ownerId: Int // 该行星归属的角色ID
+}
+
 @MainActor
 final class CharacterPlanetaryViewModel: ObservableObject {
     @Published private(set) var planets: [CharacterPlanetaryInfo] = []
     @Published private(set) var planetNames: [Int: String] = [:]
     @Published private(set) var planetTypeInfo: [Int: PlanetTypeInfo] = [:]
     @Published private(set) var systemSecurities: [Int: Double] = [:] // 星系安等信息 [systemId: security]
-    @Published private(set) var earliestExtractorExpiry: [Int: Date] = [:] // 每个行星的最早采集器过期时间 [planetId: Date]
-    @Published private(set) var finalProducts: [Int: [FinalProduct]] = [:] // 每个行星的最终产品 [planetId: [FinalProduct]]
-    @Published private(set) var loadingPlanets: Set<Int> = [] // 正在加载的行星ID集合
-    @Published private(set) var extractorStatus: [Int: ExtractorStatus] = [:] // 每个行星的采集器状态 [planetId: ExtractorStatus]
+    @Published private(set) var earliestExtractorExpiry: [String: Date] = [:] // 每个行星的最早采集器过期时间 [key: Date]，key格式为 "characterId_planetId"
+    @Published private(set) var finalProducts: [String: [FinalProduct]] = [:] // 每个行星的最终产品 [key: [FinalProduct]]，key格式为 "characterId_planetId"
+    @Published private(set) var loadingPlanets: Set<String> = [] // 正在加载的行星ID集合，key格式为 "characterId_planetId"
+    @Published private(set) var extractorStatus: [String: ExtractorStatus] = [:] // 每个行星的采集器状态 [key: ExtractorStatus]，key格式为 "characterId_planetId"
     @Published var isLoading = true
     @Published var errorMessage: String?
+    @Published var loadingProgress: (current: Int, total: Int)? = nil // 加载进度 (已加载/总数)
+
+    // 多人物聚合相关
+    @Published var multiCharacterMode = false {
+        didSet {
+            UserDefaults.standard.set(multiCharacterMode, forKey: "multiCharacterMode_planetary")
+            if initialLoadDone {
+                Task {
+                    await loadPlanets(forceRefresh: true)
+                }
+            }
+        }
+    }
+
+    @Published var selectedCharacterIds: Set<Int> = [] {
+        didSet {
+            UserDefaults.standard.set(
+                Array(selectedCharacterIds), forKey: "selectedCharacterIds_planetary"
+            )
+            if initialLoadDone, multiCharacterMode {
+                Task {
+                    await loadPlanets(forceRefresh: true)
+                }
+            }
+        }
+    }
+
+    @Published var availableCharacters: [(id: Int, name: String)] = []
+
+    var planetsWithOwner: [PlanetWithOwner] = [] // 包含所有者信息的行星列表
+    @Published var planetOwners: [Int: Int] = [:] // 每个行星对应的角色ID [planetId: characterId]
+    @Published var maxPlanetsByCharacter: [Int: Int] = [:] // 每个角色的可支配星球数 [characterId: maxPlanets]
 
     private var loadingTask: Task<Void, Never>?
     private var expiryLoadingTask: Task<Void, Never>?
@@ -40,6 +78,20 @@ final class CharacterPlanetaryViewModel: ObservableObject {
 
     init(characterId: Int?) {
         self.characterId = characterId
+
+        // 从 UserDefaults 读取多人物聚合设置
+        multiCharacterMode = UserDefaults.standard.bool(forKey: "multiCharacterMode_planetary")
+        let savedCharacterIds =
+            UserDefaults.standard.array(forKey: "selectedCharacterIds_planetary") as? [Int] ?? []
+        selectedCharacterIds = Set(savedCharacterIds)
+
+        // 加载可用角色列表
+        availableCharacters = CharacterSkillsUtils.getAllCharacters()
+
+        // 如果没有选中的角色，默认选择当前角色
+        if selectedCharacterIds.isEmpty, let characterId = characterId {
+            selectedCharacterIds.insert(characterId)
+        }
 
         // 在初始化时立即开始加载数据
         loadingTask = Task {
@@ -95,16 +147,76 @@ final class CharacterPlanetaryViewModel: ObservableObject {
                 // 首先加载行星类型信息（静态数据）
                 let planetTypeInfo = try await loadPlanetTypeInfo()
 
-                if let characterId = characterId {
-                    // 获取行星信息（动态数据）
-                    let planetsList = try await CharacterPlanetaryAPI.fetchCharacterPlanetary(
-                        characterId: characterId, forceRefresh: forceRefresh
-                    )
+                // 确定要加载的角色ID列表
+                let characterIdsToLoad: [Int]
+                if multiCharacterMode, selectedCharacterIds.count > 1 {
+                    characterIdsToLoad = Array(selectedCharacterIds)
+                } else if multiCharacterMode, !selectedCharacterIds.isEmpty {
+                    characterIdsToLoad = [selectedCharacterIds.first!]
+                } else if let characterId = characterId {
+                    characterIdsToLoad = [characterId]
+                } else {
+                    characterIdsToLoad = []
+                }
+
+                if !characterIdsToLoad.isEmpty {
+                    var allPlanets: [CharacterPlanetaryInfo] = []
+                    var allPlanetsWithOwner: [PlanetWithOwner] = []
+                    var tempPlanetOwners: [Int: Int] = [:]
+                    let totalCharacters = characterIdsToLoad.count
+
+                    // 初始化加载进度
+                    await MainActor.run {
+                        self.loadingProgress = (current: 0, total: totalCharacters)
+                    }
+
+                    // 并发获取所有角色的行星信息
+                    await withTaskGroup(of: (Int, Result<[CharacterPlanetaryInfo], Error>).self) { group in
+                        for charId in characterIdsToLoad {
+                            group.addTask {
+                                do {
+                                    let planetsList = try await CharacterPlanetaryAPI.fetchCharacterPlanetary(
+                                        characterId: charId, forceRefresh: forceRefresh
+                                    )
+                                    return (charId, .success(planetsList))
+                                } catch {
+                                    Logger.error("获取角色\(charId)行星数据失败: \(error)")
+                                    return (charId, .failure(error))
+                                }
+                            }
+                        }
+
+                        // 使用 Actor 来线程安全地更新进度
+                        let progressActor = ProgressActor(total: totalCharacters) { current, total in
+                            Task { @MainActor in
+                                self.loadingProgress = (current: current, total: total)
+                            }
+                        }
+
+                        // 收集结果
+                        for await (charId, result) in group {
+                            switch result {
+                            case let .success(planetsList):
+                                allPlanets.append(contentsOf: planetsList)
+                                // 为每个行星添加所有者信息
+                                for planet in planetsList {
+                                    allPlanetsWithOwner.append(PlanetWithOwner(planet: planet, ownerId: charId))
+                                    tempPlanetOwners[planet.planetId] = charId
+                                }
+                            case .failure:
+                                // 失败时继续处理，不中断
+                                break
+                            }
+
+                            // 更新进度
+                            await progressActor.increment()
+                        }
+                    }
 
                     if Task.isCancelled { return }
 
                     // 获取所有行星ID
-                    let planetIds = planetsList.map { $0.planetId }
+                    let planetIds = allPlanets.map { $0.planetId }
                     let planetIdsString = planetIds.sorted().map { String($0) }.joined(
                         separator: ",")
 
@@ -114,7 +226,7 @@ final class CharacterPlanetaryViewModel: ObservableObject {
                     var tempSystemSecurities: [Int: Double] = [:]
 
                     // 获取所有唯一的星系ID
-                    let uniqueSystemIds = Array(Set(planetsList.map { $0.solarSystemId }))
+                    let uniqueSystemIds = Array(Set(allPlanets.map { $0.solarSystemId }))
                     if !uniqueSystemIds.isEmpty {
                         let systemIdsString = uniqueSystemIds.sorted().map { String($0) }.joined(separator: ",")
 
@@ -136,14 +248,16 @@ final class CharacterPlanetaryViewModel: ObservableObject {
                     }
 
                     // 获取行星名称
-                    let nameQuery =
-                        "SELECT itemID, itemName FROM celestialNames WHERE itemID IN (\(planetIdsString))"
-                    if case let .success(rows) = DatabaseManager.shared.executeQuery(nameQuery) {
-                        for row in rows {
-                            if let itemId = row["itemID"] as? Int,
-                               let itemName = row["itemName"] as? String
-                            {
-                                tempPlanetNames[itemId] = itemName
+                    if !planetIdsString.isEmpty {
+                        let nameQuery =
+                            "SELECT itemID, itemName FROM celestialNames WHERE itemID IN (\(planetIdsString))"
+                        if case let .success(rows) = DatabaseManager.shared.executeQuery(nameQuery) {
+                            for row in rows {
+                                if let itemId = row["itemID"] as? Int,
+                                   let itemName = row["itemName"] as? String
+                                {
+                                    tempPlanetNames[itemId] = itemName
+                                }
                             }
                         }
                     }
@@ -151,20 +265,30 @@ final class CharacterPlanetaryViewModel: ObservableObject {
                     if Task.isCancelled { return }
 
                     await MainActor.run {
-                        self.planets = planetsList
+                        self.planets = allPlanets
+                        self.planetsWithOwner = allPlanetsWithOwner
+                        self.planetOwners = tempPlanetOwners
                         self.planetNames = tempPlanetNames
                         self.planetTypeInfo = planetTypeInfo
                         self.systemSecurities = tempSystemSecurities
                         self.isLoading = false
                         self.initialLoadDone = true
+                        // 清除加载进度
+                        self.loadingProgress = nil
                     }
 
+                    // 加载技能数据计算可支配星球数
+                    await loadMaxPlanets(characterIds: characterIdsToLoad, forceRefresh: forceRefresh)
+
                     // 异步加载所有行星的采集器过期时间（最多6线程）
-                    await loadExtractorExpiryTimes(characterId: characterId, planets: planetsList)
+                    // 需要为每个行星传递对应的角色ID
+                    await loadExtractorExpiryTimes(planetsWithOwner: allPlanetsWithOwner)
                 } else {
                     // 如果没有选择角色，只加载静态数据
                     await MainActor.run {
                         self.planets = []
+                        self.planetsWithOwner = []
+                        self.planetOwners = [:]
                         self.planetNames = [:]
                         self.planetTypeInfo = planetTypeInfo
                         self.systemSecurities = [:]
@@ -206,24 +330,145 @@ final class CharacterPlanetaryViewModel: ObservableObject {
         return systemSecurities[systemId]
     }
 
-    func getEarliestExtractorExpiry(for planetId: Int) -> Date? {
-        return earliestExtractorExpiry[planetId]
+    /// 生成行星数据的唯一键
+    private func makePlanetKey(characterId: Int, planetId: Int) -> String {
+        return "\(characterId)_\(planetId)"
     }
 
-    func getFinalProducts(for planetId: Int) -> [FinalProduct] {
-        return finalProducts[planetId] ?? []
+    func getEarliestExtractorExpiry(for planetId: Int, characterId: Int? = nil) -> Date? {
+        if let characterId = characterId {
+            return earliestExtractorExpiry[makePlanetKey(characterId: characterId, planetId: planetId)]
+        }
+        // 兼容旧代码：如果没有提供characterId，尝试从planetOwners查找
+        if let ownerId = planetOwners[planetId] {
+            return earliestExtractorExpiry[makePlanetKey(characterId: ownerId, planetId: planetId)]
+        }
+        return nil
     }
 
-    func getExtractorStatus(for planetId: Int) -> ExtractorStatus? {
-        return extractorStatus[planetId]
+    func getFinalProducts(for planetId: Int, characterId: Int? = nil) -> [FinalProduct] {
+        if let characterId = characterId {
+            return finalProducts[makePlanetKey(characterId: characterId, planetId: planetId)] ?? []
+        }
+        // 兼容旧代码：如果没有提供characterId，尝试从planetOwners查找
+        if let ownerId = planetOwners[planetId] {
+            return finalProducts[makePlanetKey(characterId: ownerId, planetId: planetId)] ?? []
+        }
+        return []
     }
 
-    func isLoadingPlanetDetail(for planetId: Int) -> Bool {
-        return loadingPlanets.contains(planetId)
+    func getExtractorStatus(for planetId: Int, characterId: Int? = nil) -> ExtractorStatus? {
+        if let characterId = characterId {
+            return extractorStatus[makePlanetKey(characterId: characterId, planetId: planetId)]
+        }
+        // 兼容旧代码：如果没有提供characterId，尝试从planetOwners查找
+        if let ownerId = planetOwners[planetId] {
+            return extractorStatus[makePlanetKey(characterId: ownerId, planetId: planetId)]
+        }
+        return nil
+    }
+
+    func isLoadingPlanetDetail(for planetId: Int, characterId: Int? = nil) -> Bool {
+        if let characterId = characterId {
+            return loadingPlanets.contains(makePlanetKey(characterId: characterId, planetId: planetId))
+        }
+        // 兼容旧代码：如果没有提供characterId，尝试从planetOwners查找
+        if let ownerId = planetOwners[planetId] {
+            return loadingPlanets.contains(makePlanetKey(characterId: ownerId, planetId: planetId))
+        }
+        return false
+    }
+
+    /// 获取行星对应的角色ID
+    func getPlanetOwner(for planetId: Int) -> Int? {
+        return planetOwners[planetId]
+    }
+
+    /// 加载每个角色的可支配星球数（基于技能ID 2495）
+    private func loadMaxPlanets(characterIds: [Int], forceRefresh: Bool = false) async {
+        var tempMaxPlanets: [Int: Int] = [:]
+
+        // 并发获取所有角色的技能数据
+        await withTaskGroup(of: (Int, Int).self) { group in
+            for charId in characterIds {
+                group.addTask {
+                    do {
+                        let skillsResponse = try await CharacterSkillsAPI.shared.fetchCharacterSkills(
+                            characterId: charId,
+                            forceRefresh: forceRefresh
+                        )
+
+                        // 查找技能ID 2495的等级
+                        var skillLevel = 0
+                        for skill in skillsResponse.skills {
+                            if skill.skill_id == 2495 {
+                                skillLevel = skill.trained_skill_level
+                                break
+                            }
+                        }
+
+                        // 可支配星球数 = 技能等级 + 1
+                        let maxPlanets = skillLevel + 1
+                        return (charId, maxPlanets)
+                    } catch {
+                        Logger.error("获取角色\(charId)技能数据失败: \(error)")
+                        // 如果获取失败，默认设置为1
+                        return (charId, 1)
+                    }
+                }
+            }
+
+            // 收集结果
+            for await (charId, maxPlanets) in group {
+                tempMaxPlanets[charId] = maxPlanets
+            }
+        }
+
+        await MainActor.run {
+            self.maxPlanetsByCharacter = tempMaxPlanets
+        }
+    }
+
+    /// 按人物ID分组行星（用于多人物聚合模式）
+    var groupedPlanetsByCharacter: [(characterId: Int, characterName: String, planets: [CharacterPlanetaryInfo], maxPlanets: Int)] {
+        guard multiCharacterMode, selectedCharacterIds.count > 1 else {
+            return []
+        }
+
+        var grouped: [Int: [CharacterPlanetaryInfo]] = [:]
+
+        // 按角色ID分组
+        for planetWithOwner in planetsWithOwner {
+            if grouped[planetWithOwner.ownerId] == nil {
+                grouped[planetWithOwner.ownerId] = []
+            }
+            grouped[planetWithOwner.ownerId]?.append(planetWithOwner.planet)
+        }
+
+        // 转换为数组并排序：当前登录人物排在第一位，其他按角色ID排序
+        return grouped.compactMap { charId, planets -> (characterId: Int, characterName: String, planets: [CharacterPlanetaryInfo], maxPlanets: Int)? in
+            // 获取角色名称
+            let characterName = availableCharacters.first(where: { $0.id == charId })?.name ?? "Unknown"
+            // 获取可支配星球数，如果未加载则默认为1
+            let maxPlanets = maxPlanetsByCharacter[charId] ?? 1
+            return (characterId: charId, characterName: characterName, planets: planets, maxPlanets: maxPlanets)
+        }
+        .sorted { first, second in
+            // 如果第一个是当前登录人物，排在前面
+            if first.characterId == characterId {
+                return true
+            }
+            // 如果第二个是当前登录人物，排在前面
+            if second.characterId == characterId {
+                return false
+            }
+            // 其他情况按角色ID排序
+            return first.characterId < second.characterId
+        }
     }
 
     /// 异步加载所有行星的采集器过期时间，最多6个并发线程
-    private func loadExtractorExpiryTimes(characterId: Int, planets: [CharacterPlanetaryInfo]) async {
+    private func loadExtractorExpiryTimes(planetsWithOwner: [PlanetWithOwner]) async {
         // 取消之前的任务
         expiryLoadingTask?.cancel()
 
@@ -238,14 +483,16 @@ final class CharacterPlanetaryViewModel: ObservableObject {
 
             // 初始化加载状态：将所有行星标记为正在加载
             await MainActor.run {
-                self.loadingPlanets = Set(planets.map { $0.planetId })
+                self.loadingPlanets = Set(planetsWithOwner.map { planetWithOwner in
+                    self.makePlanetKey(characterId: planetWithOwner.ownerId, planetId: planetWithOwner.planet.planetId)
+                })
             }
 
             // 使用 Actor 来限制并发数
             let limiter = ConcurrencyLimiter(maxConcurrent: 6)
 
-            await withTaskGroup(of: (Int, Date?, [FinalProduct], ExtractorStatus?).self) { group in
-                for planet in planets {
+            await withTaskGroup(of: (String, Date?, [FinalProduct], ExtractorStatus?).self) { group in
+                for planetWithOwner in planetsWithOwner {
                     if Task.isCancelled { break }
 
                     group.addTask {
@@ -256,11 +503,13 @@ final class CharacterPlanetaryViewModel: ObservableObject {
                             }
                         }
 
+                        let planetKey = "\(planetWithOwner.ownerId)_\(planetWithOwner.planet.planetId)"
+
                         do {
                             // 获取行星详情
                             let detail = try await CharacterPlanetaryAPI.fetchPlanetaryDetail(
-                                characterId: characterId,
-                                planetId: planet.planetId,
+                                characterId: planetWithOwner.ownerId,
+                                planetId: planetWithOwner.planet.planetId,
                                 forceRefresh: false
                             )
 
@@ -310,30 +559,30 @@ final class CharacterPlanetaryViewModel: ObservableObject {
                                 expiringSoonCount: expiringSoonCount
                             )
 
-                            return (planet.planetId, earliestExpiry, finalProducts, extractorStatus)
+                            return (planetKey, earliestExpiry, finalProducts, extractorStatus)
                         } catch {
-                            Logger.warning("获取行星 \(planet.planetId) 的采集器过期时间失败: \(error.localizedDescription)")
-                            return (planet.planetId, nil, [], nil)
+                            Logger.warning("获取行星 \(planetWithOwner.planet.planetId) (角色: \(planetWithOwner.ownerId)) 的采集器过期时间失败: \(error.localizedDescription)")
+                            return (planetKey, nil, [], nil)
                         }
                     }
                 }
 
                 // 收集结果并更新UI
-                var expiryResults: [Int: Date] = [:]
-                var productResults: [Int: [FinalProduct]] = [:]
-                var statusResults: [Int: ExtractorStatus] = [:]
-                var completedPlanetIds = Set<Int>()
+                var expiryResults: [String: Date] = [:]
+                var productResults: [String: [FinalProduct]] = [:]
+                var statusResults: [String: ExtractorStatus] = [:]
+                var completedPlanetKeys = Set<String>()
 
-                for await (planetId, expiry, products, status) in group {
-                    completedPlanetIds.insert(planetId)
+                for await (planetKey, expiry, products, status) in group {
+                    completedPlanetKeys.insert(planetKey)
                     if let expiry = expiry {
-                        expiryResults[planetId] = expiry
+                        expiryResults[planetKey] = expiry
                     }
                     if !products.isEmpty {
-                        productResults[planetId] = products
+                        productResults[planetKey] = products
                     }
                     if let status = status {
-                        statusResults[planetId] = status
+                        statusResults[planetKey] = status
                     }
                 }
 
@@ -343,7 +592,7 @@ final class CharacterPlanetaryViewModel: ObservableObject {
                         self.finalProducts = productResults
                         self.extractorStatus = statusResults
                         // 从加载集合中移除已完成的行星
-                        self.loadingPlanets.subtract(completedPlanetIds)
+                        self.loadingPlanets.subtract(completedPlanetKeys)
                     }
                 }
             }
@@ -536,6 +785,23 @@ actor ConcurrencyLimiter {
     }
 }
 
+// 进度更新 Actor（用于线程安全地更新进度）
+actor ProgressActor {
+    private var current: Int = 0
+    private let total: Int
+    private let onUpdate: (Int, Int) -> Void
+
+    init(total: Int, onUpdate: @escaping (Int, Int) -> Void) {
+        self.total = total
+        self.onUpdate = onUpdate
+    }
+
+    func increment() {
+        current += 1
+        onUpdate(current, total)
+    }
+}
+
 // 用于存储选中星球信息的结构
 struct SelectedPlanet {
     let characterId: Int
@@ -547,6 +813,7 @@ struct CharacterPlanetaryView: View {
     let characterId: Int?
     @StateObject private var viewModel: CharacterPlanetaryViewModel
     @State private var selectedPlanet: SelectedPlanet?
+    @State private var showSettingsSheet = false
 
     init(characterId: Int?) {
         self.characterId = characterId
@@ -589,15 +856,14 @@ struct CharacterPlanetaryView: View {
             }
             if viewModel.isLoading {
                 Section(header: Text(NSLocalizedString("Main_Planetary_of_Mine", comment: ""))) {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                        Spacer()
+                    if let progress = viewModel.loadingProgress, progress.total > 1 {
+                        Text(String(format: NSLocalizedString("Planetary_Loading_Progress", comment: "已加载人物 %d/%d"), progress.current, progress.total))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
                     }
                 }
             } else {
-                if characterId != nil {
+                if characterId != nil || viewModel.multiCharacterMode {
                     if viewModel.planets.isEmpty {
                         Section(
                             header: Text(NSLocalizedString("Main_Planetary_of_Mine", comment: ""))
@@ -605,133 +871,84 @@ struct CharacterPlanetaryView: View {
                             NoDataSection()
                         }
                     } else {
-                        Section(
-                            header: Text(NSLocalizedString("Main_Planetary_of_Mine", comment: "")),
-                            footer: Text(
-                                String(
-                                    format: NSLocalizedString(
-                                        "Main_Planetary_Total_Count", comment: ""
-                                    ),
-                                    viewModel.planets.count
-                                ))
-                        ) {
-                            ForEach(viewModel.planets, id: \.planetId) { planet in
-                                Button {
-                                    selectedPlanet = SelectedPlanet(
-                                        characterId: characterId!,
-                                        planetId: planet.planetId,
-                                        planetName: viewModel.getPlanetName(for: planet.planetId)
-                                    )
-                                } label: {
-                                    HStack {
-                                        if let typeInfo = viewModel.getPlanetTypeInfo(
-                                            for: planet.planetType)
-                                        {
-                                            Image(
-                                                uiImage: IconManager.shared.loadUIImage(
-                                                    for: typeInfo.icon)
+                        // 多人物聚合模式：按人物分组显示
+                        if viewModel.multiCharacterMode, viewModel.selectedCharacterIds.count > 1 {
+                            let groupedPlanets = viewModel.groupedPlanetsByCharacter
+                            if groupedPlanets.isEmpty {
+                                Section(
+                                    header: Text(NSLocalizedString("Main_Planetary_of_Mine", comment: ""))
+                                ) {
+                                    NoDataSection()
+                                }
+                            } else {
+                                ForEach(groupedPlanets, id: \.characterId) { group in
+                                    Section(
+                                        header: HStack(spacing: 8) {
+                                            CharacterPortraitView(characterId: group.characterId)
+                                                .frame(width: 24, height: 24)
+                                            Text(group.characterName)
+                                                .fontWeight(.semibold)
+                                                .font(.system(size: 18))
+                                                .foregroundColor(.primary)
+                                            Spacer()
+                                            Text("\(group.planets.count)/\(group.maxPlanets)")
+                                                .font(.caption)
+                                                .foregroundColor(.secondary)
+                                        }
+                                        .textCase(.none)
+                                    ) {
+                                        ForEach(group.planets, id: \.planetId) { planet in
+                                            PlanetRow(
+                                                planet: planet,
+                                                viewModel: viewModel,
+                                                characterId: group.characterId,
+                                                onPlanetSelected: { planetId, planetName in
+                                                    selectedPlanet = SelectedPlanet(
+                                                        characterId: group.characterId,
+                                                        planetId: planetId,
+                                                        planetName: planetName
+                                                    )
+                                                }
                                             )
-                                            .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .cornerRadius(6)
-                                        }
-
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            HStack(spacing: 4) {
-                                                // 显示星系安等（如果有）
-                                                if let security = viewModel.getSystemSecurity(for: planet.solarSystemId) {
-                                                    Text(formatSystemSecurity(security))
-                                                        .foregroundColor(getSecurityColor(security))
-                                                        .font(.system(.headline, design: .monospaced))
-                                                }
-                                                Text(viewModel.getPlanetName(for: planet.planetId))
-                                                    .font(.headline)
-                                                    .foregroundColor(.primary)
-                                            }
-                                            .contextMenu {
-                                                let planetName = viewModel.getPlanetName(for: planet.planetId)
-                                                Button {
-                                                    UIPasteboard.general.string = planetName
-                                                } label: {
-                                                    Label(
-                                                        NSLocalizedString("Misc_Copy_Name", comment: ""),
-                                                        systemImage: "doc.on.doc"
-                                                    )
-                                                }
-                                            }
-
-                                            if let typeInfo = viewModel.getPlanetTypeInfo(
-                                                for: planet.planetType)
-                                            {
-                                                Text(typeInfo.name)
-                                                    .font(.subheadline)
-                                                    .foregroundColor(.gray)
-                                            } else {
-                                                Text(
-                                                    NSLocalizedString(
-                                                        "Main_Planetary_Unknown_Type", comment: ""
-                                                    )
-                                                )
-                                                .font(.subheadline)
-                                                .foregroundColor(.gray)
-                                            }
-
-                                            // 显示采集器停工状态
-                                            if let status = viewModel.getExtractorStatus(for: planet.planetId), status.totalCount > 0 {
-                                                if status.expiredCount > 0 {
-                                                    // 显示已停工的采集器数量
-                                                    Text(String(format: NSLocalizedString("Planet_Extractor_Expired_Count", comment: "%d/%d个采集器已停工"), status.expiredCount, status.totalCount))
-                                                        .font(.caption2)
-                                                        .foregroundColor(.red)
-                                                } else if status.expiringSoonCount > 0 {
-                                                    // 显示即将停工的采集器数量
-                                                    Text(String(format: NSLocalizedString("Planet_Extractor_Expiring_Soon_Count", comment: "%d/%d个采集器即将停工"), status.expiringSoonCount, status.totalCount))
-                                                        .font(.caption2)
-                                                        .foregroundColor(.red)
-                                                } else if let expiryDate = viewModel.getEarliestExtractorExpiry(for: planet.planetId) {
-                                                    // 显示采集器最早过期时间
-                                                    let timeRemaining = expiryDate.timeIntervalSince(Date())
-                                                    if timeRemaining > 0 {
-                                                        Text("\(NSLocalizedString("Planet_Detail_Extractor_Expiry_Time", comment: "")): \(formatTimeRemaining(timeRemaining))")
-                                                            .font(.caption2)
-                                                            .foregroundColor(timeRemaining < 1 * 24 * 3600 ? .red : .green)
-                                                    } else {
-                                                        Text(NSLocalizedString("Planet_Detail_Extractor_Expired", comment: ""))
-                                                            .font(.caption2)
-                                                            .foregroundColor(.red)
-                                                    }
-                                                }
-                                            } else if let expiryDate = viewModel.getEarliestExtractorExpiry(for: planet.planetId) {
-                                                // 兼容旧逻辑：如果没有状态信息，显示过期时间
-                                                let timeRemaining = expiryDate.timeIntervalSince(Date())
-                                                if timeRemaining > 0 {
-                                                    Text("\(NSLocalizedString("Planet_Detail_Extractor_Expiry_Time", comment: "")): \(formatTimeRemaining(timeRemaining))")
-                                                        .font(.caption2)
-                                                        .foregroundColor(timeRemaining < 1 * 24 * 3600 ? .red : .green)
-                                                } else {
-                                                    Text(NSLocalizedString("Planet_Detail_Extractor_Expired", comment: ""))
-                                                        .font(.caption2)
-                                                        .foregroundColor(.red)
-                                                }
-                                            }
-                                        }
-
-                                        Spacer()
-
-                                        // 显示加载指示器或最终产品图标
-                                        if viewModel.isLoadingPlanetDetail(for: planet.planetId) {
-                                            ProgressView()
-                                                .frame(width: 28, height: 28)
-                                        } else {
-                                            let products = viewModel.getFinalProducts(for: planet.planetId)
-                                            if !products.isEmpty {
-                                                FinalProductsGridView(products: products)
-                                            }
                                         }
                                     }
-                                    .contentShape(Rectangle())
                                 }
-                                .buttonStyle(.plain)
+                            }
+                        } else {
+                            // 单人物模式：保持原有显示方式
+                            let currentCharacterId = viewModel.multiCharacterMode && !viewModel.selectedCharacterIds.isEmpty
+                                ? viewModel.selectedCharacterIds.first!
+                                : characterId
+                            let maxPlanets = currentCharacterId != nil ? (viewModel.maxPlanetsByCharacter[currentCharacterId!] ?? 1) : 1
+
+                            Section(
+                                header: HStack {
+                                    Text(NSLocalizedString("Main_Planetary_of_Mine", comment: ""))
+                                        .fontWeight(.semibold)
+                                        .font(.system(size: 18))
+                                        .foregroundColor(.primary)
+                                    Spacer()
+                                    Text("\(viewModel.planets.count)/\(maxPlanets)")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                .textCase(.none)
+                            ) {
+                                ForEach(viewModel.planets, id: \.planetId) { planet in
+                                    PlanetRow(
+                                        planet: planet,
+                                        viewModel: viewModel,
+                                        characterId: viewModel.getPlanetOwner(for: planet.planetId) ?? characterId ?? 0,
+                                        onPlanetSelected: { planetId, planetName in
+                                            let planetOwnerId = viewModel.getPlanetOwner(for: planetId) ?? characterId ?? 0
+                                            selectedPlanet = SelectedPlanet(
+                                                characterId: planetOwnerId,
+                                                planetId: planetId,
+                                                planetName: planetName
+                                            )
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -741,10 +958,31 @@ struct CharacterPlanetaryView: View {
         .navigationTitle(NSLocalizedString("Main_Planetary_Title", comment: ""))
         .refreshable {
             // 清理星球详情缓存，防止数据不同步
-            if let characterId = characterId {
-                CharacterPlanetaryAPI.clearPlanetDetailCache(characterId: characterId)
+            let characterIdsToClear: [Int]
+            if viewModel.multiCharacterMode, viewModel.selectedCharacterIds.count > 1 {
+                characterIdsToClear = Array(viewModel.selectedCharacterIds)
+            } else if let characterId = characterId {
+                characterIdsToClear = [characterId]
+            } else {
+                characterIdsToClear = []
+            }
+
+            for charId in characterIdsToClear {
+                CharacterPlanetaryAPI.clearPlanetDetailCache(characterId: charId)
             }
             await viewModel.loadPlanets(forceRefresh: true)
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    showSettingsSheet = true
+                }) {
+                    Image(systemName: "gear")
+                }
+            }
+        }
+        .sheet(isPresented: $showSettingsSheet) {
+            PlanetarySettingsSheet(viewModel: viewModel)
         }
         .sheet(item: $selectedPlanet) { planet in
             NavigationStack {
@@ -768,6 +1006,111 @@ struct CharacterPlanetaryView: View {
                 }
             }
             .interactiveDismissDisabled()
+        }
+    }
+}
+
+// 行星设置界面
+struct PlanetarySettingsSheet: View {
+    @ObservedObject var viewModel: CharacterPlanetaryViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section {
+                    Toggle(isOn: $viewModel.multiCharacterMode) {
+                        VStack(alignment: .leading) {
+                            Text(
+                                NSLocalizedString(
+                                    "Planetary_Settings_Multi_Character", comment: "多人物聚合"
+                                ))
+                            Text(
+                                NSLocalizedString(
+                                    "Planetary_Settings_Multi_Character_Description",
+                                    comment: "聚合显示多个角色的行星数据"
+                                )
+                            )
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        }
+                    }
+                }
+
+                // 只有在多人物模式开启时才显示角色选择
+                if viewModel.multiCharacterMode {
+                    Section(
+                        header: Text(
+                            NSLocalizedString(
+                                "Planetary_Settings_Select_Characters", comment: "选择角色"
+                            ))
+                    ) {
+                        ForEach(viewModel.availableCharacters, id: \.id) { character in
+                            Button(action: {
+                                if viewModel.selectedCharacterIds.contains(character.id) {
+                                    viewModel.selectedCharacterIds.remove(character.id)
+                                } else {
+                                    viewModel.selectedCharacterIds.insert(character.id)
+                                }
+                            }) {
+                                HStack {
+                                    // 角色头像
+                                    CharacterPortraitView(characterId: character.id)
+                                        .padding(.trailing, 8)
+
+                                    Text(character.name)
+                                        .foregroundColor(.primary)
+
+                                    Spacer()
+
+                                    if viewModel.selectedCharacterIds.contains(character.id) {
+                                        Image(systemName: "checkmark")
+                                            .foregroundColor(.blue)
+                                    }
+                                }
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+
+                        // 全选/全不选按钮
+                        Button(action: {
+                            if viewModel.selectedCharacterIds.count
+                                == viewModel.availableCharacters.count
+                            {
+                                viewModel.selectedCharacterIds = []
+                            } else {
+                                viewModel.selectedCharacterIds = Set(
+                                    viewModel.availableCharacters.map { $0.id })
+                            }
+                        }) {
+                            HStack {
+                                Text(NSLocalizedString("Planetary_Filter_Select_All", comment: "全选"))
+                                Spacer()
+                                if viewModel.selectedCharacterIds.count
+                                    == viewModel.availableCharacters.count
+                                {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(.blue)
+                                } else {
+                                    Image(systemName: "circle")
+                                        .foregroundColor(.secondary)
+                                }
+                            }
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+            }
+            .navigationTitle(NSLocalizedString("Planetary_Settings_Title", comment: "设置"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(NSLocalizedString("Common_Done", comment: "完成")) {
+                        dismiss()
+                    }
+                }
+            }
         }
     }
 }
@@ -854,6 +1197,119 @@ struct ProductIcon: View {
             .resizable()
             .frame(width: size, height: size)
             .cornerRadius(4)
+    }
+}
+
+// 行星行组件
+struct PlanetRow: View {
+    let planet: CharacterPlanetaryInfo
+    let viewModel: CharacterPlanetaryViewModel
+    let characterId: Int
+    let onPlanetSelected: (Int, String) -> Void
+
+    var body: some View {
+        Button {
+            let planetName = viewModel.getPlanetName(for: planet.planetId)
+            onPlanetSelected(planet.planetId, planetName)
+        } label: {
+            HStack {
+                if let typeInfo = viewModel.getPlanetTypeInfo(for: planet.planetType) {
+                    Image(uiImage: IconManager.shared.loadUIImage(for: typeInfo.icon))
+                        .resizable()
+                        .frame(width: 32, height: 32)
+                        .cornerRadius(6)
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 4) {
+                        // 显示星系安等（如果有）
+                        if let security = viewModel.getSystemSecurity(for: planet.solarSystemId) {
+                            Text(formatSystemSecurity(security))
+                                .foregroundColor(getSecurityColor(security))
+                                .font(.system(.headline, design: .monospaced))
+                        }
+                        Text(viewModel.getPlanetName(for: planet.planetId))
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                    }
+                    .contextMenu {
+                        let planetName = viewModel.getPlanetName(for: planet.planetId)
+                        Button {
+                            UIPasteboard.general.string = planetName
+                        } label: {
+                            Label(
+                                NSLocalizedString("Misc_Copy_Name", comment: ""),
+                                systemImage: "doc.on.doc"
+                            )
+                        }
+                    }
+
+                    if let typeInfo = viewModel.getPlanetTypeInfo(for: planet.planetType) {
+                        Text(typeInfo.name)
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    } else {
+                        Text(NSLocalizedString("Main_Planetary_Unknown_Type", comment: ""))
+                            .font(.subheadline)
+                            .foregroundColor(.gray)
+                    }
+
+                    // 显示采集器停工状态
+                    if let status = viewModel.getExtractorStatus(for: planet.planetId, characterId: characterId), status.totalCount > 0 {
+                        if status.expiredCount > 0 {
+                            // 显示已停工的采集器数量
+                            Text(String(format: NSLocalizedString("Planet_Extractor_Expired_Count", comment: "%d/%d个采集器已停工"), status.expiredCount, status.totalCount))
+                                .font(.caption2)
+                                .foregroundColor(.red)
+                        } else if status.expiringSoonCount > 0 {
+                            // 显示即将停工的采集器数量
+                            Text(String(format: NSLocalizedString("Planet_Extractor_Expiring_Soon_Count", comment: "%d/%d个采集器即将停工"), status.expiringSoonCount, status.totalCount))
+                                .font(.caption2)
+                                .foregroundColor(.red)
+                        } else if let expiryDate = viewModel.getEarliestExtractorExpiry(for: planet.planetId, characterId: characterId) {
+                            // 显示采集器最早过期时间
+                            let timeRemaining = expiryDate.timeIntervalSince(Date())
+                            if timeRemaining > 0 {
+                                Text("\(NSLocalizedString("Planet_Detail_Extractor_Expiry_Time", comment: "")): \(formatTimeRemaining(timeRemaining))")
+                                    .font(.caption2)
+                                    .foregroundColor(timeRemaining < 1 * 24 * 3600 ? .red : .green)
+                            } else {
+                                Text(NSLocalizedString("Planet_Detail_Extractor_Expired", comment: ""))
+                                    .font(.caption2)
+                                    .foregroundColor(.red)
+                            }
+                        }
+                    } else if let expiryDate = viewModel.getEarliestExtractorExpiry(for: planet.planetId, characterId: characterId) {
+                        // 兼容旧逻辑：如果没有状态信息，显示过期时间
+                        let timeRemaining = expiryDate.timeIntervalSince(Date())
+                        if timeRemaining > 0 {
+                            Text("\(NSLocalizedString("Planet_Detail_Extractor_Expiry_Time", comment: "")): \(formatTimeRemaining(timeRemaining))")
+                                .font(.caption2)
+                                .foregroundColor(timeRemaining < 1 * 24 * 3600 ? .red : .green)
+                        } else {
+                            Text(NSLocalizedString("Planet_Detail_Extractor_Expired", comment: ""))
+                                .font(.caption2)
+                                .foregroundColor(.red)
+                        }
+                    }
+                }
+
+                Spacer()
+
+                // 显示加载指示器或最终产品图标
+                if viewModel.isLoadingPlanetDetail(for: planet.planetId, characterId: characterId) {
+                    ProgressView()
+                        .frame(width: 28, height: 28)
+                } else {
+                    let products = viewModel.getFinalProducts(for: planet.planetId, characterId: characterId)
+                    if !products.isEmpty {
+                        FinalProductsGridView(products: products)
+                    }
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 }
 
