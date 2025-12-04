@@ -1,8 +1,8 @@
 import Foundation
 
 // 战斗记录数据处理类
-class KbEvetoolAPI {
-    static let shared = KbEvetoolAPI()
+class zKbToolAPI {
+    static let shared = zKbToolAPI()
     private init() {}
 
     // 格式化时间 为 UTC+0
@@ -75,7 +75,7 @@ class KbEvetoolAPI {
             FROM types
             WHERE (name LIKE ?1 OR en_name like ?1)
             AND published = 1
-            AND categoryID IN (6, 65, 87) -- evetools只支持这几个分类
+            AND categoryID IN (6, 65, 87)
             order by categoryID
             LIMIT 20
         """
@@ -106,7 +106,7 @@ class KbEvetoolAPI {
             let url = URL(string: "https://zkillboard.com/autocomplete/\(encodedText)/")
         else {
             throw NSError(
-                domain: "KbEvetoolAPI", code: -1, userInfo: [NSLocalizedDescriptionKey: "无效的搜索URL"]
+                domain: "zkillboard", code: -1, userInfo: [NSLocalizedDescriptionKey: "无效的搜索URL"]
             )
         }
 
@@ -125,7 +125,7 @@ class KbEvetoolAPI {
         // 解析 JSON 响应
         guard let zkbResults = try? JSONDecoder().decode([ZKBSearchResult].self, from: data) else {
             throw NSError(
-                domain: "KbEvetoolAPI", code: -2,
+                domain: "zkillboard", code: -2,
                 userInfo: [NSLocalizedDescriptionKey: "解析JSON失败: \(data)"]
             )
         }
@@ -182,7 +182,7 @@ class KbEvetoolAPI {
 
         guard let url = URL(string: urlString) else {
             throw NSError(
-                domain: "KbEvetoolAPI", code: -1,
+                domain: "zkillboard", code: -1,
                 userInfo: [NSLocalizedDescriptionKey: "无效的 URL: \(urlString)"]
             )
         }
@@ -209,7 +209,7 @@ class KbEvetoolAPI {
         } catch {
             Logger.error("解析 zkillboard JSON 失败: \(error)")
             throw NSError(
-                domain: "KbEvetoolAPI", code: -2,
+                domain: "zkillboard", code: -2,
                 userInfo: [NSLocalizedDescriptionKey: "解析JSON失败: \(error.localizedDescription)"]
             )
         }
@@ -251,7 +251,7 @@ class KbEvetoolAPI {
 
         guard let url = URL(string: urlString) else {
             throw NSError(
-                domain: "KbEvetoolAPI", code: -1,
+                domain: "zkillboard", code: -1,
                 userInfo: [NSLocalizedDescriptionKey: "无效的 URL: \(urlString)"]
             )
         }
@@ -278,7 +278,54 @@ class KbEvetoolAPI {
         } catch {
             Logger.error("解析 zkillboard JSON 失败: \(error)")
             throw NSError(
-                domain: "KbEvetoolAPI", code: -2,
+                domain: "zkillboard", code: -2,
+                userInfo: [NSLocalizedDescriptionKey: "解析JSON失败: \(error.localizedDescription)"]
+            )
+        }
+    }
+
+    // 根据 killmail ID 从 zkillboard 获取单个战斗日志信息（包含 hash）
+    func fetchZKBKillMailByID(killmailId: Int) async throws -> ZKBKillMailEntry {
+        Logger.debug("准备从 zkillboard 获取战斗日志 - killmail_id: \(killmailId)")
+
+        let urlString = "https://zkillboard.com/api/kills/killID/\(killmailId)/"
+
+        guard let url = URL(string: urlString) else {
+            throw NSError(
+                domain: "zkillboard", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: "无效的 URL: \(urlString)"]
+            )
+        }
+
+        let headers = [
+            "Accept-Encoding": "gzip",
+            "Accept": "application/json",
+            "User-Agent": "Tritanium Maintainer: tritanium_support@icloud.com",
+        ]
+
+        Logger.debug("开始发送 zkillboard 网络请求...")
+        let data = try await NetworkManager.shared.fetchData(
+            from: url,
+            headers: headers,
+            timeouts: [3, 3, 5, 5, 10]
+        )
+        Logger.debug("收到 zkillboard 响应，数据大小: \(data.count) 字节")
+
+        // 解析 JSON 数据（返回的是数组，取第一个元素）
+        do {
+            let entries = try JSONDecoder().decode([ZKBKillMailEntry].self, from: data)
+            guard let entry = entries.first else {
+                throw NSError(
+                    domain: "zkillboard", code: -3,
+                    userInfo: [NSLocalizedDescriptionKey: "未找到 killmail_id: \(killmailId) 的数据"]
+                )
+            }
+            Logger.debug("成功获取 killmail 信息 - killmail_id: \(killmailId), hash: \(entry.zkb.hash)")
+            return entry
+        } catch {
+            Logger.error("解析 zkillboard JSON 失败: \(error)")
+            throw NSError(
+                domain: "zkillboard", code: -2,
                 userInfo: [NSLocalizedDescriptionKey: "解析JSON失败: \(error.localizedDescription)"]
             )
         }

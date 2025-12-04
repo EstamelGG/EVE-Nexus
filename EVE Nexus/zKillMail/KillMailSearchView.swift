@@ -194,7 +194,7 @@ struct BRKillMailSearchView: View {
 
         do {
             // 加载第一页 zkillboard 数据
-            let zkbEntries = try await KbEvetoolAPI.shared.fetchZKBKillMailsBySearchResult(
+            let zkbEntries = try await zKbToolAPI.shared.fetchZKBKillMailsBySearchResult(
                 result: selectedResult, page: 1, filter: selectedFilter
             )
 
@@ -241,7 +241,7 @@ struct BRKillMailSearchView: View {
             guard let selectedResult = viewModel.selectedResult else { return }
 
             do {
-                let nextPageEntries = try await KbEvetoolAPI.shared.fetchZKBKillMailsBySearchResult(
+                let nextPageEntries = try await zKbToolAPI.shared.fetchZKBKillMailsBySearchResult(
                     result: selectedResult, page: nextPage, filter: selectedFilter
                 )
 
@@ -603,7 +603,7 @@ class BRKillMailSearchViewModel: ObservableObject {
         .inventory_type, .character, .corporation, .alliance,
         .solar_system, .region,
     ]
-    let kbAPI = KbEvetoolAPI.shared
+    let kbAPI = zKbToolAPI.shared
 
     private var searchTask: Task<Void, Never>?
 
@@ -655,7 +655,7 @@ class BRKillMailSearchViewModel: ObservableObject {
         var networkResults: [SearchResultCategory: [SearchResult]] = [:]
         do {
             // 使用searchEveItems进行搜索
-            let apiResults = try await KbEvetoolAPI.shared.searchEveItems(
+            let apiResults = try await zKbToolAPI.shared.searchEveItems(
                 characterId: characterId,
                 searchText: searchText
             )

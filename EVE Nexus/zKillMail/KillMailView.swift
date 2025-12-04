@@ -25,7 +25,7 @@ class KillMailViewModel: ObservableObject {
     private var cachedData: [KillMailFilter: CachedKillMailData] = [:]
     private let characterId: Int
     private let databaseManager = DatabaseManager.shared
-    let kbAPI = KbEvetoolAPI.shared
+    let kbAPI = zKbToolAPI.shared
     private var currentIndex = 0
 
     // 为每个 filter 维护分页状态
@@ -139,7 +139,7 @@ class KillMailViewModel: ObservableObject {
         await loadData(for: filter)
     }
 
-    private func loadData(for filter: KillMailFilter, forceRefresh: Bool = false) async {
+    private func loadData(for filter: KillMailFilter, forceRefresh: Bool = false, updateUI: Bool = true) async {
         guard characterId > 0 else {
             await MainActor.run {
                 errorMessage = String(
@@ -171,12 +171,16 @@ class KillMailViewModel: ObservableObject {
 
                 await MainActor.run {
                     self.cachedData[filter] = cachedKillMailData
-                    self.killMails = entries
-                    self.shipInfoMap = shipInfo
-                    self.allianceIconMap = allianceIcons
-                    self.corporationIconMap = corporationIcons
+                    if updateUI {
+                        self.killMails = entries
+                    }
+                    self.shipInfoMap.merge(shipInfo) { current, _ in current }
+                    self.allianceIconMap.merge(allianceIcons) { current, _ in current }
+                    self.corporationIconMap.merge(corporationIcons) { current, _ in current }
                     self.hasMoreData = true
-                    self.isLoading = false
+                    if updateUI {
+                        self.isLoading = false
+                    }
                 }
 
                 Logger.debug("从缓存文件加载数据成功 - filter: \(filter)")
@@ -310,12 +314,16 @@ class KillMailViewModel: ObservableObject {
 
             await MainActor.run {
                 self.cachedData[filter] = cachedData
-                self.killMails = entries
-                self.shipInfoMap = shipInfo
-                self.allianceIconMap = allianceIcons
-                self.corporationIconMap = corporationIcons
+                if updateUI {
+                    self.killMails = entries
+                }
+                self.shipInfoMap.merge(shipInfo) { current, _ in current }
+                self.allianceIconMap.merge(allianceIcons) { current, _ in current }
+                self.corporationIconMap.merge(corporationIcons) { current, _ in current }
                 self.hasMoreData = hasMore
-                self.isLoading = false
+                if updateUI {
+                    self.isLoading = false
+                }
                 // 在主线程上更新 paginationState
                 self.paginationState[filter] = finalState
             }
@@ -334,16 +342,18 @@ class KillMailViewModel: ObservableObject {
         }
     }
 
-    func refreshData(for filter: KillMailFilter) async {
+    func refreshData(for filter: KillMailFilter, updateUI: Bool = true) async {
         // 强制刷新：重置分页状态，清空列表，就像重新进入页面一样
         await MainActor.run {
             self.paginationState[filter] = FilterPaginationState()
-            self.killMails = []
+            if updateUI {
+                self.killMails = []
+            }
             self.hasMoreData = true
         }
 
         // 重新加载数据（不使用缓存，强制从 zkillboard API 获取）
-        await loadData(for: filter, forceRefresh: true)
+        await loadData(for: filter, forceRefresh: true, updateUI: updateUI)
     }
 
     private func loadOrganizationIcons(for mails: [[String: Any]]) async -> (
@@ -800,10 +810,16 @@ struct BRKillMailView: View {
                 group.addTask {
                     await viewModel.refreshStats()
                 }
-                // 并行刷新三个子页面
+                // 刷新当前选中的类别，并更新UI
+                group.addTask {
+                    await viewModel.refreshData(for: selectedFilter, updateUI: true)
+                }
+                // 并行刷新其他两个类别，只更新缓存，不更新UI
                 for filter in [KillMailFilter.all, KillMailFilter.kill, KillMailFilter.loss] {
-                    group.addTask {
-                        await viewModel.refreshData(for: filter)
+                    if filter != selectedFilter {
+                        group.addTask {
+                            await viewModel.refreshData(for: filter, updateUI: false)
+                        }
                     }
                 }
             }
@@ -816,7 +832,7 @@ struct BRKillMailView: View {
 
 struct BRKillMailCell: View {
     let killmail: [String: Any]
-    let kbAPI: KbEvetoolAPI
+    let kbAPI: zKbToolAPI
     let shipInfo: (name: String, iconFileName: String)
     let allianceIcon: UIImage?
     let corporationIcon: UIImage?

@@ -13,9 +13,11 @@ struct BRKillMailDetailView: View {
     @State private var destroyedValue: Double = 0
     @State private var droppedValue: Double = 0
     @State private var totalValue: Double = 0
+    @State private var fittedValue: Double = 0
     @State private var itemInfoCache: [Int: (name: String, iconFileName: String, categoryID: Int)] =
         [:]
     @State private var solarSystemInfo: SolarSystemInfo?
+    @State private var zkbInfoFromAPI: ZKBInfo? // 存储从 API 获取的 zkb 信息
 
     // 监听屏幕方向变化
     @State private var orientation = UIDevice.current.orientation
@@ -1205,12 +1207,27 @@ struct BRKillMailDetailView: View {
             Logger.debug("开始加载战报ID \(killId) 的详细信息")
 
             // 从列表数据中获取 hash（zkb 信息）
-            guard let zkbDict = killmail["zkb"] as? [String: Any],
-                  let hash = zkbDict["hash"] as? String
-            else {
-                Logger.error("缺少 zkb 信息（hash），无法获取 ESI 详情")
-                errorMessage = "缺少必要的数据，无法加载详情"
-                return
+            var hash: String
+            if let zkbDict = killmail["zkb"] as? [String: Any],
+               let existingHash = zkbDict["hash"] as? String {
+                hash = existingHash
+                Logger.debug("从现有数据中获取到 hash: \(hash)")
+            } else {
+                // 如果缺少 zkb 信息，从 zkillboard API 获取
+                Logger.info("缺少 zkb 信息（hash），尝试从 zkillboard API 获取")
+                do {
+                    let zkbEntry = try await zKbToolAPI.shared.fetchZKBKillMailByID(killmailId: killId)
+                    hash = zkbEntry.zkb.hash
+                    // 保存完整的 zkb 信息，包括价值信息
+                    await MainActor.run {
+                        self.zkbInfoFromAPI = zkbEntry.zkb
+                    }
+                    Logger.success("成功从 zkillboard API 获取到 hash: \(hash)，价值信息已保存")
+                } catch {
+                    Logger.error("从 zkillboard API 获取 hash 失败: \(error)")
+                    errorMessage = "无法获取战斗日志信息：\(error.localizedDescription)"
+                    return
+                }
             }
 
             // 使用转换器从 ESI 获取详情
@@ -1303,16 +1320,30 @@ struct BRKillMailDetailView: View {
             }
 
             // 从列表数据中提取价值信息（zkb 数据）
-            if let zkbDict = killmail["zkb"] as? [String: Any] {
+            // 优先使用从 API 获取的 zkb 信息，如果没有则使用原始数据
+            if let zkbInfo = zkbInfoFromAPI {
+                // 使用从 API 获取的完整 zkb 信息
+                await MainActor.run {
+                    self.fittedValue = zkbInfo.fittedValue
+                    self.droppedValue = zkbInfo.droppedValue
+                    self.destroyedValue = zkbInfo.destroyedValue
+                    self.totalValue = zkbInfo.totalValue
+                }
+                Logger.debug("使用从 API 获取的价值信息 - 装配: \(zkbInfo.fittedValue), 损失: \(zkbInfo.destroyedValue), 掉落: \(zkbInfo.droppedValue), 总计: \(zkbInfo.totalValue)")
+            } else if let zkbDict = killmail["zkb"] as? [String: Any] {
+                // 使用原始数据中的 zkb 信息
+                let fitted = zkbDict["fittedValue"] as? Double ?? 0
                 let dropped = zkbDict["droppedValue"] as? Double ?? 0
                 let destroyed = zkbDict["destroyedValue"] as? Double ?? 0
                 let total = zkbDict["totalValue"] as? Double ?? 0
 
                 await MainActor.run {
+                    self.fittedValue = fitted
                     self.droppedValue = dropped
                     self.destroyedValue = destroyed
                     self.totalValue = total
                 }
+                Logger.debug("使用原始数据中的价值信息 - 装配: \(fitted), 损失: \(destroyed), 掉落: \(dropped), 总计: \(total)")
             }
 
             // 所有数据都准备好后再更新UI
