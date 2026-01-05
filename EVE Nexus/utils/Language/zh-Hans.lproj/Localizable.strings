@@ -1144,6 +1144,7 @@
 "Main_Corporation_Members_Refresh" = "刷新";
 "Main_Corporation_Members_Total" = "%d名成员";
 "Main_Corporation_Structures" = "军团建筑";
+"Main_Corporation_Starbases" = "军团 POS";
 "Main_Corporation_Contracts" = "军团合同";
 "Main_Corporation_Market_Orders" = "军团市场订单";
 "Main_Corporation_Industry" = "军团工业";
@@ -1526,18 +1527,41 @@
 
 // Corporation Structure View
 "Corp_Structure_Title" = "军团建筑";
+"Corp_Starbase_Title" = "军团 POS";
 "Corp_Structure_Low_Fuel" = "⚠️ 燃料不足（%d天内）";
 "Corp_Structure_No_Data" = "暂无建筑数据";
+"Corp_Starbase_No_Data" = "暂无 POS 数据";
+"Corp_Starbase_No_Filtered_Data" = "筛选条件下暂无数据";
+"Corp_Starbase_Filter" = "筛选";
+"Corp_Starbase_Filter_Region" = "星域";
+"Corp_Starbase_Filter_State" = "状态";
+"Corp_Starbase_Filter_Clear" = "清除筛选";
+"Corp_Starbase_Filter_Clear_All" = "清除所有筛选";
 "Corp_Structure_Settings" = "设置";
 "Corp_Structure_Monitor_Time" = "燃料监控时间";
 "Corp_Structure_Days" = "%d天";
 "Corp_Structure_Done" = "完成";
 "Corp_Structure_Error" = "错误";
+"Corp_Starbase_Error" = " POS 信息加载失败";
 "Corp_Structure_Unknown_Error" = "未知错误";
 "Corp_Structure_OK" = "确定";
 
 // Structure Cell
 "Corp_Structure_Unknown" = "未知建筑";
+"Corp_Starbase_Unknown" = "未知 POS";
+"Corp_Starbase_Status" = "状态：";
+"Corp_Starbase_State_Offline" = "离线";
+"Corp_Starbase_State_Online" = "在线";
+"Corp_Starbase_State_Onlining" = "上线中";
+"Corp_Starbase_State_Reinforced" = "增强中";
+"Corp_Starbase_State_Unanchoring" = "解锚中";
+"Corp_Starbase_State_Unknown" = "未知";
+"Corp_Starbase_Access_Prefix" = "可被访问：";
+"Corp_Starbase_Access_Alliance" = "联盟";
+"Corp_Starbase_Access_Corporation" = "军团";
+"Corp_Starbase_Loading_Detail_Progress" = "正在加载 POS 详细信息 %d/%d";
+"Corp_Starbase_Attention_Header" = "需要关注";
+"Corp_Starbase_Low_Fuel_Indicator" = "[燃料不足]";
 "Corp_Structure_Fuel_Expires" = "燃料耗尽：";
 "Corp_Structure_Time_Remaining" = "耗尽时间：";
 "Corp_Structure_Status" = "状态：";
@@ -2251,6 +2275,16 @@
 "Fitting_Setting_No_Ammo" = "不装填弹药";
 "Fitting_Setting_Clear_Ammo" = "清除弹药";
 "Fitting_Ammo" = "弹药";
+"Fitting_Available_Mutations" = "可用突变";
+"Fitting_Selected_Mutation" = "已选突变质体";
+"Fitting_Remove_Mutation" = "移除突变质体";
+"Fitting_Mutation_Value_Input" = "输入突变数值";
+"Fitting_Mutation_Value_Placeholder" = "请输入数值";
+"Fitting_Mutation_Value_Range" = "可突变范围: %@ 至 %@";
+"Fitting_Mutation_Value_Invalid_Format" = "输入格式错误，只允许数字、小数点、正负号";
+"Fitting_Mutation_Value_Invalid_Number" = "无效的数值";
+"Fitting_Mutation_Value_Out_Of_Range" = "数值超出范围，应在 %@ 至 %@ 之间";
+"Fitting_Mutation_Edit" = "编辑";
 "Fitting_Setting_Items" = "物品设置";
 "Fitting_Add_Drones" = "添加无人机";
 "Fitting_Select_Drone" = "选择无人机";

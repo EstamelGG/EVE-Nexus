@@ -258,6 +258,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         from url: URL,
         characterId: Int,
         headers: [String: String]? = nil,
+        forceRefresh: Bool = false,
         noRetryKeywords: [String]? = nil,
         timeouts: [TimeInterval]? = nil
     ) async throws -> Data {
@@ -280,6 +281,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         return try await fetchData(
             from: url,
             headers: allHeaders,
+            forceRefresh: forceRefresh,
             noRetryKeywords: noRetryKeywords,
             timeouts: timeouts
         )

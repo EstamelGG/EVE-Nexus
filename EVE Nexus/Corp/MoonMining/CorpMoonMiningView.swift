@@ -70,34 +70,31 @@ struct CorpMoonMiningView: View {
                         systemImage: "exclamationmark.triangle"
                     )
                 }
-            } else {
-                if !viewModel.thisWeekExtractions.isEmpty {
-                    Section(
-                        NSLocalizedString("Main_Corporation_Moon_Mining_This_Week", comment: "")
-                    ) {
-                        ForEach(viewModel.thisWeekExtractions, id: \.moon_id) { extraction in
-                            MoonExtractionRow(
-                                extraction: extraction,
-                                moonName: viewModel.moonNames[Int(extraction.moon_id)]
-                                    ?? NSLocalizedString(
-                                        "Main_Corporation_Moon_Mining_Unknown_Moon", comment: ""
-                                    )
-                            )
-                        }
-                    }
+            } else if viewModel.filteredExtractions.isEmpty {
+                ContentUnavailableView {
+                    Label(
+                        NSLocalizedString("Misc_No_Data", comment: "无数据"),
+                        systemImage: "line.3.horizontal.decrease.circle"
+                    )
+                } description: {
+                    Text(NSLocalizedString("Main_Corporation_Moon_Mining_No_Data_For_Selected_Month", comment: "所选月份暂无数据"))
                 }
-
-                if !viewModel.laterExtractions.isEmpty {
-                    Section(NSLocalizedString("Main_Corporation_Moon_Mining_Later", comment: "")) {
-                        ForEach(viewModel.laterExtractions, id: \.moon_id) { extraction in
-                            MoonExtractionRow(
-                                extraction: extraction,
-                                moonName: viewModel.moonNames[Int(extraction.moon_id)]
-                                    ?? NSLocalizedString(
-                                        "Main_Corporation_Moon_Mining_Unknown_Moon", comment: ""
-                                    )
-                            )
-                        }
+            } else {
+                Section(
+                    header: Text(viewModel.selectedMonthHeader)
+                        .fontWeight(.semibold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                ) {
+                    ForEach(viewModel.filteredExtractions, id: \.moon_id) { extraction in
+                        MoonExtractionRow(
+                            extraction: extraction,
+                            moonName: viewModel.moonNames[Int(extraction.moon_id)]
+                                ?? NSLocalizedString(
+                                    "Main_Corporation_Moon_Mining_Unknown_Moon", comment: ""
+                                )
+                        )
                     }
                 }
             }
@@ -113,19 +110,27 @@ struct CorpMoonMiningView: View {
             }
         }
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: {
-                    refreshData()
-                }) {
-                    Image(systemName: "arrow.clockwise")
-                        .rotationEffect(.degrees(isRefreshing ? 360 : 0))
-                        .animation(
-                            isRefreshing
-                                ? .linear(duration: 1).repeatForever(autoreverses: false)
-                                : .default, value: isRefreshing
-                        )
+            // 只有当获取到数据时才显示筛选按钮
+            if !viewModel.moonExtractions.isEmpty {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Menu {
+                        // 月份筛选选项
+                        ForEach(viewModel.availableMonths) { month in
+                            Button(action: {
+                                viewModel.selectedMonth = month
+                            }) {
+                                HStack {
+                                    Text(month.displayName)
+                                    if viewModel.selectedMonth.id == month.id {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "line.3.horizontal.decrease.circle")
+                    }
                 }
-                .disabled(isRefreshing || viewModel.isLoading)
             }
         }
     }
@@ -232,7 +237,104 @@ class CorpMoonMiningViewModel: ObservableObject {
     @Published var moonNames: [Int: String] = [:]
     @Published private(set) var isLoading = false
     @Published var error: Error?
+    @Published var selectedMonth: MonthFilter = .all
     private let characterId: Int
+
+    // 月份筛选枚举
+    enum MonthFilter: Identifiable, CaseIterable, Equatable {
+        case all
+        case month(Date)
+
+        var id: String {
+            switch self {
+            case .all:
+                return "all"
+            case let .month(date):
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy-MM"
+                return formatter.string(from: date)
+            }
+        }
+
+        var displayName: String {
+            switch self {
+            case .all:
+                return NSLocalizedString("Main_Corporation_Moon_Mining_Filter_All", comment: "全部")
+            case let .month(date):
+                let formatter = DateFormatter()
+                formatter.dateFormat = "yyyy年MM月"
+                return formatter.string(from: date)
+            }
+        }
+
+        static var allCases: [MonthFilter] {
+            return [.all]
+        }
+    }
+
+    // 获取可用的月份列表（不包含"全部"选项）
+    var availableMonths: [MonthFilter] {
+        let calendar = Calendar.current
+        var months: [MonthFilter] = []
+
+        // 获取所有数据中的唯一月份
+        var monthSet = Set<String>()
+        for extraction in moonExtractions {
+            guard let arrivalDate = FormatUtil.parseUTCDate(extraction.chunk_arrival_time) else {
+                continue
+            }
+            let components = calendar.dateComponents([.year, .month], from: arrivalDate)
+            if let year = components.year, let month = components.month {
+                let monthKey = "\(year)-\(month)"
+                if !monthSet.contains(monthKey) {
+                    monthSet.insert(monthKey)
+                    if let monthDate = calendar.date(from: DateComponents(year: year, month: month)) {
+                        months.append(.month(monthDate))
+                    }
+                }
+            }
+        }
+
+        // 按日期排序
+        return months.sorted { first, second in
+            switch (first, second) {
+            case let (.month(date1), .month(date2)):
+                return date1 < date2
+            default:
+                return false
+            }
+        }
+    }
+
+    // 根据选中的月份过滤数据
+    var filteredExtractions: [MoonExtractionInfo] {
+        guard case let .month(selectedDate) = selectedMonth else {
+            // 如果没有选中月份，返回空数组
+            return []
+        }
+
+        let calendar = Calendar.current
+        let selectedComponents = calendar.dateComponents([.year, .month], from: selectedDate)
+
+        return moonExtractions.filter { extraction in
+            guard let arrivalDate = FormatUtil.parseUTCDate(extraction.chunk_arrival_time) else {
+                return false
+            }
+            let arrivalComponents = calendar.dateComponents([.year, .month], from: arrivalDate)
+            return arrivalComponents.year == selectedComponents.year &&
+                arrivalComponents.month == selectedComponents.month
+        }
+    }
+
+    // 当前选中月份的header文本
+    var selectedMonthHeader: String {
+        guard case let .month(selectedDate) = selectedMonth else {
+            return ""
+        }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年MM月"
+        return formatter.string(from: selectedDate)
+    }
 
     init(characterId: Int) {
         self.characterId = characterId
@@ -249,34 +351,6 @@ class CorpMoonMiningViewModel: ObservableObject {
         }
     }
 
-    // 计算属性：本周的月矿
-    var thisWeekExtractions: [MoonExtractionInfo] {
-        let calendar = Calendar.current
-        let now = Date()
-        let oneWeekLater = calendar.date(byAdding: .day, value: 7, to: now) ?? now
-
-        return moonExtractions.filter { extraction in
-            guard let arrivalDate = FormatUtil.parseUTCDate(extraction.chunk_arrival_time) else {
-                return false
-            }
-            return arrivalDate <= oneWeekLater
-        }
-    }
-
-    // 计算属性：一周后的月矿
-    var laterExtractions: [MoonExtractionInfo] {
-        let calendar = Calendar.current
-        let now = Date()
-        let oneWeekLater = calendar.date(byAdding: .day, value: 7, to: now) ?? now
-
-        return moonExtractions.filter { extraction in
-            guard let arrivalDate = FormatUtil.parseUTCDate(extraction.chunk_arrival_time) else {
-                return false
-            }
-            return arrivalDate > oneWeekLater
-        }
-    }
-
     func fetchMoonExtractions(forceRefresh: Bool = false) async throws {
         guard !isLoading else { return }
         isLoading = true
@@ -289,28 +363,10 @@ class CorpMoonMiningViewModel: ObservableObject {
                 forceRefresh: forceRefresh
             )
 
-            // 获取当前时间
-            let now = Date()
-            let calendar = Calendar.current
-
-            // 过滤并排序月矿数据
-            moonExtractions =
-                extractions
-                    .filter { extraction in
-                        guard let arrivalDate = FormatUtil.parseUTCDate(extraction.chunk_arrival_time)
-                        else {
-                            return false
-                        }
-
-                        // 计算时间差（天数）
-                        let days = calendar.dateComponents([.day], from: now, to: arrivalDate).day ?? 0
-
-                        // 只保留未来36天内的数据
-                        return days >= -1 && days <= 36
-                    }
-                    .sorted { first, second in
-                        first.chunk_arrival_time < second.chunk_arrival_time
-                    }
+            // 排序月矿数据
+            moonExtractions = extractions.sorted { first, second in
+                first.chunk_arrival_time < second.chunk_arrival_time
+            }
 
             // 如果有数据，批量获取月球名称
             if !moonExtractions.isEmpty {
@@ -329,6 +385,31 @@ class CorpMoonMiningViewModel: ObservableObject {
                         }
                     }
                     moonNames = names
+                }
+
+                // 自动选择第一个月份
+                let calendar = Calendar.current
+                var monthSet = Set<String>()
+                var firstMonth: MonthFilter?
+
+                for extraction in moonExtractions {
+                    guard let arrivalDate = FormatUtil.parseUTCDate(extraction.chunk_arrival_time) else {
+                        continue
+                    }
+                    let components = calendar.dateComponents([.year, .month], from: arrivalDate)
+                    if let year = components.year, let month = components.month {
+                        let monthKey = "\(year)-\(month)"
+                        if !monthSet.contains(monthKey) {
+                            monthSet.insert(monthKey)
+                            if firstMonth == nil, let monthDate = calendar.date(from: DateComponents(year: year, month: month)) {
+                                firstMonth = .month(monthDate)
+                            }
+                        }
+                    }
+                }
+
+                if let first = firstMonth, selectedMonth == .all {
+                    selectedMonth = first
                 }
             } else {
                 moonNames.removeAll()

@@ -1131,6 +1131,7 @@
 "Main_Corporation_Members_Refresh" = "Refresh";
 "Main_Corporation_Members_Total" = "%d Members";
 "Main_Corporation_Structures" = "Corp Structures";
+"Main_Corporation_Starbases" = "Corp Starbases";
 "Main_Corporation_Contracts" = "Corp Contracts";
 "Main_Corporation_Market_Orders" = "Corp Market Orders";
 "Main_Corporation_Industry" = "Corp Industry";
@@ -1506,18 +1507,41 @@
 
 // Corporation Structure View
 "Corp_Structure_Title" = "Corporation Structures";
+"Corp_Starbase_Title" = "Corporation Starbases";
 "Corp_Structure_Low_Fuel" = "⚠️ Low Fuel (%d days)";
 "Corp_Structure_No_Data" = "No structure data";
+"Corp_Starbase_No_Data" = "No starbase data";
+"Corp_Starbase_No_Filtered_Data" = "No data for selected filters";
+"Corp_Starbase_Filter" = "Filter";
+"Corp_Starbase_Filter_Region" = "Region";
+"Corp_Starbase_Filter_State" = "State";
+"Corp_Starbase_Filter_Clear" = "Clear Filters";
+"Corp_Starbase_Filter_Clear_All" = "Clear All Filters";
 "Corp_Structure_Settings" = "Settings";
 "Corp_Structure_Monitor_Time" = "Fuel Monitor Time";
 "Corp_Structure_Days" = "%d days";
 "Corp_Structure_Done" = "Done";
 "Corp_Structure_Error" = "Error";
+"Corp_Starbase_Error" = "Failed to load starbase information";
 "Corp_Structure_Unknown_Error" = "Unknown error";
 "Corp_Structure_OK" = "OK";
 
 // Structure Cell
 "Corp_Structure_Unknown" = "Unknown Structure";
+"Corp_Starbase_Unknown" = "Unknown Starbase";
+"Corp_Starbase_Status" = "Status: ";
+"Corp_Starbase_State_Offline" = "Offline";
+"Corp_Starbase_State_Online" = "Online";
+"Corp_Starbase_State_Onlining" = "Onlining";
+"Corp_Starbase_State_Reinforced" = "Reinforced";
+"Corp_Starbase_State_Unanchoring" = "Unanchoring";
+"Corp_Starbase_State_Unknown" = "Unknown";
+"Corp_Starbase_Access_Prefix" = "Accessible: ";
+"Corp_Starbase_Access_Alliance" = "Alliance";
+"Corp_Starbase_Access_Corporation" = "Corp";
+"Corp_Starbase_Loading_Detail_Progress" = "Loading starbase details %d/%d";
+"Corp_Starbase_Attention_Header" = "Needs Attention";
+"Corp_Starbase_Low_Fuel_Indicator" = "[Low Fuel]";
 "Corp_Structure_Fuel_Expires" = "Fuel Expires: ";
 "Corp_Structure_Time_Remaining" = "Time Remaining: ";
 "Corp_Structure_Status" = "Status: ";
@@ -2219,6 +2243,16 @@
 "Fitting_Setting_No_Ammo" = "No charge";
 "Fitting_Setting_Clear_Ammo" = "Clear Charge";
 "Fitting_Ammo" = "Charge";
+"Fitting_Available_Mutations" = "Available Mutations";
+"Fitting_Selected_Mutation" = "Selected Mutaplasmid";
+"Fitting_Remove_Mutation" = "Remove Mutaplasmid";
+"Fitting_Mutation_Value_Input" = "Enter Mutation Value";
+"Fitting_Mutation_Value_Placeholder" = "Enter value";
+"Fitting_Mutation_Value_Range" = "Mutation range: %@ to %@";
+"Fitting_Mutation_Value_Invalid_Format" = "Invalid format. Only numbers, decimal point, and +/- signs are allowed";
+"Fitting_Mutation_Value_Invalid_Number" = "Invalid number";
+"Fitting_Mutation_Value_Out_Of_Range" = "Value out of range. Should be between %@ and %@";
+"Fitting_Mutation_Edit" = "Edit";
 "Fitting_Setting_Items" = "Items Setting";
 "Fitting_Add_Drones" = "Add Drones";
 "Fitting_Select_Drone" = "Select Drones";

@@ -733,6 +733,10 @@ struct ContentView: View {
                             if let character = viewModel.selectedCharacter {
                                 CorpStructureView(characterId: character.CharacterID)
                             }
+                        case "corporation_starbases":
+                            if let character = viewModel.selectedCharacter {
+                                CorpStarbaseView(characterId: character.CharacterID)
+                            }
                         case "killboard":
                             if let character = viewModel.selectedCharacter {
                                 // KillMailListView(characterId: character.CharacterID)
@@ -1021,6 +1025,7 @@ struct ContentView: View {
         FeatureConfig(id: "corporation_members", requiresLogin: true, section: "corporation"),
         FeatureConfig(id: "corporation_moon", requiresLogin: true, section: "corporation"),
         FeatureConfig(id: "corporation_structures", requiresLogin: true, section: "corporation"),
+        FeatureConfig(id: "corporation_starbases", requiresLogin: true, section: "corporation"),
         FeatureConfig(id: "corporation_industry", requiresLogin: true, section: "corporation"),
         FeatureConfig(id: "corporation_assets", requiresLogin: true, section: "corporation"),
         FeatureConfig(id: "corporation_issued_contracts", requiresLogin: true, section: "corporation"),
@@ -1176,6 +1181,8 @@ struct ContentView: View {
             return FeatureInfo(title: NSLocalizedString("Main_Corporation_Moon_Mining", comment: ""), icon: "satellite", noteView: nil)
         case "corporation_structures":
             return FeatureInfo(title: NSLocalizedString("Main_Corporation_Structures", comment: ""), icon: "Structurebrowser", noteView: nil)
+        case "corporation_starbases":
+            return FeatureInfo(title: NSLocalizedString("Main_Corporation_Starbases", comment: "军团星堡"), icon: "Structurebrowser", noteView: nil)
         case "corporation_industry":
             return FeatureInfo(title: NSLocalizedString("Main_Corporation_Industry", comment: ""), icon: "industry", noteView: nil)
         case "corporation_assets":
@@ -1518,6 +1525,13 @@ struct ContentView: View {
             customizableNavigationLink(
                 value: "corporation_structures",
                 title: NSLocalizedString("Main_Corporation_Structures", comment: ""),
+                icon: "Structurebrowser"
+            )
+            .isHidden(currentCharacterId == 0 && !isCustomizeMode)
+
+            customizableNavigationLink(
+                value: "corporation_starbases",
+                title: NSLocalizedString("Main_Corporation_Starbases", comment: "军团星堡"),
                 icon: "Structurebrowser"
             )
             .isHidden(currentCharacterId == 0 && !isCustomizeMode)
