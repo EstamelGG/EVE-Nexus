@@ -120,7 +120,15 @@ struct ShipFittingModulesView: View {
             return nil
         }
 
-        // 从输出模块创建显示用的SimModule对象
+        // 从simulationInput获取突变信息（如果有）
+        let inputModule = viewModel.simulationInput.modules.first(where: { $0.flag == flag })
+        let mutatedTypeId = inputModule?.mutatedTypeId
+        let mutatedName = inputModule?.mutatedName
+        let mutatedIconFileName = inputModule?.mutatedIconFileName
+        let selectedMutaplasmidID = inputModule?.selectedMutaplasmidID
+        let mutatedAttributes = inputModule?.mutatedAttributes ?? [:]
+
+        // 从输出模块创建显示用的SimModule对象，使用突变后的名称和图标（如果有）
         return SimModule(
             instanceId: outputModule.instanceId,
             typeId: outputModule.typeId,
@@ -144,9 +152,14 @@ struct ShipFittingModulesView: View {
             },
             flag: outputModule.flag,
             quantity: outputModule.quantity,
-            name: outputModule.name,
-            iconFileName: outputModule.iconFileName,
-            requiredSkills: FitConvert.extractRequiredSkills(attributes: outputModule.attributes)
+            name: mutatedName ?? outputModule.name, // 使用突变后的名称（如果有）
+            iconFileName: mutatedIconFileName ?? outputModule.iconFileName, // 使用突变后的图标（如果有）
+            requiredSkills: FitConvert.extractRequiredSkills(attributes: outputModule.attributes),
+            selectedMutaplasmidID: selectedMutaplasmidID,
+            mutatedAttributes: mutatedAttributes,
+            mutatedTypeId: mutatedTypeId,
+            mutatedName: mutatedName,
+            mutatedIconFileName: mutatedIconFileName
         )
     }
 
@@ -236,9 +249,30 @@ struct ShipFittingModulesView: View {
 
     // 获取指定槽位类型的模块分组
     private func getModuleGroups(for slotType: FittingSlotType, totalSlots: Int) -> [ModuleGroup] {
-        var groups: [Int: ModuleGroup] = [:]
+        // 使用组合键来分组：对于有突变的装备，使用 instanceId 作为唯一标识，确保不堆叠
+        struct GroupKey: Hashable {
+            let typeId: Int
+            let hasMutation: Bool
+            let mutationKey: String // 对于有突变的装备，使用 instanceId 作为唯一标识
+
+            init(module: SimModule) {
+                typeId = module.typeId
+                // 判断是否有突变：只有 mutatedAttributes 不为空才认为真正应用了突变
+                // 注意：只选择突变质体但未设置属性值的情况不算应用突变
+                hasMutation = !module.mutatedAttributes.isEmpty
+                // 如果有突变，使用 instanceId 作为唯一标识；否则使用空字符串
+                mutationKey = hasMutation ? module.instanceId.uuidString : ""
+            }
+        }
+
+        struct GroupWithOrder {
+            let group: ModuleGroup
+            let order: Int
+        }
+
+        var groups: [GroupKey: ModuleGroup] = [:]
         var emptySlots: [FittingFlag] = []
-        var firstAppearanceOrder: [Int: Int] = [:] // 记录每个typeId的首次出现顺序
+        var firstAppearanceOrder: [GroupKey: Int] = [:] // 记录每个组合键的首次出现顺序
 
         // 收集所有槽位的模块和空槽位，同时记录首次出现顺序
         for index in 0 ..< totalSlots {
@@ -246,22 +280,22 @@ struct ShipFittingModulesView: View {
 
             // 使用辅助函数获取显示模块
             if let installedModule = getDisplayModule(for: slotFlag) {
-                // 已安装模块
-                let typeId = installedModule.typeId
+                // 创建分组键
+                let groupKey = GroupKey(module: installedModule)
 
                 // 记录首次出现的顺序（如果还没有记录过）
-                if firstAppearanceOrder[typeId] == nil {
-                    firstAppearanceOrder[typeId] = index
+                if firstAppearanceOrder[groupKey] == nil {
+                    firstAppearanceOrder[groupKey] = index
                 }
 
-                if var group = groups[typeId] {
+                if var group = groups[groupKey] {
                     group.modules.append(installedModule)
-                    groups[typeId] = group
+                    groups[groupKey] = group
                 } else {
-                    groups[typeId] = ModuleGroup(
-                        typeId: typeId,
-                        name: installedModule.name,
-                        iconFileName: installedModule.iconFileName,
+                    groups[groupKey] = ModuleGroup(
+                        typeId: installedModule.typeId,
+                        name: installedModule.mutatedName ?? installedModule.name,
+                        iconFileName: installedModule.mutatedIconFileName ?? installedModule.iconFileName,
                         modules: [installedModule],
                         emptySlots: []
                     )
@@ -272,33 +306,39 @@ struct ShipFittingModulesView: View {
             }
         }
 
-        // 如果有空槽位，创建一个特殊的空槽位组
-        var result = Array(groups.values)
-        if !emptySlots.isEmpty {
-            result.append(
-                ModuleGroup(
-                    typeId: -1, // 特殊标识空槽位
-                    name: slotType.localizedName,
-                    iconFileName: nil,
-                    modules: [],
-                    emptySlots: emptySlots
-                ))
+        // 将分组转换为带顺序的结构
+        var groupsWithOrder: [GroupWithOrder] = groups.map { key, group in
+            GroupWithOrder(group: group, order: firstAppearanceOrder[key] ?? Int.max)
         }
 
-        return result.sorted { first, second in
+        // 如果有空槽位，创建一个特殊的空槽位组
+        if !emptySlots.isEmpty {
+            groupsWithOrder.append(
+                GroupWithOrder(
+                    group: ModuleGroup(
+                        typeId: -1, // 特殊标识空槽位
+                        name: slotType.localizedName,
+                        iconFileName: nil,
+                        modules: [],
+                        emptySlots: emptySlots
+                    ),
+                    order: Int.max // 空槽位组排在最后
+                )
+            )
+        }
+
+        return groupsWithOrder.sorted { first, second in
             // 空槽位组（typeId = -1）排在最后
-            if first.typeId == -1, second.typeId != -1 {
+            if first.group.typeId == -1, second.group.typeId != -1 {
                 return false // first 排在后面
             }
-            if first.typeId != -1, second.typeId == -1 {
+            if first.group.typeId != -1, second.group.typeId == -1 {
                 return true // first 排在前面
             }
 
             // 其他情况按首次出现顺序排列
-            let firstOrder = firstAppearanceOrder[first.typeId] ?? Int.max
-            let secondOrder = firstAppearanceOrder[second.typeId] ?? Int.max
-            return firstOrder < secondOrder
-        }
+            return first.order < second.order
+        }.map { $0.group }
     }
 
     // 处理折叠模块组的点击事件
@@ -519,7 +559,7 @@ struct ShipFittingModulesView: View {
         )
     }
 
-    // 获取相关模块（同类型的所有模块）
+    // 获取相关模块（同类型的所有模块，但考虑突变情况）
     private func getRelatedModules(for module: SimModule, flag: FittingFlag) -> [SimModule] {
         // 确定槽位类型
         let slotType = getSlotType(for: flag)
@@ -528,8 +568,32 @@ struct ShipFittingModulesView: View {
         let isCollapsed = isSlotTypeCollapsed(slotType)
 
         if isCollapsed {
-            // 折叠状态下，返回所有相同typeId的模块
-            return viewModel.simulationInput.modules.filter { $0.typeId == module.typeId }
+            // 判断当前模块是否有突变：只有 mutatedAttributes 不为空才认为真正应用了突变
+            let hasMutation = !module.mutatedAttributes.isEmpty
+
+            if hasMutation {
+                // 有突变的情况下，只返回具有相同突变标识的模块
+                // 需要匹配：相同的 typeId、相同的 selectedMutaplasmidID、相同的 mutatedAttributes
+                return viewModel.simulationInput.modules.filter { otherModule in
+                    guard otherModule.typeId == module.typeId else { return false }
+
+                    // 检查突变质体ID是否相同
+                    let sameMutaplasmidID = otherModule.selectedMutaplasmidID == module.selectedMutaplasmidID
+
+                    // 检查突变属性是否相同（比较字典内容）
+                    let sameMutatedAttributes = otherModule.mutatedAttributes == module.mutatedAttributes
+
+                    return sameMutaplasmidID && sameMutatedAttributes
+                }
+            } else {
+                // 没有突变的情况下，返回所有相同typeId且没有突变的模块
+                return viewModel.simulationInput.modules.filter { otherModule in
+                    guard otherModule.typeId == module.typeId else { return false }
+                    // 只包含没有应用突变的模块（mutatedAttributes 为空）
+                    let otherHasMutation = !otherModule.mutatedAttributes.isEmpty
+                    return !otherHasMutation
+                }
+            }
         } else {
             // 非折叠状态下，只返回当前模块
             return [module]
@@ -1959,10 +2023,13 @@ struct ShipFittingModulesView: View {
 
     // 重构后的折叠模式下的分组行视图
     private func collapsedGroupRow(group: ModuleGroup, slotType: FittingSlotType) -> some View {
-        ModuleRowView(
-            iconName: group.typeId == -1 ? getSlotIcon(for: slotType) : group.iconFileName,
+        // 如果有突变，使用突变后的图标和名称
+        let displayIcon = group.typeId == -1 ? getSlotIcon(for: slotType) : (group.modules.first?.mutatedIconFileName ?? group.iconFileName)
+        let displayName = group.typeId == -1 ? group.name : (group.modules.first?.mutatedName ?? group.name)
+        return ModuleRowView(
+            iconName: displayIcon,
             iconOpacity: group.typeId == -1 ? 0.6 : 1.0,
-            title: group.name,
+            title: displayName,
             titleColor: group.typeId == -1 ? .secondary : .primary,
             subtitle: "×\(group.totalCount)",
             charge: group.typeId != -1 ? group.modules.first?.charge : nil,
@@ -1981,8 +2048,8 @@ struct ShipFittingModulesView: View {
         module: SimModule, slotId _: String, slotIndex: Int, slotType: FittingSlotType
     ) -> some View {
         ModuleRowView(
-            iconName: module.iconFileName,
-            title: module.name,
+            iconName: module.mutatedIconFileName ?? module.iconFileName,
+            title: module.mutatedName ?? module.name,
             charge: module.charge,
             moduleForCapacity: module,
             module: module,

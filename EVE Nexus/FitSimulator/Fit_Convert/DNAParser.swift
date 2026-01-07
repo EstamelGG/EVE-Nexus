@@ -133,7 +133,8 @@ class DNAParser {
                     type_id: subsystemId,
                     status: 1,
                     charge_type_id: nil,
-                    charge_quantity: nil
+                    charge_quantity: nil,
+                    muta: nil
                 ))
         }
 
@@ -178,7 +179,8 @@ class DNAParser {
                         type_id: module.typeId,
                         status: module.isOffline ? 0 : 1,
                         charge_type_id: nil,
-                        charge_quantity: nil
+                        charge_quantity: nil,
+                        muta: nil
                     ))
 
                 Logger.debug("创建装备项: \(module.typeId) -> \(currentFlag)")
@@ -198,7 +200,8 @@ class DNAParser {
                     Drone(
                         type_id: charge.typeId,
                         quantity: charge.quantity,
-                        active_count: 0
+                        active_count: 0,
+                        muta: nil
                     ))
             case .charge:
                 // 弹药需要分配给对应的模块，这里先作为货舱物品处理

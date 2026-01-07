@@ -9,14 +9,17 @@ class Step5 {
         self.databaseManager = databaseManager
     }
 
-    /// 处理推进模块的速度修正
+    /// 处理推进模块的速度修正和突变属性修正
     /// - Parameter output: 经过Step4计算的输出数据
     /// - Returns: 修正后的输出数据
     func process(output: SimulationOutput) -> SimulationOutput {
         var modifiedOutput = output
 
-        // 查找第一个激活状态的推进模块
-        let activePropulsionModule = findFirstActivePropulsionModule(modules: output.modules)
+        // 1. 应用突变属性修正（在速度修正之前）
+        modifiedOutput = applyMutationAttributes(output: modifiedOutput)
+
+        // 2. 查找第一个激活状态的推进模块
+        let activePropulsionModule = findFirstActivePropulsionModule(modules: modifiedOutput.modules)
 
         if let propulsionModule = activePropulsionModule {
             Logger.info("找到激活的推进模块: \(propulsionModule.name) (TypeID: \(propulsionModule.typeId))")
@@ -30,6 +33,125 @@ class Step5 {
             Logger.info("已应用推进模块速度修正")
         } else {
             Logger.info("未找到激活的推进模块，跳过速度修正")
+        }
+
+        return modifiedOutput
+    }
+
+    /// 应用突变属性到模块和无人机的计算后属性
+    /// - Parameter output: 经过Step4计算的输出数据
+    /// - Returns: 应用突变属性后的输出数据
+    private func applyMutationAttributes(output: SimulationOutput) -> SimulationOutput {
+        var modifiedOutput = output
+
+        // 应用模块的突变属性
+        for i in 0 ..< modifiedOutput.modules.count {
+            let moduleOutput = modifiedOutput.modules[i]
+
+            // 从原始输入中找到对应的模块（通过instanceId匹配）
+            if let originalModule = output.originalInput.modules.first(where: { $0.instanceId == moduleOutput.instanceId }),
+               !originalModule.mutatedAttributes.isEmpty
+            {
+                // 查询属性ID到属性名称的映射
+                let attrIds = Array(originalModule.mutatedAttributes.keys)
+                guard !attrIds.isEmpty else { continue }
+
+                let placeholders = Array(repeating: "?", count: attrIds.count).joined(separator: ",")
+                let attrNameQuery = "SELECT attribute_id, name FROM dogmaAttributes WHERE attribute_id IN (\(placeholders))"
+                var attrIdToName: [Int: String] = [:]
+                if case let .success(rows) = databaseManager.executeQuery(
+                    attrNameQuery, parameters: attrIds
+                ) {
+                    for row in rows {
+                        if let attrId = row["attribute_id"] as? Int,
+                           let name = row["name"] as? String
+                        {
+                            attrIdToName[attrId] = name
+                        }
+                    }
+                }
+
+                // 对每个突变属性，将计算后的值乘以突变倍数
+                var updatedAttributes = moduleOutput.attributes
+                var updatedAttributesByName = moduleOutput.attributesByName
+
+                for (attributeID, multiplier) in originalModule.mutatedAttributes {
+                    if let currentValue = updatedAttributes[attributeID] {
+                        let mutatedValue = currentValue * multiplier
+                        updatedAttributes[attributeID] = mutatedValue
+
+                        // 同时更新属性名称字典
+                        if let attributeName = attrIdToName[attributeID] {
+                            updatedAttributesByName[attributeName] = mutatedValue
+                        }
+
+                        if AppConfiguration.Fitting.showDebug {
+                            Logger.info("应用突变属性: 模块 \(moduleOutput.name), 属性ID \(attributeID), 计算后值: \(currentValue), 突变倍数: \(multiplier), 突变后值: \(mutatedValue)")
+                        }
+                    }
+                }
+
+                // 创建更新后的模块输出
+                var updatedModule = moduleOutput
+                updatedModule.attributes = updatedAttributes
+                updatedModule.attributesByName = updatedAttributesByName
+                modifiedOutput.modules[i] = updatedModule
+            }
+        }
+
+        // 应用无人机的突变属性
+        for i in 0 ..< modifiedOutput.drones.count {
+            let droneOutput = modifiedOutput.drones[i]
+
+            // 从原始输入中找到对应的无人机（通过instanceId匹配）
+            if let originalDrone = output.originalInput.drones.first(where: { $0.instanceId == droneOutput.instanceId }),
+               !originalDrone.mutatedAttributes.isEmpty
+            {
+                // 查询属性ID到属性名称的映射
+                let attrIds = Array(originalDrone.mutatedAttributes.keys)
+                guard !attrIds.isEmpty else { continue }
+
+                let placeholders = Array(repeating: "?", count: attrIds.count).joined(separator: ",")
+                let attrNameQuery = "SELECT attribute_id, name FROM dogmaAttributes WHERE attribute_id IN (\(placeholders))"
+                var attrIdToName: [Int: String] = [:]
+                if case let .success(rows) = databaseManager.executeQuery(
+                    attrNameQuery, parameters: attrIds
+                ) {
+                    for row in rows {
+                        if let attrId = row["attribute_id"] as? Int,
+                           let name = row["name"] as? String
+                        {
+                            attrIdToName[attrId] = name
+                        }
+                    }
+                }
+
+                // 对每个突变属性，将计算后的值乘以突变倍数
+                var updatedAttributes = droneOutput.attributes
+                var updatedAttributesByName = droneOutput.attributesByName
+
+                for (attributeID, multiplier) in originalDrone.mutatedAttributes {
+                    if let currentValue = updatedAttributes[attributeID] {
+                        let mutatedValue = currentValue * multiplier
+                        updatedAttributes[attributeID] = mutatedValue
+
+                        // 同时更新属性名称字典
+                        if let attributeName = attrIdToName[attributeID] {
+                            updatedAttributesByName[attributeName] = mutatedValue
+                        }
+
+                        if AppConfiguration.Fitting.showDebug {
+                            Logger.info("应用突变属性: 无人机 \(droneOutput.name), 属性ID \(attributeID), 计算后值: \(currentValue), 突变倍数: \(multiplier), 突变后值: \(mutatedValue)")
+                        }
+                    }
+                }
+
+                // 创建更新后的无人机输出
+                var updatedDrone = droneOutput
+                updatedDrone.attributes = updatedAttributes
+                updatedDrone.attributesByName = updatedAttributesByName
+                modifiedOutput.drones[i] = updatedDrone
+            }
         }
 
         return modifiedOutput

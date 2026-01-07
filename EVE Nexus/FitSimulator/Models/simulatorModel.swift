@@ -178,6 +178,13 @@ struct SimModule {
     // 修饰器（由Step3初始化）
     var attributeModifiers: [Int: [SimAttributeModifier]] = [:] // 属性ID: [修饰器]
 
+    // 突变相关字段
+    var selectedMutaplasmidID: Int? // 选中的突变质体ID
+    var mutatedAttributes: [Int: Double] = [:] // 突变后的属性值 (attributeID: 倍数)
+    var mutatedTypeId: Int? // 突变后的typeID（用于UI显示）
+    var mutatedName: String? // 突变后的名称（用于UI显示）
+    var mutatedIconFileName: String? // 突变后的图标文件名（用于UI显示）
+
     // 自定义初始化器，允许指定instanceId
     init(
         instanceId: UUID = UUID(),
@@ -193,7 +200,12 @@ struct SimModule {
         name: String,
         iconFileName: String? = nil,
         requiredSkills: [Int],
-        attributeModifiers: [Int: [SimAttributeModifier]] = [:]
+        attributeModifiers: [Int: [SimAttributeModifier]] = [:],
+        selectedMutaplasmidID: Int? = nil,
+        mutatedAttributes: [Int: Double] = [:],
+        mutatedTypeId: Int? = nil,
+        mutatedName: String? = nil,
+        mutatedIconFileName: String? = nil
     ) {
         self.instanceId = instanceId
         self.typeId = typeId
@@ -209,6 +221,11 @@ struct SimModule {
         self.iconFileName = iconFileName
         self.requiredSkills = requiredSkills
         self.attributeModifiers = attributeModifiers
+        self.selectedMutaplasmidID = selectedMutaplasmidID
+        self.mutatedAttributes = mutatedAttributes
+        self.mutatedTypeId = mutatedTypeId
+        self.mutatedName = mutatedName
+        self.mutatedIconFileName = mutatedIconFileName
     }
 }
 
@@ -249,6 +266,13 @@ struct SimDrone {
 
     // 修饰器（由Step3初始化）
     var attributeModifiers: [Int: [SimAttributeModifier]] = [:] // 属性ID: [修饰器]
+
+    // 突变相关字段
+    var selectedMutaplasmidID: Int? // 选中的突变质体ID
+    var mutatedAttributes: [Int: Double] = [:] // 突变后的属性值 (attributeID: 倍数)
+    var mutatedTypeId: Int? // 突变后的typeID（用于UI显示）
+    var mutatedName: String? // 突变后的名称（用于UI显示）
+    var mutatedIconFileName: String? // 突变后的图标文件名（用于UI显示）
 }
 
 /// 货舱内单个物品及数量

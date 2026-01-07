@@ -218,59 +218,6 @@ public class CorpStarbaseDetailAPI {
         return results
     }
 
-    /// 批量获取星堡详细信息（使用数组格式）
-    /// - Parameters:
-    ///   - queryArray: 查询参数数组，每个元素为 [starbaseId, corporationId, systemId]
-    ///   - characterId: 角色ID（用于认证）
-    ///   - forceRefresh: 是否强制刷新
-    ///   - progressCallback: 进度回调，参数为 (当前完成数, 总数)
-    /// - Returns: 查询结果数组，每个元素为 (查询参数 [starbaseId, corporationId, systemId], 详细信息（如果查询失败则为nil）)
-    public func fetchStarbaseDetailsBatch(
-        queryArray: [[Int]],
-        characterId: Int,
-        forceRefresh: Bool = false,
-        progressCallback: ((Int, Int) -> Void)? = nil
-    ) async -> [([Int], StarbaseDetailInfo?)] {
-        // 将数组格式转换为 StarbaseQueryParams
-        let queries = queryArray.compactMap { params -> StarbaseQueryParams? in
-            guard params.count == 3 else {
-                Logger.error("查询参数格式错误，应为 [starbaseId, corporationId, systemId]，实际: \(params)")
-                return nil
-            }
-            return StarbaseQueryParams(
-                starbaseId: params[0],
-                corporationId: params[1],
-                systemId: params[2]
-            )
-        }
-
-        // 调用批量查询函数
-        let results = await fetchStarbaseDetailsBatch(
-            queries: queries,
-            characterId: characterId,
-            forceRefresh: forceRefresh,
-            progressCallback: progressCallback
-        )
-
-        // 将结果转换回数组格式，保持原始顺序
-        var arrayResults: [([Int], StarbaseDetailInfo?)] = []
-        for params in queryArray {
-            guard params.count == 3 else { continue }
-            let query = StarbaseQueryParams(
-                starbaseId: params[0],
-                corporationId: params[1],
-                systemId: params[2]
-            )
-            if let detail = results[query] {
-                arrayResults.append((params, detail))
-            } else {
-                arrayResults.append((params, nil))
-            }
-        }
-
-        return arrayResults
-    }
-
     // MARK: - Cache Methods
 
     private func getCacheDirectory() -> URL? {

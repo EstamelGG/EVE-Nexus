@@ -4,7 +4,6 @@ import SwiftUI
 struct CorpStarbaseView: View {
     let characterId: Int
     @StateObject private var viewModel: CorpStarbaseViewModel
-    @Environment(\.dismiss) private var dismiss
     @State private var showFilterSheet = false
 
     init(characterId: Int) {

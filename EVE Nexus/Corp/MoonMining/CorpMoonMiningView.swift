@@ -4,8 +4,6 @@ import SwiftUI
 struct CorpMoonMiningView: View {
     let characterId: Int
     @StateObject private var viewModel: CorpMoonMiningViewModel
-    @Environment(\.dismiss) private var dismiss
-    @State private var isRefreshing = false
 
     init(characterId: Int) {
         self.characterId = characterId
@@ -132,22 +130,6 @@ struct CorpMoonMiningView: View {
                     }
                 }
             }
-        }
-    }
-
-    private func refreshData() {
-        isRefreshing = true
-
-        Task {
-            do {
-                try await viewModel.fetchMoonExtractions(forceRefresh: true)
-            } catch {
-                if !(error is CancellationError) {
-                    Logger.error("刷新月矿提取信息失败: \(error)")
-                }
-            }
-
-            isRefreshing = false
         }
     }
 }

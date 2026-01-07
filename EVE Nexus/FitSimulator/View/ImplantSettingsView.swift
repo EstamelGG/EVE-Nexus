@@ -9,6 +9,14 @@ struct ImplantSettingsView: View {
     @State private var showingPresetSelector = false
     @State private var showingImplantSelector = false
     @State private var showingBoosterSelector = false
+    @State private var showingSavePresetDialog = false
+    @State private var showingNoItemsAlert = false
+    @State private var showingDuplicateAlert = false
+    @State private var showingClearConfirmation = false
+    @State private var clearedImplantCount = 0
+    @State private var clearedBoosterCount = 0
+    @State private var duplicatePresetName = ""
+    @State private var presetName = ""
 
     // 用于存储所有槽位的植入体和增效剂引用
     @State private var implantRows: [Int: ImplantSlotRowProxy] = [:]
@@ -35,13 +43,50 @@ struct ImplantSettingsView: View {
                 .foregroundColor(.primary)
 
                 Button {
-                    clearAllImplantsAndBoosters()
+                    // 统计当前有多少植入体和增效剂
+                    let implantCount = implantRows.values.filter { $0.selectedImplant != nil }.count
+                    let boosterCount = boosterRows.values.filter { $0.selectedBooster != nil }.count
+
+                    if implantCount > 0 || boosterCount > 0 {
+                        clearedImplantCount = implantCount
+                        clearedBoosterCount = boosterCount
+                        clearAllImplantsAndBoosters()
+                        showingClearConfirmation = true
+                    }
                 } label: {
                     HStack {
                         Image(systemName: "trash.fill")
                             .foregroundColor(.red)
                             .frame(width: 32, height: 32)
                         Text(NSLocalizedString("Implant_Clear_All", comment: "清空当前选项"))
+                        Spacer()
+                    }
+                }
+                .foregroundColor(.primary)
+
+                Button {
+                    if hasAnyImplantsOrBoosters() {
+                        // 收集当前的 typeIds
+                        let currentTypeIds = collectCurrentTypeIds()
+
+                        // 检查是否有完全相同的配置
+                        if let duplicatePreset = findDuplicatePreset(typeIds: currentTypeIds) {
+                            duplicatePresetName = duplicatePreset.name
+                            showingDuplicateAlert = true
+                            Logger.info("发现重复配置: \(duplicatePreset.name)")
+                        } else {
+                            presetName = ""
+                            showingSavePresetDialog = true
+                        }
+                    } else {
+                        showingNoItemsAlert = true
+                    }
+                } label: {
+                    HStack {
+                        Image(systemName: "square.and.arrow.down.fill")
+                            .foregroundColor(.green)
+                            .frame(width: 32, height: 32)
+                        Text(NSLocalizedString("Implant_Save_As_Preset", comment: "保存为自定义预设"))
                         Spacer()
                     }
                 }
@@ -159,6 +204,33 @@ struct ImplantSettingsView: View {
                     handleBoosterSelection(item: item, slotNumber: slotNumber)
                 }
             )
+        }
+        .alert(NSLocalizedString("Implant_Save_As_Preset", comment: "保存为自定义预设"), isPresented: $showingSavePresetDialog) {
+            TextField(NSLocalizedString("Implant_Preset_Name", comment: "预设名称"), text: $presetName)
+            Button(NSLocalizedString("Misc_Cancel", comment: "取消"), role: .cancel) {
+                presetName = ""
+            }
+            Button(NSLocalizedString("Misc_Save", comment: "保存")) {
+                saveCurrentConfigurationAsPreset()
+            }
+            .disabled(presetName.trimmingCharacters(in: .whitespaces).isEmpty)
+        } message: {
+            Text(NSLocalizedString("Implant_Enter_Preset_Name", comment: "请输入预设名称"))
+        }
+        .alert(NSLocalizedString("Implant_No_Items_To_Save", comment: "无需保存"), isPresented: $showingNoItemsAlert) {
+            Button(NSLocalizedString("Calendar_OK", comment: "确定"), role: .cancel) {}
+        } message: {
+            Text(NSLocalizedString("Implant_No_Items_To_Save_Message", comment: "没有设置任何植入体/增效剂，无需保存"))
+        }
+        .alert(NSLocalizedString("Implant_Duplicate_Preset", comment: "重复配置"), isPresented: $showingDuplicateAlert) {
+            Button(NSLocalizedString("Calendar_OK", comment: "确定"), role: .cancel) {}
+        } message: {
+            Text(String(format: NSLocalizedString("Implant_Duplicate_Preset_Message", comment: "已有重复配置：%@"), duplicatePresetName))
+        }
+        .alert(NSLocalizedString("Implant_Cleared", comment: "已清空"), isPresented: $showingClearConfirmation) {
+            Button(NSLocalizedString("Calendar_OK", comment: "确定"), role: .cancel) {}
+        } message: {
+            Text(getClearedMessage())
         }
     }
 
@@ -473,6 +545,25 @@ struct ImplantSettingsView: View {
         return String.localizedStringWithFormat(NSLocalizedString("Booster_Slot_Num", comment: "增效剂槽位 %d"), slot)
     }
 
+    // 获取清空提示消息
+    private func getClearedMessage() -> String {
+        var parts: [String] = []
+
+        if clearedImplantCount > 0 {
+            parts.append(String(format: NSLocalizedString("Implant_Cleared_Implants", comment: "%d 个植入体"), clearedImplantCount))
+        }
+
+        if clearedBoosterCount > 0 {
+            parts.append(String(format: NSLocalizedString("Implant_Cleared_Boosters", comment: "%d 个增效剂"), clearedBoosterCount))
+        }
+
+        if parts.isEmpty {
+            return NSLocalizedString("Implant_Cleared_Nothing", comment: "没有可清空的内容")
+        }
+
+        return String(format: NSLocalizedString("Implant_Cleared_Message", comment: "已移除：%@"), parts.joined(separator: "、"))
+    }
+
     private func clearAllImplantsAndBoosters() {
         // 清空所有槽位的植入体和增效剂
         for (slot, _) in implantRows {
@@ -583,6 +674,96 @@ struct ImplantSettingsView: View {
             proxy.selectedBooster = item
             Logger.info("选择增效剂: \(item.name), 槽位: \(slotNumber)")
         }
+    }
+
+    // 检查是否有任何植入体或增效剂
+    private func hasAnyImplantsOrBoosters() -> Bool {
+        // 检查是否有植入体
+        for (_, proxy) in implantRows {
+            if proxy.selectedImplant != nil {
+                return true
+            }
+        }
+
+        // 检查是否有增效剂
+        for (_, proxy) in boosterRows {
+            if proxy.selectedBooster != nil {
+                return true
+            }
+        }
+
+        return false
+    }
+
+    // 收集当前配置的所有 typeId
+    private func collectCurrentTypeIds() -> [Int] {
+        var typeIds: [Int] = []
+
+        // 收集植入体
+        for (_, proxy) in implantRows {
+            if let implant = proxy.selectedImplant {
+                typeIds.append(implant.id)
+            }
+        }
+
+        // 收集增效剂
+        for (_, proxy) in boosterRows {
+            if let booster = proxy.selectedBooster {
+                typeIds.append(booster.id)
+            }
+        }
+
+        return typeIds
+    }
+
+    // 检查是否有完全相同的配置
+    private func findDuplicatePreset(typeIds: [Int]) -> CustomImplantPreset? {
+        let existingPresets = CustomImplantPresetManager.shared.loadPresets()
+        let sortedTypeIds = typeIds.sorted()
+
+        for preset in existingPresets {
+            let presetSortedTypeIds = preset.implantTypeIds.sorted()
+            Logger.info("比较预设: \(preset.name), 类型ID: \(presetSortedTypeIds)")
+            Logger.info("比较当前: \(sortedTypeIds)")
+            // 比较两个数组是否完全相同
+            if sortedTypeIds == presetSortedTypeIds {
+                return preset
+            }
+        }
+
+        return nil
+    }
+
+    // 保存当前配置为自定义预设
+    private func saveCurrentConfigurationAsPreset() {
+        let trimmedName = presetName.trimmingCharacters(in: .whitespaces)
+        guard !trimmedName.isEmpty else {
+            Logger.warning("预设名称不能为空")
+            return
+        }
+
+        // 收集所有植入体和增效剂的 typeId
+        let typeIds = collectCurrentTypeIds()
+
+        // 如果没有选择任何植入体或增效剂，提示用户
+        if typeIds.isEmpty {
+            Logger.warning("当前没有选择任何植入体或增效剂，无法保存预设")
+            return
+        }
+
+        // 注意：重复配置检查已在点击保存按钮时完成，这里不再检查
+
+        // 创建预设并保存
+        let preset = CustomImplantPreset(
+            name: trimmedName,
+            implantTypeIds: typeIds
+        )
+
+        CustomImplantPresetManager.shared.addPreset(preset)
+        Logger.info("成功保存自定义预设: \(trimmedName), 包含 \(typeIds.count) 个物品")
+
+        // 清空预设名称
+        presetName = ""
     }
 }
 

@@ -41,7 +41,6 @@ class CorpWalletViewModel: ObservableObject {
 
 struct CorpWalletView: View {
     let characterId: Int
-    @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: CorpWalletViewModel
 
     init(characterId: Int) {

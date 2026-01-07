@@ -3,7 +3,6 @@ import SwiftUI
 struct CorpStructureView: View {
     let characterId: Int
     @StateObject private var viewModel: CorpStructureViewModel
-    @Environment(\.dismiss) private var dismiss
     @State private var showSettings = false
     @AppStorage("structureFuelMonitorDays") private var fuelMonitorDays: Int = 7 {
         didSet {

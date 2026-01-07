@@ -50,9 +50,9 @@ class AttributeCalculator {
         Logger.info("Step4完成 - 成功计算所有属性的最终值")
 
         // 执行Step5 - 推进模块速度修正
-        Logger.info("执行Step5 - 推进模块速度修正")
+        Logger.info("执行Step5 - 推进模块速度和突变修正")
         output = step5.process(output: output)
-        Logger.info("Step5完成 - 推进模块速度修正完成")
+        Logger.info("Step5完成 - 推进模块速度和突变修正完成")
 
         return output
     }

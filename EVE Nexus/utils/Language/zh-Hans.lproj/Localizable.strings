@@ -2276,9 +2276,9 @@
 "Fitting_Setting_Clear_Ammo" = "清除弹药";
 "Fitting_Ammo" = "弹药";
 "Fitting_Available_Mutations" = "可用突变";
-"Fitting_Selected_Mutation" = "已选突变质体";
+"Fitting_Selected_Mutation" = "突变质体";
 "Fitting_Remove_Mutation" = "移除突变质体";
-"Fitting_Mutation_Value_Input" = "输入突变数值";
+"Fitting_Mutation_Value_Input" = "输入数值";
 "Fitting_Mutation_Value_Placeholder" = "请输入数值";
 "Fitting_Mutation_Value_Range" = "可突变范围: %@ 至 %@";
 "Fitting_Mutation_Value_Invalid_Format" = "输入格式错误，只允许数字、小数点、正负号";
@@ -2437,6 +2437,25 @@
 "Implant_Nirvana" = "极乐";
 "Implant_Rapture" = "销魂";
 "Implant_Virtue" = "美德";
+"Implant_Save_As_Preset" = "保存为自定义预设";
+"Implant_Preset_Name" = "预设名称";
+"Implant_Enter_Preset_Name" = "请输入预设名称";
+"Implant_Custom_Presets" = "自定义预设";
+"Implant_System_Presets" = "系统预设";
+"Implant_Preset_Item_Count" = "%d 个物品";
+"Implant_Preset_No_Items" = "预设中没有物品";
+"Implant_Preset_Items" = "预设物品";
+"Implant_Confirm_Delete_Preset" = "确定要删除此预设吗？";
+"Implant_No_Items_To_Save" = "无需保存";
+"Implant_No_Items_To_Save_Message" = "没有设置任何植入体/增效剂，无需保存";
+"Implant_Duplicate_Preset" = "重复配置";
+"Implant_Duplicate_Preset_Message" = "已有重复配置：%@";
+"Implant_Cleared" = "已清空";
+"Implant_Cleared_Implants" = "%d 个植入体";
+"Implant_Cleared_Boosters" = "%d 个增效剂";
+"Implant_Cleared_Message" = "已移除：%@";
+"Implant_Cleared_Nothing" = "没有可清空的内容";
+"Misc_Save" = "保存";
 
 // Fitting Price View
 "Fitting_Price" = "配装价格";

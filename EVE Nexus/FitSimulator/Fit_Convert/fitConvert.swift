@@ -251,7 +251,7 @@ class FitConvert {
             // 从items中提取无人机、货舱和舰载机信息
             let drones = online.items
                 .filter { $0.flag == .droneBay }
-                .map { Drone(type_id: $0.type_id, quantity: $0.quantity, active_count: 0) }
+                .map { Drone(type_id: $0.type_id, quantity: $0.quantity, active_count: 0, muta: nil) }
 
             let cargo = online.items
                 .filter { $0.flag == .cargo }
@@ -319,7 +319,8 @@ class FitConvert {
                         type_id: item.type_id,
                         status: 1, // 默认设置为在线状态(1)，原来是nil
                         charge_type_id: nil, // 在线配置中没有弹药信息
-                        charge_quantity: nil // 在线配置中没有弹药数量信息
+                        charge_quantity: nil, // 在线配置中没有弹药数量信息
+                        muta: nil
                     )
                 },
                 name: online.name,
@@ -601,7 +602,8 @@ class FitConvert {
                         type_id: defaultModeId,
                         status: 1,
                         charge_type_id: nil,
-                        charge_quantity: nil
+                        charge_quantity: nil,
+                        muta: nil
                     )
                     moduleItems.append(modeItem)
                     if AppConfiguration.Fitting.showDebug {
@@ -689,6 +691,41 @@ class FitConvert {
                     )
                 }
 
+                // 加载突变数据（直接使用倍数：1.15表示+15%，0.8表示-20%）
+                var selectedMutaplasmidID: Int? = nil
+                var mutatedAttributes: [Int: Double] = [:]
+                var mutatedTypeId: Int? = nil
+                var mutatedName: String? = nil
+                var mutatedIconFileName: String? = nil
+
+                if let mutaData = item.muta, !mutaData.isEmpty {
+                    // 取第一个突变数据的mutaplasmid_id（所有突变数据应该来自同一个突变质体）
+                    selectedMutaplasmidID = mutaData.first?.mutaplasmid_id
+                    // 直接使用倍数（value已经是倍数）
+                    for mutation in mutaData {
+                        mutatedAttributes[mutation.attribute_id] = mutation.value
+                    }
+
+                    // 查询突变后的typeID、名称和图标
+                    if let mutaplasmidID = selectedMutaplasmidID {
+                        if let resultingTypeId = databaseManager.getMutatedTypeID(
+                            applicableTypeID: item.type_id,
+                            mutaplasmidID: mutaplasmidID
+                        ) {
+                            mutatedTypeId = resultingTypeId
+
+                            // 查询突变后的名称和图标
+                            let typeQuery = "SELECT name, icon_filename FROM types WHERE type_id = ?"
+                            if case let .success(rows) = databaseManager.executeQuery(
+                                typeQuery, parameters: [resultingTypeId]
+                            ), let row = rows.first {
+                                mutatedName = row["name"] as? String
+                                mutatedIconFileName = row["icon_filename"] as? String
+                            }
+                        }
+                    }
+                }
+
                 let simModule = SimModule(
                     typeId: item.type_id,
                     attributes: updatedAttr,
@@ -707,7 +744,12 @@ class FitConvert {
                     quantity: item.quantity,
                     name: moduleInfo.name,
                     iconFileName: moduleInfo.iconFileName,
-                    requiredSkills: extractRequiredSkills(attributes: updatedAttr)
+                    requiredSkills: extractRequiredSkills(attributes: updatedAttr),
+                    selectedMutaplasmidID: selectedMutaplasmidID,
+                    mutatedAttributes: mutatedAttributes,
+                    mutatedTypeId: mutatedTypeId,
+                    mutatedName: mutatedName,
+                    mutatedIconFileName: mutatedIconFileName
                 )
 
                 modules.append(simModule)
@@ -737,7 +779,42 @@ class FitConvert {
                 updatedAttr[161] = droneInfo.volume
                 updatedAttrName["volume"] = droneInfo.volume
 
-                let simDrone = SimDrone(
+                // 加载突变数据（直接使用倍数：1.15表示+15%，0.8表示-20%）
+                var selectedMutaplasmidID: Int? = nil
+                var mutatedAttributes: [Int: Double] = [:]
+                var mutatedTypeId: Int? = nil
+                var mutatedName: String? = nil
+                var mutatedIconFileName: String? = nil
+
+                if let mutaData = drone.muta, !mutaData.isEmpty {
+                    // 取第一个突变数据的mutaplasmid_id（所有突变数据应该来自同一个突变质体）
+                    selectedMutaplasmidID = mutaData.first?.mutaplasmid_id
+                    // 直接使用倍数（value已经是倍数）
+                    for mutation in mutaData {
+                        mutatedAttributes[mutation.attribute_id] = mutation.value
+                    }
+
+                    // 查询突变后的typeID、名称和图标
+                    if let mutaplasmidID = selectedMutaplasmidID {
+                        if let resultingTypeId = databaseManager.getMutatedTypeID(
+                            applicableTypeID: drone.type_id,
+                            mutaplasmidID: mutaplasmidID
+                        ) {
+                            mutatedTypeId = resultingTypeId
+
+                            // 查询突变后的名称和图标
+                            let typeQuery = "SELECT name, icon_filename FROM types WHERE type_id = ?"
+                            if case let .success(rows) = databaseManager.executeQuery(
+                                typeQuery, parameters: [resultingTypeId]
+                            ), let row = rows.first {
+                                mutatedName = row["name"] as? String
+                                mutatedIconFileName = row["icon_filename"] as? String
+                            }
+                        }
+                    }
+                }
+
+                var simDrone = SimDrone(
                     typeId: drone.type_id,
                     attributes: updatedAttr,
                     attributesByName: updatedAttrName,
@@ -749,6 +826,12 @@ class FitConvert {
                     name: droneInfo.name,
                     iconFileName: droneInfo.iconFileName
                 )
+                // 设置突变数据
+                simDrone.selectedMutaplasmidID = selectedMutaplasmidID
+                simDrone.mutatedAttributes = mutatedAttributes
+                simDrone.mutatedTypeId = mutatedTypeId
+                simDrone.mutatedName = mutatedName
+                simDrone.mutatedIconFileName = mutatedIconFileName
 
                 drones.append(simDrone)
             }
@@ -1044,13 +1127,27 @@ class FitConvert {
                 )
             }
 
+            // 构建突变数据（直接存储倍数：+15%就是1.15，-20%是0.8）
+            var mutaData: [MutationData]? = nil
+            if let mutaplasmidID = module.selectedMutaplasmidID, !module.mutatedAttributes.isEmpty {
+                mutaData = module.mutatedAttributes.map { attributeID, multiplier in
+                    // 直接存储倍数（不带百分号）
+                    MutationData(
+                        mutaplasmid_id: mutaplasmidID,
+                        attribute_id: attributeID,
+                        value: multiplier
+                    )
+                }
+            }
+
             return LocalFittingItem(
                 flag: module.flag ?? .invalid,
                 quantity: module.quantity,
                 type_id: module.typeId,
                 status: module.status,
                 charge_type_id: module.charge?.typeId,
-                charge_quantity: module.charge?.chargeQuantity
+                charge_quantity: module.charge?.chargeQuantity,
+                muta: mutaData
             )
         }
 
@@ -1059,10 +1156,24 @@ class FitConvert {
             input.drones.isEmpty
                 ? nil
                 : input.drones.map { drone -> Drone in
+                    // 构建突变数据（直接存储倍数：+15%就是1.15，-20%是0.8）
+                    var mutaData: [MutationData]? = nil
+                    if let mutaplasmidID = drone.selectedMutaplasmidID, !drone.mutatedAttributes.isEmpty {
+                        mutaData = drone.mutatedAttributes.map { attributeID, multiplier in
+                            // 直接存储倍数（不带百分号）
+                            MutationData(
+                                mutaplasmid_id: mutaplasmidID,
+                                attribute_id: attributeID,
+                                value: multiplier
+                            )
+                        }
+                    }
+
                     return Drone(
                         type_id: drone.typeId,
                         quantity: drone.quantity,
-                        active_count: drone.activeCount
+                        active_count: drone.activeCount,
+                        muta: mutaData
                     )
                 }
 
@@ -1771,7 +1882,8 @@ class FitConvert {
                             let drone = Drone(
                                 type_id: result.typeId,
                                 quantity: result.quantity,
-                                active_count: 0
+                                active_count: 0,
+                                muta: nil
                             )
                             drones.append(drone)
                             if AppConfiguration.Fitting.showDebug {
@@ -2351,7 +2463,8 @@ class FitConvert {
             type_id: moduleTypeId,
             status: 1, // 默认在线状态
             charge_type_id: chargeTypeId,
-            charge_quantity: chargeTypeId != nil ? 1 : nil
+            charge_quantity: chargeTypeId != nil ? 1 : nil,
+            muta: nil
         )
     }
 

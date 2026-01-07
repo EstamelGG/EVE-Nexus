@@ -912,7 +912,6 @@ struct SortMenuView: View {
 struct CorpMemberListView: View {
     let characterId: Int
     @StateObject private var viewModel: CorpMemberListViewModel
-    @Environment(\.dismiss) private var dismiss
     @State private var isRefreshing = false
 
     init(characterId: Int) {

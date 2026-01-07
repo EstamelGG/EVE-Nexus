@@ -53,12 +53,6 @@ actor AvailableModelsAPI {
         }
     }
 
-    /// 获取缓存的可用模型列表（如果已加载）
-    /// - Returns: 可用模型ID数组，如果未加载则返回nil
-    func getCachedAvailableModels() -> [Int]? {
-        return available_models
-    }
-
     /// 检查指定模型ID是否在可用列表中
     /// - Parameter modelId: 模型ID
     /// - Returns: 如果模型可用则返回true，否则返回false

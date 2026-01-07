@@ -150,8 +150,9 @@ struct ModulesExportSection: View {
                             HStack(spacing: 12) {
                                 if let module = installedModule {
                                     // 已安装装备
-                                    // 装备图标
-                                    if let iconFileName = module.iconFileName {
+                                    // 装备图标 - 优先使用突变后的图标
+                                    let displayIconFileName = module.mutatedIconFileName ?? module.iconFileName
+                                    if let iconFileName = displayIconFileName {
                                         IconManager.shared.loadImage(for: iconFileName)
                                             .resizable()
                                             .scaledToFit()
@@ -165,7 +166,7 @@ struct ModulesExportSection: View {
                                             .foregroundColor(.gray)
                                     }
 
-                                    // 装备名称和状态
+                                    // 装备名称和状态 - 优先使用突变后的名称
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(module.name)
                                             .font(.body)

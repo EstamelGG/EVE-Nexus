@@ -91,8 +91,8 @@ struct ShipFittingDronesView: View {
                 // 使用simulationOutput中的无人机数据
                 ForEach(viewModel.simulationOutput?.drones ?? [], id: \.typeId) { drone in
                     HStack {
-                        // 无人机图标
-                        if let iconFileName = drone.iconFileName {
+                        // 无人机图标（优先使用突变后的图标）
+                        if let iconFileName = drone.mutatedIconFileName ?? drone.iconFileName {
                             IconManager.shared.loadImage(for: iconFileName)
                                 .resizable()
                                 .scaledToFit()

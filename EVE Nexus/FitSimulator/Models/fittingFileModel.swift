@@ -71,6 +71,13 @@ struct OnlineFitting: Codable {
     let ship_type_id: Int
 }
 
+// 突变属性数据结构
+struct MutationData: Codable {
+    let mutaplasmid_id: Int // 突变质体ID
+    let attribute_id: Int // 突变属性ID
+    let value: Double // 突变数值（不带百分号，如15表示15%）
+}
+
 // 本地配置结构体
 struct LocalFittingItem: Codable {
     let flag: FittingFlag
@@ -79,6 +86,7 @@ struct LocalFittingItem: Codable {
     let status: Int? // 装备状态（可选）
     let charge_type_id: Int? // 弹药类型ID（可选）
     let charge_quantity: Int? // 弹药数量（可选）
+    let muta: [MutationData]? // 突变数据（可选）
 }
 
 struct LocalFitting: Codable {
@@ -99,6 +107,7 @@ struct Drone: Codable {
     let type_id: Int // 无人机类型ID
     let quantity: Int // 携带数量
     let active_count: Int // 激活数量
+    let muta: [MutationData]? // 突变数据（可选）
 }
 
 // 货舱物品结构体

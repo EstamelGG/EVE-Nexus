@@ -117,6 +117,11 @@ struct SimModuleOutput {
     let iconFileName: String? // 装备图标文件名
     let requiredSkills: [Int] // 所需技能ID列表
 
+    // 突变后的显示信息（用于UI显示）
+    let mutatedTypeId: Int? // 突变后的typeID
+    let mutatedName: String? // 突变后的名称
+    let mutatedIconFileName: String? // 突变后的图标文件名
+
     /// 从SimModule创建SimModuleOutput
     init(from module: SimModule) {
         instanceId = module.instanceId
@@ -133,9 +138,13 @@ struct SimModuleOutput {
         }
         flag = module.flag
         quantity = module.quantity
-        name = module.name
-        iconFileName = module.iconFileName
+        // 优先使用突变后的名称和图标
+        name = module.mutatedName ?? module.name
+        iconFileName = module.mutatedIconFileName ?? module.iconFileName
         requiredSkills = module.requiredSkills
+        mutatedTypeId = module.mutatedTypeId
+        mutatedName = module.mutatedName
+        mutatedIconFileName = module.mutatedIconFileName
     }
 }
 
@@ -181,6 +190,11 @@ struct SimDroneOutput {
     let iconFileName: String? // 无人机图标文件名
     let requiredSkills: [Int] // 所需技能ID列表
 
+    // 突变后的显示信息（用于UI显示）
+    let mutatedTypeId: Int? // 突变后的typeID
+    let mutatedName: String? // 突变后的名称
+    let mutatedIconFileName: String? // 突变后的图标文件名
+
     /// 从SimDrone创建SimDroneOutput
     init(from drone: SimDrone) {
         instanceId = drone.instanceId
@@ -191,9 +205,13 @@ struct SimDroneOutput {
         quantity = drone.quantity
         activeCount = drone.activeCount
         groupID = drone.groupID
-        name = drone.name
-        iconFileName = drone.iconFileName
+        // 优先使用突变后的名称和图标
+        name = drone.mutatedName ?? drone.name
+        iconFileName = drone.mutatedIconFileName ?? drone.iconFileName
         requiredSkills = drone.requiredSkills
+        mutatedTypeId = drone.mutatedTypeId
+        mutatedName = drone.mutatedName
+        mutatedIconFileName = drone.mutatedIconFileName
     }
 }
 

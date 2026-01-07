@@ -2244,7 +2244,7 @@
 "Fitting_Setting_Clear_Ammo" = "Clear Charge";
 "Fitting_Ammo" = "Charge";
 "Fitting_Available_Mutations" = "Available Mutations";
-"Fitting_Selected_Mutation" = "Selected Mutaplasmid";
+"Fitting_Selected_Mutation" = "Mutaplasmid";
 "Fitting_Remove_Mutation" = "Remove Mutaplasmid";
 "Fitting_Mutation_Value_Input" = "Enter Mutation Value";
 "Fitting_Mutation_Value_Placeholder" = "Enter value";
@@ -2402,6 +2402,25 @@
 "Implant_Nirvana" = "Nirvana";
 "Implant_Rapture" = "Rapture";
 "Implant_Virtue" = "Virtue";
+"Implant_Save_As_Preset" = "Save as Custom Preset";
+"Implant_Preset_Name" = "Preset Name";
+"Implant_Enter_Preset_Name" = "Please enter a name for the preset";
+"Implant_Custom_Presets" = "Custom Presets";
+"Implant_System_Presets" = "System Presets";
+"Implant_Preset_Item_Count" = "%d items";
+"Implant_Preset_No_Items" = "No items in preset";
+"Implant_Preset_Items" = "Preset Items";
+"Implant_Confirm_Delete_Preset" = "Are you sure you want to delete this preset?";
+"Implant_No_Items_To_Save" = "No Items to Save";
+"Implant_No_Items_To_Save_Message" = "No implants or boosters are configured. Nothing to save.";
+"Implant_Duplicate_Preset" = "Duplicate Configuration";
+"Implant_Duplicate_Preset_Message" = "A configuration with the same items already exists: %@";
+"Implant_Cleared" = "Cleared";
+"Implant_Cleared_Implants" = "%d implant(s)";
+"Implant_Cleared_Boosters" = "%d booster(s)";
+"Implant_Cleared_Message" = "Removed: %@";
+"Implant_Cleared_Nothing" = "Nothing to clear";
+"Misc_Save" = "Save";
 
 // Fitting Price View
 "Fitting_Price" = "Fitting Price";

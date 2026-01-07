@@ -544,7 +544,6 @@ class CorpIndustryViewModel: ObservableObject {
 
 struct CorpIndustryView: View {
     let characterId: Int
-    @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel: CorpIndustryViewModel
     @State private var showFilterSheet = false
 

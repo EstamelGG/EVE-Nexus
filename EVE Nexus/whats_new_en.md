@@ -362,3 +362,9 @@ Fixes & Improvements:
 3. Fix a bug when calculate jump range
 4. Add long press button "Copy material" in LP store
 5. Add model viewer (for ships) in database
+
+# 1.10.1 Jan 15, 2026
+
+1. Add Corp POS Monitor function.
+2. Allow setting mutations in fitting function.
+3. Allow customizing implant presets in fitting function.

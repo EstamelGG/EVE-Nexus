@@ -230,6 +230,8 @@ struct DroneSettingsView: View {
 
                         // 最后一行：移除按钮
                         Button(action: {
+                            // 清除SimDrone的突变数据
+                            viewModel.updateDroneMutation(typeId: currentDroneID, mutaplasmidID: nil, mutatedAttributes: [:])
                             selectedMutaplasmidID = nil
                             selectedMutaplasmidInfo = nil
                             mutaplasmidAttributes = []
@@ -252,6 +254,8 @@ struct DroneSettingsView: View {
                                     // 选择突变质体后的处理
                                     selectedMutaplasmidID = mutaplasmidID
                                     loadMutaplasmidInfo(mutaplasmidID: mutaplasmidID)
+                                    // 保存突变质体选择（此时还没有突变数值，所以mutatedAttributes为空）
+                                    viewModel.updateDroneMutation(typeId: currentDroneID, mutaplasmidID: mutaplasmidID, mutatedAttributes: [:])
                                 }
                             )
                         ) {
@@ -295,6 +299,20 @@ struct DroneSettingsView: View {
             .onAppear {
                 loadDroneDetails()
                 checkVariations()
+
+                // 加载突变数据（从SimDrone读取）
+                if let currentDrone = viewModel.simulationInput.drones.first(where: { $0.typeId == currentDroneID }) {
+                    if let mutaplasmidID = currentDrone.selectedMutaplasmidID {
+                        selectedMutaplasmidID = mutaplasmidID
+                        loadMutaplasmidInfo(mutaplasmidID: mutaplasmidID)
+                        // 从SimDrone的mutatedAttributes恢复currentValue
+                        for (index, attribute) in mutaplasmidAttributes.enumerated() {
+                            if let multiplier = currentDrone.mutatedAttributes[attribute.attributeID] {
+                                mutaplasmidAttributes[index].currentValue = multiplier
+                            }
+                        }
+                    }
+                }
             }
             .onDisappear {
                 // 无人机设置视图消失时，如果激活数量或总数量有变化，重新计算整个配置
@@ -525,25 +543,19 @@ struct DroneSettingsView: View {
         let mutationValue = (doubleValue / 100) + 1
         mutaplasmidAttributes[attributeIndex].currentValue = mutationValue
 
-        cancelEditing()
-    }
-
-    // 格式化突变数值（用于显示）
-    private func formatMutationValue(_ value: Double) -> String {
-        let percentage = (value - 1) * 100
-        let formatter = NumberFormatter()
-        formatter.minimumFractionDigits = 0
-        formatter.maximumFractionDigits = 2
-        formatter.numberStyle = .decimal
-
-        if let formatted = formatter.string(from: NSNumber(value: percentage)) {
-            if percentage >= 0 {
-                return formatted // 正数不显示加号
-            } else {
-                return formatted // 负数已经包含负号
+        // 更新SimDrone的突变数据
+        let mutatedAttributes = mutaplasmidAttributes.reduce(into: [Int: Double]()) { result, attribute in
+            if let currentValue = attribute.currentValue {
+                result[attribute.attributeID] = currentValue
             }
         }
-        return String(format: "%.2f", percentage)
+        viewModel.updateDroneMutation(
+            typeId: currentDroneID,
+            mutaplasmidID: selectedMutaplasmidID,
+            mutatedAttributes: mutatedAttributes
+        )
+
+        cancelEditing()
     }
 
     // 格式化突变数值（用于输入框）

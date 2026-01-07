@@ -424,7 +424,12 @@ class FittingEditorViewModel: ObservableObject {
                         quantity: module.quantity,
                         name: module.name,
                         iconFileName: module.iconFileName,
-                        requiredSkills: module.requiredSkills
+                        requiredSkills: module.requiredSkills,
+                        selectedMutaplasmidID: module.selectedMutaplasmidID,
+                        mutatedAttributes: module.mutatedAttributes,
+                        mutatedTypeId: module.mutatedTypeId,
+                        mutatedName: module.mutatedName,
+                        mutatedIconFileName: module.mutatedIconFileName
                     )
 
                     Logger.info("设置装备状态: \(module.name), 最大状态: \(maxStatus), 设置状态: \(newStatus)")
@@ -647,7 +652,7 @@ class FittingEditorViewModel: ObservableObject {
                 - 新状态: \(newStatus)
                 """)
 
-            // 首先更新当前模块的状态
+            // 首先更新当前模块的状态（保留突变数据）
             let updatedModule = SimModule(
                 instanceId: currentModule.instanceId, // 保留原模块的instanceId
                 typeId: currentModule.typeId,
@@ -661,7 +666,12 @@ class FittingEditorViewModel: ObservableObject {
                 quantity: currentModule.quantity,
                 name: currentModule.name,
                 iconFileName: currentModule.iconFileName,
-                requiredSkills: currentModule.requiredSkills
+                requiredSkills: currentModule.requiredSkills,
+                selectedMutaplasmidID: currentModule.selectedMutaplasmidID,
+                mutatedAttributes: currentModule.mutatedAttributes,
+                mutatedTypeId: currentModule.mutatedTypeId,
+                mutatedName: currentModule.mutatedName,
+                mutatedIconFileName: currentModule.mutatedIconFileName
             )
 
             // 更新模块列表
@@ -745,7 +755,7 @@ class FittingEditorViewModel: ObservableObject {
 
                 // 4. 只有当状态确实需要改变时才更新
                 if finalStatus != currentModule.status {
-                    // 创建更新后的模块
+                    // 创建更新后的模块（保留突变数据）
                     let updatedModule = SimModule(
                         instanceId: currentModule.instanceId, // 保留原模块的instanceId
                         typeId: currentModule.typeId,
@@ -759,7 +769,12 @@ class FittingEditorViewModel: ObservableObject {
                         quantity: currentModule.quantity,
                         name: currentModule.name,
                         iconFileName: currentModule.iconFileName,
-                        requiredSkills: currentModule.requiredSkills
+                        requiredSkills: currentModule.requiredSkills,
+                        selectedMutaplasmidID: currentModule.selectedMutaplasmidID,
+                        mutatedAttributes: currentModule.mutatedAttributes,
+                        mutatedTypeId: currentModule.mutatedTypeId,
+                        mutatedName: currentModule.mutatedName,
+                        mutatedIconFileName: currentModule.mutatedIconFileName
                     )
 
                     // 更新模块列表
@@ -926,7 +941,7 @@ class FittingEditorViewModel: ObservableObject {
                     iconFileName: iconFileName
                 )
 
-                // 创建新的模块对象，添加弹药
+                // 创建新的模块对象，添加弹药（保留突变数据）
                 let updatedModule = SimModule(
                     instanceId: currentModule.instanceId, // 保留原模块的instanceId
                     typeId: currentModule.typeId,
@@ -940,7 +955,12 @@ class FittingEditorViewModel: ObservableObject {
                     quantity: currentModule.quantity,
                     name: currentModule.name,
                     iconFileName: currentModule.iconFileName,
-                    requiredSkills: currentModule.requiredSkills
+                    requiredSkills: currentModule.requiredSkills,
+                    selectedMutaplasmidID: currentModule.selectedMutaplasmidID,
+                    mutatedAttributes: currentModule.mutatedAttributes,
+                    mutatedTypeId: currentModule.mutatedTypeId,
+                    mutatedName: currentModule.mutatedName,
+                    mutatedIconFileName: currentModule.mutatedIconFileName
                 )
 
                 // 更新模块列表
@@ -974,7 +994,7 @@ class FittingEditorViewModel: ObservableObject {
             if let index = simulationInput.modules.firstIndex(where: { $0.flag == flag }) {
                 let currentModule = simulationInput.modules[index]
 
-                // 创建新的模块对象，移除弹药
+                // 创建新的模块对象，移除弹药（保留突变数据）
                 let updatedModule = SimModule(
                     instanceId: currentModule.instanceId, // 保留原模块的instanceId
                     typeId: currentModule.typeId,
@@ -988,7 +1008,12 @@ class FittingEditorViewModel: ObservableObject {
                     quantity: currentModule.quantity,
                     name: currentModule.name,
                     iconFileName: currentModule.iconFileName,
-                    requiredSkills: currentModule.requiredSkills
+                    requiredSkills: currentModule.requiredSkills,
+                    selectedMutaplasmidID: currentModule.selectedMutaplasmidID,
+                    mutatedAttributes: currentModule.mutatedAttributes,
+                    mutatedTypeId: currentModule.mutatedTypeId,
+                    mutatedName: currentModule.mutatedName,
+                    mutatedIconFileName: currentModule.mutatedIconFileName
                 )
 
                 // 更新模块列表
@@ -1111,7 +1136,7 @@ class FittingEditorViewModel: ObservableObject {
                 iconFileName: iconFileName
             )
 
-            // 创建新的模块对象，添加弹药
+            // 创建新的模块对象，添加弹药（保留突变数据）
             let updatedModule = SimModule(
                 instanceId: currentModule.instanceId, // 保留原模块的instanceId
                 typeId: currentModule.typeId,
@@ -1125,7 +1150,12 @@ class FittingEditorViewModel: ObservableObject {
                 quantity: currentModule.quantity,
                 name: currentModule.name,
                 iconFileName: currentModule.iconFileName,
-                requiredSkills: currentModule.requiredSkills
+                requiredSkills: currentModule.requiredSkills,
+                selectedMutaplasmidID: currentModule.selectedMutaplasmidID,
+                mutatedAttributes: currentModule.mutatedAttributes,
+                mutatedTypeId: currentModule.mutatedTypeId,
+                mutatedName: currentModule.mutatedName,
+                mutatedIconFileName: currentModule.mutatedIconFileName
             )
 
             // 更新模块列表
@@ -1158,7 +1188,7 @@ class FittingEditorViewModel: ObservableObject {
             // 如果当前没有弹药，直接返回
             guard currentModule.charge != nil else { return }
 
-            // 创建新的模块对象，移除弹药
+            // 创建新的模块对象，移除弹药（保留突变数据）
             let updatedModule = SimModule(
                 instanceId: currentModule.instanceId, // 保留原模块的instanceId
                 typeId: currentModule.typeId,
@@ -1172,7 +1202,12 @@ class FittingEditorViewModel: ObservableObject {
                 quantity: currentModule.quantity,
                 name: currentModule.name,
                 iconFileName: currentModule.iconFileName,
-                requiredSkills: currentModule.requiredSkills
+                requiredSkills: currentModule.requiredSkills,
+                selectedMutaplasmidID: currentModule.selectedMutaplasmidID,
+                mutatedAttributes: currentModule.mutatedAttributes,
+                mutatedTypeId: currentModule.mutatedTypeId,
+                mutatedName: currentModule.mutatedName,
+                mutatedIconFileName: currentModule.mutatedIconFileName
             )
 
             // 更新模块列表
@@ -1402,6 +1437,156 @@ class FittingEditorViewModel: ObservableObject {
         Logger.info("移除槽位\(flag.rawValue)的装备成功")
     }
 
+    /// 更新模块的突变数据
+    func updateModuleMutation(flag: FittingFlag, mutaplasmidID: Int?, mutatedAttributes: [Int: Double]) {
+        guard let index = simulationInput.modules.firstIndex(where: { $0.flag == flag }) else {
+            Logger.warning("更新模块突变数据失败: 未找到槽位 \(flag.rawValue)")
+            return
+        }
+
+        let currentModule = simulationInput.modules[index]
+
+        // 查询突变后的typeID、名称和图标
+        var mutatedTypeId: Int? = nil
+        var mutatedName: String? = nil
+        var mutatedIconFileName: String? = nil
+
+        if let mutaplasmidID = mutaplasmidID {
+            if let resultingTypeId = databaseManager.getMutatedTypeID(
+                applicableTypeID: currentModule.typeId,
+                mutaplasmidID: mutaplasmidID
+            ) {
+                mutatedTypeId = resultingTypeId
+
+                // 查询突变后的名称和图标
+                let typeQuery = "SELECT name, icon_filename FROM types WHERE type_id = ?"
+                if case let .success(rows) = databaseManager.executeQuery(
+                    typeQuery, parameters: [resultingTypeId]
+                ), let row = rows.first {
+                    mutatedName = row["name"] as? String
+                    mutatedIconFileName = row["icon_filename"] as? String
+                }
+            }
+        }
+
+        let updatedModule = SimModule(
+            instanceId: currentModule.instanceId,
+            typeId: currentModule.typeId,
+            attributes: currentModule.attributes,
+            attributesByName: currentModule.attributesByName,
+            effects: currentModule.effects,
+            groupID: currentModule.groupID,
+            status: currentModule.status,
+            charge: currentModule.charge,
+            flag: currentModule.flag,
+            quantity: currentModule.quantity,
+            name: currentModule.name,
+            iconFileName: currentModule.iconFileName,
+            requiredSkills: currentModule.requiredSkills,
+            selectedMutaplasmidID: mutaplasmidID,
+            mutatedAttributes: mutatedAttributes,
+            mutatedTypeId: mutatedTypeId,
+            mutatedName: mutatedName,
+            mutatedIconFileName: mutatedIconFileName
+        )
+
+        simulationInput.modules[index] = updatedModule
+
+        // 标记有未保存的更改
+        hasUnsavedChanges = true
+
+        // 重新计算属性（突变会影响属性值）
+        Logger.info("更新模块突变数据，重新计算属性")
+        calculateAttributes()
+
+        // 通知UI更新
+        objectWillChange.send()
+
+        // 自动保存配置
+        saveConfiguration()
+
+        Logger.info("更新模块突变数据成功: \(currentModule.name), 突变质体ID: \(mutaplasmidID?.description ?? "nil"), 突变属性数量: \(mutatedAttributes.count)")
+    }
+
+    /// 批量更新模块的突变数据
+    func batchUpdateModuleMutation(flags: [FittingFlag], mutaplasmidID: Int?, mutatedAttributes: [Int: Double]) {
+        Logger.info("开始批量更新模块突变数据: \(flags.count) 个模块")
+
+        var updatedCount = 0
+        for flag in flags {
+            guard let index = simulationInput.modules.firstIndex(where: { $0.flag == flag }) else {
+                Logger.warning("批量更新突变失败: 未找到槽位 \(flag.rawValue)")
+                continue
+            }
+
+            let currentModule = simulationInput.modules[index]
+
+            // 查询突变后的typeID、名称和图标
+            var mutatedTypeId: Int? = nil
+            var mutatedName: String? = nil
+            var mutatedIconFileName: String? = nil
+
+            if let mutaplasmidID = mutaplasmidID {
+                if let resultingTypeId = databaseManager.getMutatedTypeID(
+                    applicableTypeID: currentModule.typeId,
+                    mutaplasmidID: mutaplasmidID
+                ) {
+                    mutatedTypeId = resultingTypeId
+
+                    // 查询突变后的名称和图标
+                    let typeQuery = "SELECT name, icon_filename FROM types WHERE type_id = ?"
+                    if case let .success(rows) = databaseManager.executeQuery(
+                        typeQuery, parameters: [resultingTypeId]
+                    ), let row = rows.first {
+                        mutatedName = row["name"] as? String
+                        mutatedIconFileName = row["icon_filename"] as? String
+                    }
+                }
+            }
+
+            let updatedModule = SimModule(
+                instanceId: currentModule.instanceId,
+                typeId: currentModule.typeId,
+                attributes: currentModule.attributes,
+                attributesByName: currentModule.attributesByName,
+                effects: currentModule.effects,
+                groupID: currentModule.groupID,
+                status: currentModule.status,
+                charge: currentModule.charge,
+                flag: currentModule.flag,
+                quantity: currentModule.quantity,
+                name: currentModule.name,
+                iconFileName: currentModule.iconFileName,
+                requiredSkills: currentModule.requiredSkills,
+                selectedMutaplasmidID: mutaplasmidID,
+                mutatedAttributes: mutatedAttributes,
+                mutatedTypeId: mutatedTypeId,
+                mutatedName: mutatedName,
+                mutatedIconFileName: mutatedIconFileName
+            )
+
+            simulationInput.modules[index] = updatedModule
+            updatedCount += 1
+        }
+
+        if updatedCount > 0 {
+            // 标记有未保存的更改
+            hasUnsavedChanges = true
+
+            // 重新计算属性（突变会影响属性值）
+            Logger.info("批量更新模块突变数据完成，重新计算属性")
+            calculateAttributes()
+
+            // 通知UI更新
+            objectWillChange.send()
+
+            // 自动保存配置
+            saveConfiguration()
+
+            Logger.info("批量更新模块突变数据成功: \(updatedCount)/\(flags.count) 个模块")
+        }
+    }
+
     /// 安全替换指定槽位的装备（先删除旧装备再安装新装备，如果安装失败则恢复旧装备）
     func replaceModule(typeId: Int, flag: FittingFlag, status: Int = 0) -> Bool {
         // 清除之前的错误消息
@@ -1563,7 +1748,7 @@ class FittingEditorViewModel: ObservableObject {
         attributes[161] = volume
         attributesByName["volume"] = volume
 
-        // 创建新模块
+        // 创建新模块（装备更换后清除突变信息）
         let newModule = SimModule(
             typeId: typeId,
             attributes: attributes,
@@ -1576,7 +1761,9 @@ class FittingEditorViewModel: ObservableObject {
             quantity: 1,
             name: model_name,
             iconFileName: model_iconFilename,
-            requiredSkills: FitConvert.extractRequiredSkills(attributes: attributes)
+            requiredSkills: FitConvert.extractRequiredSkills(attributes: attributes),
+            selectedMutaplasmidID: nil, // 装备更换后清除突变信息
+            mutatedAttributes: [:] // 装备更换后清除突变信息
         )
 
         // 尝试保留原有装备的弹药
@@ -1609,7 +1796,7 @@ class FittingEditorViewModel: ObservableObject {
                     iconFileName: oldCharge.iconFileName
                 )
 
-                // 创建带有更新弹药的新模块
+                // 创建带有更新弹药的新模块（装备更换后清除突变信息）
                 let updatedModule = SimModule(
                     instanceId: oldModule?.instanceId ?? UUID(), // 保留原模块的instanceId
                     typeId: typeId,
@@ -1623,7 +1810,9 @@ class FittingEditorViewModel: ObservableObject {
                     quantity: 1,
                     name: model_name,
                     iconFileName: model_iconFilename,
-                    requiredSkills: newModule.requiredSkills
+                    requiredSkills: newModule.requiredSkills,
+                    selectedMutaplasmidID: nil, // 装备更换后清除突变信息
+                    mutatedAttributes: [:] // 装备更换后清除突变信息
                 )
 
                 // 使用带有弹药的模块
@@ -1680,8 +1869,8 @@ class FittingEditorViewModel: ObservableObject {
             let newQuantity = existingDrone.quantity + quantity
             let newActiveCount = existingDrone.activeCount + activeCount
 
-            // 创建更新后的无人机对象
-            let updatedDrone = SimDrone(
+            // 创建更新后的无人机对象（保留突变数据）
+            var updatedDrone = SimDrone(
                 typeId: existingDrone.typeId,
                 attributes: existingDrone.attributes,
                 attributesByName: existingDrone.attributesByName,
@@ -1693,6 +1882,12 @@ class FittingEditorViewModel: ObservableObject {
                 name: existingDrone.name,
                 iconFileName: existingDrone.iconFileName
             )
+            // 保留突变数据（包括显示信息）
+            updatedDrone.selectedMutaplasmidID = existingDrone.selectedMutaplasmidID
+            updatedDrone.mutatedAttributes = existingDrone.mutatedAttributes
+            updatedDrone.mutatedTypeId = existingDrone.mutatedTypeId
+            updatedDrone.mutatedName = existingDrone.mutatedName
+            updatedDrone.mutatedIconFileName = existingDrone.mutatedIconFileName
 
             // 更新无人机列表
             simulationInput.drones[index] = updatedDrone
@@ -1863,8 +2058,8 @@ class FittingEditorViewModel: ObservableObject {
         // 获取当前无人机
         let drone = simulationInput.drones[index]
 
-        // 创建更新后的无人机对象
-        let updatedDrone = SimDrone(
+        // 创建更新后的无人机对象（保留突变数据）
+        var updatedDrone = SimDrone(
             typeId: drone.typeId,
             attributes: drone.attributes,
             attributesByName: drone.attributesByName,
@@ -1876,6 +2071,12 @@ class FittingEditorViewModel: ObservableObject {
             name: drone.name,
             iconFileName: drone.iconFileName
         )
+        // 保留突变数据（包括显示信息）
+        updatedDrone.selectedMutaplasmidID = drone.selectedMutaplasmidID
+        updatedDrone.mutatedAttributes = drone.mutatedAttributes
+        updatedDrone.mutatedTypeId = drone.mutatedTypeId
+        updatedDrone.mutatedName = drone.mutatedName
+        updatedDrone.mutatedIconFileName = drone.mutatedIconFileName
 
         // 更新无人机列表
         simulationInput.drones[index] = updatedDrone
@@ -1893,6 +2094,63 @@ class FittingEditorViewModel: ObservableObject {
         saveConfiguration()
 
         Logger.info("更新无人机成功: \(drone.name), 数量: \(quantity), 激活数量: \(activeCount)")
+    }
+
+    /// 更新无人机的突变数据
+    func updateDroneMutation(typeId: Int, mutaplasmidID: Int?, mutatedAttributes: [Int: Double]) {
+        guard let index = simulationInput.drones.firstIndex(where: { $0.typeId == typeId }) else {
+            Logger.warning("更新无人机突变数据失败: 未找到无人机 typeId \(typeId)")
+            return
+        }
+
+        let currentDrone = simulationInput.drones[index]
+
+        // 查询突变后的typeID、名称和图标
+        var mutatedTypeId: Int? = nil
+        var mutatedName: String? = nil
+        var mutatedIconFileName: String? = nil
+
+        if let mutaplasmidID = mutaplasmidID {
+            if let resultingTypeId = databaseManager.getMutatedTypeID(
+                applicableTypeID: currentDrone.typeId,
+                mutaplasmidID: mutaplasmidID
+            ) {
+                mutatedTypeId = resultingTypeId
+
+                // 查询突变后的名称和图标
+                let typeQuery = "SELECT name, icon_filename FROM types WHERE type_id = ?"
+                if case let .success(rows) = databaseManager.executeQuery(
+                    typeQuery, parameters: [resultingTypeId]
+                ), let row = rows.first {
+                    mutatedName = row["name"] as? String
+                    mutatedIconFileName = row["icon_filename"] as? String
+                }
+            }
+        }
+
+        var updatedDrone = currentDrone
+        updatedDrone.selectedMutaplasmidID = mutaplasmidID
+        updatedDrone.mutatedAttributes = mutatedAttributes
+        updatedDrone.mutatedTypeId = mutatedTypeId
+        updatedDrone.mutatedName = mutatedName
+        updatedDrone.mutatedIconFileName = mutatedIconFileName
+
+        simulationInput.drones[index] = updatedDrone
+
+        // 标记有未保存的更改
+        hasUnsavedChanges = true
+
+        // 重新计算属性（突变会影响属性值）
+        Logger.info("更新无人机突变数据，重新计算属性")
+        calculateAttributes()
+
+        // 通知UI更新
+        objectWillChange.send()
+
+        // 自动保存配置
+        saveConfiguration()
+
+        Logger.info("更新无人机突变数据成功: \(currentDrone.name), 突变质体ID: \(mutaplasmidID?.description ?? "nil"), 突变属性数量: \(mutatedAttributes.count)")
     }
 
     /// 替换无人机（保持数量和激活数量）
@@ -1920,8 +2178,8 @@ class FittingEditorViewModel: ObservableObject {
             let newQuantity = existingDrone.quantity + oldQuantity
             let newActiveCount = existingDrone.activeCount + oldActiveCount
 
-            // 创建更新后的无人机对象
-            let updatedDrone = SimDrone(
+            // 创建更新后的无人机对象（保留突变数据）
+            var updatedDrone = SimDrone(
                 typeId: existingDrone.typeId,
                 attributes: existingDrone.attributes,
                 attributesByName: existingDrone.attributesByName,
@@ -1933,6 +2191,12 @@ class FittingEditorViewModel: ObservableObject {
                 name: existingDrone.name,
                 iconFileName: existingDrone.iconFileName
             )
+            // 保留突变数据（包括显示信息）
+            updatedDrone.selectedMutaplasmidID = existingDrone.selectedMutaplasmidID
+            updatedDrone.mutatedAttributes = existingDrone.mutatedAttributes
+            updatedDrone.mutatedTypeId = existingDrone.mutatedTypeId
+            updatedDrone.mutatedName = existingDrone.mutatedName
+            updatedDrone.mutatedIconFileName = existingDrone.mutatedIconFileName
 
             // 更新已存在的无人机
             simulationInput.drones[existingIndex] = updatedDrone
@@ -1964,8 +2228,8 @@ class FittingEditorViewModel: ObservableObject {
                 }
             }
 
-            // 创建新无人机
-            let newDrone = SimDrone(
+            // 创建新无人机（无人机更换后清除突变信息）
+            var newDrone = SimDrone(
                 typeId: newTypeId,
                 attributes: newDroneInfo.attributes,
                 attributesByName: newDroneInfo.attributesByName,
@@ -1978,6 +2242,9 @@ class FittingEditorViewModel: ObservableObject {
                 name: newName,
                 iconFileName: newIconFileName
             )
+            // 清除突变信息
+            newDrone.selectedMutaplasmidID = nil
+            newDrone.mutatedAttributes = [:]
 
             // 替换无人机
             simulationInput.drones[index] = newDrone
