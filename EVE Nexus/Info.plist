@@ -53,7 +53,7 @@
 	<key>NSPhotoLibraryAddUsageDescription</key>
 	<string>This app needs access to photo library to save item render images</string>
 	<key>SDEMinimumAppVersion</key>
-	<string>1.8.8</string>
+	<string>1.12</string>
 	<key>SDERecordType</key>
 	<string>SDE_Records</string>
 	<key>showFittingDebug</key>

@@ -7,6 +7,13 @@ public class LocalizationManager {
 
     private init() {}
 
+    /// 根据当前数据库语言设置，返回 accountingentrytypes_localized.json 中使用的语言 key
+    /// "zh-Hans" → "zh"，其他语言代码直接使用
+    public static var currentLanguageCode: String {
+        let dbLang = UserDefaults.standard.string(forKey: "selectedDatabaseLanguage") ?? "en"
+        return dbLang == "zh-Hans" ? "zh" : dbLang
+    }
+
     public func loadAccountingEntryTypes() {
         // 使用StaticResourceManager获取本地化文件路径
         guard let path = StaticResourceManager.shared.getLocalizationPath(filename: "accountingentrytypes_localized") else {

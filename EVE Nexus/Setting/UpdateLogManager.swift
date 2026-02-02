@@ -42,13 +42,14 @@ class UpdateLogManager: ObservableObject {
     // MARK: - 私有方法
 
     private func loadUpdateLogs() -> [UpdateLog] {
-        guard
-            let path = Bundle.main.path(
-                forResource: "\(NSLocalizedString("whats_new", comment: ""))", ofType: "md"
-            ),
-            let content = try? String(contentsOfFile: path, encoding: .utf8)
+        let localizedName = NSLocalizedString("whats_new", comment: "")
+        let path = Bundle.main.path(forResource: localizedName, ofType: "md")
+            ?? Bundle.main.path(forResource: "whats_new_en", ofType: "md")
+
+        guard let path = path,
+              let content = try? String(contentsOfFile: path, encoding: .utf8)
         else {
-            Logger.error("无法读取 whats_new.md 文件")
+            Logger.error("无法读取 whats_new 或 whats_new_en.md 文件")
             return []
         }
 

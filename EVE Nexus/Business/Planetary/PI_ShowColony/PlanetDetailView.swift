@@ -165,7 +165,9 @@ struct PlanetDetailView: View {
                                         typeNames: typeNames,
                                         typeIcons: typeIcons,
                                         typeVolumes: typeVolumes,
-                                        typeGroupIds: typeMarketGroupIds,
+                                        typeGroupIds: typeGroupIds,
+                                        typeMarketGroupIds: typeMarketGroupIds,
+                                        typeEnNames: typeEnNames,
                                         capacity: storageCapacities[groupId] ?? 0,
                                         hourlySnapshots: hourlySnapshots,
                                         selectedMinutes: selectedMinutes,
@@ -228,6 +230,7 @@ struct PlanetDetailView: View {
                                         }) as? Pin.Factory,
                                         typeNames: typeNames,
                                         typeIcons: typeIcons,
+                                        typeGroupIds: typeGroupIds,
                                         typeEnNames: typeEnNames,
                                         schematic: pin.schematicId != nil
                                             ? schematicDetails[pin.schematicId!] : nil,
@@ -249,6 +252,8 @@ struct PlanetDetailView: View {
                                         extractor: extractor,
                                         typeNames: typeNames,
                                         typeIcons: typeIcons,
+                                        typeGroupIds: typeGroupIds,
+                                        typeEnNames: typeEnNames,
                                         currentTime: selectedMinutes == 0 ? currentTime : (displayColony?.currentSimTime ?? currentTime)
                                     )
                                 } footer: {

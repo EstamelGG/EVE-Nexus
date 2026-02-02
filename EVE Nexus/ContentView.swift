@@ -241,6 +241,35 @@ struct ServerStatusView: View {
     }
 }
 
+/// 冷却期间在首页显示的提示
+struct RateLimitCooldownView: View {
+    @ObservedObject private var rateLimitAlertManager = RateLimitAlertManager.shared
+
+    var body: some View {
+        if rateLimitAlertManager.remainingCooldownSeconds > 0 {
+            Text(
+                String(
+                    format: NSLocalizedString("RateLimit_Cooldown_Home_Message", comment: ""),
+                    formattedRemainingTime
+                )
+            )
+            .font(.caption)
+            .foregroundColor(.orange)
+        }
+    }
+
+    private var formattedRemainingTime: String {
+        let seconds = rateLimitAlertManager.remainingCooldownSeconds
+        let m = seconds / 60
+        let s = seconds % 60
+        if m > 0 {
+            return String(format: NSLocalizedString("RateLimit_Cooldown_Time_MinSec", comment: ""), m, s)
+        } else {
+            return String(format: NSLocalizedString("RateLimit_Cooldown_Time_Sec", comment: ""), s)
+        }
+    }
+}
+
 // MARK: - 自定义按钮样式
 
 struct ScaleButtonStyle: ButtonStyle {
@@ -1420,6 +1449,7 @@ struct ContentView: View {
         } footer: {
             VStack(alignment: .leading, spacing: 4) {
                 ServerStatusView(mainViewModel: viewModel)
+                RateLimitCooldownView()
             }
         }
     }

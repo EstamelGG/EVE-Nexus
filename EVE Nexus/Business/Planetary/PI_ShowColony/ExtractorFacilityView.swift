@@ -6,6 +6,8 @@ struct ExtractorFacilityView: View {
     let extractor: PlanetaryExtractor
     let typeNames: [Int: String]
     let typeIcons: [Int: String]
+    let typeGroupIds: [Int: Int]
+    let typeEnNames: [Int: String]
     let currentTime: Date
 
     // 计算属性：判断采集器是否过期
@@ -18,11 +20,27 @@ struct ExtractorFacilityView: View {
         return currentTime >= expiryDate
     }
 
+    // 获取设施图标文件名
+    // 优先级：1. 根据 groupID 和 en_name 映射的图标 2. typeid 对应的图标（兜底）
+    private func getFacilityIconName() -> String? {
+        // 尝试使用映射规则获取图标
+        if let groupId = typeGroupIds[pin.typeId] {
+            let enName = typeEnNames[pin.typeId]
+            let mappedIconName = PlanetaryUtils.getFacilityIconName(groupId: groupId, enName: enName)
+            // 如果映射返回了有效的图标名称，使用它
+            if !mappedIconName.isEmpty {
+                return mappedIconName
+            }
+        }
+        // 兜底：使用 typeid 对应的图标
+        return typeIcons[pin.typeId]
+    }
+
     var body: some View {
         // 提取器基本信息
         HStack(alignment: .center, spacing: 12) {
-            if let iconName = typeIcons[pin.typeId] {
-                Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
+            if let iconName = getFacilityIconName() {
+                IconManager.shared.loadImage(for: iconName)
                     .resizable()
                     .frame(width: 40, height: 40)
                     .cornerRadius(6)
@@ -33,6 +51,7 @@ struct ExtractorFacilityView: View {
                 Text(
                     typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: "")
                 )
+                .fontWeight(.semibold)
                 .lineLimit(1)
 
                 // 采集周期进度

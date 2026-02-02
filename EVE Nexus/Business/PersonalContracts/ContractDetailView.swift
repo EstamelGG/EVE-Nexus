@@ -475,25 +475,6 @@ struct ContractDetailView: View {
         }
     }
 
-    // 导航到详情页面的辅助方法
-    @ViewBuilder
-    private func navigationDestination(for id: Int, category: String) -> some View {
-        if let character = currentCharacter {
-            switch category {
-            case "character":
-                CharacterDetailView(characterId: id, character: character)
-            case "corporation":
-                CorporationDetailView(corporationId: id, character: character)
-            case "alliance":
-                AllianceDetailView(allianceId: id, character: character)
-            default:
-                EmptyView()
-            }
-        } else {
-            EmptyView()
-        }
-    }
-
     // 根据类型返回默认图标
     private func getDefaultIcon(for category: String) -> Image {
         switch category {

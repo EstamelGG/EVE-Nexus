@@ -411,7 +411,7 @@ struct ItemBasicInfoView: View {
             }
 
             // 市场详情 Section
-            if itemDetails.marketGroupID != nil || itemDetails.categoryID == 6 {
+            if itemDetails.marketGroupID != nil || isModelAvailable {
                 Section {
                     if itemDetails.marketGroupID != nil {
                         NavigationLink {

@@ -42,6 +42,64 @@ struct RateLimitInfo {
     }
 }
 
+// UserDefaults 键：API 频率限制触发时间戳
+private let rateLimitTriggeredAtKey = "RateLimit_TriggeredAt"
+private let rateLimitCooldownSeconds: TimeInterval = 60
+
+// 全局 API 频率限制弹窗管理器
+@MainActor
+final class RateLimitAlertManager: ObservableObject {
+    static let shared = RateLimitAlertManager()
+
+    @Published var shouldShowRateLimitAlert = false
+    /// 冷却剩余秒数，用于首页显示倒计时
+    @Published var remainingCooldownSeconds: Int = 0
+
+    private var cooldownTimer: Timer?
+
+    private init() {
+        updateRemainingCooldown()
+        startCooldownTimer()
+    }
+
+    func showRateLimitAlert() {
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: rateLimitTriggeredAtKey)
+        shouldShowRateLimitAlert = true
+        updateRemainingCooldown()
+    }
+
+    private func startCooldownTimer() {
+        cooldownTimer?.invalidate()
+        cooldownTimer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.updateRemainingCooldown()
+            }
+        }
+        RunLoop.main.add(cooldownTimer!, forMode: .common)
+    }
+
+    private func updateRemainingCooldown() {
+        let triggeredAt = UserDefaults.standard.double(forKey: rateLimitTriggeredAtKey)
+        guard triggeredAt > 0 else {
+            remainingCooldownSeconds = 0
+            return
+        }
+        let elapsed = Date().timeIntervalSince1970 - triggeredAt
+        let remaining = Int(ceil(rateLimitCooldownSeconds - elapsed))
+        remainingCooldownSeconds = max(0, remaining)
+    }
+}
+
+/// 检查是否处于频率限制冷却期，若是则抛出错误
+private func checkRateLimitCooldown() throws {
+    let triggeredAt = UserDefaults.standard.double(forKey: rateLimitTriggeredAtKey)
+    guard triggeredAt > 0 else { return }
+    let elapsed = Date().timeIntervalSince1970 - triggeredAt
+    if elapsed < rateLimitCooldownSeconds {
+        throw NetworkError.rateLimitCooldown
+    }
+}
+
 // 修改类定义，继承自NSObject
 @globalActor actor NetworkManagerActor {
     static let shared = NetworkManagerActor()
@@ -108,6 +166,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         noRetryKeywords: [String]? = nil,
         timeouts: [TimeInterval]? = nil
     ) async throws -> Data {
+        try checkRateLimitCooldown()
         // 等待信号量
         await withCheckedContinuation { continuation in
             DispatchQueue.global(qos: .userInitiated).async {
@@ -138,7 +197,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         request.setValue("tranquility", forHTTPHeaderField: "datasource")
         request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
         request.setValue(
-            "Tritanium_v\(AppConfiguration.Version.fullVersion)",
+            "Tritanium_v\(AppConfiguration.Version.fullVersion)_mail:tritanium_support@icloud.com",
             forHTTPHeaderField: "User-Agent"
         )
 
@@ -177,6 +236,15 @@ class NetworkManager: NSObject, @unchecked Sendable {
 
                 // 检查成功状态码（200 OK, 201 Created, 204 No Content）
                 guard [200, 201, 204].contains(httpResponse.statusCode) else {
+                    // 429 时也解析并触发频率限制弹窗
+                    if httpResponse.statusCode == 429 {
+                        let rateLimitInfo = RateLimitInfo(from: httpResponse)
+                        if (rateLimitInfo.remaining ?? 1) <= 0 {
+                            Task { @MainActor in
+                                RateLimitAlertManager.shared.showRateLimitAlert()
+                            }
+                        }
+                    }
                     // 添加错误日志记录
                     if let responseBody = String(data: data, encoding: .utf8) {
                         Logger.error("HTTP请求失败 - URL: \(url.absoluteString)")
@@ -198,6 +266,11 @@ class NetworkManager: NSObject, @unchecked Sendable {
                 let rateLimitInfo = RateLimitInfo(from: httpResponse)
                 if rateLimitInfo.remaining ?? 100 <= 20 {
                     Logger.warning("[HTTP-Response] URL: \(url.absoluteString), Code: \(httpResponse.statusCode), Body Length: \(data.count) bytes, Rate Limit: \(rateLimitInfo.logString)")
+                }
+                if (rateLimitInfo.remaining ?? 1) <= 0 { // 频率限制器
+                    Task { @MainActor in
+                        RateLimitAlertManager.shared.showRateLimitAlert()
+                    }
                 }
                 return data
             }.value
@@ -360,6 +433,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         noRetryKeywords: [String]? = nil,
         timeouts: [TimeInterval]? = nil
     ) async throws -> (Data, Int) {
+        try checkRateLimitCooldown()
         // 获取角色的token
         let token = try await AuthTokenManager.shared.getAccessToken(for: characterId)
 
@@ -427,6 +501,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         noRetryKeywords: [String]? = nil,
         timeouts: [TimeInterval]? = nil
     ) async throws -> (Data, Int) {
+        try checkRateLimitCooldown()
         // 创建请求
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -436,7 +511,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         request.setValue("tranquility", forHTTPHeaderField: "datasource")
         request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
         request.setValue(
-            "Tritanium_v\(AppConfiguration.Version.fullVersion)",
+            "Tritanium_v\(AppConfiguration.Version.fullVersion)_mail:tritanium_support@icloud.com",
             forHTTPHeaderField: "User-Agent"
         )
 
@@ -791,6 +866,7 @@ enum NetworkError: LocalizedError {
     case maxRetriesExceeded
     case authenticationError(String)
     case decodingError(Error)
+    case rateLimitCooldown
 
     var errorDescription: String? {
         switch self {
@@ -824,6 +900,8 @@ enum NetworkError: LocalizedError {
             return "认证出错: \(reason)"
         case let .decodingError(error):
             return "解码响应数据失败: \(error)"
+        case .rateLimitCooldown:
+            return NSLocalizedString("Network_Error_RateLimit_Cooldown", comment: "")
         }
     }
 }

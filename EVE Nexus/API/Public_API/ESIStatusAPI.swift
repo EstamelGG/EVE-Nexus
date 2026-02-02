@@ -56,10 +56,6 @@ struct ESIStatus: Codable {
         return status == "Recovering"
     }
 
-    var isGray: Bool {
-        return status == "Unknown"
-    }
-
     // 获取状态对应的颜色
     var statusColor: Color {
         switch status {

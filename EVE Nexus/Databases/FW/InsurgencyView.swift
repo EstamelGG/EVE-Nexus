@@ -93,8 +93,9 @@ struct InsurgencySystemCell: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text("\(insurgency.corruptionState)/5")
-                            .foregroundColor(.secondary)
+                            .foregroundColor(insurgency.corruptionState == 5 ? .red : .secondary)
                             .font(.system(.caption, design: .monospaced))
+                            .fontWeight(insurgency.corruptionState == 5 ? .semibold : .regular)
                         Text(formatPercentage(insurgency.corruptionPercentage))
                             .foregroundColor(.secondary)
                             .font(.system(.caption, design: .monospaced))
@@ -584,8 +585,14 @@ struct InsurgencyView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(NSLocalizedString("Misc_Done", comment: "")) {
+                        Button {
                             isInfoSheetPresented = false
+                        } label: {
+                            Image(systemName: "xmark")
+                                .foregroundColor(.primary)
+                                .frame(width: 30, height: 30)
+                                .background(Color(.systemBackground))
+                                .clipShape(Circle())
                         }
                     }
                 }

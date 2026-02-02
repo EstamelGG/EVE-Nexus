@@ -67,7 +67,7 @@ class CharacterPortraitLoader: ObservableObject {
     }
 }
 
-// 头像视图
+// 头像视图（懒加载：占位图 + .task 按需加载，视图消失时自动取消）
 struct CharacterPortrait: View {
     let characterId: Int
     let size: CGFloat
@@ -97,11 +97,14 @@ struct CharacterPortrait: View {
                             : nil
                     )
             } else {
-                ProgressView()
+                Image("default_char")
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
                     .frame(width: displaySize, height: displaySize)
+                    .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
             }
         }
-        .onAppear {
+        .task {
             portraitLoader.loadPortrait(for: characterId, size: Int(size))
         }
     }

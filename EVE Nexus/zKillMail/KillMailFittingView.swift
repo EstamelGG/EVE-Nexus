@@ -27,7 +27,7 @@ struct ShipSlotConfig {
 }
 
 struct BRKillMailFittingView: View {
-    let killMailData: [String: Any] // 替换 killMailId，直接接收 JSON 数据
+    let detailData: KillMailDetailData
     let databaseManager = DatabaseManager.shared
 
     // 添加状态变量存储实际槽位配置
@@ -91,7 +91,7 @@ struct BRKillMailFittingView: View {
             let image = try await ItemRenderAPI.shared.fetchItemRender(typeId: typeId, size: 512)
             await MainActor.run {
                 shipImage = Image(uiImage: image)
-                Logger.debug("装配图标: 成功加载飞船图片 - TypeID: \(typeId)")
+                // Logger.debug("装配图标: 成功加载飞船图片 - TypeID: \(typeId)")
             }
         } catch {
             Logger.error("装配图标: 加载飞船图片失败 - \(error)")
@@ -101,13 +101,13 @@ struct BRKillMailFittingView: View {
     // 从数据库批量获取图标文件名和类别信息
     private func getIconFileNames(typeIds: [Int]) -> [Int: (String, Int)] {
         guard !typeIds.isEmpty else {
-            Logger.debug("装配图标: 没有需要获取的图标")
+            // Logger.debug("装配图标: 没有需要获取的图标")
             return [:]
         }
 
         // 对 typeIds 进行去重
         let uniqueTypeIds = Array(Set(typeIds))
-        Logger.debug("装配图标: 原始物品ID数量: \(typeIds.count)，去重后数量: \(uniqueTypeIds.count)")
+        // Logger.debug("装配图标: 原始物品ID数量: \(typeIds.count)，去重后数量: \(uniqueTypeIds.count)")
 
         let placeholders = String(repeating: "?,", count: uniqueTypeIds.count).dropLast()
         let query = """
@@ -127,92 +127,51 @@ struct BRKillMailFittingView: View {
                     let finalIconName =
                         iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
                     iconFileNames[typeId] = (finalIconName, categoryId)
-                    Logger.debug(
-                        "装配图标: 物品ID \(typeId) 的图标文件名为 \(finalIconName), 类别ID: \(categoryId)")
+                    // Logger.debug("装配图标: 物品ID \(typeId) 的图标文件名为 \(finalIconName), 类别ID: \(categoryId)")
                 }
             }
         }
 
-        Logger.debug("装配图标: 成功获取 \(iconFileNames.count) 个图标文件名")
+        // Logger.debug("装配图标: 成功获取 \(iconFileNames.count) 个图标文件名")
         return iconFileNames
     }
 
     // 加载 killmail 数据
     private func loadKillMailData() async {
-        // 首先尝试获取飞船ID并加载飞船图片
-        if let victInfo = killMailData["vict"] as? [String: Any],
-           let shipId = victInfo["ship"] as? Int
-        {
-            await loadShipImage(typeId: shipId)
+        let shipId = detailData.esi.victim.ship_type_id
+        await loadShipImage(typeId: shipId)
+
+        let convertedItems = detailData.convertedItemsForFitting
+        var slotItems: [Int: [[Int]]] = [:]
+        var uniqueTypeIds = Set<Int>()
+        for item in convertedItems where item.count >= 4 {
+            let slotId = item[0]
+            let typeId = item[1]
+            if slotItems[slotId] == nil { slotItems[slotId] = [] }
+            slotItems[slotId]?.append(item)
+            uniqueTypeIds.insert(typeId)
         }
 
-        // 然后处理装备数据
-        if let victInfo = killMailData["vict"] as? [String: Any],
-           let shipId = victInfo["ship"] as? Int
-        {
-            Logger.debug("装配图标: 开始处理击毁数据，飞船ID: \(shipId)")
+        let typeInfos = getIconFileNames(typeIds: Array(uniqueTypeIds))
+        await initializeSlotConfig(shipId: shipId, items: convertedItems, typeInfos: typeInfos)
 
-            // 获取items，如果没有则为空数组
-            let items = (victInfo["itms"] as? [[Int]]) ?? []
-            Logger.debug("装配图标: 装备数量: \(items.count)")
-
-            // 转换植入体为装配格式
-            let convertedItems = BRKillMailUtils.shared.convertImplantsToFitting(
-                victInfo: victInfo, items: items
-            )
-            Logger.debug("装配图标: 转换后的物品数据: \(convertedItems)")
-
-            // 按槽位ID分组物品，并收集所有不重复的typeId
-            var slotItems: [Int: [[Int]]] = [:]
-            var uniqueTypeIds = Set<Int>()
-
-            for item in convertedItems where item.count >= 4 {
-                let slotId = item[0]
-                let typeId = item[1]
-
-                if slotItems[slotId] == nil {
-                    slotItems[slotId] = []
-                }
-                slotItems[slotId]?.append(item)
-                uniqueTypeIds.insert(typeId)
+        for (slotId, items) in slotItems {
+            let nonAmmoItems = items.filter { item in
+                if let typeInfo = typeInfos[item[1]] { return typeInfo.1 != 8 }
+                return false
             }
-
-            Logger.debug("装配图标: 收集到 \(uniqueTypeIds.count) 个不重复物品ID")
-
-            // 查询所有物品的图标文件名和类别信息
-            let typeInfos = getIconFileNames(typeIds: Array(uniqueTypeIds))
-
-            // 初始化槽位配置
-            await initializeSlotConfig(shipId: shipId, items: convertedItems, typeInfos: typeInfos)
-
-            // 处理每个槽位的装备
-            for (slotId, items) in slotItems {
-                // 过滤掉弹药类装备（categoryId = 8）
-                let nonAmmoItems = items.filter { item in
-                    if let typeInfo = typeInfos[item[1]] {
-                        return typeInfo.1 != 8 // 不是弹药类
-                    }
-                    return false
-                }
-
-                // 如果有非弹药装备，使用第一个
-                if let firstItem = nonAmmoItems.first,
-                   let typeInfo = typeInfos[firstItem[1]]
-                {
-                    await MainActor.run {
-                        equipmentIcons[slotId] = IconManager.shared.loadImage(for: typeInfo.0)
-                    }
-                    Logger.debug(
-                        "装配图标: 加载装备图标 - 槽位ID: \(slotId), 物品ID: \(firstItem[1]), 图标: \(typeInfo.0)")
+            if let firstItem = nonAmmoItems.first,
+               let typeInfo = typeInfos[firstItem[1]]
+            {
+                await MainActor.run {
+                    equipmentIcons[slotId] = IconManager.shared.loadImage(for: typeInfo.0)
                 }
             }
-        } else {
-            Logger.error("装配图标: 无效的击毁数据格式")
         }
 
         await MainActor.run {
             isLoading = false
-            Logger.debug("装配图标: 加载完成")
+            // Logger.debug("装配图标: 加载完成")
         }
     }
 
@@ -269,9 +228,7 @@ struct BRKillMailFittingView: View {
             }
         }
 
-        Logger.debug(
-            "船只槽位配置: typeId=\(typeId), high=\(config.highSlots), mid=\(config.mediumSlots), low=\(config.lowSlots), rig=\(config.rigSlots), subsystem=\(config.subsystemSlots)"
-        )
+        // Logger.debug("船只槽位配置: typeId=\(typeId), high=\(config.highSlots), mid=\(config.mediumSlots), low=\(config.lowSlots), rig=\(config.rigSlots), subsystem=\(config.subsystemSlots)")
         return config
     }
 

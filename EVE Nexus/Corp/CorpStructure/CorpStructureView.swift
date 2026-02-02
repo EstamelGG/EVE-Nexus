@@ -372,8 +372,9 @@ struct StructureCell: View {
                 .font(.subheadline)
 
                 if let services = structure["services"] as? [[String: String]] {
-                    HStack {
+                    VStack(alignment: .leading, spacing: 4) {
                         Text(NSLocalizedString("Corp_Structure_Services", comment: ""))
+                            .font(.subheadline)
                         ForEach(services, id: \.["name"]) { service in
                             if let name = service["name"], let state = service["state"] {
                                 Text(name)
@@ -388,7 +389,6 @@ struct StructureCell: View {
                             }
                         }
                     }
-                    .font(.subheadline)
                 }
             }
         }

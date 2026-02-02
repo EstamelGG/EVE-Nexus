@@ -10,11 +10,14 @@ class StaticResourceManager {
     // MARK: - 路径管理
 
     /// 获取数据库文件路径
-    /// - Parameter name: 数据库名称（如 "item_db_en", "item_db_zh"）
+    /// - Parameter name: 数据库名称（如 "item_db_en", "item_db_zh", "item_db_de" 等）
     /// - Returns: 数据库文件路径，根据版本比较决定使用Documents/sde/db/还是Bundle
     func getDatabasePath(name: String) -> String? {
-        // 检查是否应该使用 Bundle SDE 数据
-        if !shouldUseBundleSDE() {
+        let isBuiltinDB = (name == "item_db_en" || name == "item_db_zh")
+
+        // 额外语言数据库始终从 Documents/sde/db/ 加载（Bundle 中不包含）
+        // 内置语言（en/zh）根据版本比较决定数据源
+        if !isBuiltinDB || !shouldUseBundleSDE() {
             let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
             let sdeDbPath = documentsPath.appendingPathComponent("sde/db/\(name).sqlite").path
 
@@ -24,13 +27,17 @@ class StaticResourceManager {
             }
         }
 
-        // 回退到Bundle中的数据库文件
+        // 回退到 Bundle（仅 en/zh 存在于 Bundle 中）
         if let bundlePath = Bundle.main.path(forResource: name, ofType: "sqlite") {
             Logger.info("Using SDE database from Bundle: \(bundlePath)")
             return bundlePath
         }
 
-        Logger.error("Database file not found: \(name).sqlite (checked Documents/sde/db and Bundle)")
+        if !isBuiltinDB {
+            Logger.warning("Extra language database not found: \(name).sqlite (needs download)")
+        } else {
+            Logger.error("Database file not found: \(name).sqlite (checked Documents/sde/db and Bundle)")
+        }
         return nil
     }
 
@@ -137,18 +144,22 @@ class StaticResourceManager {
         // 获取本地数据库的版本
         guard let localVersion = getDocumentsSDEVersion() else {
             Logger.info("无法读取本地 SDE 版本，使用 Bundle")
-            // 本地版本无法读取，说明数据可能损坏，删除后使用 Bundle
-            cleanupLocalSDEData()
-            return true // 无法读取本地版本，使用 Bundle
+            // 检查 item_db_en.sqlite 是否存在：
+            // - 不存在：可能只有额外语言数据库，不清理
+            // - 存在但无法读取：数据损坏，清理
+            let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            let enDbPath = documentsPath.appendingPathComponent("sde/db/item_db_en.sqlite")
+            if fileManager.fileExists(atPath: enDbPath.path) {
+                Logger.warning("item_db_en.sqlite 存在但无法读取版本，数据可能损坏，执行清理")
+                cleanupLocalSDEData()
+            }
+            return true
         }
 
         // 比较版本号：选择版本更高的数据库
         let shouldUseBundle = compareSDEVersions(bundle: bundleVersion, local: localVersion)
 
-        Logger.info("SDE 版本比较:")
-        Logger.info("    Bundle: \(bundleVersion.buildNumber).\(bundleVersion.patchNumber)")
-        Logger.info("    Local:  \(localVersion.buildNumber).\(localVersion.patchNumber)")
-        Logger.info("    使用: \(shouldUseBundle ? "Bundle" : "Documents")")
+        Logger.info("SDE 版本比较:Bundle: \(bundleVersion.buildNumber).\(bundleVersion.patchNumber), Local:  \(localVersion.buildNumber).\(localVersion.patchNumber), 使用: \(shouldUseBundle ? "Bundle" : "Documents")")
 
         // 如果决定使用 Bundle，删除 Documents 中的旧版本以节省空间
         if shouldUseBundle {

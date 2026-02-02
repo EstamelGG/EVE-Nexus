@@ -198,7 +198,6 @@ struct SkillPlanDetailView: View {
 
                     // 导出按钮
                     if isEnglishLanguage() {
-                        // 如果是英文环境，直接导出
                         Button {
                             Task {
                                 await exportSkillPlan(useEnglishNames: true)
@@ -207,14 +206,13 @@ struct SkillPlanDetailView: View {
                             Image(systemName: "square.and.arrow.up")
                         }
                     } else {
-                        // 非英文环境，显示菜单选择
                         Menu {
                             Button {
                                 Task {
                                     await exportSkillPlan(useEnglishNames: false)
                                 }
                             } label: {
-                                Label(NSLocalizedString("Main_Skills_Plan_Export_Chinese", comment: "导出中文"), systemImage: "doc.text")
+                                Label(NSLocalizedString("Main_Skills_Plan_Export_Localized", comment: "导出当前语言"), systemImage: "doc.text")
                             }
 
                             Button {

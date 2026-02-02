@@ -1,17 +1,17 @@
 import SwiftUI
 
-// 共用的图标尺寸常量
-private enum IconSize {
+// 共用的图标尺寸常量（模块内共享）
+enum CharacterAssetsIconSize {
     static let standard: CGFloat = 32
     static let location: CGFloat = 36
 }
 
-// 共用的图标视图
-private struct AssetIconView: View {
+// 共用的图标视图（模块内共享，供主列表与 LocationAssetsView 使用）
+struct AssetIconView: View {
     let iconName: String
     let size: CGFloat
 
-    init(iconName: String, size: CGFloat = IconSize.standard) {
+    init(iconName: String, size: CGFloat = CharacterAssetsIconSize.standard) {
         self.iconName = iconName
         self.size = size
     }
@@ -33,12 +33,12 @@ private struct LocationRowView: View {
         HStack {
             // 位置图标
             if let iconFileName = location.icon_name {
-                AssetIconView(iconName: iconFileName, size: IconSize.location)
+                AssetIconView(iconName: iconFileName, size: CharacterAssetsIconSize.location)
             } else if location.name == nil {
                 // 位置未知时显示默认图标（ID为0）
                 Image("not_found")
                     .resizable()
-                    .frame(width: IconSize.location, height: IconSize.location)
+                    .frame(width: CharacterAssetsIconSize.location, height: CharacterAssetsIconSize.location)
                     .cornerRadius(6)
             }
 
@@ -90,6 +90,33 @@ private struct LocationNameView: View {
             return name
         }
         return nil
+    }
+}
+
+// 加载进度文案（与 AssetLoadingProgress 对应）
+private func localizedProgressText(_ progress: AssetLoadingProgress) -> String {
+    switch progress {
+    case let .loading(page):
+        return String(format: NSLocalizedString("Assets_Loading_Fetching", comment: ""), page)
+    case .buildingTree:
+        return NSLocalizedString("Assets_Loading_Building_Tree", comment: "")
+    case .processingLocations:
+        return NSLocalizedString("Assets_Loading_Processing_Locations", comment: "")
+    case let .fetchingStructureInfo(current, total):
+        return String(
+            format: NSLocalizedString("Assets_Loading_Fetching_Location_Info", comment: ""),
+            current, total
+        )
+    case .preparingContainers:
+        return NSLocalizedString("Assets_Loading_Preparing_Containers", comment: "")
+    case let .loadingNames(current, total):
+        return String(
+            format: NSLocalizedString("Assets_Loading_Names", comment: ""), current, total
+        )
+    case .savingCache:
+        return NSLocalizedString("Assets_Loading_Saving", comment: "")
+    case .completed:
+        return NSLocalizedString("Assets_Loading_Complete", comment: "")
     }
 }
 
@@ -163,216 +190,12 @@ struct CharacterAssetsView: View {
 
     var body: some View {
         List {
-            // 加载进度部分
-            if viewModel.isLoading || viewModel.loadingProgress != nil {
-                Section {
-                    HStack {
-                        Spacer()
-                        if let progress = viewModel.loadingProgress {
-                            let text: String =
-                                switch progress {
-                                case let .loading(page):
-                                    String(
-                                        format: NSLocalizedString(
-                                            "Assets_Loading_Fetching", comment: ""
-                                        ), page
-                                    )
-                                case .buildingTree:
-                                    NSLocalizedString("Assets_Loading_Building_Tree", comment: "")
-                                case .processingLocations:
-                                    NSLocalizedString(
-                                        "Assets_Loading_Processing_Locations", comment: ""
-                                    )
-                                case let .fetchingStructureInfo(current, total):
-                                    String(
-                                        format: NSLocalizedString(
-                                            "Assets_Loading_Fetching_Location_Info", comment: ""
-                                        ), current, total
-                                    )
-                                case .preparingContainers:
-                                    NSLocalizedString(
-                                        "Assets_Loading_Preparing_Containers", comment: ""
-                                    )
-                                case let .loadingNames(current, total):
-                                    String(
-                                        format: NSLocalizedString(
-                                            "Assets_Loading_Names", comment: ""
-                                        ), current, total
-                                    )
-                                case .savingCache:
-                                    NSLocalizedString("Assets_Loading_Saving", comment: "")
-                                case .completed:
-                                    NSLocalizedString("Assets_Loading_Complete", comment: "")
-                                }
-
-                            Text(text)
-                                .font(.footnote)
-                                .foregroundColor(.secondary)
-                                .padding(.vertical, 8)
-                                .padding(.horizontal, 12)
-                                .background(Color(.secondarySystemGroupedBackground))
-                                .clipShape(RoundedRectangle(cornerRadius: 6))
-                        }
-                        Spacer()
-                    }
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets())
-                }
-            }
-
-            // 搜索结果为空的提示
-            if !searchText.isEmpty && viewModel.searchResults.isEmpty && !viewModel.isLoading {
-                Section {
-                    NoDataSection()
-                }
-            }
-            // 显示错误信息
-            else if let error = viewModel.error,
-                    !viewModel.isLoading && viewModel.assetLocations.isEmpty
-            {
-                Section {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 12) {
-                            Image(systemName: "exclamationmark.triangle")
-                                .font(.system(size: 40))
-                                .foregroundColor(.orange)
-                            Text(NSLocalizedString("Assets_Loading_Error", comment: ""))
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            Text(error.localizedDescription)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                            Button(action: {
-                                Task {
-                                    await viewModel.loadAssets(forceRefresh: true)
-                                }
-                            }) {
-                                Text(NSLocalizedString("ESI_Status_Retry", comment: ""))
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 8)
-                                    .background(Color.accentColor)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(8)
-                            }
-                            .padding(.top, 8)
-                        }
-                        .padding()
-                        Spacer()
-                    }
-                }
-            }
-            // 搜索结果
-            else if !searchText.isEmpty {
-                ForEach(viewModel.searchResults) { result in
-                    NavigationLink(
-                        destination: LocationAssetsView(
-                            location: result.containerNode,
-                            preloadedItemInfo: viewModel.itemInfoCache,
-                            stationNameCache: viewModel.stationNameCache,
-                            solarSystemNameCache: viewModel.solarSystemNameCache
-                        )
-                    ) {
-                        SearchResultRowView(result: result)
-                    }
-                }
-            }
-            // 正常的资产列表
-            else if !viewModel.isLoading && !viewModel.assetLocations.isEmpty {
-                // 置顶位置section
-                if !viewModel.pinnedLocations.isEmpty {
-                    Section(
-                        header: HStack {
-                            Image(systemName: "star.fill")
-                                .foregroundColor(.yellow)
-                                .font(.system(size: 16))
-                            Text(NSLocalizedString("Assets_Pinned_Locations", comment: ""))
-                                .fontWeight(.semibold)
-                                .font(.system(size: 18))
-                                .foregroundColor(.primary)
-                        }
-                        .textCase(.none)
-                    ) {
-                        ForEach(viewModel.pinnedLocations, id: \.item_id) { location in
-                            NavigationLink(
-                                destination: LocationAssetsView(
-                                    location: location,
-                                    preloadedItemInfo: viewModel.itemInfoCache,
-                                    stationNameCache: viewModel.stationNameCache,
-                                    solarSystemNameCache: viewModel.solarSystemNameCache
-                                )
-                            ) {
-                                LocationRowView(location: location)
-                                    .environmentObject(viewModel)
-                            }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button(role: .destructive) {
-                                    viewModel.togglePinLocation(location)
-                                } label: {
-                                    Label(
-                                        NSLocalizedString("Assets_Unpin", comment: ""),
-                                        systemImage: "pin.slash"
-                                    )
-                                }
-                                .tint(.red)
-                            }
-                        }
-                    }
-                }
-
-                // 其他位置按星域分组
-                ForEach(viewModel.unpinnedLocationsByRegion, id: \.region) { group in
-                    Section(
-                        header: Text(group.region)
-                            .fontWeight(.semibold)
-                            .font(.system(size: 18))
-                            .foregroundColor(.primary)
-                            .textCase(.none)
-                    ) {
-                        ForEach(
-                            group.locations.sorted(by: { $0.location_id < $1.location_id }),
-                            id: \.item_id
-                        ) { location in
-                            NavigationLink(
-                                destination: LocationAssetsView(
-                                    location: location,
-                                    preloadedItemInfo: viewModel.itemInfoCache,
-                                    stationNameCache: viewModel.stationNameCache,
-                                    solarSystemNameCache: viewModel.solarSystemNameCache
-                                )
-                            ) {
-                                LocationRowView(location: location)
-                                    .environmentObject(viewModel)
-                            }
-                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                                Button {
-                                    viewModel.togglePinLocation(location)
-                                } label: {
-                                    Label(
-                                        NSLocalizedString("Assets_Pin", comment: ""),
-                                        systemImage: "pin"
-                                    )
-                                }
-                                .tint(.blue)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 数据加载时间信息（仅在debug模式下显示）
-            if enableLogging, let loadTime = viewModel.dataLoadTime, !viewModel.isLoading {
-                Section {
-                    HStack {
-                        Spacer()
-                        DataLoadTimeView(loadTime: loadTime)
-                        Spacer()
-                    }
-                    .listRowBackground(Color.clear)
-                    .listRowInsets(EdgeInsets(top: 2, leading: 16, bottom: 2, trailing: 16))
-                }
-            }
+            loadingProgressSection
+            searchEmptySection
+            errorSection
+            searchResultsSection
+            assetListSections
+            dataLoadTimeSection
         }
         .listStyle(.insetGrouped)
         .searchable(
@@ -411,9 +234,202 @@ struct CharacterAssetsView: View {
         }
     }
 
+    // MARK: - List Sections（按显示顺序）
+
+    @ViewBuilder
+    private var loadingProgressSection: some View {
+        if viewModel.isLoading || viewModel.loadingProgress != nil {
+            Section {
+                HStack {
+                    Spacer()
+                    if let progress = viewModel.loadingProgress {
+                        Text(localizedProgressText(progress))
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                            .padding(.vertical, 8)
+                            .padding(.horizontal, 12)
+                            .background(Color(.secondarySystemGroupedBackground))
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                    Spacer()
+                }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var searchEmptySection: some View {
+        if !searchText.isEmpty && viewModel.searchResults.isEmpty && !viewModel.isLoading {
+            Section { NoDataSection() }
+        }
+    }
+
+    @ViewBuilder
+    private var errorSection: some View {
+        if let error = viewModel.error,
+           !viewModel.isLoading,
+           viewModel.assetLocations.isEmpty
+        {
+            Section {
+                HStack {
+                    Spacer()
+                    VStack(spacing: 12) {
+                        Image(systemName: "exclamationmark.triangle")
+                            .font(.system(size: 40))
+                            .foregroundColor(.orange)
+                        Text(NSLocalizedString("Assets_Loading_Error", comment: ""))
+                            .font(.headline)
+                            .foregroundColor(.primary)
+                        Text(error.localizedDescription)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                        Button {
+                            Task { await viewModel.loadAssets(forceRefresh: true) }
+                        } label: {
+                            Text(NSLocalizedString("ESI_Status_Retry", comment: ""))
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 8)
+                                .background(Color.accentColor)
+                                .foregroundColor(.white)
+                                .cornerRadius(8)
+                        }
+                        .padding(.top, 8)
+                    }
+                    .padding()
+                    Spacer()
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var searchResultsSection: some View {
+        if !searchText.isEmpty {
+            ForEach(viewModel.searchResults) { result in
+                NavigationLink(destination: locationDestination(result.containerNode)) {
+                    SearchResultRowView(result: result)
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var assetListSections: some View {
+        if !viewModel.isLoading, !viewModel.assetLocations.isEmpty {
+            pinnedLocationsSection
+            ForEach(viewModel.unpinnedLocationsByRegion, id: \.region) { group in
+                Section(
+                    header: Text(group.region)
+                        .fontWeight(.semibold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                ) {
+                    ForEach(
+                        group.locations.sorted(by: { $0.location_id < $1.location_id }),
+                        id: \.item_id
+                    ) { location in
+                        locationRowLink(location: location, pinLabel: "Assets_Pin", pinIcon: "pin", role: nil)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var pinnedLocationsSection: some View {
+        if !viewModel.pinnedLocations.isEmpty {
+            Section(
+                header: HStack {
+                    Image(systemName: "star.fill")
+                        .foregroundColor(.yellow)
+                        .font(.system(size: 16))
+                    Text(NSLocalizedString("Assets_Pinned_Locations", comment: ""))
+                        .fontWeight(.semibold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                }
+                .textCase(.none)
+            ) {
+                ForEach(viewModel.pinnedLocations, id: \.item_id) { location in
+                    locationRowLink(
+                        location: location,
+                        pinLabel: "Assets_Unpin",
+                        pinIcon: "pin.slash",
+                        role: .destructive
+                    )
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var dataLoadTimeSection: some View {
+        if enableLogging, let loadTime = viewModel.dataLoadTime, !viewModel.isLoading {
+            Section {
+                HStack {
+                    Spacer()
+                    DataLoadTimeView(loadTime: loadTime)
+                    Spacer()
+                }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets(top: 2, leading: 16, bottom: 2, trailing: 16))
+            }
+        }
+    }
+
+    // MARK: - 导航与行构建
+
+    private func locationDestination(_ location: AssetTreeNode) -> LocationAssetsView {
+        LocationAssetsView(
+            location: location,
+            preloadedItemInfo: viewModel.itemInfoCache,
+            stationNameCache: viewModel.stationNameCache,
+            solarSystemNameCache: viewModel.solarSystemNameCache,
+            dynamicResultingTypeIds: viewModel.dynamicResultingTypeIds
+        )
+    }
+
+    private func locationRowLink(
+        location: AssetTreeNode,
+        pinLabel: String,
+        pinIcon: String,
+        role: ButtonRole?
+    ) -> some View {
+        let link = NavigationLink(destination: locationDestination(location)) {
+            LocationRowView(location: location)
+                .environmentObject(viewModel)
+        }
+        return Group {
+            if role == .destructive {
+                link
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button(role: .destructive) {
+                            viewModel.togglePinLocation(location)
+                        } label: {
+                            Label(NSLocalizedString(pinLabel, comment: ""), systemImage: pinIcon)
+                        }
+                        .tint(.red)
+                    }
+            } else {
+                link
+                    .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                        Button {
+                            viewModel.togglePinLocation(location)
+                        } label: {
+                            Label(NSLocalizedString(pinLabel, comment: ""), systemImage: pinIcon)
+                        }
+                        .tint(.blue)
+                    }
+            }
+        }
+    }
+
     private func refreshData() {
         isRefreshing = true
-
         Task {
             await viewModel.loadAssets(forceRefresh: true)
             isRefreshing = false

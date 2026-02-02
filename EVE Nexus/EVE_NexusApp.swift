@@ -7,6 +7,7 @@ struct EVE_NexusApp: App {
     @AppStorage("selectedLanguage") private var selectedLanguage: String?
     @AppStorage("selectedDatabaseLanguage") private var selectedDatabaseLanguage: String?
     @StateObject private var databaseManager = DatabaseManager()
+    @StateObject private var rateLimitAlertManager = RateLimitAlertManager.shared
     @State private var loadingState: LoadingState = .processing
     @State private var isInitialized = false
     @State private var unzipProgress: Double = 0
@@ -124,6 +125,12 @@ struct EVE_NexusApp: App {
             Logger.debug("首次启动，设置数据库语言与应用语言一致: \(String(describing: selectedDatabaseLanguage))")
         } else {
             Logger.debug("使用已保存的数据库语言设置: \(String(describing: selectedDatabaseLanguage))")
+        }
+
+        // 激活自定义 Bundle 以支持运行时语言切换及回退英文
+        let langToUse = selectedLanguage ?? "en"
+        if Bundle.main.path(forResource: langToUse, ofType: "lproj") != nil {
+            Bundle.setLanguage(langToUse)
         }
     }
 
@@ -359,6 +366,11 @@ struct EVE_NexusApp: App {
                             }
                         }
                 }
+            }
+            .alert(NSLocalizedString("RateLimit_Alert_Title", comment: ""), isPresented: $rateLimitAlertManager.shouldShowRateLimitAlert) {
+                Button(NSLocalizedString("RateLimit_Alert_OK", comment: "")) {}
+            } message: {
+                Text(NSLocalizedString("RateLimit_Alert_Message", comment: ""))
             }
         }
     }

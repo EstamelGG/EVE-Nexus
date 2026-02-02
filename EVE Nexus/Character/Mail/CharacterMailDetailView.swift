@@ -393,16 +393,6 @@ struct CharacterMailDetailView: View {
             }
             .joined(separator: "\n")
     }
-
-    private func getRecipientType(from typeString: String) -> MailRecipient.RecipientType {
-        switch typeString {
-        case "character": return .character
-        case "corporation": return .corporation
-        case "alliance": return .alliance
-        case "mailing_list": return .mailingList
-        default: return .character
-        }
-    }
 }
 
 @MainActor
@@ -413,10 +403,6 @@ class CharacterMailDetailViewModel: ObservableObject {
 
     func getSenderCategory(_: Int) -> String {
         return mailDetail?.senderCategory ?? "character"
-    }
-
-    func getRecipientCategory(_ id: Int) -> String {
-        return mailDetail?.recipientCategories[id] ?? "character"
     }
 
     func loadMailContent(characterId: Int, mailId: Int) async {
