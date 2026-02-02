@@ -1,94 +1,41 @@
 import SwiftUI
 
-// 格式化location_flag显示
+// location_flag → 本地化 key，新增 flag 只需在此添加一项
+private let locationFlagLocalizationKeys: [String: String] = [
+    "Hangar": "Location_Flag_Hangar",
+    "CorpSAG1": "Location_Flag_CorpSAG1", "CorpSAG2": "Location_Flag_CorpSAG2",
+    "CorpSAG3": "Location_Flag_CorpSAG3", "CorpSAG4": "Location_Flag_CorpSAG4",
+    "CorpSAG5": "Location_Flag_CorpSAG5", "CorpSAG6": "Location_Flag_CorpSAG6",
+    "CorpSAG7": "Location_Flag_CorpSAG7", "CorpDeliveries": "Location_Flag_CorpDeliveries",
+    "AutoFit": "Location_Flag_AutoFit", "Cargo": "Location_Flag_Cargo",
+    "DroneBay": "Location_Flag_DroneBay", "FleetHangar": "Location_Flag_FleetHangar",
+    "Deliveries": "Location_Flag_Deliveries", "HiddenModifiers": "Location_Flag_HiddenModifiers",
+    "ShipHangar": "Location_Flag_ShipHangar", "FighterBay": "Location_Flag_FighterBay",
+    "FighterTubes": "Location_Flag_FighterTubes", "SubSystemBay": "Location_Flag_SubSystemBay",
+    "SubSystemSlots": "Location_Flag_SubSystemSlots", "HiSlots": "Location_Flag_HiSlots",
+    "MedSlots": "Location_Flag_MedSlots", "LoSlots": "Location_Flag_LoSlots",
+    "RigSlots": "Location_Flag_RigSlots",
+    "SpecializedAmmoHold": "Location_Flag_SpecializedAmmoHold",
+    "SpecializedCommandCenterHold": "Location_Flag_SpecializedCommandCenterHold",
+    "SpecializedFuelBay": "Location_Flag_SpecializedFuelBay",
+    "SpecializedGasHold": "Location_Flag_SpecializedGasHold",
+    "SpecializedIndustrialShipHold": "Location_Flag_SpecializedIndustrialShipHold",
+    "SpecializedLargeShipHold": "Location_Flag_SpecializedLargeShipHold",
+    "SpecializedMaterialBay": "Location_Flag_SpecializedMaterialBay",
+    "SpecializedMediumShipHold": "Location_Flag_SpecializedMediumShipHold",
+    "SpecializedMineralHold": "Location_Flag_SpecializedMineralHold",
+    "SpecializedOreHold": "Location_Flag_SpecializedOreHold",
+    "SpecializedPlanetaryCommoditiesHold": "Location_Flag_SpecializedPlanetaryCommoditiesHold",
+    "SpecializedSalvageHold": "Location_Flag_SpecializedSalvageHold",
+    "SpecializedShipHold": "Location_Flag_SpecializedShipHold",
+    "SpecializedSmallShipHold": "Location_Flag_SpecializedSmallShipHold",
+    "StructureDeedBay": "Location_Flag_StructureDeedBay",
+    "Unlocked": "Location_Flag_Unlocked", "Wardrobe": "Location_Flag_Wardrobe",
+]
+
 private func formatLocationFlag(_ flag: String) -> String {
-    // 这里可以添加更多的映射
-    switch flag {
-    case "Hangar":
-        return NSLocalizedString("Location_Flag_Hangar", comment: "")
-    case "CorpSAG1":
-        return NSLocalizedString("Location_Flag_CorpSAG1", comment: "")
-    case "CorpSAG2":
-        return NSLocalizedString("Location_Flag_CorpSAG2", comment: "")
-    case "CorpSAG3":
-        return NSLocalizedString("Location_Flag_CorpSAG3", comment: "")
-    case "CorpSAG4":
-        return NSLocalizedString("Location_Flag_CorpSAG4", comment: "")
-    case "CorpSAG5":
-        return NSLocalizedString("Location_Flag_CorpSAG5", comment: "")
-    case "CorpSAG6":
-        return NSLocalizedString("Location_Flag_CorpSAG6", comment: "")
-    case "CorpSAG7":
-        return NSLocalizedString("Location_Flag_CorpSAG7", comment: "")
-    case "CorpDeliveries":
-        return NSLocalizedString("Location_Flag_CorpDeliveries", comment: "")
-    case "AutoFit":
-        return NSLocalizedString("Location_Flag_AutoFit", comment: "")
-    case "Cargo":
-        return NSLocalizedString("Location_Flag_Cargo", comment: "")
-    case "DroneBay":
-        return NSLocalizedString("Location_Flag_DroneBay", comment: "")
-    case "FleetHangar":
-        return NSLocalizedString("Location_Flag_FleetHangar", comment: "")
-    case "Deliveries":
-        return NSLocalizedString("Location_Flag_Deliveries", comment: "")
-    case "HiddenModifiers":
-        return NSLocalizedString("Location_Flag_HiddenModifiers", comment: "")
-    case "ShipHangar":
-        return NSLocalizedString("Location_Flag_ShipHangar", comment: "")
-    case "FighterBay":
-        return NSLocalizedString("Location_Flag_FighterBay", comment: "")
-    case "FighterTubes":
-        return NSLocalizedString("Location_Flag_FighterTubes", comment: "")
-    case "SubSystemBay":
-        return NSLocalizedString("Location_Flag_SubSystemBay", comment: "")
-    case "SubSystemSlots":
-        return NSLocalizedString("Location_Flag_SubSystemSlots", comment: "")
-    case "HiSlots":
-        return NSLocalizedString("Location_Flag_HiSlots", comment: "")
-    case "MedSlots":
-        return NSLocalizedString("Location_Flag_MedSlots", comment: "")
-    case "LoSlots":
-        return NSLocalizedString("Location_Flag_LoSlots", comment: "")
-    case "RigSlots":
-        return NSLocalizedString("Location_Flag_RigSlots", comment: "")
-    case "SpecializedAmmoHold":
-        return NSLocalizedString("Location_Flag_SpecializedAmmoHold", comment: "")
-    case "SpecializedCommandCenterHold":
-        return NSLocalizedString("Location_Flag_SpecializedCommandCenterHold", comment: "")
-    case "SpecializedFuelBay":
-        return NSLocalizedString("Location_Flag_SpecializedFuelBay", comment: "")
-    case "SpecializedGasHold":
-        return NSLocalizedString("Location_Flag_SpecializedGasHold", comment: "")
-    case "SpecializedIndustrialShipHold":
-        return NSLocalizedString("Location_Flag_SpecializedIndustrialShipHold", comment: "")
-    case "SpecializedLargeShipHold":
-        return NSLocalizedString("Location_Flag_SpecializedLargeShipHold", comment: "")
-    case "SpecializedMaterialBay":
-        return NSLocalizedString("Location_Flag_SpecializedMaterialBay", comment: "")
-    case "SpecializedMediumShipHold":
-        return NSLocalizedString("Location_Flag_SpecializedMediumShipHold", comment: "")
-    case "SpecializedMineralHold":
-        return NSLocalizedString("Location_Flag_SpecializedMineralHold", comment: "")
-    case "SpecializedOreHold":
-        return NSLocalizedString("Location_Flag_SpecializedOreHold", comment: "")
-    case "SpecializedPlanetaryCommoditiesHold":
-        return NSLocalizedString("Location_Flag_SpecializedPlanetaryCommoditiesHold", comment: "")
-    case "SpecializedSalvageHold":
-        return NSLocalizedString("Location_Flag_SpecializedSalvageHold", comment: "")
-    case "SpecializedShipHold":
-        return NSLocalizedString("Location_Flag_SpecializedShipHold", comment: "")
-    case "SpecializedSmallShipHold":
-        return NSLocalizedString("Location_Flag_SpecializedSmallShipHold", comment: "")
-    case "StructureDeedBay":
-        return NSLocalizedString("Location_Flag_StructureDeedBay", comment: "")
-    case "Unlocked":
-        return NSLocalizedString("Location_Flag_Unlocked", comment: "")
-    case "Wardrobe":
-        return NSLocalizedString("Location_Flag_Wardrobe", comment: "")
-    default:
-        return flag
-    }
+    guard let key = locationFlagLocalizationKeys[flag] else { return flag }
+    return NSLocalizedString(key, comment: "")
 }
 
 // 扩展，提供共用的获取位置名称方法
@@ -120,41 +67,28 @@ extension AssetTreeNode {
     }
 }
 
-// 共用的图标视图
-private struct AssetIconView: View {
-    let iconName: String
-    let size: CGFloat
-
-    init(iconName: String, size: CGFloat = 32) {
-        self.iconName = iconName
-        self.size = size
-    }
-
-    var body: some View {
-        IconManager.shared.loadImage(for: iconName)
-            .resizable()
-            .frame(width: size, height: size)
-            .cornerRadius(6)
-    }
-}
-
 // 主资产列表视图
 struct LocationAssetsView: View {
     let location: AssetTreeNode
     @StateObject private var viewModel: LocationAssetsViewModel
     let stationNameCache: [Int64: String]?
     let solarSystemNameCache: [Int: String]?
+    /// 深渊变异产物 type_id 集合，这类物品不可跳转市场
+    let dynamicResultingTypeIds: Set<Int>
 
     init(
         location: AssetTreeNode, preloadedItemInfo: [Int: ItemInfo]? = nil,
-        stationNameCache: [Int64: String]? = nil, solarSystemNameCache: [Int: String]? = nil
+        stationNameCache: [Int64: String]? = nil, solarSystemNameCache: [Int: String]? = nil,
+        dynamicResultingTypeIds: Set<Int> = []
     ) {
         self.location = location
         self.stationNameCache = stationNameCache
         self.solarSystemNameCache = solarSystemNameCache
+        self.dynamicResultingTypeIds = dynamicResultingTypeIds
         _viewModel = StateObject(
             wrappedValue: LocationAssetsViewModel(
-                location: location, preloadedItemInfo: preloadedItemInfo
+                location: location, preloadedItemInfo: preloadedItemInfo,
+                dynamicResultingTypeIds: dynamicResultingTypeIds
             ))
     }
 
@@ -210,19 +144,33 @@ struct LocationAssetsView: View {
         NavigationLink {
             SubLocationAssetsView(
                 parentNode: node, preloadedItemInfo: viewModel.preloadedItemInfo,
-                stationNameCache: stationNameCache, solarSystemNameCache: solarSystemNameCache
+                stationNameCache: stationNameCache, solarSystemNameCache: solarSystemNameCache,
+                dynamicResultingTypeIds: dynamicResultingTypeIds
             )
         } label: {
             AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
         }
     }
 
-    // 物品链接
+    // 物品链接（深渊变异产物跳转深渊详情，其余跳转市场）
+    @ViewBuilder
     private func itemLink(for node: AssetTreeNode) -> some View {
-        NavigationLink {
-            MarketItemDetailView(databaseManager: viewModel.databaseManager, itemID: node.type_id)
-        } label: {
-            AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+        if dynamicResultingTypeIds.contains(node.type_id) {
+            NavigationLink {
+                DynamicItemDetailView(
+                    typeId: node.type_id,
+                    itemId: node.item_id,
+                    itemName: viewModel.itemInfo(for: node.type_id)?.name ?? ""
+                )
+            } label: {
+                AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id), showItemId: true)
+            }
+        } else {
+            NavigationLink {
+                MarketItemDetailView(databaseManager: viewModel.databaseManager, itemID: node.type_id)
+            } label: {
+                AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+            }
         }
     }
 }
@@ -233,15 +181,18 @@ struct AssetItemView: View {
     let itemInfo: ItemInfo?
     let showItemCount: Bool
     let showCustomName: Bool
+    /// 是否显示 item_id（用于突变物品，同 type_id 但不同实例需要区分）
+    let showItemId: Bool
 
     init(
         node: AssetTreeNode, itemInfo: ItemInfo?, showItemCount: Bool = true,
-        showCustomName: Bool = true
+        showCustomName: Bool = true, showItemId: Bool = false
     ) {
         self.node = node
         self.itemInfo = itemInfo
         self.showItemCount = showItemCount
         self.showCustomName = showCustomName
+        self.showItemId = showItemId
     }
 
     var body: some View {
@@ -286,6 +237,11 @@ struct AssetItemView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
+                    if showItemId {
+                        Text("ID: \(node.item_id)")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
                     if showItemCount, let items = node.items, !items.isEmpty {
                         Text(
                             String(
@@ -308,17 +264,21 @@ struct SubLocationAssetsView: View {
     @StateObject private var viewModel: LocationAssetsViewModel
     let stationNameCache: [Int64: String]?
     let solarSystemNameCache: [Int: String]?
+    let dynamicResultingTypeIds: Set<Int>
 
     init(
         parentNode: AssetTreeNode, preloadedItemInfo: [Int: ItemInfo]? = nil,
-        stationNameCache: [Int64: String]? = nil, solarSystemNameCache: [Int: String]? = nil
+        stationNameCache: [Int64: String]? = nil, solarSystemNameCache: [Int: String]? = nil,
+        dynamicResultingTypeIds: Set<Int> = []
     ) {
         self.parentNode = parentNode
         self.stationNameCache = stationNameCache
         self.solarSystemNameCache = solarSystemNameCache
+        self.dynamicResultingTypeIds = dynamicResultingTypeIds
         _viewModel = StateObject(
             wrappedValue: LocationAssetsViewModel(
-                location: parentNode, preloadedItemInfo: preloadedItemInfo
+                location: parentNode, preloadedItemInfo: preloadedItemInfo,
+                dynamicResultingTypeIds: dynamicResultingTypeIds
             ))
     }
 
@@ -348,20 +308,39 @@ struct SubLocationAssetsView: View {
         )
     }
 
-    // 容器信息部分
+    // 容器信息部分（深渊变异产物跳转深渊详情，其余跳转市场）
+    @ViewBuilder
     private var containerInfoSection: some View {
         Section {
-            NavigationLink {
-                MarketItemDetailView(
-                    databaseManager: viewModel.databaseManager, itemID: parentNode.type_id
-                )
-            } label: {
-                AssetItemView(
-                    node: parentNode,
-                    itemInfo: viewModel.itemInfo(for: parentNode.type_id),
-                    showItemCount: false,
-                    showCustomName: false
-                )
+            if dynamicResultingTypeIds.contains(parentNode.type_id) {
+                NavigationLink {
+                    DynamicItemDetailView(
+                        typeId: parentNode.type_id,
+                        itemId: parentNode.item_id,
+                        itemName: viewModel.itemInfo(for: parentNode.type_id)?.name ?? ""
+                    )
+                } label: {
+                    AssetItemView(
+                        node: parentNode,
+                        itemInfo: viewModel.itemInfo(for: parentNode.type_id),
+                        showItemCount: false,
+                        showCustomName: false,
+                        showItemId: true
+                    )
+                }
+            } else {
+                NavigationLink {
+                    MarketItemDetailView(
+                        databaseManager: viewModel.databaseManager, itemID: parentNode.type_id
+                    )
+                } label: {
+                    AssetItemView(
+                        node: parentNode,
+                        itemInfo: viewModel.itemInfo(for: parentNode.type_id),
+                        showItemCount: false,
+                        showCustomName: false
+                    )
+                }
             }
         } header: {
             Text(NSLocalizedString("Container_Basic_Info", comment: ""))
@@ -390,7 +369,7 @@ struct SubLocationAssetsView: View {
         .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
     }
 
-    // 容器内物品行
+    // 容器内物品行（深渊变异产物跳转深渊详情，其余跳转市场）
     @ViewBuilder
     private func containerItemRow(for node: AssetTreeNode) -> some View {
         if let subitems = node.items, !subitems.isEmpty {
@@ -400,10 +379,22 @@ struct SubLocationAssetsView: View {
                     parentNode: node,
                     preloadedItemInfo: viewModel.preloadedItemInfo,
                     stationNameCache: stationNameCache,
-                    solarSystemNameCache: solarSystemNameCache
+                    solarSystemNameCache: solarSystemNameCache,
+                    dynamicResultingTypeIds: dynamicResultingTypeIds
                 )
             } label: {
                 AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+            }
+        } else if dynamicResultingTypeIds.contains(node.type_id) {
+            // 深渊变异产物，跳转深渊详情
+            NavigationLink {
+                DynamicItemDetailView(
+                    typeId: node.type_id,
+                    itemId: node.item_id,
+                    itemName: viewModel.itemInfo(for: node.type_id)?.name ?? ""
+                )
+            } label: {
+                AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id), showItemId: true)
             }
         } else {
             // 普通物品
@@ -430,16 +421,23 @@ class LocationAssetsViewModel: ObservableObject {
     // 修改为internal，使其可以被视图访问
     let preloadedItemInfo: [Int: ItemInfo]?
 
-    // 添加优先显示的货物集装箱的marketGroupID列表
+    /// 深渊变异产物 type_id 集合，不可合并、不可跳转市场
+    let dynamicResultingTypeIds: Set<Int>
+
+    // 优先显示的货物集装箱的 marketGroupID 列表
     private let priorityMarketGroups = [1651, 1652, 1653, 1657, 1658]
+    // 对应 type_id 集合，只查一次数据库后缓存
+    private var cachedPriorityContainerTypeIds: Set<Int>?
 
     init(
         location: AssetTreeNode, databaseManager: DatabaseManager = DatabaseManager(),
-        preloadedItemInfo: [Int: ItemInfo]? = nil
+        preloadedItemInfo: [Int: ItemInfo]? = nil,
+        dynamicResultingTypeIds: Set<Int> = []
     ) {
         self.location = location
         self.databaseManager = databaseManager
         self.preloadedItemInfo = preloadedItemInfo
+        self.dynamicResultingTypeIds = dynamicResultingTypeIds
     }
 
     func itemInfo(for typeId: Int) -> ItemInfo? {
@@ -447,22 +445,18 @@ class LocationAssetsViewModel: ObservableObject {
         return itemInfoCache[typeId]
     }
 
-    // 从数据库获取优先级容器的type_id集合
-    private func getPriorityContainerTypeIds() -> Set<Int> {
-        // 构建查询，一次性获取所有优先市场组ID的物品类型
+    /// 优先容器 type_id 集合，首次访问时查库并缓存
+    private var priorityContainerTypeIds: Set<Int> {
+        if let cached = cachedPriorityContainerTypeIds { return cached }
         let marketGroupList = priorityMarketGroups.map { String($0) }.joined(separator: ",")
         let query = "SELECT type_id FROM types WHERE marketGroupID IN (\(marketGroupList))"
-
         var typeIds = Set<Int>()
-
         if case let .success(rows) = databaseManager.executeQuery(query) {
             for row in rows {
-                if let typeId = row["type_id"] as? Int {
-                    typeIds.insert(typeId)
-                }
+                if let typeId = row["type_id"] as? Int { typeIds.insert(typeId) }
             }
         }
-
+        cachedPriorityContainerTypeIds = typeIds
         return typeIds
     }
 
@@ -474,8 +468,8 @@ class LocationAssetsViewModel: ObservableObject {
             return []
         }
 
-        // 获取优先显示的容器类型ID集合
-        let priorityTypeIds = getPriorityContainerTypeIds()
+        // 获取优先显示的容器类型ID集合（带缓存，避免每次 groupedAssets 都查库）
+        let priorityTypeIds = priorityContainerTypeIds
 
         var groups: [String: [AssetTreeNode]] = [:]
 
@@ -495,9 +489,16 @@ class LocationAssetsViewModel: ObservableObject {
             let containers = items.filter { $0.items != nil && !$0.items!.isEmpty }
             let normalItems = items.filter { $0.items == nil || $0.items!.isEmpty }
 
-            // 处理非容器物品：按type_id分组并合并
+            // 将非容器物品分为：突变物品（不可合并）与普通物品（可按 type_id 合并）
+            let dynamicItems = normalItems.filter { dynamicResultingTypeIds.contains($0.type_id) }
+            let mergableItems = normalItems.filter { !dynamicResultingTypeIds.contains($0.type_id) }
+
+            // 突变物品按 item_id 排序，逐个展示
+            let sortedDynamicItems = dynamicItems.sorted { $0.item_id < $1.item_id }
+
+            // 处理可合并的普通物品：按type_id分组并合并
             var typeGroups: [Int: [AssetTreeNode]] = [:]
-            for item in normalItems {
+            for item in mergableItems {
                 if typeGroups[item.type_id] == nil {
                     typeGroups[item.type_id] = []
                 }
@@ -567,8 +568,8 @@ class LocationAssetsViewModel: ObservableObject {
                 return item1.item_id < item2.item_id
             }
 
-            // 优先容器 + 普通容器 + 普通物品
-            let allItems = sortedPriorityContainers + sortedNormalContainers + sortedNormalItems
+            // 优先容器 + 普通容器 + 突变物品（按item_id） + 普通物品
+            let allItems = sortedPriorityContainers + sortedNormalContainers + sortedDynamicItems + sortedNormalItems
             mergedGroups[flag] = allItems
         }
 

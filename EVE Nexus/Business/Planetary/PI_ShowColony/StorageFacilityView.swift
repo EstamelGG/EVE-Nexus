@@ -7,7 +7,9 @@ struct StorageFacilityView: View {
     let typeNames: [Int: String]
     let typeIcons: [Int: String]
     let typeVolumes: [Int: Double]
-    let typeGroupIds: [Int: Int] // 添加 typeGroupIds 用于排序
+    let typeGroupIds: [Int: Int] // types 表中的 groupID，用于设施图标映射
+    let typeMarketGroupIds: [Int: Int] // marketGroupID，用于排序存储内容物
+    let typeEnNames: [Int: String] // 添加 typeEnNames 用于图标映射
     let capacity: Double
     let hourlySnapshots: [Int: Colony] // 快照数据 [分钟数: 殖民地状态]
     let selectedMinutes: Int // 当前选中的分钟数（0 = 当前时间）
@@ -30,11 +32,27 @@ struct StorageFacilityView: View {
         return false
     }
 
+    // 获取设施图标文件名
+    // 优先级：1. 根据 groupID 和 en_name 映射的图标 2. typeid 对应的图标（兜底）
+    private func getFacilityIconName() -> String? {
+        // 尝试使用映射规则获取图标
+        if let groupId = typeGroupIds[pin.typeId] {
+            let enName = typeEnNames[pin.typeId]
+            let mappedIconName = PlanetaryUtils.getFacilityIconName(groupId: groupId, enName: enName)
+            // 如果映射返回了有效的图标名称，使用它
+            if !mappedIconName.isEmpty {
+                return mappedIconName
+            }
+        }
+        // 兜底：使用 typeid 对应的图标
+        return typeIcons[pin.typeId]
+    }
+
     var body: some View {
         // 设施名称和图标
         HStack(alignment: .center, spacing: 12) {
-            if let iconName = typeIcons[pin.typeId] {
-                Image(uiImage: IconManager.shared.loadUIImage(for: iconName))
+            if let iconName = getFacilityIconName() {
+                IconManager.shared.loadImage(for: iconName)
                     .resizable()
                     .frame(width: 40, height: 40)
                     .cornerRadius(6)
@@ -45,6 +63,7 @@ struct StorageFacilityView: View {
                     Text(
                         typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: "")
                     )
+                    .fontWeight(.semibold)
                     .lineLimit(1)
                 }
 
@@ -126,14 +145,14 @@ struct StorageFacilityView: View {
         }
 
         // 存储的内容物，每个内容物单独一行
-        // 按 group_id 从大到小排序，typeid 为次要排序
+        // 按 marketGroupID 从大到小排序，typeid 为次要排序
         if let simPin = simulatedPin {
             ForEach(
                 Array(simPin.contents).sorted(by: { item1, item2 in
-                    let groupId1 = typeGroupIds[item1.key.id] ?? 0
-                    let groupId2 = typeGroupIds[item2.key.id] ?? 0
-                    if groupId1 != groupId2 {
-                        return groupId1 > groupId2 // group_id 从大到小
+                    let marketGroupId1 = typeMarketGroupIds[item1.key.id] ?? 0
+                    let marketGroupId2 = typeMarketGroupIds[item2.key.id] ?? 0
+                    if marketGroupId1 != marketGroupId2 {
+                        return marketGroupId1 > marketGroupId2 // marketGroupID 从大到小
                     }
                     return item1.key.id < item2.key.id // typeid 从小到大作为次要排序
                 }),

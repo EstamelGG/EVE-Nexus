@@ -42,6 +42,43 @@ struct RateLimitInfo {
     }
 }
 
+// UserDefaults 键：API 频率限制触发时间戳
+private let rateLimitTriggeredAtKey = "RateLimit_TriggeredAt"
+private let rateLimitCooldownSeconds: TimeInterval = 60
+
+// 全局 API 频率限制弹窗管理器
+@MainActor
+final class RateLimitAlertManager: ObservableObject {
+    static let shared = RateLimitAlertManager()
+
+    @Published var shouldShowRateLimitAlert = false
+
+    /// 冷却结束时间，供 TimelineView 倒计时使用；无冷却或已结束时返回 nil
+    static var cooldownEndDate: Date? {
+        let triggeredAt = UserDefaults.standard.double(forKey: rateLimitTriggeredAtKey)
+        guard triggeredAt > 0 else { return nil }
+        let endDate = Date(timeIntervalSince1970: triggeredAt + rateLimitCooldownSeconds)
+        return endDate > Date() ? endDate : nil
+    }
+
+    private init() {}
+
+    func showRateLimitAlert() {
+        UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: rateLimitTriggeredAtKey)
+        shouldShowRateLimitAlert = true
+    }
+}
+
+/// 检查是否处于频率限制冷却期，若是则抛出错误
+private func checkRateLimitCooldown() throws {
+    let triggeredAt = UserDefaults.standard.double(forKey: rateLimitTriggeredAtKey)
+    guard triggeredAt > 0 else { return }
+    let elapsed = Date().timeIntervalSince1970 - triggeredAt
+    if elapsed < rateLimitCooldownSeconds {
+        throw NetworkError.rateLimitCooldown
+    }
+}
+
 // 修改类定义，继承自NSObject
 @globalActor actor NetworkManagerActor {
     static let shared = NetworkManagerActor()
@@ -98,6 +135,70 @@ class NetworkManager: NSObject, @unchecked Sendable {
         imageCache.delegate = self
     }
 
+    /// 内部方法：执行请求并返回 Data 与 HTTPURLResponse，供 fetchData 和 fetchDataWithPages 复用
+    private func fetchDataWithResponse(
+        from url: URL,
+        method: String = "GET",
+        body: Data? = nil,
+        headers: [String: String]? = nil,
+        forceRefresh: Bool = false,
+        noRetryKeywords: [String]? = nil,
+        timeouts: [TimeInterval]? = nil
+    ) async throws -> (Data, HTTPURLResponse) {
+        try checkRateLimitCooldown()
+        await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                self.concurrentSemaphore.wait()
+                continuation.resume()
+            }
+        }
+
+        defer {
+            DispatchQueue.global(qos: .userInitiated).async {
+                self.concurrentSemaphore.signal()
+            }
+        }
+
+        try await rateLimiter.waitForPermission()
+
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+
+        if forceRefresh {
+            request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        }
+
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue("tranquility", forHTTPHeaderField: "datasource")
+        request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
+        request.setValue(
+            "Tritanium_v\(AppConfiguration.Version.fullVersion)_mail:tritanium_support@icloud.com",
+            forHTTPHeaderField: "User-Agent"
+        )
+
+        if method == "POST", body != nil {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        }
+
+        headers?.forEach { key, value in
+            request.setValue(value, forHTTPHeaderField: key)
+        }
+
+        if let body = body {
+            request.httpBody = body
+            if method == "POST", let jsonString = String(data: body, encoding: .utf8) {
+                Logger.debug("POST Request Body: \(jsonString)")
+            }
+        }
+
+        return try await performRequest(
+            request: request,
+            url: url,
+            noRetryKeywords: noRetryKeywords,
+            timeouts: timeouts
+        )
+    }
+
     // 通用的数据获取函数
     func fetchData(
         from url: URL,
@@ -108,65 +209,26 @@ class NetworkManager: NSObject, @unchecked Sendable {
         noRetryKeywords: [String]? = nil,
         timeouts: [TimeInterval]? = nil
     ) async throws -> Data {
-        // 等待信号量
-        await withCheckedContinuation { continuation in
-            DispatchQueue.global(qos: .userInitiated).async {
-                self.concurrentSemaphore.wait()
-                continuation.resume()
-            }
-        }
-
-        defer {
-            // 完成后释放信号量
-            DispatchQueue.global(qos: .userInitiated).async {
-                self.concurrentSemaphore.signal()
-            }
-        }
-
-        try await rateLimiter.waitForPermission()
-
-        // 创建请求
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-
-        if forceRefresh {
-            request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-        }
-
-        // 添加基本请求头
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("tranquility", forHTTPHeaderField: "datasource")
-        request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
-        request.setValue(
-            "Tritanium_v\(AppConfiguration.Version.fullVersion)",
-            forHTTPHeaderField: "User-Agent"
+        let (data, _) = try await fetchDataWithResponse(
+            from: url,
+            method: method,
+            body: body,
+            headers: headers,
+            forceRefresh: forceRefresh,
+            noRetryKeywords: noRetryKeywords,
+            timeouts: timeouts
         )
+        return data
+    }
 
-        // 如果是 POST 请求且有请求体，设置 Content-Type
-        if method == "POST" && body != nil {
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        }
-
-        // 添加自定义请求头
-        headers?.forEach { key, value in
-            request.setValue(value, forHTTPHeaderField: key)
-        }
-
-        // 设置请求体
-        if let body = body {
-            request.httpBody = body
-            // 添加请求体日志
-            if method == "POST", let jsonString = String(data: body, encoding: .utf8) {
-                Logger.debug("POST Request Body: \(jsonString)")
-            }
-        }
-
+    /// 内部方法：执行请求并返回 Data 与 HTTPURLResponse
+    private func performRequest(
+        request: URLRequest,
+        url: URL,
+        noRetryKeywords: [String]? = nil,
+        timeouts: [TimeInterval]? = nil
+    ) async throws -> (Data, HTTPURLResponse) {
         return try await retrier.execute(noRetryKeywords: noRetryKeywords, timeouts: timeouts) {
-//            Logger.info(
-//                "[HTTP-Request] HTTP \(method) Request to: \(url), User-Agent: \(request.value(forHTTPHeaderField: "User-Agent") ?? "N/A")"
-//            )
-
-            // 使用Task.detached确保在后台线程执行，并设置合适的QoS
             try await Task.detached(priority: .userInitiated) {
                 let (data, response) = try await self.session.data(for: request)
 
@@ -177,13 +239,19 @@ class NetworkManager: NSObject, @unchecked Sendable {
 
                 // 检查成功状态码（200 OK, 201 Created, 204 No Content）
                 guard [200, 201, 204].contains(httpResponse.statusCode) else {
-                    // 添加错误日志记录
+                    // 429 时也解析并触发频率限制弹窗
+                    if httpResponse.statusCode == 429 {
+                        let rateLimitInfo = RateLimitInfo(from: httpResponse)
+                        if (rateLimitInfo.remaining ?? 1) <= 0 {
+                            Task { @MainActor in
+                                RateLimitAlertManager.shared.showRateLimitAlert()
+                            }
+                        }
+                    }
                     if let responseBody = String(data: data, encoding: .utf8) {
                         Logger.error("HTTP请求失败 - URL: \(url.absoluteString)")
                         Logger.error("状态码: \(httpResponse.statusCode)")
                         Logger.error("响应体: \(responseBody)")
-
-                        // 将响应体包含在错误中
                         throw NetworkError.httpError(
                             statusCode: httpResponse.statusCode, message: responseBody
                         )
@@ -199,7 +267,12 @@ class NetworkManager: NSObject, @unchecked Sendable {
                 if rateLimitInfo.remaining ?? 100 <= 20 {
                     Logger.warning("[HTTP-Response] URL: \(url.absoluteString), Code: \(httpResponse.statusCode), Body Length: \(data.count) bytes, Rate Limit: \(rateLimitInfo.logString)")
                 }
-                return data
+                if (rateLimitInfo.remaining ?? 1) <= 0 {
+                    Task { @MainActor in
+                        RateLimitAlertManager.shared.showRateLimitAlert()
+                    }
+                }
+                return (data, httpResponse)
             }.value
         }
     }
@@ -360,6 +433,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         noRetryKeywords: [String]? = nil,
         timeouts: [TimeInterval]? = nil
     ) async throws -> (Data, Int) {
+        try checkRateLimitCooldown()
         // 获取角色的token
         let token = try await AuthTokenManager.shared.getAccessToken(for: characterId)
 
@@ -421,64 +495,22 @@ class NetworkManager: NSObject, @unchecked Sendable {
     }
 
     /// 公共API请求，返回响应头中的页数信息（不需要token）
+    /// 复用 fetchData 的请求逻辑，仅额外解析 X-Pages 响应头
     func fetchDataWithPages(
         from url: URL,
         headers: [String: String]? = nil,
         noRetryKeywords: [String]? = nil,
         timeouts: [TimeInterval]? = nil
     ) async throws -> (Data, Int) {
-        // 创建请求
-        var request = URLRequest(url: url)
-        request.httpMethod = "GET"
-
-        // 添加基本请求头
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("tranquility", forHTTPHeaderField: "datasource")
-        request.setValue("gzip", forHTTPHeaderField: "Accept-Encoding")
-        request.setValue(
-            "Tritanium_v\(AppConfiguration.Version.fullVersion)",
-            forHTTPHeaderField: "User-Agent"
+        let (data, response) = try await fetchDataWithResponse(
+            from: url,
+            headers: headers,
+            noRetryKeywords: noRetryKeywords,
+            timeouts: timeouts
         )
-
-        // 添加自定义请求头
-        headers?.forEach { key, value in
-            request.setValue(value, forHTTPHeaderField: key)
-        }
-
-        return try await retrier.execute(noRetryKeywords: noRetryKeywords, timeouts: timeouts) {
-            Logger.info("HTTP GET Request to: \(url)")
-
-            return try await Task.detached(priority: .userInitiated) {
-                let (data, response) = try await self.session.data(for: request)
-
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    Logger.error("无效的HTTP响应 - URL: \(url.absoluteString)")
-                    throw NetworkError.invalidResponse
-                }
-
-                guard httpResponse.statusCode == 200 else {
-                    if let responseBody = String(data: data, encoding: .utf8) {
-                        Logger.error("HTTP请求失败 - URL: \(url.absoluteString)")
-                        Logger.error("状态码: \(httpResponse.statusCode)")
-                        Logger.error("响应体: \(responseBody)")
-                        throw NetworkError.httpError(
-                            statusCode: httpResponse.statusCode, message: responseBody
-                        )
-                    } else {
-                        Logger.error("HTTP请求失败 - URL: \(url.absoluteString)")
-                        Logger.error("状态码: \(httpResponse.statusCode)")
-                        Logger.error("响应体无法解析")
-                        throw NetworkError.httpError(statusCode: httpResponse.statusCode)
-                    }
-                }
-
-                // 从响应头中获取总页数
-                let totalPages = Int(httpResponse.value(forHTTPHeaderField: "X-Pages") ?? "1") ?? 1
-                Logger.info("获取到总页数: \(totalPages)")
-
-                return (data, totalPages)
-            }.value
-        }
+        let totalPages = Int(response.value(forHTTPHeaderField: "X-Pages") ?? "1") ?? 1
+        Logger.info("获取到总页数: \(totalPages)")
+        return (data, totalPages)
     }
 
     /// 处理分页数据的通用方法
@@ -791,6 +823,7 @@ enum NetworkError: LocalizedError {
     case maxRetriesExceeded
     case authenticationError(String)
     case decodingError(Error)
+    case rateLimitCooldown
 
     var errorDescription: String? {
         switch self {
@@ -824,6 +857,8 @@ enum NetworkError: LocalizedError {
             return "认证出错: \(reason)"
         case let .decodingError(error):
             return "解码响应数据失败: \(error)"
+        case .rateLimitCooldown:
+            return NSLocalizedString("Network_Error_RateLimit_Cooldown", comment: "")
         }
     }
 }

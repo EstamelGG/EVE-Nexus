@@ -128,6 +128,11 @@ class SDEUpdateManager: ObservableObject {
                 await addLog(NSLocalizedString("SDE_Log_SDE_Up_To_Date", comment: ""), type: .success)
             }
 
+            //  如果当前选择的是额外语言，也更新该语言的数据库
+            if needsSDEUpdate {
+                try await downloadExtraLanguageIfNeeded()
+            }
+
             //  更新完成
             isCompleted = true
 
@@ -214,6 +219,64 @@ class SDEUpdateManager: ObservableObject {
             await addLog(String.localizedStringWithFormat(NSLocalizedString("SDE_Log_Metadata_Failed", comment: ""), error.localizedDescription), type: .warning)
             Logger.warning("Failed to save metadata.json: \(error)")
         }
+    }
+
+    /// 如果当前选择的是额外语言（非中英文），也下载该语言的数据库
+    private func downloadExtraLanguageIfNeeded() async throws {
+        let dbLanguage = UserDefaults.standard.string(forKey: "selectedDatabaseLanguage") ?? "en"
+
+        guard !ExtraLanguageDBManager.isBuiltinLanguage(dbLanguage) else { return }
+        guard let langInfo = ExtraLanguageDBManager.languageInfo(for: dbLanguage) else { return }
+        guard let recordID = updateChecker.currentUpdateInfo?.recordID else { return }
+        guard let extraDBInfo = updateChecker.currentMetadata?.extraDB?[dbLanguage] else {
+            await addLog("⚠ 未找到 \(langInfo.displayName) 的元数据，跳过", type: .warning)
+            return
+        }
+
+        await addLog(String(format: NSLocalizedString("SDE_Log_Downloading_ExtraDB", comment: "正在下载 %@ 数据库..."), langInfo.displayName), type: .info)
+        await addLog("")
+
+        // 下载
+        let downloadedURL = try await SDECloudKitManager.shared.fetchExtraDBFile(
+            recordID: recordID,
+            fieldName: langInfo.cloudKitField,
+            progressHandler: { [weak self] progress in
+                Task { @MainActor in
+                    self?.downloadProgress = progress
+                    self?.updateProgressBar(progress: progress, label: "extra_db_download")
+                }
+            }
+        )
+
+        await addLog(NSLocalizedString("SDE_Log_Download_Completed", comment: ""), type: .success)
+
+        // 复制到下载目录
+        let sdeDownloader = SDEDownloader()
+        let downloadDir = sdeDownloader.getDownloadDirectory()
+        let targetZipURL = downloadDir.appendingPathComponent(extraDBInfo.file)
+
+        if FileManager.default.fileExists(atPath: targetZipURL.path) {
+            try FileManager.default.removeItem(at: targetZipURL)
+        }
+        try FileManager.default.copyItem(at: downloadedURL, to: targetZipURL)
+        try? FileManager.default.removeItem(at: downloadedURL)
+
+        // 验证
+        await addLog(NSLocalizedString("SDE_Log_Verifying_SDE_SHA", comment: ""), type: .info)
+        let isValid = try sdeDownloader.verifyExtraDBHash(zipURL: targetZipURL, expectedHash: extraDBInfo.sha256)
+        guard isValid else {
+            await addLog(NSLocalizedString("SDE_Log_SHA_Failed", comment: ""), type: .error)
+            throw NSError(domain: "SDEUpdateManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "\(langInfo.displayName) SHA256 verification failed"])
+        }
+        await addLog(NSLocalizedString("SDE_Log_SHA_Verified", comment: ""), type: .success)
+
+        // 解压
+        await addLog(String(format: NSLocalizedString("SDE_Log_Extracting_ExtraDB", comment: "正在解压 %@ 数据库..."), langInfo.displayName), type: .info)
+        try sdeDownloader.extractExtraDB(zipURL: targetZipURL, languageCode: dbLanguage)
+        await addLog(String(format: NSLocalizedString("SDE_Log_ExtraDB_Success", comment: "%@ 数据库更新完成"), langInfo.displayName), type: .success)
+
+        // 清理
+        try? FileManager.default.removeItem(at: targetZipURL)
     }
 
     /// 下载并安装SDE数据包

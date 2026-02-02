@@ -8,13 +8,18 @@ class DatabaseManager: ObservableObject {
 
     // 加载数据库
     func loadDatabase() {
-        // 获取本地化的数据库名称
-        guard let databaseName = getLocalizedDatabaseName() else {
+        guard var databaseName = getLocalizedDatabaseName() else {
             Logger.error("数据库名称未找到")
             return
         }
 
-        // 使用 SQLiteManager 打开数据库
+        // 如果数据库文件不存在（例如额外语言未下载），回退到英文
+        if StaticResourceManager.shared.getDatabasePath(name: databaseName) == nil {
+            Logger.warning("数据库文件不存在: \(databaseName)，回退到英文数据库")
+            databaseName = "item_db_en"
+            UserDefaults.standard.set("en", forKey: "selectedDatabaseLanguage")
+        }
+
         if sqliteManager.openDatabase(withName: databaseName) {
             databaseUpdated.toggle()
         }
@@ -23,15 +28,7 @@ class DatabaseManager: ObservableObject {
     // 获取本地化的数据库名称
     private func getLocalizedDatabaseName() -> String? {
         let dbLanguage = UserDefaults.standard.string(forKey: "selectedDatabaseLanguage") ?? "en"
-        // 根据数据库语言选择相应的数据库文件
-        switch dbLanguage {
-        case "zh-Hans":
-            return "item_db_zh"
-        case "en":
-            return "item_db_en"
-        default:
-            return "item_db_en" // 默认使用英文数据库
-        }
+        return ExtraLanguageDBManager.databaseFileName(for: dbLanguage)
     }
 
     // 清除查询缓存

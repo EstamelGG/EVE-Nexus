@@ -7,7 +7,7 @@ class CharacterContractsAPI {
     static let contractsUpdatedNotification = "ContractsUpdatedNotification"
     static let contractsUpdatedCharacterIdKey = "CharacterId"
 
-    private let cacheTimeout: TimeInterval = 8 * 3600 // 8小时缓存有效期
+    private let cacheTimeout: TimeInterval = 1 * 3600 // 1小时缓存有效期
 
     private init() {
         // 创建缓存目录

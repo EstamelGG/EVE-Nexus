@@ -4,7 +4,7 @@ struct BRKillMailSearchView: View {
     let characterId: Int
     @StateObject private var viewModel = BRKillMailSearchViewModel()
     @State private var showSearchSheet = false
-    @State private var killMails: [[String: Any]] = []
+    @State private var killMails: [KillMailListEntity] = []
     @State private var isLoading = false
     @State private var isLoadingMore = false
     @State private var shipInfoMap: [Int: (name: String, iconFileName: String)] = [:]
@@ -100,35 +100,23 @@ struct BRKillMailSearchView: View {
                             .frame(maxWidth: .infinity, alignment: .center)
                             .padding()
                     } else {
-                        ForEach(Array(killMails.enumerated()), id: \.offset) { _, killmail in
-                            if let shipId = viewModel.kbAPI.getShipInfo(
-                                killmail, path: "vict", "ship"
-                            ).id {
-                                let victInfo = killmail["vict"] as? [String: Any]
-                                let allyInfo = victInfo?["ally"] as? [String: Any]
-                                let corpInfo = victInfo?["corp"] as? [String: Any]
-
-                                let allyId = allyInfo?["id"] as? Int
-                                let corpId = corpInfo?["id"] as? Int
-
-                                BRKillMailCell(
-                                    killmail: killmail,
-                                    kbAPI: viewModel.kbAPI,
-                                    shipInfo: shipInfoMap[shipId] ?? (
-                                        name: String(
-                                            format: NSLocalizedString(
-                                                "KillMail_Unknown_Item", comment: ""
-                                            ), shipId
-                                        ),
-                                        iconFileName: DatabaseConfig.defaultItemIcon
-                                    ),
-                                    allianceIcon: allianceIconMap[allyId ?? 0],
-                                    corporationIcon: corporationIconMap[corpId ?? 0],
-                                    characterId: characterId,
-                                    searchResult: viewModel.selectedResult,
-                                    character: character
-                                )
-                            }
+                        ForEach(killMails) { entity in
+                            let shipInfo = shipInfoMap[entity.shipTypeId] ?? (
+                                name: String(
+                                    format: NSLocalizedString("KillMail_Unknown_Item", comment: ""),
+                                    entity.shipTypeId
+                                ),
+                                iconFileName: DatabaseConfig.defaultItemIcon
+                            )
+                            BRKillMailCell(
+                                entity: entity,
+                                shipInfo: shipInfo,
+                                allianceIcon: entity.allianceId.flatMap { allianceIconMap[$0] },
+                                corporationIcon: corporationIconMap[entity.corporationId],
+                                characterId: characterId,
+                                searchResult: viewModel.selectedResult,
+                                character: character
+                            )
                         }
 
                         if hasMoreData {
@@ -283,17 +271,16 @@ struct BRKillMailSearchView: View {
 
         // 转换数据
         do {
-            let converted = try await KillMailDataConverter.shared.convertZKBListToEvetoolsFormat(
+            let entities = try await KillMailDataConverter.shared.fetchKillMailListEntities(
                 zkbEntries: finalBatch
             )
 
             await MainActor.run {
-                killMails.append(contentsOf: converted)
+                killMails.append(contentsOf: entities)
             }
 
-            // 加载额外信息
-            await loadShipInfo(for: converted)
-            await loadOrganizationIcons(for: converted)
+            await loadShipInfo(for: entities)
+            await loadOrganizationIcons(for: entities)
 
             // 检查是否还有更多数据
             await MainActor.run {
@@ -315,8 +302,8 @@ struct BRKillMailSearchView: View {
         isLoadingMore = false
     }
 
-    private func loadShipInfo(for mails: [[String: Any]]) async {
-        let shipIds = mails.compactMap { viewModel.kbAPI.getShipInfo($0, path: "vict", "ship").id }
+    private func loadShipInfo(for entities: [KillMailListEntity]) async {
+        let shipIds = entities.map(\.shipTypeId)
         guard !shipIds.isEmpty else { return }
 
         let placeholders = String(repeating: "?,", count: shipIds.count).dropLast()
@@ -339,38 +326,23 @@ struct BRKillMailSearchView: View {
         }
     }
 
-    private func loadOrganizationIcons(for mails: [[String: Any]]) async {
-        for mail in mails {
-            if let victInfo = mail["vict"] as? [String: Any] {
-                // 优先检查联盟ID
-                if let allyInfo = victInfo["ally"] as? [String: Any],
-                   let allyId = allyInfo["id"] as? Int,
-                   allyId > 0
-                {
-                    // 只有当联盟ID有效且图标未加载时才加载联盟图标
-                    if allianceIconMap[allyId] == nil {
-                        do {
-                            let icon = try await AllianceAPI.shared.fetchAllianceLogo(
-                                allianceID: allyId)
-                            allianceIconMap[allyId] = icon
-                        } catch {
-                            Logger.error("加载联盟图标失败 - 联盟ID: \(allyId), 错误: \(error)")
-                        }
-                    }
-                } else if let corpInfo = victInfo["corp"] as? [String: Any],
-                          let corpId = corpInfo["id"] as? Int,
-                          corpId > 0
-                {
-                    // 只有在没有有效联盟ID的情况下才加载军团图标
-                    if corporationIconMap[corpId] == nil {
-                        do {
-                            let icon = try await CorporationAPI.shared.fetchCorporationLogo(
-                                corporationId: corpId)
-                            corporationIconMap[corpId] = icon
-                        } catch {
-                            Logger.error("加载军团图标失败 - 军团ID: \(corpId), 错误: \(error)")
-                        }
-                    }
+    private func loadOrganizationIcons(for entities: [KillMailListEntity]) async {
+        for entity in entities {
+            if let allyId = entity.allianceId, allyId > 0, allianceIconMap[allyId] == nil {
+                do {
+                    let icon = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allyId)
+                    allianceIconMap[allyId] = icon
+                } catch {
+                    Logger.error("加载联盟图标失败 - 联盟ID: \(allyId), 错误: \(error)")
+                }
+            } else if entity.corporationId > 0, corporationIconMap[entity.corporationId] == nil {
+                do {
+                    let icon = try await CorporationAPI.shared.fetchCorporationLogo(
+                        corporationId: entity.corporationId
+                    )
+                    corporationIconMap[entity.corporationId] = icon
+                } catch {
+                    Logger.error("加载军团图标失败 - 军团ID: \(entity.corporationId), 错误: \(error)")
                 }
             }
         }
@@ -603,7 +575,6 @@ class BRKillMailSearchViewModel: ObservableObject {
         .inventory_type, .character, .corporation, .alliance,
         .solar_system, .region,
     ]
-    let kbAPI = zKbToolAPI.shared
 
     private var searchTask: Task<Void, Never>?
 

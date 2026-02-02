@@ -241,6 +241,40 @@ struct ServerStatusView: View {
     }
 }
 
+/// 冷却期间在首页显示的提示（使用 TimelineView 原生倒计时，与 CloneCountdownView 等保持一致）
+struct RateLimitCooldownView: View {
+    var body: some View {
+        if let date = RateLimitAlertManager.cooldownEndDate {
+            TimelineView(.periodic(from: Date(), by: 1.0)) { timeline in
+                let now = timeline.date
+                let remainingTime = date.timeIntervalSince(now)
+
+                if remainingTime > 0 {
+                    Text(
+                        String(
+                            format: NSLocalizedString("RateLimit_Cooldown_Home_Message", comment: ""),
+                            formattedRemainingTime(remainingTime)
+                        )
+                    )
+                    .font(.caption)
+                    .foregroundColor(.orange)
+                }
+            }
+        }
+    }
+
+    private func formattedRemainingTime(_ remainingTime: TimeInterval) -> String {
+        let seconds = Int(ceil(remainingTime))
+        let m = seconds / 60
+        let s = seconds % 60
+        if m > 0 {
+            return String(format: NSLocalizedString("RateLimit_Cooldown_Time_MinSec", comment: ""), m, s)
+        } else {
+            return String(format: NSLocalizedString("RateLimit_Cooldown_Time_Sec", comment: ""), s)
+        }
+    }
+}
+
 // MARK: - 自定义按钮样式
 
 struct ScaleButtonStyle: ButtonStyle {
@@ -1420,6 +1454,7 @@ struct ContentView: View {
         } footer: {
             VStack(alignment: .leading, spacing: 4) {
                 ServerStatusView(mainViewModel: viewModel)
+                RateLimitCooldownView()
             }
         }
     }

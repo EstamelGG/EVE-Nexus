@@ -974,6 +974,7 @@ struct MarketQuickbarDetailView: View {
     @State private var isLoadingOrders = false
     @State private var orderType: OrderType = .sell // 新增：订单类型选择
     @State private var hasLoadedOrders = false // 标记是否已加载过订单
+    @State private var lastForceRefreshTime: Date? = nil // 上次强制刷新的时间，用于限制 5 分钟内连续强制刷新
     @State private var showRegionPicker = false // 新增：控制星域选择器显示
     @State private var saveSelection = false // 不保存默认市场位置
     @State private var selectedRegionID: Int = 0 // 新增：选中的星域ID
@@ -1348,8 +1349,20 @@ struct MarketQuickbarDetailView: View {
     }
 
     // 加载所有物品的市场订单（使用通用工具类，支持渐进式显示）
+    // 即使请求强制刷新，5 分钟内连续请求也会降级为使用缓存，避免 API 过载
     private func loadAllMarketOrders(forceRefresh: Bool = false) async {
         guard !items.isEmpty else { return }
+
+        // 强制刷新频率限制：5 分钟内不允许连续强制刷新
+        let forceRefreshCooldown: TimeInterval = 5 * 60
+        var effectiveForceRefresh = forceRefresh
+        if forceRefresh, let lastTime = lastForceRefreshTime {
+            let elapsed = Date().timeIntervalSince(lastTime)
+            if elapsed < forceRefreshCooldown {
+                effectiveForceRefresh = false
+                Logger.info("强制刷新过于频繁，距上次仅 \(Int(elapsed)) 秒，本次使用缓存数据")
+            }
+        }
 
         isLoadingOrders = true
         defer {
@@ -1365,7 +1378,7 @@ struct MarketQuickbarDetailView: View {
         let orders = await MarketOrdersUtil.loadOrders(
             typeIds: typeIds,
             regionID: currentRegionID,
-            forceRefresh: forceRefresh,
+            forceRefresh: effectiveForceRefresh,
             progressCallback: { progress in
                 Task { @MainActor in
                     structureOrdersProgress = progress
@@ -1378,6 +1391,13 @@ struct MarketQuickbarDetailView: View {
                 }
             }
         )
+
+        // 若本次实际执行了强制刷新，记录时间
+        if effectiveForceRefresh {
+            await MainActor.run {
+                lastForceRefreshTime = Date()
+            }
+        }
 
         // 最后确保所有数据都已更新（防止回调遗漏）
         marketOrders = orders

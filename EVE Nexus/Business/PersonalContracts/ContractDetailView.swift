@@ -426,15 +426,19 @@ final class ContractDetailViewModel: ObservableObject {
     }
 }
 
+/// 用于 sheet(item:) 的详情项
+struct ContractDetailSheetItem: Identifiable {
+    let id: Int
+    let category: String
+}
+
 struct ContractDetailView: View {
     let contract: ContractInfo
     @StateObject private var viewModel: ContractDetailViewModel
     @State private var isRefreshing = false
     @State private var hasLoadedInitialData = false
     @State private var currentCharacter: EVECharacterInfo?
-    @State private var showingDetailSheet = false
-    @State private var detailId: Int?
-    @State private var detailCategory: String = ""
+    @State private var detailSheetItem: ContractDetailSheetItem?
 
     // 添加日期格式化器作为实例属性
     private let dateFormatter: DateFormatter = {
@@ -472,25 +476,6 @@ struct ContractDetailView: View {
             return .green // 完成状态显示为绿色
         default:
             return .primary // 其他状态使用主色调
-        }
-    }
-
-    // 导航到详情页面的辅助方法
-    @ViewBuilder
-    private func navigationDestination(for id: Int, category: String) -> some View {
-        if let character = currentCharacter {
-            switch category {
-            case "character":
-                CharacterDetailView(characterId: id, character: character)
-            case "corporation":
-                CorporationDetailView(corporationId: id, character: character)
-            case "alliance":
-                AllianceDetailView(allianceId: id, character: character)
-            default:
-                EmptyView()
-            }
-        } else {
-            EmptyView()
         }
     }
 
@@ -682,9 +667,10 @@ struct ContractDetailView: View {
                                 && currentCharacter != nil
                             {
                                 Button {
-                                    detailId = contract.issuer_id
-                                    detailCategory = viewModel.issuerCategory
-                                    showingDetailSheet = true
+                                    detailSheetItem = ContractDetailSheetItem(
+                                        id: contract.issuer_id,
+                                        category: viewModel.issuerCategory
+                                    )
                                 } label: {
                                     Label(
                                         NSLocalizedString("Misc_Show_Detail", comment: ""),
@@ -740,9 +726,10 @@ struct ContractDetailView: View {
                                     let assigneeId = contract.assignee_id, currentCharacter != nil
                                 {
                                     Button {
-                                        detailId = assigneeId
-                                        detailCategory = viewModel.assigneeCategory
-                                        showingDetailSheet = true
+                                        detailSheetItem = ContractDetailSheetItem(
+                                            id: assigneeId,
+                                            category: viewModel.assigneeCategory
+                                        )
                                     } label: {
                                         Label(
                                             NSLocalizedString("Misc_Show_Detail", comment: ""),
@@ -800,9 +787,10 @@ struct ContractDetailView: View {
                                     let acceptorId = contract.acceptor_id, currentCharacter != nil
                                 {
                                     Button {
-                                        detailId = acceptorId
-                                        detailCategory = viewModel.acceptorCategory
-                                        showingDetailSheet = true
+                                        detailSheetItem = ContractDetailSheetItem(
+                                            id: acceptorId,
+                                            category: viewModel.acceptorCategory
+                                        )
                                     } label: {
                                         Label(
                                             NSLocalizedString("Misc_Show_Detail", comment: ""),
@@ -1028,17 +1016,17 @@ struct ContractDetailView: View {
                 Text(errorMessage)
             }
         }
-        .sheet(isPresented: $showingDetailSheet) {
-            if let id = detailId, let character = currentCharacter {
+        .sheet(item: $detailSheetItem) { item in
+            if let character = currentCharacter {
                 NavigationStack {
                     Group {
-                        switch detailCategory {
+                        switch item.category {
                         case "character":
-                            CharacterDetailView(characterId: id, character: character)
+                            CharacterDetailView(characterId: item.id, character: character)
                         case "corporation":
-                            CorporationDetailView(corporationId: id, character: character)
+                            CorporationDetailView(corporationId: item.id, character: character)
                         case "alliance":
-                            AllianceDetailView(allianceId: id, character: character)
+                            AllianceDetailView(allianceId: item.id, character: character)
                         default:
                             EmptyView()
                         }
@@ -1046,7 +1034,7 @@ struct ContractDetailView: View {
                     .toolbar {
                         ToolbarItem(placement: .navigationBarTrailing) {
                             Button(NSLocalizedString("Common_Done", comment: "完成")) {
-                                showingDetailSheet = false
+                                detailSheetItem = nil
                             }
                         }
                     }

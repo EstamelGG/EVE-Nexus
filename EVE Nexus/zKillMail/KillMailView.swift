@@ -8,7 +8,7 @@ enum KillMailFilter: String {
 
 struct KillMailEntry: Identifiable {
     let id: Int
-    let data: [String: Any]
+    let entity: KillMailListEntity
 }
 
 class KillMailViewModel: ObservableObject {
@@ -64,16 +64,17 @@ class KillMailViewModel: ObservableObject {
         return cacheDirectory.appendingPathComponent("\(type)_\(characterId).json")
     }
 
-    private func saveToCache(_ data: [String: Any], for type: String, filter: KillMailFilter = .all) {
+    private struct ListCacheWrapper: Codable {
+        let data: [KillMailListEntity]
+        let updateTime: TimeInterval
+    }
+
+    private func saveToCache(_ entities: [KillMailListEntity], for type: String, filter: KillMailFilter = .all) {
         let cacheKey = "\(type)_\(filter.rawValue)"
         let filePath = getCacheFilePath(for: cacheKey)
-        var cacheData = data
-        cacheData["update_time"] = Date().timeIntervalSince1970
-
+        let wrapper = ListCacheWrapper(data: entities, updateTime: Date().timeIntervalSince1970)
         do {
-            let jsonData = try JSONSerialization.data(
-                withJSONObject: cacheData, options: .prettyPrinted
-            )
+            let jsonData = try JSONEncoder().encode(wrapper)
             try jsonData.write(to: filePath)
             Logger.info("保存到缓存文件: \(filePath)")
         } catch {
@@ -81,31 +82,50 @@ class KillMailViewModel: ObservableObject {
         }
     }
 
-    private func loadFromCache(for type: String, filter: KillMailFilter = .all) -> [String: Any]? {
+    private func loadFromCache(for type: String, filter: KillMailFilter = .all) -> [KillMailListEntity]? {
         let cacheKey = "\(type)_\(filter.rawValue)"
         let filePath = getCacheFilePath(for: cacheKey)
-
         guard let data = try? Data(contentsOf: filePath),
-              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let updateTime = dict["update_time"] as? TimeInterval
-        else {
-            return nil
-        }
-
-        // 检查缓存是否过期（1小时）
-        let cacheAge = Date().timeIntervalSince1970 - updateTime
+              let wrapper = try? JSONDecoder().decode(ListCacheWrapper.self, from: data)
+        else { return nil }
+        let cacheAge = Date().timeIntervalSince1970 - wrapper.updateTime
         if cacheAge > 3600 {
             try? fileManager.removeItem(at: filePath)
             return nil
         }
         Logger.info("从缓存加载文件: \(filePath)")
+        return wrapper.data
+    }
+
+    private func saveToCache(_ dict: [String: Any], for type: String) {
+        let filePath = getCacheFilePath(for: type)
+        var data = dict
+        data["update_time"] = Date().timeIntervalSince1970
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: data, options: .prettyPrinted)
+            try jsonData.write(to: filePath)
+        } catch {
+            Logger.error("保存缓存失败: \(error)")
+        }
+    }
+
+    private func loadDictFromCache(for type: String) -> [String: Any]? {
+        let filePath = getCacheFilePath(for: type)
+        guard let data = try? Data(contentsOf: filePath),
+              let dict = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let updateTime = dict["update_time"] as? TimeInterval
+        else { return nil }
+        if Date().timeIntervalSince1970 - updateTime > 3600 {
+            try? fileManager.removeItem(at: filePath)
+            return nil
+        }
         return dict
     }
 
-    private func convertToEntries(_ mails: [[String: Any]]) -> [KillMailEntry] {
-        return mails.map { mail in
+    private func convertToEntries(_ entities: [KillMailListEntity]) -> [KillMailEntry] {
+        return entities.map { entity in
             defer { currentIndex += 1 }
-            return KillMailEntry(id: currentIndex, data: mail)
+            return KillMailEntry(id: currentIndex, entity: entity)
         }
     }
 
@@ -153,14 +173,11 @@ class KillMailViewModel: ObservableObject {
 
         // 如果不是强制刷新，先尝试从缓存文件加载
         if !forceRefresh {
-            if let cachedDict = loadFromCache(for: "km", filter: filter),
-               let data = cachedDict["data"] as? [[String: Any]]
-            {
-                // 从缓存文件加载数据
-                let entries = convertToEntries(data)
-                let shipIds = data.compactMap { kbAPI.getShipInfo($0, path: "vict", "ship").id }
+            if let cachedEntities = loadFromCache(for: "km", filter: filter) {
+                let entries = convertToEntries(cachedEntities)
+                let shipIds = cachedEntities.map(\.shipTypeId)
                 let shipInfo = getShipInfo(for: shipIds)
-                let (allianceIcons, corporationIcons) = await loadOrganizationIcons(for: data)
+                let (allianceIcons, corporationIcons) = await loadOrganizationIcons(for: cachedEntities)
 
                 let cachedKillMailData = CachedKillMailData(
                     mails: entries,
@@ -290,15 +307,14 @@ class KillMailViewModel: ObservableObject {
                 state.hasMore = false
             }
 
-            // 使用转换器转换数据
-            let convertedMails = try await KillMailDataConverter.shared.convertZKBListToEvetoolsFormat(
+            let entities = try await KillMailDataConverter.shared.fetchKillMailListEntities(
                 zkbEntries: entriesToConvert
             )
 
-            let entries = convertToEntries(convertedMails)
-            let shipIds = convertedMails.compactMap { kbAPI.getShipInfo($0, path: "vict", "ship").id }
+            let entries = convertToEntries(entities)
+            let shipIds = entities.map(\.shipTypeId)
             let shipInfo = getShipInfo(for: shipIds)
-            let (allianceIcons, corporationIcons) = await loadOrganizationIcons(for: convertedMails)
+            let (allianceIcons, corporationIcons) = await loadOrganizationIcons(for: entities)
 
             let cachedData = CachedKillMailData(
                 mails: entries,
@@ -328,12 +344,7 @@ class KillMailViewModel: ObservableObject {
                 self.paginationState[filter] = finalState
             }
 
-            // 保存到缓存文件
-            let cacheDict: [String: Any] = [
-                "data": convertedMails,
-                "update_time": Date().timeIntervalSince1970,
-            ]
-            saveToCache(cacheDict, for: "km", filter: filter)
+            saveToCache(entities, for: "km", filter: filter)
         } catch {
             await MainActor.run {
                 self.errorMessage = error.localizedDescription
@@ -356,35 +367,25 @@ class KillMailViewModel: ObservableObject {
         await loadData(for: filter, forceRefresh: true, updateUI: updateUI)
     }
 
-    private func loadOrganizationIcons(for mails: [[String: Any]]) async -> (
+    private func loadOrganizationIcons(for entities: [KillMailListEntity]) async -> (
         [Int: UIImage], [Int: UIImage]
     ) {
         var allianceIcons: [Int: UIImage] = [:]
         var corporationIcons: [Int: UIImage] = [:]
 
-        for mail in mails {
-            if let victInfo = mail["vict"] as? [String: Any] {
-                // 优先检查联盟ID
-                if let allyInfo = victInfo["ally"] as? [String: Any],
-                   let allyId = allyInfo["id"] as? Int,
-                   allyId > 0
+        for entity in entities {
+            if let allyId = entity.allianceId, allyId > 0 {
+                if allianceIcons[allyId] == nil,
+                   let icon = await loadSingleOrganizationIcon(type: "alliance", id: allyId)
                 {
-                    // 只有当联盟ID有效且图标未加载时才加载联盟图标
-                    if allianceIcons[allyId] == nil,
-                       let icon = await loadSingleOrganizationIcon(type: "alliance", id: allyId)
-                    {
-                        allianceIcons[allyId] = icon
-                    }
-                } else if let corpInfo = victInfo["corp"] as? [String: Any],
-                          let corpId = corpInfo["id"] as? Int,
-                          corpId > 0
+                    allianceIcons[allyId] = icon
+                }
+            } else if entity.corporationId > 0 {
+                let corpId = entity.corporationId
+                if corporationIcons[corpId] == nil,
+                   let icon = await loadSingleOrganizationIcon(type: "corporation", id: corpId)
                 {
-                    // 只有在没有有效联盟ID的情况下才加载军团图标
-                    if corporationIcons[corpId] == nil,
-                       let icon = await loadSingleOrganizationIcon(type: "corporation", id: corpId)
-                    {
-                        corporationIcons[corpId] = icon
-                    }
+                    corporationIcons[corpId] = icon
                 }
             }
         }
@@ -447,7 +448,7 @@ class KillMailViewModel: ObservableObject {
         }
 
         // 如果不是强制刷新，尝试从缓存加载
-        if !forceRefresh, let cachedData = loadFromCache(for: "stats"),
+        if !forceRefresh, let cachedData = loadDictFromCache(for: "stats"),
            let stats = try? JSONDecoder().decode(
                CharBattleIsk.self, from: try JSONSerialization.data(withJSONObject: cachedData)
            )
@@ -553,15 +554,14 @@ class KillMailViewModel: ObservableObject {
                 state.hasMore = false
             }
 
-            // 使用转换器转换数据
-            let convertedMails = try await KillMailDataConverter.shared.convertZKBListToEvetoolsFormat(
+            let entities = try await KillMailDataConverter.shared.fetchKillMailListEntities(
                 zkbEntries: entriesToConvert
             )
 
-            let entries = convertToEntries(convertedMails)
-            let shipIds = convertedMails.compactMap { kbAPI.getShipInfo($0, path: "vict", "ship").id }
+            let entries = convertToEntries(entities)
+            let shipIds = entities.map(\.shipTypeId)
             let newShipInfo = getShipInfo(for: shipIds)
-            let (newAllianceIcons, newCorporationIcons) = await loadOrganizationIcons(for: convertedMails)
+            let (newAllianceIcons, newCorporationIcons) = await loadOrganizationIcons(for: entities)
 
             // 在 MainActor 闭包外获取需要的值
             let hasMore = state.hasMore
@@ -746,36 +746,23 @@ struct BRKillMailView: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                 } else {
                     ForEach(viewModel.killMails) { entry in
-                        if let shipId = viewModel.kbAPI.getShipInfo(
-                            entry.data, path: "vict", "ship"
-                        ).id {
-                            let victInfo = entry.data["vict"] as? [String: Any]
-                            let allyInfo = victInfo?["ally"] as? [String: Any]
-                            let corpInfo = victInfo?["corp"] as? [String: Any]
-
-                            let allyId = allyInfo?["id"] as? Int
-                            let corpId = corpInfo?["id"] as? Int
-
-                            BRKillMailCell(
-                                killmail: entry.data,
-                                kbAPI: viewModel.kbAPI,
-                                shipInfo: viewModel.shipInfoMap[shipId] ?? (
-                                    name: String(
-                                        format: NSLocalizedString(
-                                            "KillMail_Unknown_Item", comment: ""
-                                        ), shipId
-                                    ),
-                                    iconFileName: DatabaseConfig.defaultItemIcon
-                                ),
-                                allianceIcon: allyId.flatMap { viewModel.allianceIconMap[$0] },
-                                corporationIcon: corpId.flatMap {
-                                    viewModel.corporationIconMap[$0]
-                                },
-                                characterId: characterId,
-                                searchResult: nil,
-                                character: character
-                            )
-                        }
+                        let entity = entry.entity
+                        let shipInfo = viewModel.shipInfoMap[entity.shipTypeId] ?? (
+                            name: String(
+                                format: NSLocalizedString("KillMail_Unknown_Item", comment: ""),
+                                entity.shipTypeId
+                            ),
+                            iconFileName: DatabaseConfig.defaultItemIcon
+                        )
+                        BRKillMailCell(
+                            entity: entity,
+                            shipInfo: shipInfo,
+                            allianceIcon: entity.allianceId.flatMap { viewModel.allianceIconMap[$0] },
+                            corporationIcon: viewModel.corporationIconMap[entity.corporationId],
+                            characterId: characterId,
+                            searchResult: nil,
+                            character: character
+                        )
                     }
 
                     // 加载更多按钮
@@ -830,128 +817,62 @@ struct BRKillMailView: View {
     }
 }
 
+private func formatKillMailTime(_ timestamp: Int) -> String {
+    let date = Date(timeIntervalSince1970: TimeInterval(timestamp))
+    let formatter = DateFormatter()
+    formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
+    formatter.timeZone = TimeZone(identifier: "UTC")
+    formatter.locale = Locale(identifier: "en_US_POSIX")
+    return formatter.string(from: date)
+}
+
 struct BRKillMailCell: View {
-    let killmail: [String: Any]
-    let kbAPI: zKbToolAPI
+    let entity: KillMailListEntity
     let shipInfo: (name: String, iconFileName: String)
     let allianceIcon: UIImage?
     let corporationIcon: UIImage?
     let characterId: Int
     let searchResult: SearchResult?
-    let character: EVECharacterInfo? // 添加角色信息参数
+    let character: EVECharacterInfo?
 
     private var isLoss: Bool {
-        guard let victInfo = killmail["vict"] as? [String: Any] else { return false }
-
         if let searchResult = searchResult {
             switch searchResult.category {
-            case .character:
-                if let charInfo = victInfo["char"] as? [String: Any],
-                   let victimId = charInfo["id"] as? Int
-                {
-                    return victimId == searchResult.id
-                }
-            case .corporation:
-                if let corpInfo = victInfo["corp"] as? [String: Any],
-                   let corpId = corpInfo["id"] as? Int
-                {
-                    return corpId == searchResult.id
-                }
-            case .alliance:
-                if let allyInfo = victInfo["ally"] as? [String: Any],
-                   let allyId = allyInfo["id"] as? Int
-                {
-                    return allyId == searchResult.id
-                }
-            case .inventory_type:
-                if let shipId = kbAPI.getShipInfo(killmail, path: "vict", "ship").id {
-                    return shipId == searchResult.id
-                }
-            default:
-                return false
+            case .character: return entity.characterId == searchResult.id
+            case .corporation: return entity.corporationId == searchResult.id
+            case .alliance: return entity.allianceId == searchResult.id
+            case .inventory_type: return entity.shipTypeId == searchResult.id
+            default: return false
             }
-            return false
-        } else {
-            // 非搜索场景，使用原有逻辑
-            if let charInfo = victInfo["char"] as? [String: Any],
-               let victimId = charInfo["id"] as? Int
-            {
-                return victimId == characterId
-            }
-            return false
         }
+        return entity.characterId == characterId
     }
 
-    private var valueColor: Color {
-        isLoss ? .red : .green
-    }
+    private var valueColor: Color { isLoss ? .red : .green }
 
     private var organizationIcon: UIImage? {
-        let victInfo = killmail["vict"] as? [String: Any]
-        let allyInfo = victInfo?["ally"] as? [String: Any]
-        let corpInfo = victInfo?["corp"] as? [String: Any]
-
-        // 先尝试获取联盟图标
-        if let allyId = allyInfo?["id"] as? Int, allyId > 0, let icon = allianceIcon {
-            return icon
-        }
-
-        // 如果没有联盟图标，尝试获取军团图标
-        if let corpId = corpInfo?["id"] as? Int, corpId > 0, let icon = corporationIcon {
-            return icon
-        }
-
+        if let allyId = entity.allianceId, allyId > 0, let icon = allianceIcon { return icon }
+        if entity.corporationId > 0, let icon = corporationIcon { return icon }
         return nil
     }
 
     private var locationText: Text {
-        let sysInfo = kbAPI.getSystemInfo(killmail)
-        let securityText = Text(formatSystemSecurity(Double(sysInfo.security ?? "0.0") ?? 0.0))
-            .foregroundColor(getSecurityColor(Double(sysInfo.security ?? "0.0") ?? 0.0))
+        let sys = entity.system
+        let sec = sys?.security ?? 0
+        let securityText = Text(formatSystemSecurity(sec))
+            .foregroundColor(getSecurityColor(sec))
             .font(.system(size: 12, weight: .medium))
-
-        let systemName = Text(" \(sysInfo.name ?? NSLocalizedString("Unknown", comment: ""))")
+        let systemName = Text(" \(sys?.systemName ?? NSLocalizedString("Unknown", comment: ""))")
             .font(.system(size: 12, weight: .semibold))
             .foregroundColor(.secondary)
-
-        let regionText = Text(" / \(sysInfo.region ?? NSLocalizedString("Unknown", comment: ""))")
+        let regionText = Text(" / \(sys?.regionName ?? NSLocalizedString("Unknown", comment: ""))")
             .font(.system(size: 12))
             .foregroundColor(.secondary)
-
         return securityText + systemName + regionText
     }
 
-    private var displayName: String {
-        let victInfo = killmail["vict"] as? [String: Any]
-        let charInfo = victInfo?["char"] // 先获取原始值，不做类型转换
-        let allyInfo = victInfo?["ally"] as? [String: Any]
-        let corpInfo = victInfo?["corp"] as? [String: Any]
-
-        // 如果char是字典类型，说明有完整的角色信息
-        if let charDict = charInfo as? [String: Any],
-           let name = charDict["name"] as? String
-        {
-            return name
-        }
-
-        // 如果char是数字类型且为0，或者不存在，尝试使用联盟名
-        if let allyName = allyInfo?["name"] as? String,
-           let allyId = allyInfo?["id"] as? Int,
-           allyId > 0
-        {
-            return allyName
-        }
-
-        // 如果联盟也没有，使用军团名
-        if let corpName = corpInfo?["name"] as? String {
-            return corpName
-        }
-
-        return NSLocalizedString("Unknown", comment: "")
-    }
-
     var body: some View {
-        NavigationLink(destination: BRKillMailDetailView(killmail: killmail, character: character)) {
+        NavigationLink(destination: BRKillMailDetailView(listEntity: entity, character: character)) {
             VStack(alignment: .leading, spacing: 8) {
                 // 第一行：图标和信息
                 HStack(spacing: 12) {
@@ -969,7 +890,7 @@ struct BRKillMailCell: View {
                             .font(.system(size: 16, weight: .medium))
 
                         // 显示名称（角色/联盟/军团）
-                        Text(displayName)
+                        Text(entity.displayName)
                             .font(.system(size: 14))
                             .foregroundColor(.secondary)
 
@@ -991,19 +912,15 @@ struct BRKillMailCell: View {
 
                 // 第二行：时间和价值
                 HStack {
-                    if let time = kbAPI.getFormattedTime(killmail) {
-                        Text(time)
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                    }
+                    Text(formatKillMailTime(entity.timestamp))
+                        .font(.system(size: 12))
+                        .foregroundColor(.secondary)
 
                     Spacer()
 
-                    if let value = kbAPI.getFormattedValue(killmail) {
-                        Text(value)
-                            .font(.system(size: 12, weight: .medium, design: .monospaced))
-                            .foregroundColor(valueColor)
-                    }
+                    Text(FormatUtil.formatISK(entity.totalValue))
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .foregroundColor(valueColor)
                 }
             }
         }

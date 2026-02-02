@@ -237,7 +237,7 @@
 
 "Main_Setting" = "Setting";
 "Main_Setting_Title" = "Setting";
-"Main_Setting_Language" = "App Language";
+"Main_Setting_Language" = "App / SDE Language";
 "Main_Setting_Database_Language" = "Database Language";
 "Main_Setting_Select_your_language" = "Select your language";
 "Main_Setting_Appearance" = "Appearance";
@@ -507,6 +507,15 @@
 "Network_Error_No_Price" = "No Valid Price Data";
 "Network_Error_Invalid_Data" = "Invalid Data";
 "Network_Error_Unauthed" = "Unauthed";
+
+// Rate Limit Alert
+"RateLimit_Alert_Title" = "API Rate Limit Exceeded";
+"RateLimit_Alert_Message" = "You have reached the EVE Online API rate limit. All requests will be blocked for 1 minute. Please wait before trying again.";
+"RateLimit_Alert_OK" = "OK";
+"Network_Error_RateLimit_Cooldown" = "API requests are temporarily blocked. Please wait 1 minute.";
+"RateLimit_Cooldown_Home_Message" = "Network overload, cooling down: %@";
+"RateLimit_Cooldown_Time_MinSec" = "%dm %ds";
+"RateLimit_Cooldown_Time_Sec" = "%ds";
 
 "Main_Setting_Market_Data" = "Market Data (%d items, %d records)";
 "Main_Setting_Market_Data_0" = "Market Data";
@@ -1225,7 +1234,7 @@
 "Main_Skills_Plan_Add_Skill" = "Add Skill";
 "Main_Skills_Plan_Clear_All" = "Clear Queue";
 "Main_Skills_Plan_All_Completed" = "All skills completed";
-"Main_Skills_Plan_Export_Chinese" = "Export Chinese";
+"Main_Skills_Plan_Export_Localized" = "Export Current Language";
 "Main_Skills_Plan_Export_English" = "Export English";
 "Main_Skills_Plan_Export_Success_Title" = "Export Successful";
 "Main_Skills_Plan_Export_Success_Message" = "Skill plan has been copied to clipboard";
@@ -1338,6 +1347,7 @@
 "View Character" = "View Character";
 "View Corporation" = "View Corporation";
 "View Alliance" = "View Alliance";
+"View Ship" = "View Ship";
 "View CEO" = "View CEO";
 
 // Market Watch List
@@ -1458,6 +1468,12 @@
 "Main_KM_EVE_Time" = "EVE Time:";
 "Main_KM_Local_Time" = "Local Time:";
 "Main_KM_Damage" = "Damage:";
+"Main_KM_Attackers" = "Attackers:";
+"Main_KM_Attackers_Final_Blow" = "Final Blow";
+"Main_KM_Attackers_Most_Damage" = "Most Damage";
+"Main_KM_Attackers_My_Kills" = "My Contribution";
+"Main_KM_Attackers_All_With_Count" = "All (%d)";
+"Main_KM_Attackers_Search_Placeholder" = "Search (at least 2 chars)";
 
 // Kill Mail Detail
 "Main_KM_High_Slots" = "High Slot";
@@ -1963,6 +1979,12 @@
 "Main_Database_Mutation_Attribute" = "Mutation";
 "Main_Database_Mutation_Source" = "Mutation Source";
 "Main_Database_Mutation_Results" = "Mutation Output";
+"Abyssal_Item_Detail" = "Item Detail";
+"Abyssal_Created_By" = "Created By";
+"Abyssal_Source_Item" = "Source Item";
+"Abyssal_Mutaplasmid_Used" = "Mutaplasmid Used";
+"Abyssal_Loading" = "Loading abyssal properties…";
+"Abyssal_Load_Error" = "Load Failed";
 "Main_Database_Required_Mutaplasmids" = "Required Mutaplasmids";
 "Main_Database_Applicable_Blueprints" = "Required for";
 "Main_Database_Applicable_Blueprints_info" = "Blueprints that require this item";
@@ -2911,3 +2933,22 @@
 "Purchase_Processing" = "Processing...";
 "IAP_Free_Icons_Badge_Charge" = "You can use any icon and T2/T3 badges for free.";
 "IAP_Sponsor_Gift" = "By sponsoring, you'll receive Factions, Deadspace, and Officers badges as a gift. Thank you for your support!";
+
+// Extra Language DB
+"Wallet_Market_Escrow_Debit" = "Authorized Market Escrow";
+"ExtraDB_Manage_Delete" = "Manage";
+"ExtraDB_Builtin" = "Built-in";
+"ExtraDB_NotDownloaded" = "Not Downloaded";
+"ExtraDB_Update" = "Update";
+"ExtraDB_Download" = "Download";
+"ExtraDB_Error_NoRecordID" = "Unable to get CloudKit record";
+"ExtraDB_Error_NoMetadata" = "Metadata not found for this language";
+"ExtraDB_Error_SHA256" = "File verification failed";
+"ExtraDB_Error_Unsupported" = "Unsupported language";
+
+// SDE Update Check
+"SDE_Check_Update" = "Check SDE Update";
+"SDE_Checking_Update" = "Checking for updates...";
+"SDE_Log_Downloading_ExtraDB" = "Downloading %@ database from CloudKit...";
+"SDE_Log_Extracting_ExtraDB" = "Extracting %@ database...";
+"SDE_Log_ExtraDB_Success" = "%@ database updated successfully!";

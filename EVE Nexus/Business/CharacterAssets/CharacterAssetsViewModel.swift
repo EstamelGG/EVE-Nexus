@@ -9,8 +9,10 @@ struct AssetSearchResult: Identifiable {
     let containerNode: AssetTreeNode // 直接容器节点
     let totalQuantity: Int // 合并后的总数量
 
-    var id: String {
-        // 使用type_id和容器路径组合作为唯一标识
+    var id: String { mergeKey }
+
+    /// 用于搜索合并与唯一标识的键（与 id 一致）
+    var mergeKey: String {
         "\(node.type_id)_\(containerNode.item_id)_\(formattedPath.hashValue)"
     }
 
@@ -58,6 +60,8 @@ class CharacterAssetsViewModel: ObservableObject {
 
     private var isCurrentlyLoading = false
     private(set) var itemInfoCache: [Int: ItemInfo] = [:]
+    /// 深渊变异产物 type_id 集合，这类物品无市场页面
+    private(set) var dynamicResultingTypeIds: Set<Int> = []
     private let characterId: Int
     private let databaseManager: DatabaseManager
 
@@ -220,6 +224,20 @@ class CharacterAssetsViewModel: ObservableObject {
         return Array(stationIds)
     }
 
+    /// 从 dynamic_item_mappings 表中加载所有 resulting_type 并去重
+    private func loadDynamicResultingTypes() {
+        let query = "SELECT DISTINCT resulting_type FROM dynamic_item_mappings"
+        var typeIds = Set<Int>()
+        if case let .success(rows) = databaseManager.executeQuery(query) {
+            for row in rows {
+                if let typeId = row["resulting_type"] as? Int {
+                    typeIds.insert(typeId)
+                }
+            }
+        }
+        dynamicResultingTypeIds = typeIds
+    }
+
     // 从数据库中获取物品信息的辅助方法
     private func fetchItemInfoFromDatabase(_ typeIds: Set<Int>) {
         if typeIds.isEmpty {
@@ -350,6 +368,9 @@ class CharacterAssetsViewModel: ObservableObject {
                     // 从数据库加载物品信息
                     await loadItemInfoFromDatabase()
 
+                    // 加载深渊变异产物 type_id 集合
+                    loadDynamicResultingTypes()
+
                     // 在内存中填充节点名称
                     await fillNodeNamesInMemory()
 
@@ -361,7 +382,6 @@ class CharacterAssetsViewModel: ObservableObject {
                 }
             }
         } catch {
-            // 检查是否是取消错误
             if let nsError = error as NSError?,
                nsError.domain == NSURLErrorDomain, nsError.code == NSURLErrorCancelled
             {
@@ -371,18 +391,12 @@ class CharacterAssetsViewModel: ObservableObject {
             } else {
                 Logger.error("加载资产失败: \(error)")
                 self.error = error
-
-                // 在非取消错误的情况下，确保UI显示错误状态
-                isLoading = false
-                loadingProgress = nil
             }
         }
 
-        // 只有在成功完成时才重置加载状态
+        // 统一在出口重置加载状态
         isLoading = false
         loadingProgress = nil
-
-        // 重置加载标志
         isCurrentlyLoading = false
     }
 
@@ -485,11 +499,8 @@ class CharacterAssetsViewModel: ObservableObject {
         var mergedResults: [String: AssetSearchResult] = [:]
 
         for result in rawResults {
-            // 创建合并键：type_id + 容器ID + 位置路径
-            let mergeKey =
-                "\(result.node.type_id)_\(result.containerNode.item_id)_\(result.formattedPath.hashValue)"
-
-            if let existingResult = mergedResults[mergeKey] {
+            let key = result.mergeKey
+            if let existingResult = mergedResults[key] {
                 // 合并数量
                 let newTotalQuantity = existingResult.totalQuantity + result.node.quantity
 
@@ -500,9 +511,8 @@ class CharacterAssetsViewModel: ObservableObject {
                     containerNode: existingResult.containerNode,
                     totalQuantity: newTotalQuantity
                 )
-                mergedResults[mergeKey] = mergedResult
+                mergedResults[key] = mergedResult
             } else {
-                // 第一次遇到这个物品在这个位置
                 let initialResult = AssetSearchResult(
                     node: result.node,
                     itemInfo: result.itemInfo,
@@ -510,7 +520,7 @@ class CharacterAssetsViewModel: ObservableObject {
                     containerNode: result.containerNode,
                     totalQuantity: result.node.quantity
                 )
-                mergedResults[mergeKey] = initialResult
+                mergedResults[key] = initialResult
             }
         }
 

@@ -1,13 +1,13 @@
 import SwiftUI
 
 struct BRKillMailDetailView: View {
-    let killmail: [String: Any] // 这个现在只用来获取ID
-    let character: EVECharacterInfo? // 可选的当前角色信息
+    let listEntity: KillMailListEntity
+    let character: EVECharacterInfo?
     @State private var victimCharacterIcon: UIImage?
     @State private var victimCorporationIcon: UIImage?
     @State private var victimAllianceIcon: UIImage?
     @State private var shipIcon: UIImage?
-    @State private var detailData: [String: Any]?
+    @State private var detailData: KillMailDetailData?
     @State private var isLoading = true
     @State private var errorMessage: String?
     @State private var destroyedValue: Double = 0
@@ -59,64 +59,36 @@ struct BRKillMailDetailView: View {
                     .frame(maxWidth: .infinity)
             } else if let detail = detailData {
                 if shouldUseCompactLayout {
-                    // 横屏或iPad布局
                     compactLayout(detail: detail)
                         .contextMenu {
-                            // 查看受害者详情
-                            if let victInfo = detail["vict"] as? [String: Any],
-                               let charId = victInfo["char"] as? Int,
-                               character != nil
-                            {
+                            if let charId = detail.esi.victim.character_id {
                                 NavigationLink {
                                     navigationDestination(for: charId, type: "character")
                                 } label: {
-                                    Label(
-                                        NSLocalizedString("View Character", comment: ""),
-                                        systemImage: "info.circle"
-                                    )
+                                    Label(NSLocalizedString("View Character", comment: ""), systemImage: "info.circle")
                                 }
-
-                                // 查看军团详情
-                                if let corpId = victInfo["corp"] as? Int {
-                                    NavigationLink {
-                                        navigationDestination(for: corpId, type: "corporation")
-                                    } label: {
-                                        Label(
-                                            NSLocalizedString("View Corporation", comment: ""),
-                                            systemImage: "info.circle"
-                                        )
-                                    }
-                                }
-
-                                // 查看联盟详情
-                                if let allyId = victInfo["ally"] as? Int, allyId > 0 {
-                                    NavigationLink {
-                                        navigationDestination(for: allyId, type: "alliance")
-                                    } label: {
-                                        Label(
-                                            NSLocalizedString("View Alliance", comment: ""),
-                                            systemImage: "info.circle"
-                                        )
-                                    }
-                                }
-
-                                Divider()
                             }
-
-                            // 复制地点
-                            if let sysInfo = detail["sys"] as? [String: Any] {
-                                let systemName =
-                                    solarSystemInfo?.systemName
-                                        ?? (sysInfo["name"] as? String ?? "")
-                                if !systemName.isEmpty {
-                                    Button {
-                                        UIPasteboard.general.string = systemName
-                                    } label: {
-                                        Label(
-                                            NSLocalizedString("Misc_Copy_Location", comment: ""),
-                                            systemImage: "location"
-                                        )
-                                    }
+                            if detail.esi.victim.corporation_id > 0 {
+                                NavigationLink {
+                                    navigationDestination(for: detail.esi.victim.corporation_id, type: "corporation")
+                                } label: {
+                                    Label(NSLocalizedString("View Corporation", comment: ""), systemImage: "info.circle")
+                                }
+                            }
+                            if let allyId = detail.esi.victim.alliance_id, allyId > 0 {
+                                NavigationLink {
+                                    navigationDestination(for: allyId, type: "alliance")
+                                } label: {
+                                    Label(NSLocalizedString("View Alliance", comment: ""), systemImage: "info.circle")
+                                }
+                            }
+                            Divider()
+                            let systemName = solarSystemInfo?.systemName ?? detail.system?.systemName ?? ""
+                            if !systemName.isEmpty {
+                                Button {
+                                    UIPasteboard.general.string = systemName
+                                } label: {
+                                    Label(NSLocalizedString("Misc_Copy_Location", comment: ""), systemImage: "location")
                                 }
                             }
                         }
@@ -133,13 +105,11 @@ struct BRKillMailDetailView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                if let killId = killmail["_id"] as? Int {
-                    Button {
-                        openZKillboard(killId: killId)
-                    } label: {
-                        Text("zkillboard")
-                        Image(systemName: "safari")
-                    }
+                Button {
+                    openZKillboard(killId: listEntity.killmailId)
+                } label: {
+                    Text("zkillboard")
+                    Image(systemName: "safari")
                 }
             }
         }
@@ -164,7 +134,7 @@ struct BRKillMailDetailView: View {
 
     // 紧凑布局（横屏或iPad）
     @ViewBuilder
-    private func compactLayout(detail: [String: Any]) -> some View {
+    private func compactLayout(detail: KillMailDetailData) -> some View {
         // 第一行：左侧装配视图 + 右侧基本信息
         Section {
             GeometryReader { geometry in
@@ -172,16 +142,12 @@ struct BRKillMailDetailView: View {
                 let fittingWidth = availableWidth * 0.5
 
                 HStack(alignment: .top, spacing: 16) {
-                    // 左侧：装配视图
-                    if killmail["_id"] is Int {
-                        BRKillMailFittingView(killMailData: detail)
-                            .frame(width: fittingWidth, height: fittingWidth)
-                            .cornerRadius(8)
-                    }
+                    BRKillMailFittingView(detailData: detail)
+                        .frame(width: fittingWidth, height: fittingWidth)
+                        .cornerRadius(8)
 
-                    // 右侧：基本信息列表
                     VStack(spacing: 0) {
-                        basicInfoList(detail: detail)
+                        basicInfoList(detailData: detail)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -197,77 +163,61 @@ struct BRKillMailDetailView: View {
         }
     }
 
-    // 默认布局（竖屏手机）
     @ViewBuilder
-    private func defaultLayout(detail: [String: Any]) -> some View {
-        // 装配图
-        if killmail["_id"] is Int {
-            GeometryReader { geometry in
-                let availableWidth = geometry.size.width
-                BRKillMailFittingView(killMailData: detail)
-                    .frame(width: availableWidth, height: availableWidth)
-                    .cornerRadius(8)
-            }
-            .aspectRatio(1, contentMode: .fit) // 强制保持1:1的比例
-            .padding(.vertical, 8)
-            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+    private func defaultLayout(detail: KillMailDetailData) -> some View {
+        GeometryReader { geometry in
+            BRKillMailFittingView(detailData: detail)
+                .frame(width: geometry.size.width, height: geometry.size.width)
+                .cornerRadius(8)
         }
+        .aspectRatio(1, contentMode: .fit)
+        .padding(.vertical, 8)
+        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
 
-        // 受害者信息行
-        victimInfoSection(detail: detail)
-
-        // 基本信息部分
-        basicInfoRows(detail: detail)
+        victimInfoSection(detailData: detail)
+        basicInfoRows(detailData: detail)
     }
 
-    // 基本信息列表（紧凑布局用）
     @ViewBuilder
-    private func basicInfoList(detail: [String: Any]) -> some View {
+    private func basicInfoList(detailData: KillMailDetailData) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            // 受害者信息
-            victimInfoCompact(detail: detail)
-
+            victimInfoCompact(detailData: detailData)
             Divider()
-
-            // 舰船信息
-            if let victInfo = detail["vict"] as? [String: Any],
-               let shipId = victInfo["ship"] as? Int
-            {
-                shipInfoRow(shipId: shipId)
-                Divider()
+            shipInfoRow(shipId: detailData.esi.victim.ship_type_id)
+            Divider()
+            if let sys = detailData.system {
+                systemInfoRowCompact(systemName: sys.systemName, regionName: sys.regionName, security: sys.security)
             }
-
-            // 星系信息
-            if let sysInfo = detail["sys"] as? [String: Any] {
-                systemInfoRow(sysInfo: sysInfo)
-                Divider()
-            }
-
-            // 本地时间
-            if let time = detail["time"] as? Int {
+            Divider()
+            if let time = detailData.timestamp {
                 localTimeRow(time: time)
                 Divider()
             }
-            // 伤害
-            if let victInfo = detail["vict"] as? [String: Any] {
-                let damage = victInfo["dmg"] as? Int ?? 0
-                DamageRow(dmg: damage)
-                Divider()
-            }
-            // 总价值
+            DamageRow(dmg: detailData.esi.victim.damage_taken)
+            Divider()
             if totalValue >= 0 {
                 TotalRow(total: totalValue)
                 Divider()
             }
+            NavigationLink {
+                KillMailAttackersView(detailData: detailData, character: character)
+            } label: {
+                HStack {
+                    Text(NSLocalizedString("Main_KM_Attackers", comment: ""))
+                    Spacer()
+                    Text("\(detailData.attackers.count)")
+                        .foregroundColor(.secondary)
+                }
+            }
+            Divider()
         }
         .padding(.vertical, 8)
     }
 
-    // 受害者信息紧凑版本
     @ViewBuilder
-    private func victimInfoCompact(detail: [String: Any]) -> some View {
+    private func victimInfoCompact(detailData: KillMailDetailData) -> some View {
+        let v = detailData.esi.victim
         HStack(spacing: 12) {
-            // 角色头像
             if let characterIcon = victimCharacterIcon {
                 Image(uiImage: characterIcon)
                     .resizable()
@@ -275,11 +225,13 @@ struct BRKillMailDetailView: View {
                     .frame(width: 48, height: 48)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             } else {
-                ProgressView()
+                Image("default_char")
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
                     .frame(width: 48, height: 48)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
             }
 
-            // 军团和联盟图标
             VStack(spacing: 2) {
                 if let corpIcon = victimCorporationIcon {
                     Image(uiImage: corpIcon)
@@ -288,12 +240,7 @@ struct BRKillMailDetailView: View {
                         .frame(width: 24, height: 24)
                         .clipShape(RoundedRectangle(cornerRadius: 4))
                 }
-
-                if let allyIcon = victimAllianceIcon,
-                   let victInfo = detail["vict"] as? [String: Any],
-                   let allyId = victInfo["ally"] as? Int,
-                   allyId > 0
-                {
+                if let allyId = v.alliance_id, allyId > 0, let allyIcon = victimAllianceIcon {
                     Image(uiImage: allyIcon)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
@@ -302,82 +249,41 @@ struct BRKillMailDetailView: View {
                 }
             }
 
-            // 名称信息
             VStack(alignment: .leading, spacing: 2) {
-                // 角色名称
-                if let victInfo = detail["vict"] as? [String: Any],
-                   let charId = victInfo["char"] as? Int,
-                   let names = detail["names"] as? [String: [String: String]],
-                   let chars = names["chars"],
-                   let charName = chars[String(charId)]
-                {
-                    Text(charName)
+                if let charId = v.character_id {
+                    Text(detailData.characterName(for: charId))
                         .font(.subheadline)
                         .fontWeight(.semibold)
                 }
-
-                // 军团名称
-                if let victInfo = detail["vict"] as? [String: Any],
-                   let corpId = victInfo["corp"] as? Int,
-                   let names = detail["names"] as? [String: [String: String]],
-                   let corps = names["corps"],
-                   let corpName = corps[String(corpId)]
-                {
-                    Text(corpName)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                // 联盟名称
-                if let victInfo = detail["vict"] as? [String: Any],
-                   let allyId = victInfo["ally"] as? Int,
-                   allyId > 0,
-                   let names = detail["names"] as? [String: [String: String]],
-                   let allys = names["allys"],
-                   let allyName = allys[String(allyId)]
-                {
-                    Text(allyName)
+                Text(detailData.corporationName(for: v.corporation_id))
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                if let allyId = v.alliance_id, allyId > 0 {
+                    Text(detailData.allianceName(for: allyId))
                         .font(.caption)
                         .foregroundColor(.secondary)
                 }
             }
             .contextMenu {
-                // 查看受害者详情
-                if let victInfo = detail["vict"] as? [String: Any],
-                   let charId = victInfo["char"] as? Int,
-                   character != nil
-                {
+                if let charId = v.character_id {
                     NavigationLink {
                         navigationDestination(for: charId, type: "character")
                     } label: {
-                        Label(
-                            NSLocalizedString("View Character", comment: ""),
-                            systemImage: "info.circle"
-                        )
+                        Label(NSLocalizedString("View Character", comment: ""), systemImage: "info.circle")
                     }
-
-                    // 查看军团详情
-                    if let corpId = victInfo["corp"] as? Int {
-                        NavigationLink {
-                            navigationDestination(for: corpId, type: "corporation")
-                        } label: {
-                            Label(
-                                NSLocalizedString("View Corporation", comment: ""),
-                                systemImage: "info.circle"
-                            )
-                        }
+                }
+                if v.corporation_id > 0 {
+                    NavigationLink {
+                        navigationDestination(for: v.corporation_id, type: "corporation")
+                    } label: {
+                        Label(NSLocalizedString("View Corporation", comment: ""), systemImage: "info.circle")
                     }
-
-                    // 查看联盟详情
-                    if let allyId = victInfo["ally"] as? Int, allyId > 0 {
-                        NavigationLink {
-                            navigationDestination(for: allyId, type: "alliance")
-                        } label: {
-                            Label(
-                                NSLocalizedString("View Alliance", comment: ""),
-                                systemImage: "info.circle"
-                            )
-                        }
+                }
+                if let allyId = v.alliance_id, allyId > 0 {
+                    NavigationLink {
+                        navigationDestination(for: allyId, type: "alliance")
+                    } label: {
+                        Label(NSLocalizedString("View Alliance", comment: ""), systemImage: "info.circle")
                     }
                 }
             }
@@ -416,60 +322,28 @@ struct BRKillMailDetailView: View {
         }
     }
 
-    // 星系信息行
     @ViewBuilder
-    private func systemInfoRow(sysInfo: [String: Any]) -> some View {
+    private func systemInfoRowCompact(systemName: String, regionName: String, security: Double) -> some View {
         HStack(spacing: 8) {
             Text(NSLocalizedString("Main_KM_System", comment: ""))
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .frame(width: 60, alignment: .leading)
-
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 4) {
-                    if let ssString = sysInfo["ss"] as? String,
-                       let ssValue = Double(ssString)
-                    {
-                        Text(formatSecurityStatus(ssValue))
-                            .font(.caption2)
-                            .fontDesign(.monospaced)
-                            .foregroundColor(getSecurityColor(ssValue))
-                    }
-                    if let solarSystemInfo = solarSystemInfo {
-                        Text(solarSystemInfo.systemName)
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                    } else {
-                        Text(sysInfo["name"] as? String ?? "")
-                            .font(.caption)
-                            .fontWeight(.semibold)
-                    }
-                }
-                if let solarSystemInfo = solarSystemInfo {
-                    Text(solarSystemInfo.regionName)
+                    Text(formatSecurityStatus(security))
                         .font(.caption2)
-                        .foregroundColor(.secondary)
-                } else {
-                    Text(sysInfo["region"] as? String ?? "")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
+                        .fontDesign(.monospaced)
+                        .foregroundColor(getSecurityColor(security))
+                    Text(solarSystemInfo?.systemName ?? systemName)
+                        .font(.caption)
+                        .fontWeight(.semibold)
                 }
+                Text(solarSystemInfo?.regionName ?? regionName)
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
             }
             Spacer()
-        }
-        .contextMenu {
-            // 复制地点
-            let systemName = solarSystemInfo?.systemName ?? (sysInfo["name"] as? String ?? "")
-            if !systemName.isEmpty {
-                Button {
-                    UIPasteboard.general.string = systemName
-                } label: {
-                    Label(
-                        NSLocalizedString("Misc_Copy_Location", comment: ""),
-                        systemImage: "location"
-                    )
-                }
-            }
         }
     }
 
@@ -558,11 +432,10 @@ struct BRKillMailDetailView: View {
         }
     }
 
-    // 受害者信息部分（默认布局）
     @ViewBuilder
-    private func victimInfoSection(detail: [String: Any]) -> some View {
+    private func victimInfoSection(detailData: KillMailDetailData) -> some View {
+        let v = detailData.esi.victim
         HStack(spacing: 12) {
-            // 角色头像
             if let characterIcon = victimCharacterIcon {
                 Image(uiImage: characterIcon)
                     .resizable()
@@ -570,11 +443,12 @@ struct BRKillMailDetailView: View {
                     .frame(width: 66, height: 66)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             } else {
-                ProgressView()
+                Image("default_char")
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
                     .frame(width: 66, height: 66)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
             }
-
-            // 军团和联盟图标
             VStack(spacing: 2) {
                 if let corpIcon = victimCorporationIcon {
                     Image(uiImage: corpIcon)
@@ -583,12 +457,7 @@ struct BRKillMailDetailView: View {
                         .frame(width: 32, height: 32)
                         .clipShape(RoundedRectangle(cornerRadius: 4))
                 }
-
-                if let allyIcon = victimAllianceIcon,
-                   let victInfo = detail["vict"] as? [String: Any],
-                   let allyId = victInfo["ally"] as? Int,
-                   allyId > 0
-                {
+                if let allyId = v.alliance_id, allyId > 0, let allyIcon = victimAllianceIcon {
                     Image(uiImage: allyIcon)
                         .resizable()
                         .aspectRatio(contentMode: .fit)
@@ -596,82 +465,40 @@ struct BRKillMailDetailView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 4))
                 }
             }
-
-            // 名称信息
             VStack(alignment: .leading, spacing: 2) {
-                // 角色名称
-                if let victInfo = detail["vict"] as? [String: Any],
-                   let charId = victInfo["char"] as? Int,
-                   let names = detail["names"] as? [String: [String: String]],
-                   let chars = names["chars"],
-                   let charName = chars[String(charId)]
-                {
-                    Text(charName)
+                if let charId = v.character_id {
+                    Text(detailData.characterName(for: charId))
                         .font(.headline)
                 }
-
-                // 军团名称
-                if let victInfo = detail["vict"] as? [String: Any],
-                   let corpId = victInfo["corp"] as? Int,
-                   let names = detail["names"] as? [String: [String: String]],
-                   let corps = names["corps"],
-                   let corpName = corps[String(corpId)]
-                {
-                    Text(corpName)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                }
-
-                // 联盟名称
-                if let victInfo = detail["vict"] as? [String: Any],
-                   let allyId = victInfo["ally"] as? Int,
-                   allyId > 0,
-                   let names = detail["names"] as? [String: [String: String]],
-                   let allys = names["allys"],
-                   let allyName = allys[String(allyId)]
-                {
-                    Text(allyName)
+                Text(detailData.corporationName(for: v.corporation_id))
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                if let allyId = v.alliance_id, allyId > 0 {
+                    Text(detailData.allianceName(for: allyId))
                         .font(.subheadline)
                         .foregroundColor(.secondary)
                 }
             }
             .contextMenu {
-                // 查看受害者详情
-                if let victInfo = detail["vict"] as? [String: Any],
-                   let charId = victInfo["char"] as? Int,
-                   character != nil
-                {
+                if let charId = v.character_id {
                     NavigationLink {
                         navigationDestination(for: charId, type: "character")
                     } label: {
-                        Label(
-                            NSLocalizedString("View Character", comment: ""),
-                            systemImage: "info.circle"
-                        )
+                        Label(NSLocalizedString("View Character", comment: ""), systemImage: "info.circle")
                     }
-
-                    // 查看军团详情
-                    if let corpId = victInfo["corp"] as? Int {
-                        NavigationLink {
-                            navigationDestination(for: corpId, type: "corporation")
-                        } label: {
-                            Label(
-                                NSLocalizedString("View Corporation", comment: ""),
-                                systemImage: "info.circle"
-                            )
-                        }
+                }
+                if v.corporation_id > 0 {
+                    NavigationLink {
+                        navigationDestination(for: v.corporation_id, type: "corporation")
+                    } label: {
+                        Label(NSLocalizedString("View Corporation", comment: ""), systemImage: "info.circle")
                     }
-
-                    // 查看联盟详情
-                    if let allyId = victInfo["ally"] as? Int, allyId > 0 {
-                        NavigationLink {
-                            navigationDestination(for: allyId, type: "alliance")
-                        } label: {
-                            Label(
-                                NSLocalizedString("View Alliance", comment: ""),
-                                systemImage: "info.circle"
-                            )
-                        }
+                }
+                if let allyId = v.alliance_id, allyId > 0 {
+                    NavigationLink {
+                        navigationDestination(for: allyId, type: "alliance")
+                    } label: {
+                        Label(NSLocalizedString("View Alliance", comment: ""), systemImage: "info.circle")
                     }
                 }
             }
@@ -679,73 +506,51 @@ struct BRKillMailDetailView: View {
         .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
     }
 
-    // 基本信息行（默认布局）
     @ViewBuilder
-    private func basicInfoRows(detail: [String: Any]) -> some View {
-        // Ship
-        if let victInfo = detail["vict"] as? [String: Any],
-           let shipId = victInfo["ship"] as? Int
-        {
+    private func basicInfoRows(detailData: KillMailDetailData) -> some View {
+        let shipId = detailData.esi.victim.ship_type_id
+        HStack {
+            Text(NSLocalizedString("Main_KM_Ship", comment: ""))
+                .frame(width: 110, alignment: .leading)
             HStack {
-                Text(NSLocalizedString("Main_KM_Ship", comment: ""))
-                    .frame(width: 110, alignment: .leading)
-                HStack {
-                    if let shipIcon = shipIcon {
-                        Image(uiImage: shipIcon)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 32, height: 32)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
-                    }
-                    VStack(alignment: .leading) {
-                        let shipInfo = getShipName(shipId)
-                        Text(shipInfo.name)
-                        Text(shipInfo.groupName)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
+                if let shipIcon = shipIcon {
+                    Image(uiImage: shipIcon)
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 32, height: 32)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                VStack(alignment: .leading) {
+                    let shipInfo = getShipName(shipId)
+                    Text(shipInfo.name)
+                    Text(shipInfo.groupName)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
                 }
             }
-            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
         }
+        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
 
-        // System
-        if let sysInfo = detail["sys"] as? [String: Any] {
+        if let sys = detailData.system {
             HStack {
                 Text(NSLocalizedString("Main_KM_System", comment: ""))
                     .frame(width: 110, alignment: .leading)
                     .frame(maxHeight: .infinity, alignment: .center)
                 VStack(alignment: .leading) {
                     HStack {
-                        if let ssString = sysInfo["ss"] as? String,
-                           let ssValue = Double(ssString)
-                        {
-                            Text(formatSecurityStatus(ssValue))
-                                .font(.system(.body, design: .monospaced))
-                                .foregroundColor(getSecurityColor(ssValue))
-                        }
-                        if let solarSystemInfo = solarSystemInfo {
-                            Text(solarSystemInfo.systemName)
-                                .fontWeight(.semibold)
-                        } else {
-                            Text(sysInfo["name"] as? String ?? "")
-                                .fontWeight(.semibold)
-                        }
+                        Text(formatSecurityStatus(sys.security))
+                            .font(.system(.body, design: .monospaced))
+                            .foregroundColor(getSecurityColor(sys.security))
+                        Text(solarSystemInfo?.systemName ?? sys.systemName)
+                            .fontWeight(.semibold)
                     }
-                    if let solarSystemInfo = solarSystemInfo {
-                        Text(solarSystemInfo.regionName)
-                            .foregroundColor(.secondary)
-                            .font(.caption)
-                    } else {
-                        Text(sysInfo["region"] as? String ?? "")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
-                    }
+                    Text(solarSystemInfo?.regionName ?? sys.regionName)
+                        .foregroundColor(.secondary)
+                        .font(.caption)
                 }
             }
             .contextMenu {
-                // 复制地点
-                let systemName = solarSystemInfo?.systemName ?? (sysInfo["name"] as? String ?? "")
+                let systemName = solarSystemInfo?.systemName ?? sys.systemName
                 if !systemName.isEmpty {
                     Button {
                         UIPasteboard.general.string = systemName
@@ -764,7 +569,7 @@ struct BRKillMailDetailView: View {
         HStack {
             Text(NSLocalizedString("Main_KM_Local_Time", comment: ""))
                 .frame(width: 110, alignment: .leading)
-            if let time = detail["time"] as? Int {
+            if let time = detailData.timestamp {
                 Text(formatLocalTime(time))
                     .foregroundColor(.secondary)
             }
@@ -775,12 +580,9 @@ struct BRKillMailDetailView: View {
         HStack {
             Text(NSLocalizedString("Main_KM_Damage", comment: ""))
                 .frame(width: 110, alignment: .leading)
-            if let victInfo = detail["vict"] as? [String: Any] {
-                let damage = victInfo["dmg"] as? Int ?? 0
-                Text(formatNumber(damage))
-                    .foregroundColor(.secondary)
-                    .font(.system(.body, design: .monospaced))
-            }
+            Text(formatNumber(detailData.esi.victim.damage_taken))
+                .foregroundColor(.secondary)
+                .font(.system(.body, design: .monospaced))
         }
         .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
 
@@ -812,14 +614,26 @@ struct BRKillMailDetailView: View {
                 .font(.system(.body, design: .monospaced))
         }
         .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+
+        // 参与者（attackers）
+        NavigationLink {
+            KillMailAttackersView(detailData: detailData, character: character)
+        } label: {
+            HStack {
+                Text(NSLocalizedString("Main_KM_Attackers", comment: ""))
+                    .frame(width: 110, alignment: .leading)
+                Spacer()
+                Text("\(detailData.attackers.count)")
+                    .foregroundColor(.secondary)
+            }
+        }
+        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
     }
 
-    // 装配信息部分
     @ViewBuilder
-    private func fittingInfoSections(detail: [String: Any]) -> some View {
-        if let victInfo = detail["vict"] as? [String: Any],
-           let items = victInfo["itms"] as? [[Int]]
-        {
+    private func fittingInfoSections(detail: KillMailDetailData) -> some View {
+        let items = detail.convertedItemsForFitting
+        if !items.isEmpty {
             // 获取所有植入体
             let implantItems = items.filter { $0[0] == 89 && $0.count >= 4 }
             if !implantItems.isEmpty {
@@ -836,14 +650,14 @@ struct BRKillMailDetailView: View {
                             ItemRow(
                                 typeId: typeId, quantity: item[2], isDropped: true,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail["prices"] as? [String: Double] ?? [:]
+                                prices: detail.pricesForDisplay
                             )
                         }
                         if item[3] > 0 { // 摧毁数量
                             ItemRow(
                                 typeId: typeId, quantity: item[3], isDropped: false,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail["prices"] as? [String: Double] ?? [:]
+                                prices: detail.pricesForDisplay
                             )
                         }
                     }
@@ -869,14 +683,14 @@ struct BRKillMailDetailView: View {
                             ItemRow(
                                 typeId: typeId, quantity: item[2], isDropped: true,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail["prices"] as? [String: Double] ?? [:]
+                                prices: detail.pricesForDisplay
                             )
                         }
                         if item[3] > 0 { // 摧毁数量
                             ItemRow(
                                 typeId: typeId, quantity: item[3], isDropped: false,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail["prices"] as? [String: Double] ?? [:]
+                                prices: detail.pricesForDisplay
                             )
                         }
                     }
@@ -902,14 +716,14 @@ struct BRKillMailDetailView: View {
                             ItemRow(
                                 typeId: typeId, quantity: item[2], isDropped: true,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail["prices"] as? [String: Double] ?? [:]
+                                prices: detail.pricesForDisplay
                             )
                         }
                         if item[3] > 0 { // 摧毁数量
                             ItemRow(
                                 typeId: typeId, quantity: item[3], isDropped: false,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail["prices"] as? [String: Double] ?? [:]
+                                prices: detail.pricesForDisplay
                             )
                         }
                     }
@@ -935,14 +749,14 @@ struct BRKillMailDetailView: View {
                             ItemRow(
                                 typeId: typeId, quantity: item[2], isDropped: true,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail["prices"] as? [String: Double] ?? [:]
+                                prices: detail.pricesForDisplay
                             )
                         }
                         if item[3] > 0 { // 摧毁数量
                             ItemRow(
                                 typeId: typeId, quantity: item[3], isDropped: false,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail["prices"] as? [String: Double] ?? [:]
+                                prices: detail.pricesForDisplay
                             )
                         }
                     }
@@ -968,14 +782,14 @@ struct BRKillMailDetailView: View {
                             ItemRow(
                                 typeId: typeId, quantity: item[2], isDropped: true,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail["prices"] as? [String: Double] ?? [:]
+                                prices: detail.pricesForDisplay
                             )
                         }
                         if item[3] > 0 { // 摧毁数量
                             ItemRow(
                                 typeId: typeId, quantity: item[3], isDropped: false,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail["prices"] as? [String: Double] ?? [:]
+                                prices: detail.pricesForDisplay
                             )
                         }
                     }
@@ -1001,14 +815,14 @@ struct BRKillMailDetailView: View {
                             ItemRow(
                                 typeId: typeId, quantity: item[2], isDropped: true,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail["prices"] as? [String: Double] ?? [:]
+                                prices: detail.pricesForDisplay
                             )
                         }
                         if item[3] > 0 { // 摧毁数量
                             ItemRow(
                                 typeId: typeId, quantity: item[3], isDropped: false,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail["prices"] as? [String: Double] ?? [:]
+                                prices: detail.pricesForDisplay
                             )
                         }
                     }
@@ -1034,14 +848,14 @@ struct BRKillMailDetailView: View {
                             ItemRow(
                                 typeId: typeId, quantity: item[2], isDropped: true,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail["prices"] as? [String: Double] ?? [:]
+                                prices: detail.pricesForDisplay
                             )
                         }
                         if item[3] > 0 { // 摧毁数量
                             ItemRow(
                                 typeId: typeId, quantity: item[3], isDropped: false,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail["prices"] as? [String: Double] ?? [:]
+                                prices: detail.pricesForDisplay
                             )
                         }
                     }
@@ -1060,25 +874,13 @@ struct BRKillMailDetailView: View {
                     && item[0] != 89 // 植入体
             }
 
-            // 获取所有可能的flag
-            let allFlags = Set(nonFittingItems.map { $0[0] }) // 从items中获取flags
-                .union(
-                    Set(
-                        (victInfo["cnts"] as? [[String: Any]])?.compactMap {
-                            $0["flag"] as? Int
-                        } ?? [])
-                ) // 从containers中获取flags
-                .sorted()
+            // 获取所有可能的 flag（ESI 格式无 cnts，仅从 items 获取）
+            let allFlags = Set(nonFittingItems.map { $0[0] }).sorted()
 
-            // 对每个flag创建一个Section
             ForEach(allFlags, id: \.self) { flag in
                 let flagItems = nonFittingItems.filter { $0[0] == flag }
-                let flagContainers =
-                    (victInfo["cnts"] as? [[String: Any]])?.filter {
-                        ($0["flag"] as? Int) == flag
-                    } ?? []
 
-                if !flagItems.isEmpty || !flagContainers.isEmpty {
+                if !flagItems.isEmpty {
                     Section(
                         header: Text(getFlagName(flag))
                             .fontWeight(.semibold)
@@ -1093,66 +895,15 @@ struct BRKillMailDetailView: View {
                                 ItemRow(
                                     typeId: typeId, quantity: item[2], isDropped: true,
                                     itemInfoCache: itemInfoCache,
-                                    prices: detail["prices"] as? [String: Double] ?? [:]
+                                    prices: detail.pricesForDisplay
                                 )
                             }
                             if item[3] > 0 { // 摧毁数量
                                 ItemRow(
                                     typeId: typeId, quantity: item[3], isDropped: false,
                                     itemInfoCache: itemInfoCache,
-                                    prices: detail["prices"] as? [String: Double] ?? [:]
+                                    prices: detail.pricesForDisplay
                                 )
-                            }
-                        }
-
-                        // 显示该舱室中的容器及其内容
-                        ForEach(flagContainers.indices, id: \.self) { index in
-                            let container = flagContainers[index]
-                            if let typeId = container["type"] as? Int {
-                                // 显示容器本身
-                                if let drop = container["drop"] as? Int, drop == 1 {
-                                    ItemRow(
-                                        typeId: typeId, quantity: 1, isDropped: true,
-                                        itemInfoCache: itemInfoCache,
-                                        prices: detail["prices"] as? [String: Double] ?? [:]
-                                    )
-                                }
-                                if let dstr = container["dstr"] as? Int, dstr == 1 {
-                                    ItemRow(
-                                        typeId: typeId, quantity: 1, isDropped: false,
-                                        itemInfoCache: itemInfoCache,
-                                        prices: detail["prices"] as? [String: Double] ?? [:]
-                                    )
-                                }
-
-                                // 显示容器内的物品
-                                if let items = container["items"] as? [[Int]] {
-                                    ForEach(items, id: \.self) { item in
-                                        if item.count >= 4 {
-                                            let typeId = item[1]
-                                            if item[2] > 0 { // 掉落数量
-                                                ItemRow(
-                                                    typeId: typeId, quantity: item[2],
-                                                    isDropped: true,
-                                                    itemInfoCache: itemInfoCache,
-                                                    prices: detail["prices"]
-                                                        as? [String: Double] ?? [:]
-                                                )
-                                                .padding(.leading, 20)
-                                            }
-                                            if item[3] > 0 { // 摧毁数量
-                                                ItemRow(
-                                                    typeId: typeId, quantity: item[3],
-                                                    isDropped: false,
-                                                    itemInfoCache: itemInfoCache,
-                                                    prices: detail["prices"]
-                                                        as? [String: Double] ?? [:]
-                                                )
-                                                .padding(.leading, 20)
-                                            }
-                                        }
-                                    }
-                                }
                             }
                         }
                     }.listRowInsets(
@@ -1198,158 +949,52 @@ struct BRKillMailDetailView: View {
         defer { isLoading = false }
 
         do {
-            guard let killId = killmail["_id"] as? Int else {
-                Logger.error("无法获取战报ID")
-                errorMessage = "无法获取战报ID"
-                return
-            }
-
+            let killId = listEntity.killmailId
+            let hash = listEntity.zkb.hash
             Logger.debug("开始加载战报ID \(killId) 的详细信息")
 
-            // 从列表数据中获取 hash（zkb 信息）
-            var hash: String
-            if let zkbDict = killmail["zkb"] as? [String: Any],
-               let existingHash = zkbDict["hash"] as? String
-            {
-                hash = existingHash
-                Logger.debug("从现有数据中获取到 hash: \(hash)")
-            } else {
-                // 如果缺少 zkb 信息，从 zkillboard API 获取
-                Logger.info("缺少 zkb 信息（hash），尝试从 zkillboard API 获取")
-                do {
-                    let zkbEntry = try await zKbToolAPI.shared.fetchZKBKillMailByID(killmailId: killId)
-                    hash = zkbEntry.zkb.hash
-                    // 保存完整的 zkb 信息，包括价值信息
-                    await MainActor.run {
-                        self.zkbInfoFromAPI = zkbEntry.zkb
-                    }
-                    Logger.success("成功从 zkillboard API 获取到 hash: \(hash)，价值信息已保存")
-                } catch {
-                    Logger.error("从 zkillboard API 获取 hash 失败: \(error)")
-                    errorMessage = "无法获取战斗日志信息：\(error.localizedDescription)"
-                    return
-                }
-            }
-
-            // 使用转换器从 ESI 获取详情
-            let detail = try await KillMailDataConverter.shared.fetchKillMailDetailFromESI(
+            var detail = try await KillMailDataConverter.shared.fetchKillMailDetail(
                 killmailId: killId,
-                hash: hash
+                hash: hash,
+                zkb: listEntity.zkb
             )
 
-            // 转换植入体为装配格式
-            var finalDetail = detail
-            if let victInfo = detail["vict"] as? [String: Any],
-               let items = victInfo["itms"] as? [[Int]]
-            {
-                let convertedItems = BRKillMailUtils.shared.convertImplantsToFitting(
-                    victInfo: victInfo, items: items
-                )
-                var newVictInfo = victInfo
-                newVictInfo["itms"] = convertedItems
-                finalDetail["vict"] = newVictInfo
+            await MainActor.run {
+                if let zkb = detail.zkb { self.zkbInfoFromAPI = zkb }
             }
 
-            // 收集所有需要获取价格的物品ID
+            // 收集需要获取价格的物品ID
             var typeIds = Set<Int>()
-
-            // 收集舰船ID
-            if let victInfo = finalDetail["vict"] as? [String: Any],
-               let shipId = victInfo["ship"] as? Int
-            {
-                typeIds.insert(shipId)
+            typeIds.insert(detail.esi.victim.ship_type_id)
+            for item in detail.convertedItemsForFitting {
+                if item.count >= 2 { typeIds.insert(item[1]) }
             }
 
-            // 收集所有物品ID
-            if let victInfo = finalDetail["vict"] as? [String: Any],
-               let items = victInfo["itms"] as? [[Int]]
-            {
-                for item in items {
-                    if item.count >= 2 {
-                        typeIds.insert(item[1]) // type_id 在索引1
-                    }
-                }
-            }
-
-            // 收集容器中的物品ID
-            if let victInfo = finalDetail["vict"] as? [String: Any],
-               let containers = victInfo["cnts"] as? [[String: Any]]
-            {
-                for container in containers {
-                    if let containerTypeId = container["type"] as? Int {
-                        typeIds.insert(containerTypeId)
-                    }
-                    if let containerItems = container["items"] as? [[Int]] {
-                        for item in containerItems {
-                            if item.count >= 2 {
-                                typeIds.insert(item[1]) // type_id 在索引1
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 获取市场价格
-            var prices: [String: Double] = [:]
+            var prices: [Int: Double] = [:]
             if !typeIds.isEmpty {
                 let marketPrices = await MarketPriceUtil.getMarketPrices(typeIds: Array(typeIds))
                 for (typeId, priceData) in marketPrices {
-                    // 使用 averagePrice 作为物品估价
-                    prices[String(typeId)] = priceData.averagePrice
+                    prices[typeId] = priceData.averagePrice
                 }
                 Logger.debug("成功获取 \(prices.count) 个物品的市场价格")
             }
+            detail.prices = prices
 
-            // 将价格数据添加到详情中
-            finalDetail["prices"] = prices
-            detailData = finalDetail
+            loadAllItemInfo(from: detail)
+            await loadIcons(from: detail)
 
-            // 一次性加载所有物品信息
-            loadAllItemInfo(from: finalDetail)
+            solarSystemInfo = await getSolarSystemInfo(
+                solarSystemId: detail.esi.solar_system_id,
+                databaseManager: DatabaseManager.shared
+            )
 
-            // 获取到详细数据后加载图标
-            await loadIcons(from: finalDetail)
-
-            // 获取星系信息
-            if let sysInfo = detail["sys"] as? [String: Any],
-               let systemId = sysInfo["id"] as? Int
-            {
-                solarSystemInfo = await getSolarSystemInfo(
-                    solarSystemId: systemId,
-                    databaseManager: DatabaseManager.shared
-                )
-            }
-
-            // 从列表数据中提取价值信息（zkb 数据）
-            // 优先使用从 API 获取的 zkb 信息，如果没有则使用原始数据
-            if let zkbInfo = zkbInfoFromAPI {
-                // 使用从 API 获取的完整 zkb 信息（使用计算属性提供默认值）
-                await MainActor.run {
-                    self.fittedValue = zkbInfo.fittedValueValue
-                    self.droppedValue = zkbInfo.droppedValueValue
-                    self.destroyedValue = zkbInfo.destroyedValueValue
-                    self.totalValue = zkbInfo.totalValueValue
-                }
-                Logger.debug("使用从 API 获取的价值信息 - 装配: \(zkbInfo.fittedValueValue), 损失: \(zkbInfo.destroyedValueValue), 掉落: \(zkbInfo.droppedValueValue), 总计: \(zkbInfo.totalValueValue)")
-            } else if let zkbDict = killmail["zkb"] as? [String: Any] {
-                // 使用原始数据中的 zkb 信息
-                let fitted = zkbDict["fittedValue"] as? Double ?? 0
-                let dropped = zkbDict["droppedValue"] as? Double ?? 0
-                let destroyed = zkbDict["destroyedValue"] as? Double ?? 0
-                let total = zkbDict["totalValue"] as? Double ?? 0
-
-                await MainActor.run {
-                    self.fittedValue = fitted
-                    self.droppedValue = dropped
-                    self.destroyedValue = destroyed
-                    self.totalValue = total
-                }
-                Logger.debug("使用原始数据中的价值信息 - 装配: \(fitted), 损失: \(destroyed), 掉落: \(dropped), 总计: \(total)")
-            }
-
-            // 所有数据都准备好后再更新UI
+            let zkb = zkbInfoFromAPI ?? listEntity.zkb
             await MainActor.run {
-                self.detailData = finalDetail
+                self.fittedValue = zkb.fittedValueValue
+                self.droppedValue = zkb.droppedValueValue
+                self.destroyedValue = zkb.destroyedValueValue
+                self.totalValue = zkb.totalValueValue
+                self.detailData = detail
             }
         } catch {
             Logger.error("加载战斗日志详情失败: \(error)")
@@ -1357,11 +1002,8 @@ struct BRKillMailDetailView: View {
         }
     }
 
-    private func loadIcons(from detail: [String: Any]) async {
-        // 加载受害者角色头像
-        if let victInfo = detail["vict"] as? [String: Any],
-           let charId = victInfo["char"] as? Int
-        {
+    private func loadIcons(from detail: KillMailDetailData) async {
+        if let charId = detail.esi.victim.character_id {
             do {
                 victimCharacterIcon = try await CharacterAPI.shared.fetchCharacterPortrait(
                     characterId: charId,
@@ -1372,25 +1014,17 @@ struct BRKillMailDetailView: View {
             }
         }
 
-        // 加载军团图标
-        if let victInfo = detail["vict"] as? [String: Any],
-           let corpId = victInfo["corp"] as? Int
-        {
-            do {
-                victimCorporationIcon = try await CorporationAPI.shared.fetchCorporationLogo(
-                    corporationId: corpId,
-                    size: 64
-                )
-            } catch {
-                Logger.error("加载军团图标失败: \(error)")
-            }
+        let corpId = detail.esi.victim.corporation_id
+        do {
+            victimCorporationIcon = try await CorporationAPI.shared.fetchCorporationLogo(
+                corporationId: corpId,
+                size: 64
+            )
+        } catch {
+            Logger.error("加载军团图标失败: \(error)")
         }
 
-        // 加载联盟图标
-        if let victInfo = detail["vict"] as? [String: Any],
-           let allyId = victInfo["ally"] as? Int,
-           allyId > 0
-        {
+        if let allyId = detail.esi.victim.alliance_id, allyId > 0 {
             do {
                 victimAllianceIcon = try await AllianceAPI.shared.fetchAllianceLogo(
                     allianceID: allyId,
@@ -1401,21 +1035,17 @@ struct BRKillMailDetailView: View {
             }
         }
 
-        // 加载舰船图标
-        if let victInfo = detail["vict"] as? [String: Any],
-           let shipId = victInfo["ship"] as? Int
-        {
-            Task {
-                do {
-                    let image = try await ItemRenderAPI.shared.fetchItemRender(
-                        typeId: shipId, size: 64
-                    )
-                    await MainActor.run {
-                        shipIcon = image
-                    }
-                } catch {
-                    Logger.error("击毁详情: 加载舰船图标失败 - \(error)")
+        let shipId = detail.esi.victim.ship_type_id
+        Task {
+            do {
+                let image = try await ItemRenderAPI.shared.fetchItemRender(
+                    typeId: shipId, size: 64
+                )
+                await MainActor.run {
+                    shipIcon = image
                 }
+            } catch {
+                Logger.error("击毁详情: 加载舰船图标失败 - \(error)")
             }
         }
     }
@@ -1468,36 +1098,11 @@ struct BRKillMailDetailView: View {
         return FlagMapping.getFlagName(for: flag)
     }
 
-    private func loadAllItemInfo(from detail: [String: Any]) {
+    private func loadAllItemInfo(from detail: KillMailDetailData) {
         var typeIds = Set<Int>()
-
-        // 收集所有物品ID
-        if let victInfo = detail["vict"] as? [String: Any] {
-            // 添加舰船ID
-            if let shipId = victInfo["ship"] as? Int {
-                typeIds.insert(shipId)
-            }
-
-            // 添加装配物品ID
-            if let items = victInfo["itms"] as? [[Int]] {
-                for item in items where item.count >= 4 {
-                    typeIds.insert(item[1])
-                }
-            }
-
-            // 添加容器及其内容物品ID
-            if let containers = victInfo["cnts"] as? [[String: Any]] {
-                for container in containers {
-                    if let typeId = container["type"] as? Int {
-                        typeIds.insert(typeId)
-                    }
-                    if let items = container["items"] as? [[Int]] {
-                        for item in items where item.count >= 4 {
-                            typeIds.insert(item[1])
-                        }
-                    }
-                }
-            }
+        typeIds.insert(detail.esi.victim.ship_type_id)
+        for item in detail.convertedItemsForFitting where item.count >= 4 {
+            typeIds.insert(item[1])
         }
 
         // 一次性查询所有物品信息
@@ -1592,5 +1197,382 @@ struct ItemRow: View {
 
     private func getItemPrice() -> Double {
         return prices[String(typeId)] ?? 0.0
+    }
+}
+
+// MARK: - 仅 kill ID 时的加载器（用于 killreport 链接等场景）
+
+struct KillMailDetailLoaderView: View {
+    let killmailId: Int
+    let character: EVECharacterInfo?
+    @State private var listEntity: KillMailListEntity?
+    @State private var errorMessage: String?
+
+    var body: some View {
+        Group {
+            if let entity = listEntity {
+                BRKillMailDetailView(listEntity: entity, character: character)
+            } else if let error = errorMessage {
+                Text(error)
+                    .foregroundColor(.red)
+            } else {
+                ProgressView()
+                    .frame(maxWidth: .infinity)
+            }
+        }
+        .task {
+            await loadEntity()
+        }
+    }
+
+    private func loadEntity() async {
+        do {
+            let zkbEntry = try await zKbToolAPI.shared.fetchZKBKillMailByID(killmailId: killmailId)
+            let detail = try await KillMailDataConverter.shared.fetchKillMailDetail(
+                killmailId: killmailId,
+                hash: zkbEntry.zkb.hash,
+                zkb: zkbEntry.zkb
+            )
+            let timestamp = detail.timestamp ?? 0
+            let entity = KillMailListEntity(
+                killmailId: killmailId,
+                timestamp: timestamp,
+                zkb: zkbEntry.zkb,
+                victim: detail.esi.victim,
+                names: detail.names,
+                system: detail.system
+            )
+            await MainActor.run {
+                listEntity = entity
+            }
+        } catch {
+            Logger.error("加载战斗日志失败 - killmail_id: \(killmailId), error: \(error)")
+            await MainActor.run {
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+}
+
+// MARK: - 参与者（attackers）页面
+
+/// 用于 ForEach 的稳定 id，避免搜索过滤时视图复用导致头像/图标错位
+private struct AttackerRowItem: Identifiable {
+    let attacker: ESIAttacker
+    let id: String // section 前缀 + 原始索引，确保跨 section 唯一
+    init(attacker: ESIAttacker, stableId: Int, section: String) {
+        self.attacker = attacker
+        id = "\(section)_\(stableId)"
+    }
+}
+
+struct KillMailAttackersView: View {
+    let detailData: KillMailDetailData
+    let character: EVECharacterInfo?
+    @State private var searchText = ""
+
+    /// 搜索关键词（至少2字符才生效）
+    private var searchQuery: String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var isSearchActive: Bool {
+        searchQuery.count >= 2
+    }
+
+    /// 参与者是否匹配搜索（人物名、军团名、联盟名）
+    private func attackerMatchesSearch(_ atk: ESIAttacker) -> Bool {
+        guard isSearchActive else { return true }
+        let q = searchQuery.lowercased()
+        let charName = atk.character_id.map { detailData.characterName(for: $0) } ?? ""
+        let corpName = atk.corporation_id.map { detailData.corporationName(for: $0) } ?? ""
+        let allyName = (atk.alliance_id ?? 0) > 0 ? detailData.allianceName(for: atk.alliance_id!) : ""
+        return charName.localizedCaseInsensitiveContains(q)
+            || corpName.localizedCaseInsensitiveContains(q)
+            || allyName.localizedCaseInsensitiveContains(q)
+    }
+
+    /// 最后一击：final_blow == true
+    private var finalBlowAttackers: [ESIAttacker] {
+        detailData.attackers.filter { $0.final_blow }
+    }
+
+    /// 最多伤害：damage_done 最高者，同值按 character_id 排序
+    private var mostDamageAttackers: [ESIAttacker] {
+        let attackers = detailData.attackers
+        guard let maxDmg = attackers.map(\.damage_done).max(), maxDmg > 0 else { return [] }
+        return attackers
+            .filter { $0.damage_done == maxDmg }
+            .sorted { sortKey($0) < sortKey($1) }
+    }
+
+    /// 我的击杀：当前登录角色参与的参与者
+    private var myAttackers: [ESIAttacker] {
+        guard let myCharId = character?.CharacterID else { return [] }
+        return detailData.attackers
+            .filter { $0.character_id == myCharId }
+            .sorted { a, b in
+                if a.damage_done != b.damage_done { return a.damage_done > b.damage_done }
+                return sortKey(a) < sortKey(b)
+            }
+    }
+
+    /// 所有人：按 damage_done 降序，次按 character_id
+    private var allAttackers: [ESIAttacker] {
+        detailData.attackers.sorted { a, b in
+            if a.damage_done != b.damage_done { return a.damage_done > b.damage_done }
+            return sortKey(a) < sortKey(b)
+        }
+    }
+
+    /// 应用搜索过滤后的列表
+    private var filteredMyAttackers: [ESIAttacker] { myAttackers.filter(attackerMatchesSearch) }
+    private var filteredFinalBlowAttackers: [ESIAttacker] { finalBlowAttackers.filter(attackerMatchesSearch) }
+    private var filteredMostDamageAttackers: [ESIAttacker] { mostDamageAttackers.filter(attackerMatchesSearch) }
+    private var filteredAllAttackers: [ESIAttacker] { allAttackers.filter(attackerMatchesSearch) }
+
+    private var totalDamageDone: Int {
+        detailData.attackers.reduce(0) { $0 + $1.damage_done }
+    }
+
+    private func sortKey(_ a: ESIAttacker) -> Int {
+        a.character_id ?? a.corporation_id ?? a.alliance_id ?? 0
+    }
+
+    /// 获取 attacker 在原始列表中的索引，作为 ForEach 的稳定 id，避免过滤时视图复用导致头像错位
+    private func attackerStableId(_ atk: ESIAttacker) -> Int {
+        detailData.attackers.firstIndex { a in
+            a.character_id == atk.character_id
+                && a.corporation_id == atk.corporation_id
+                && a.alliance_id == atk.alliance_id
+                && a.ship_type_id == atk.ship_type_id
+                && a.weapon_type_id == atk.weapon_type_id
+                && a.damage_done == atk.damage_done
+                && a.final_blow == atk.final_blow
+        } ?? -1
+    }
+
+    var body: some View {
+        let total = totalDamageDone
+        List {
+            if !filteredMyAttackers.isEmpty {
+                Section(NSLocalizedString("Main_KM_Attackers_My_Kills", comment: "")) {
+                    ForEach(filteredMyAttackers.map { AttackerRowItem(attacker: $0, stableId: attackerStableId($0), section: "my") }) { item in
+                        AttackerRowView(attacker: item.attacker, detailData: detailData, totalDamageDone: total, character: character)
+                    }
+                }
+            }
+            if !filteredFinalBlowAttackers.isEmpty {
+                Section(NSLocalizedString("Main_KM_Attackers_Final_Blow", comment: "")) {
+                    ForEach(filteredFinalBlowAttackers.map { AttackerRowItem(attacker: $0, stableId: attackerStableId($0), section: "final") }) { item in
+                        AttackerRowView(attacker: item.attacker, detailData: detailData, totalDamageDone: total, character: character)
+                    }
+                }
+            }
+            if !filteredMostDamageAttackers.isEmpty {
+                Section(NSLocalizedString("Main_KM_Attackers_Most_Damage", comment: "")) {
+                    ForEach(filteredMostDamageAttackers.map { AttackerRowItem(attacker: $0, stableId: attackerStableId($0), section: "damage") }) { item in
+                        AttackerRowView(attacker: item.attacker, detailData: detailData, totalDamageDone: total, character: character)
+                    }
+                }
+            }
+            Section(String(format: NSLocalizedString("Main_KM_Attackers_All_With_Count", comment: ""), filteredAllAttackers.count)) {
+                if filteredAllAttackers.isEmpty && isSearchActive {
+                    Text(NSLocalizedString("Main_Search_No_Results", comment: ""))
+                        .foregroundColor(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding()
+                } else {
+                    ForEach(filteredAllAttackers.map { AttackerRowItem(attacker: $0, stableId: attackerStableId($0), section: "all") }) { item in
+                        AttackerRowView(attacker: item.attacker, detailData: detailData, totalDamageDone: total, character: character)
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .searchable(text: $searchText, prompt: NSLocalizedString("Main_KM_Attackers_Search_Placeholder", comment: ""))
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationTitle("")
+    }
+}
+
+// MARK: - 参与者行视图
+
+private struct AttackerRowView: View {
+    let attacker: ESIAttacker
+    let detailData: KillMailDetailData
+    let totalDamageDone: Int
+    let character: EVECharacterInfo?
+    @State private var characterPortrait: UIImage?
+    @State private var resolvedShipName: String? // 未知参与者时，从数据库查询 ship_type_id 的 name
+
+    private var damagePercentage: String {
+        guard totalDamageDone > 0 else { return "0%" }
+        let pct = Double(attacker.damage_done) / Double(totalDamageDone) * 100
+        return String(format: "%.1f%%", pct)
+    }
+
+    private func formatDamage(_ n: Int) -> String {
+        let f = NumberFormatter()
+        f.numberStyle = .decimal
+        f.groupingSeparator = ","
+        return f.string(from: NSNumber(value: n)) ?? "\(n)"
+    }
+
+    /// 是否为“未知”参与者（无 character/alliance/corporation 信息）
+    private var isUnknownParticipant: Bool {
+        attacker.character_id == nil
+            && (attacker.alliance_id == nil || attacker.alliance_id == 0)
+            && attacker.corporation_id == nil
+    }
+
+    private var displayName: String {
+        if let id = attacker.character_id { return detailData.characterName(for: id) }
+        if let id = attacker.alliance_id, id > 0 { return detailData.allianceName(for: id) }
+        if let id = attacker.corporation_id { return detailData.corporationName(for: id) }
+        return NSLocalizedString("Unknown", comment: "")
+    }
+
+    /// 最终显示名称：未知参与者时优先显示 ship_type_id 的 name
+    private var displayNameText: String {
+        if isUnknownParticipant, let name = resolvedShipName, !name.isEmpty {
+            return name
+        }
+        return displayName
+    }
+
+    private var corporationName: String {
+        guard let id = attacker.corporation_id else { return "-" }
+        return detailData.corporationName(for: id)
+    }
+
+    private var allianceName: String {
+        guard let id = attacker.alliance_id, id > 0 else { return "-" }
+        return detailData.allianceName(for: id)
+    }
+
+    /// 上方图标：优先 ship_type_id，缺失时用 weapon_type_id 替代
+    private var shipIconName: String {
+        let typeId = attacker.ship_type_id ?? attacker.weapon_type_id
+        guard let id = typeId else { return "not_found" }
+        return DatabaseManager.shared.getItemIconFileName(for: id) ?? "not_found"
+    }
+
+    /// 下方图标：优先 weapon_type_id，缺失时用 ship_type_id 替代
+    private var weaponIconName: String {
+        let typeId = attacker.weapon_type_id ?? attacker.ship_type_id
+        guard let id = typeId else { return "not_found" }
+        return DatabaseManager.shared.getItemIconFileName(for: id) ?? "not_found"
+    }
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 6) {
+            // 左侧头像 64x64
+            (characterPortrait.map { Image(uiImage: $0) } ?? Image("default_char"))
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: 56, height: 56)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+
+            // 头像右侧：上下两个 32x32 图标
+            VStack(spacing: 2) {
+                Image(uiImage: IconManager.shared.loadUIImage(for: shipIconName))
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 28, height: 28)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                Image(uiImage: IconManager.shared.loadUIImage(for: weaponIconName))
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 28, height: 28)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            }
+
+            // 中间三行文字
+            VStack(alignment: .leading, spacing: 4) {
+                Text(displayNameText)
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                Text(corporationName)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                Text(allianceName)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // 右侧：damage_done 及占比
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(formatDamage(attacker.damage_done))
+                    .font(.subheadline)
+                    .fontWeight(.medium)
+                    .font(.system(.body, design: .monospaced))
+                Text(damagePercentage)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .padding(.vertical, 6)
+        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+        .contextMenu {
+            if let charId = attacker.character_id, character != nil {
+                NavigationLink {
+                    CharacterDetailView(characterId: charId, character: character!)
+                } label: {
+                    Label(NSLocalizedString("View Character", comment: ""), systemImage: "info.circle")
+                }
+            }
+            if let corpId = attacker.corporation_id, character != nil {
+                NavigationLink {
+                    CorporationDetailView(corporationId: corpId, character: character!)
+                } label: {
+                    Label(NSLocalizedString("View Corporation", comment: ""), systemImage: "info.circle")
+                }
+            }
+            if let allyId = attacker.alliance_id, allyId > 0, character != nil {
+                NavigationLink {
+                    AllianceDetailView(allianceId: allyId, character: character!)
+                } label: {
+                    Label(NSLocalizedString("View Alliance", comment: ""), systemImage: "info.circle")
+                }
+            }
+            if let shipTypeId = attacker.ship_type_id ?? attacker.weapon_type_id {
+                NavigationLink {
+                    ItemInfoMap.getItemInfoView(itemID: shipTypeId, databaseManager: DatabaseManager.shared)
+                } label: {
+                    Label(NSLocalizedString("View Ship", comment: ""), systemImage: "info.circle")
+                }
+            }
+        }
+        .task {
+            if let charId = attacker.character_id {
+                do {
+                    let img = try await CharacterAPI.shared.fetchCharacterPortrait(characterId: charId, size: 128)
+                    await MainActor.run { characterPortrait = img }
+                } catch {
+                    Logger.error("加载参与者头像失败 - character_id: \(charId), error: \(error)")
+                }
+            }
+        }
+        .task(id: "\(attacker.ship_type_id ?? 0)_\(attacker.weapon_type_id ?? 0)") {
+            guard isUnknownParticipant else { return }
+            guard let typeId = attacker.ship_type_id ?? attacker.weapon_type_id else { return }
+            let name = Self.queryTypeName(typeId: typeId)
+            await MainActor.run { resolvedShipName = name }
+        }
+    }
+
+    /// 从数据库查询 type_id 对应的 name
+    private static func queryTypeName(typeId: Int) -> String? {
+        let query = "SELECT name FROM types WHERE type_id = ?"
+        if case let .success(rows) = DatabaseManager.shared.executeQuery(query, parameters: [typeId]),
+           let row = rows.first,
+           let name = row["name"] as? String,
+           !name.isEmpty
+        {
+            return name
+        }
+        return nil
     }
 }

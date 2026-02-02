@@ -368,6 +368,64 @@ class SDEDownloader {
         }
     }
 
+    // 验证额外语言数据库 zip 的 SHA256
+    func verifyExtraDBHash(zipURL: URL, expectedHash: String) throws -> Bool {
+        guard FileManager.default.fileExists(atPath: zipURL.path) else {
+            Logger.error("Extra DB zip not found: \(zipURL.path)")
+            throw NSError(domain: "SDEDownloader", code: -1, userInfo: [NSLocalizedDescriptionKey: "Extra DB zip not found"])
+        }
+
+        let localHash = try calculateSHA256(fileURL: zipURL)
+        Logger.info("Extra DB SHA256: local=\(localHash), expected=\(expectedHash)")
+        return localHash == expectedHash
+    }
+
+    // 解压额外语言数据库
+    func extractExtraDB(zipURL: URL, languageCode: String) throws {
+        let tempDir = getDownloadDirectory().appendingPathComponent("temp_\(languageCode)")
+
+        // 清理临时目录
+        if FileManager.default.fileExists(atPath: tempDir.path) {
+            try FileManager.default.removeItem(at: tempDir)
+        }
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+
+        // 解压到临时目录
+        try Zip.unzipFile(zipURL, destination: tempDir, overwrite: true, password: nil)
+
+        // 查找 sqlite 文件
+        let expectedFileName = "item_db_\(languageCode).sqlite"
+        let sqliteFileURL = try findFile(named: expectedFileName, in: tempDir)
+
+        // 确保目标目录存在
+        let destDir = getDocumentsDirectory().appendingPathComponent("sde/db")
+        try FileManager.default.createDirectory(at: destDir, withIntermediateDirectories: true)
+
+        let destPath = destDir.appendingPathComponent(expectedFileName)
+        if FileManager.default.fileExists(atPath: destPath.path) {
+            try FileManager.default.removeItem(at: destPath)
+        }
+
+        try FileManager.default.moveItem(at: sqliteFileURL, to: destPath)
+        Logger.info("Extra DB installed: \(destPath.path)")
+
+        // 清理临时目录
+        try? FileManager.default.removeItem(at: tempDir)
+    }
+
+    // 在目录中递归查找指定名称的文件
+    private func findFile(named fileName: String, in directory: URL) throws -> URL {
+        let fileManager = FileManager.default
+        if let enumerator = fileManager.enumerator(at: directory, includingPropertiesForKeys: [.isRegularFileKey]) {
+            while let fileURL = enumerator.nextObject() as? URL {
+                if fileURL.lastPathComponent == fileName {
+                    return fileURL
+                }
+            }
+        }
+        throw NSError(domain: "SDEDownloader", code: -1, userInfo: [NSLocalizedDescriptionKey: "File \(fileName) not found in archive"])
+    }
+
     // 获取Documents目录
     private func getDocumentsDirectory() -> URL {
         return FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]

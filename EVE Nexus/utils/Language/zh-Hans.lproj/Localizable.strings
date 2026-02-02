@@ -240,7 +240,7 @@
 
 "Main_Setting" = "设置";
 "Main_Setting_Title" = "设置";
-"Main_Setting_Language" = "APP语言";
+"Main_Setting_Language" = "APP和数据库语言";
 "Main_Setting_Database_Language" = "数据库语言";
 "Main_Setting_Select_your_language" = "选择语言";
 "Main_Setting_Appearance" = "外观";
@@ -501,6 +501,15 @@
 "Network_Error_No_Price" = "没有有效的价格数据";
 "Network_Error_Invalid_Data" = "无效的数据";
 "Network_Error_Unauthed" = "未授权";
+
+// API 频率限制弹窗
+"RateLimit_Alert_Title" = "API 请求频率已达上限";
+"RateLimit_Alert_Message" = "您已触达 EVE Online API 的请求频率限制。所有请求将被暂停 1 分钟，请稍后再试。";
+"RateLimit_Alert_OK" = "确定";
+"Network_Error_RateLimit_Cooldown" = "API 请求已暂时暂停，请等待 1 分钟。";
+"RateLimit_Cooldown_Home_Message" = "网络请求过载，冷却中：%@";
+"RateLimit_Cooldown_Time_MinSec" = "%d分%d秒";
+"RateLimit_Cooldown_Time_Sec" = "%d秒";
 
 "Main_Setting_Market_Data" = "市场数据 (%d个物品, %d条记录)";
 "Main_Setting_Market_Data_0" = "市场数据";
@@ -1234,7 +1243,7 @@
 "Main_Skills_Plan_Add_Skill" = "添加技能";
 "Main_Skills_Plan_Clear_All" = "清空队列";
 "Main_Skills_Plan_All_Completed" = "已全部完成";
-"Main_Skills_Plan_Export_Chinese" = "导出中文";
+"Main_Skills_Plan_Export_Localized" = "导出当前语言";
 "Main_Skills_Plan_Export_English" = "导出英文";
 "Main_Skills_Plan_Export_Success_Title" = "导出成功";
 "Main_Skills_Plan_Export_Success_Message" = "技能计划已复制到剪贴板";
@@ -1358,6 +1367,7 @@
 "View Character" = "查看人物";
 "View Corporation" = "查看军团";
 "View Alliance" = "查看联盟";
+"View Ship" = "查看飞船";
 "View CEO" = "查看CEO";
 
 // Market Watch List
@@ -1478,6 +1488,12 @@
 "Main_KM_EVE_Time" = "EVE时间:";
 "Main_KM_Local_Time" = "本地时间:";
 "Main_KM_Damage" = "受到伤害:";
+"Main_KM_Attackers" = "参与者:";
+"Main_KM_Attackers_Final_Blow" = "最后一击";
+"Main_KM_Attackers_Most_Damage" = "最多伤害";
+"Main_KM_Attackers_My_Kills" = "我的贡献";
+"Main_KM_Attackers_All_With_Count" = "所有人（%d）";
+"Main_KM_Attackers_Search_Placeholder" = "搜索（至少2字）";
 
 // 战斗日志详情
 "Main_KM_High_Slots" = "高槽";
@@ -2001,6 +2017,12 @@
 "Main_Database_Mutation_Attribute" = "突变属性";
 "Main_Database_Mutation_Source" = "突变来源";
 "Main_Database_Mutation_Results" = "突变产出";
+"Abyssal_Item_Detail" = "物品详情";
+"Abyssal_Created_By" = "制作者";
+"Abyssal_Source_Item" = "来源物品";
+"Abyssal_Mutaplasmid_Used" = "使用的突变质体";
+"Abyssal_Loading" = "正在加载深渊属性…";
+"Abyssal_Load_Error" = "加载失败";
 "Main_Database_Required_Mutaplasmids" = "所需突变质体";
 "Main_Database_Applicable_Blueprints" = "适用于";
 "Main_Database_Applicable_Blueprints_info" = "需要此物品的蓝图";
@@ -2947,3 +2969,22 @@
 "Purchase_Processing" = "处理中...";
 "IAP_Free_Icons_Badge_Charge" = "您可以免费使用任何一个图标和 T2/T3 角标";
 "IAP_Sponsor_Gift" = "通过赞助，您将收到 Factions、Deadspace 和 Officers 角标作为礼物。感谢您的支持！";
+
+// 额外语言数据库
+"Wallet_Market_Escrow_Debit" = "授权的市场契约金";
+"ExtraDB_Manage_Delete" = "管理";
+"ExtraDB_Builtin" = "内置";
+"ExtraDB_NotDownloaded" = "未下载";
+"ExtraDB_Update" = "更新";
+"ExtraDB_Download" = "下载";
+"ExtraDB_Error_NoRecordID" = "无法获取 CloudKit 记录";
+"ExtraDB_Error_NoMetadata" = "未找到该语言的元数据";
+"ExtraDB_Error_SHA256" = "文件校验失败";
+"ExtraDB_Error_Unsupported" = "不支持的语言";
+
+// SDE 更新检查
+"SDE_Check_Update" = "检查 SDE 更新";
+"SDE_Checking_Update" = "正在检查更新...";
+"SDE_Log_Downloading_ExtraDB" = "从 CloudKit 下载 %@ 数据库...";
+"SDE_Log_Extracting_ExtraDB" = "正在解压 %@ 数据库...";
+"SDE_Log_ExtraDB_Success" = "%@ 数据库更新完成！";

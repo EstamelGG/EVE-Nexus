@@ -15,11 +15,6 @@ class BackgroundTaskManager: ObservableObject {
     private let industryRefreshTask: IndustryRefreshTask
     private let walletRefreshTask: WalletRefreshTask
 
-    // 所有任务列表（统一使用 AnyBackgroundTask 协议）
-    private var tasks: [AnyBackgroundTask] {
-        [dataRefreshTask, assetJsonRefreshTask, contractRefreshTask, structureOrdersRefreshTask, industryRefreshTask, walletRefreshTask]
-    }
-
     private init() {
         // 初始化任务实例
         dataRefreshTask = DataRefreshTask()
@@ -132,13 +127,5 @@ class BackgroundTaskManager: ObservableObject {
     /// 安排钱包数据更新任务
     func scheduleWalletRefresh() {
         walletRefreshTask.schedule()
-    }
-
-    /// 取消所有后台任务
-    func cancelAllTasks() {
-        for task in tasks {
-            task.cancel()
-        }
-        Logger.warning("所有后台任务已取消")
     }
 }

@@ -30,7 +30,6 @@ public enum WalletLoadingProgress {
 
 @MainActor
 final class CorpWalletJournalViewModel: ObservableObject {
-    @AppStorage("selectedLanguage") private var selectedLanguage: String?
     @Published private(set) var journalGroups: [CorpWalletJournalGroup] = []
     @Published var isLoading = true
     @Published var errorMessage: String?
@@ -114,7 +113,7 @@ final class CorpWalletJournalViewModel: ObservableObject {
         return LocalizationManager.shared.processEntryTypeName(
             for: refType.lowercased(),
             esiText: refType,
-            language: selectedLanguage == "zh-Hans" ? "zh" : "en"
+            language: LocalizationManager.currentLanguageCode
         )
     }
 
@@ -731,26 +730,18 @@ struct CorpWalletJournalView: View {
 // 钱包流水条目行视图
 struct CorpWalletJournalEntryRow: View {
     let entry: CorpWalletJournalEntry
-    @AppStorage("selectedLanguage") private var selectedLanguage: String?
-
-    // 使用FormatUtil进行日期处理，无需自定义格式化器
 
     private func formatRefType(_ refType: String) -> String {
         let lowercaseRefType = refType.lowercased()
-        let language = selectedLanguage == "zh-Hans" ? "zh" : "en"
 
-        // 使用新的处理方法获取本地化名称
         return LocalizationManager.shared.processEntryTypeName(
-            for: lowercaseRefType, esiText: refType, language: language
+            for: lowercaseRefType, esiText: refType, language: LocalizationManager.currentLanguageCode
         )
     }
 
-    // ESI数据修正补丁：修正特定情况下的描述文本
     private func patchDescription(_ description: String) -> String {
-        // 修正 market_escrow 的负数交易描述
         if entry.ref_type.lowercased() == "market_escrow" && entry.amount <= 0 {
-            let language = selectedLanguage == "zh-Hans" ? "zh" : "en"
-            return language == "zh" ? "授权的市场契约金" : "Authorized Market Escrow"
+            return NSLocalizedString("Wallet_Market_Escrow_Debit", comment: "授权的市场契约金")
         }
         return description
     }
@@ -773,7 +764,7 @@ struct CorpWalletJournalEntryRow: View {
                 LocalizationManager.shared.processJournalMessage(
                     for: entry.ref_type.lowercased(),
                     esiText: patchDescription(entry.description),
-                    language: selectedLanguage == "zh-Hans" ? "zh" : "en"
+                    language: LocalizationManager.currentLanguageCode
                 )
             )
             .font(.caption)
@@ -807,7 +798,7 @@ struct CorpWalletJournalEntryRow: View {
                 let processedDescription = LocalizationManager.shared.processJournalMessage(
                     for: entry.ref_type.lowercased(),
                     esiText: patchDescription(entry.description),
-                    language: selectedLanguage == "zh-Hans" ? "zh" : "en"
+                    language: LocalizationManager.currentLanguageCode
                 )
                 let sign = entry.amount >= 0 ? "+" : ""
                 let detailText = "[\(FormatUtil.formatUTCToLocalTime(entry.date))] \(processedDescription): \(sign)\(FormatUtil.format(entry.amount)) ISK, \(String.localizedStringWithFormat(NSLocalizedString("Reason", comment: ""), entry.reason))"

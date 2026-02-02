@@ -4,6 +4,12 @@ import SwiftUI
 
 // MARK: - 元数据结构
 
+/// 额外语言数据库信息
+struct ExtraDBInfo: Codable, Equatable {
+    let file: String
+    let sha256: String
+}
+
 /// CloudKit metadata 文件的结构
 struct CloudKitMetadata: Codable {
     let iconVersion: Int
@@ -12,6 +18,7 @@ struct CloudKitMetadata: Codable {
     let patchNumber: Int
     let releaseDate: String
     let sdeSha256: String
+    let extraDB: [String: ExtraDBInfo]?
 
     enum CodingKeys: String, CodingKey {
         case iconVersion = "icon_version"
@@ -20,6 +27,7 @@ struct CloudKitMetadata: Codable {
         case patchNumber = "patch_number"
         case releaseDate = "release_date"
         case sdeSha256 = "sde_sha256"
+        case extraDB = "extra_db"
     }
 }
 
@@ -124,8 +132,9 @@ class SDECloudKitManager: ObservableObject {
             patchNumber: metadata.patchNumber,
             iconVersion: metadata.iconVersion,
             sha256sum: sha256sum,
-            zipUrls: [:], // 不再需要 zipUrls
-            updatedAt: metadata.releaseDate
+            zipUrls: [:],
+            updatedAt: metadata.releaseDate,
+            extraDB: metadata.extraDB
         )
 
         Logger.success("成功从 CloudKit 获取 SDE 更新信息: 版本 \(updateInfo.sdeVersion).\(updateInfo.patchNumber), 标签: \(updateInfo.tag)")
@@ -400,6 +409,22 @@ class SDECloudKitManager: ObservableObject {
         Logger.info("[\(assetFieldName)] 下载完成，文件大小: \(formattedSize)")
 
         return fileURL
+    }
+
+    /// 下载额外语言数据库文件（支持进度回调）
+    /// - Parameters:
+    ///   - recordID: 要下载的 RecordID
+    ///   - fieldName: CloudKit 字段名（如 "sde_de"）
+    ///   - progressHandler: 进度回调 (0.0 ~ 1.0)
+    /// - Returns: 本地文件 URL
+    func fetchExtraDBFile(recordID: CKRecord.ID, fieldName: String, progressHandler: @escaping (Double) -> Void) async throws -> URL {
+        Logger.info("开始获取额外语言数据库文件: \(fieldName)")
+
+        return try await fetchSingleAsset(
+            recordID: recordID,
+            assetFieldName: fieldName,
+            progressHandler: progressHandler
+        )
     }
 
     // MARK: - 私有方法

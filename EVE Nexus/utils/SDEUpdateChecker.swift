@@ -30,6 +30,9 @@ class SDEUpdateChecker: ObservableObject {
     // 当前更新信息（包含 recordID，用于下载时复用）
     var currentUpdateInfo: SDEUpdateInfo?
 
+    // 当前远程 metadata（包含 extra_db 信息）
+    var currentMetadata: CloudKitMetadata?
+
     private let lastCheckTimeKey = "SDE_LastCheckTime"
     private let checkInterval: TimeInterval = 60 // 1分钟
 
@@ -187,6 +190,17 @@ class SDEUpdateChecker: ObservableObject {
             // 保存完整的更新信息（包含 recordID，供下载时使用）
             currentUpdateInfo = updateInfo
 
+            // 保存远程 metadata（包含 extra_db 信息，供额外语言下载使用）
+            currentMetadata = CloudKitMetadata(
+                iconVersion: updateInfo.iconVersion,
+                iconSha256: remoteIcons,
+                buildNumber: updateInfo.sdeVersion,
+                patchNumber: updateInfo.patchNumber,
+                releaseDate: updateInfo.updatedAt,
+                sdeSha256: remoteSDE,
+                extraDB: updateInfo.extraDB
+            )
+
             // 检查是否有更新
             let hasUpdate = await checkIfUpdateAvailable(
                 remoteBuild: updateInfo.sdeVersion,
@@ -317,9 +331,10 @@ struct SDEUpdateInfo: Codable {
     let sha256sum: [String: String]
     let zipUrls: [String: String]
     let updatedAt: String
+    let extraDB: [String: ExtraDBInfo]?
 
     // CloudKit 相关引用（不参与 Codable）
-    var recordID: CKRecord.ID? // 缓存 RecordID，避免重复查询
+    var recordID: CKRecord.ID?
     var iconAsset: CKAsset?
     var sdeAsset: CKAsset?
 
@@ -331,5 +346,6 @@ struct SDEUpdateInfo: Codable {
         case sha256sum
         case zipUrls = "zip_urls"
         case updatedAt = "updated_at"
+        case extraDB = "extra_db"
     }
 }

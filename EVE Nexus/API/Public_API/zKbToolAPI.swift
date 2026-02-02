@@ -5,57 +5,6 @@ class zKbToolAPI {
     static let shared = zKbToolAPI()
     private init() {}
 
-    // 格式化时间 为 UTC+0
-    private func formatTime(_ timestamp: Int) -> String {
-        let date = Date(timeIntervalSince1970: TimeInterval(timestamp))
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-        formatter.timeZone = TimeZone(identifier: "UTC")
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        return formatter.string(from: date)
-    }
-
-    func getShipInfo(_ record: [String: Any], path: String...) -> (id: Int?, name: String?) {
-        var current: Any? = record
-        for key in path {
-            current = (current as? [String: Any])?[key]
-        }
-
-        guard let shipInfo = current as? [String: Any] else {
-            return (nil, nil)
-        }
-
-        return (shipInfo["id"] as? Int, shipInfo["name"] as? String)
-    }
-
-    func getSystemInfo(_ record: [String: Any]) -> (
-        name: String?, region: String?, security: String?
-    ) {
-        guard let sysInfo = record["sys"] as? [String: Any] else {
-            return (nil, nil, nil)
-        }
-
-        return (
-            sysInfo["name"] as? String,
-            sysInfo["region"] as? String,
-            sysInfo["ss"] as? String
-        )
-    }
-
-    func getFormattedTime(_ record: [String: Any]) -> String? {
-        guard let timestamp = record["time"] as? Int else {
-            return nil
-        }
-        return formatTime(timestamp)
-    }
-
-    func getFormattedValue(_ record: [String: Any]) -> String? {
-        guard let value = record["sumV"] as? Int else {
-            return nil
-        }
-        return FormatUtil.formatISK(Double(value))
-    }
-
     // 通用搜索方法
     func searchEveItems(characterId _: Int, searchText: String) async throws -> [String:
         [ZKBSearchResult]]
@@ -486,10 +435,6 @@ struct ZKBInfo: Codable {
     }
 
     // 提供默认值的计算属性，用于 UI 展示
-    var locationIDValue: Int {
-        locationID ?? 0
-    }
-
     var fittedValueValue: Double {
         fittedValue ?? 0
     }
@@ -504,25 +449,5 @@ struct ZKBInfo: Codable {
 
     var totalValueValue: Double {
         totalValue ?? 0
-    }
-
-    var pointsValue: Int {
-        points ?? 0
-    }
-
-    var npcValue: Bool {
-        npc ?? false
-    }
-
-    var soloValue: Bool {
-        solo ?? false
-    }
-
-    var awoxValue: Bool {
-        awox ?? false
-    }
-
-    var labelsValue: [String] {
-        labels ?? []
     }
 }

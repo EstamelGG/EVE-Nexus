@@ -41,12 +41,6 @@ enum OrderType {
 /// - 矿石精炼器：计算产出价值
 /// - 合同估价：评估合同价值
 enum MarketOrdersUtil {
-    /// Jita 星系ID常量
-    private static let jitaSystemId = 30_000_142
-
-    /// Jita 4-4 空间站ID常量
-    private static let jitaStationId = 60_003_760
-
     // MARK: - 批量加载订单（原始数据）
 
     /// 批量加载市场订单（自动判断星域/建筑）- 推荐使用此方法

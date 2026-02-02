@@ -980,11 +980,6 @@ struct PremiumItemInfo: Identifiable, Equatable {
     let jitaBuyPrice: Double? // Jita 买价（可选）
     let buyPremiumPercentage: Double? // 买价溢价百分比（可选）
 
-    // 为了向后兼容，保留旧的属性名（映射到sell）
-    var structurePrice: Double { structureSellPrice }
-    var jitaPrice: Double { jitaSellPrice }
-    var premiumPercentage: Double { sellPremiumPercentage }
-
     init(
         typeId: Int,
         structureSellPrice: Double,

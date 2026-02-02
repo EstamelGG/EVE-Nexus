@@ -1,0 +1,44 @@
+/* 
+  Localizable.strings
+  EVE Nexus - Russian (ru)
+  Created by xxxxx on xxxxx.
+*/
+
+// Common
+"Common_Cancel" = "Отмена";
+"Common_Confirm" = "Подтвердить";
+"Common_Done" = "Готово";
+"Common_info" = "Основная информация";
+
+// Main navigation
+"Main_Home" = "Главная";
+"Main_Character" = "Персонаж";
+"Main_Character_Sheet" = "Карточка персонажа";
+"Main_Setting" = "Настройки";
+"Main_Setting_Title" = "Настройки";
+
+// Language settings (SelectLanguageView)
+"Main_Setting_Language" = "Язык приложения / SDE";
+"Main_Setting_Database_Language" = "Язык базы данных";
+"Main_Setting_Select_Language" = "Выбор языка";
+"Main_Setting_Select_your_language" = "Выберите язык";
+
+// Extra Language DB
+"ExtraDB_Manage_Delete" = "Управление";
+"ExtraDB_Builtin" = "Встроенный";
+"ExtraDB_NotDownloaded" = "Не загружено";
+"ExtraDB_Update" = "Обновить";
+"ExtraDB_Download" = "Загрузить";
+
+// SDE Update Check
+"SDE_Check_Update" = "Проверить обновление SDE";
+"SDE_Checking_Update" = "Проверка обновлений...";
+
+// Rate Limit Alert
+"RateLimit_Alert_Title" = "Превышен лимит API";
+"RateLimit_Alert_Message" = "Вы достигли лимита запросов API EVE Online. Все запросы будут заблокированы на 1 минуту. Пожалуйста, подождите.";
+"RateLimit_Alert_OK" = "OK";
+"Network_Error_RateLimit_Cooldown" = "Запросы API временно заблокированы. Подождите 1 минуту.";
+"RateLimit_Cooldown_Home_Message" = "Перегрузка сети, охлаждение: %@";
+"RateLimit_Cooldown_Time_MinSec" = "%dм %dс";
+"RateLimit_Cooldown_Time_Sec" = "%dс";

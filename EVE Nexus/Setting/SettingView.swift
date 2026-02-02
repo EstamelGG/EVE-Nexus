@@ -1004,6 +1004,17 @@ struct SettingView: View {
             // 重置SDE数据库
             try StaticResourceManager.shared.resetSDEDatabase()
 
+            // 如果当前选择的不是中英文，回退到英文（内置数据库只有中英文）
+            let dbLanguage = UserDefaults.standard.string(forKey: "selectedDatabaseLanguage") ?? "en"
+            if !ExtraLanguageDBManager.isBuiltinLanguage(dbLanguage) {
+                Logger.info("当前数据库语言 \(dbLanguage) 不是内置语言，回退到英文")
+                UserDefaults.standard.set("en", forKey: "selectedDatabaseLanguage")
+            }
+
+            // 清除数据库相关缓存
+            DatabaseBrowserView.clearCache()
+            DatabaseManager.shared.clearCache()
+
             // 重新加载数据以使用Bundle中的数据库
             reloadDataWithNewSDE()
 

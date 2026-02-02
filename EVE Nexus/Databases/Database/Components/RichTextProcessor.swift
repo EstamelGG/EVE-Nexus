@@ -16,126 +16,134 @@ struct RichTextView: View {
         let _ = DispatchQueue.main.async {
             plainText = processedResult.plainText
         }
+        return richTextWithModifiers(processedResult)
+    }
 
-        processedResult.richText
-            .environment(
-                \.openURL,
-                OpenURLAction { url in
-                    if url.scheme == "showinfo",
-                       let itemID = Int(url.host ?? ""),
-                       let categoryID = databaseManager.getCategoryID(for: itemID)
-                    {
-                        selectedItem = (itemID, categoryID)
-                        DispatchQueue.main.async {
-                            showingSheet = true
-                        }
-                        return .handled
-                    } else if url.scheme == "fitting" {
-                        // 处理DNA装配链接
-                        handleDNALink(url)
-                        return .handled
-                    } else if url.scheme == "killreport",
-                              let killIdString = url.host,
-                              let killId = Int(killIdString)
-                    {
-                        // 处理战斗日志链接
-                        killReportToShow = killId
-                        return .handled
-                    } else if url.scheme == "externalurl",
-                              let urlString = url.host?.removingPercentEncoding,
-                              let externalURL = URL(string: urlString)
-                    {
-                        urlToConfirm = externalURL
-                        showingURLAlert = true
-                        return .handled
-                    }
-                    return .systemAction
-                }
-            )
-            .contextMenu {
-                Button {
-                    UIPasteboard.general.string = plainText
-                } label: {
-                    Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
-                }
-            }
-            .sheet(
-                item: Binding(
-                    get: {
-                        selectedItem.map { SheetItem(itemID: $0.itemID, categoryID: $0.categoryID) }
-                    },
-                    set: { if $0 == nil { selectedItem = nil } }
-                )
-            ) { item in
-                NavigationStack {
-                    ItemInfoMap.getItemInfoView(
-                        itemID: item.itemID,
-                        databaseManager: databaseManager
-                    )
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            Button(NSLocalizedString("Misc_back", comment: "")) {
-                                selectedItem = nil
-                                showingSheet = false
-                            }
-                        }
-                    }
-                }
-                .presentationDetents([.fraction(0.81)]) // 设置为屏幕高度的82%
-                .presentationDragIndicator(.visible) // 显示拖动指示器
-            }
+    @ViewBuilder
+    private func richTextWithModifiers(_ result: RichTextProcessResult) -> some View {
+        result.richText
+            .environment(\.openURL, openURLAction)
+            .contextMenu { copyContextMenu }
+            .sheet(item: itemSheetBinding) { item in itemSheetContent(item) }
             .alert(NSLocalizedString("Misc_OpenLink", comment: ""), isPresented: $showingURLAlert) {
                 Button(NSLocalizedString("Common_Cancel", comment: ""), role: .cancel) {}
                 Button(NSLocalizedString("Misc_Yes", comment: "")) {
-                    if let url = urlToConfirm {
-                        UIApplication.shared.open(url)
-                    }
+                    if let url = urlToConfirm { UIApplication.shared.open(url) }
                 }
             } message: {
-                if let url = urlToConfirm {
-                    Text("\(url.absoluteString)")
-                }
+                if let url = urlToConfirm { Text(url.absoluteString) }
             }
-            .sheet(
-                item: Binding(
-                    get: { fittingToShow.map { FittingSheetItem(fitting: $0) } },
-                    set: { if $0 == nil { fittingToShow = nil } }
-                )
-            ) { item in
-                NavigationStack {
-                    ShipFittingView(
-                        temporaryFitting: item.fitting, databaseManager: databaseManager
-                    )
-                    .toolbar {
-                        ToolbarItem(placement: .navigationBarLeading) {
-                            Button(NSLocalizedString("Misc_back", comment: "")) {
-                                fittingToShow = nil
-                            }
+            .sheet(item: fittingSheetBinding) { item in fittingSheetContent(item) }
+            .sheet(item: killReportSheetBinding) { item in killReportSheetContent(item) }
+    }
+
+    private var openURLAction: OpenURLAction {
+        OpenURLAction { url in
+            if url.scheme == "showinfo",
+               let itemID = Int(url.host ?? ""),
+               let categoryID = databaseManager.getCategoryID(for: itemID)
+            {
+                selectedItem = (itemID, categoryID)
+                DispatchQueue.main.async { showingSheet = true }
+                return .handled
+            } else if url.scheme == "fitting" {
+                handleDNALink(url)
+                return .handled
+            } else if url.scheme == "killreport",
+                      let killIdString = url.host,
+                      let killId = Int(killIdString)
+            {
+                killReportToShow = killId
+                return .handled
+            } else if url.scheme == "externalurl",
+                      let urlString = url.host?.removingPercentEncoding,
+                      let externalURL = URL(string: urlString)
+            {
+                urlToConfirm = externalURL
+                showingURLAlert = true
+                return .handled
+            }
+            return .systemAction
+        }
+    }
+
+    @ViewBuilder
+    private var copyContextMenu: some View {
+        Button {
+            UIPasteboard.general.string = plainText
+        } label: {
+            Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
+        }
+    }
+
+    private var itemSheetBinding: Binding<SheetItem?> {
+        Binding(
+            get: { selectedItem.map { SheetItem(itemID: $0.itemID, categoryID: $0.categoryID) } },
+            set: { if $0 == nil { selectedItem = nil } }
+        )
+    }
+
+    @ViewBuilder
+    private func itemSheetContent(_ item: SheetItem) -> some View {
+        NavigationStack {
+            ItemInfoMap.getItemInfoView(itemID: item.itemID, databaseManager: databaseManager)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button(NSLocalizedString("Misc_back", comment: "")) {
+                            selectedItem = nil
+                            showingSheet = false
                         }
                     }
                 }
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-            }
-            .sheet(
-                item: Binding(
-                    get: { killReportToShow.map { KillReportSheetItem(killId: $0) } },
-                    set: { if $0 == nil { killReportToShow = nil } }
-                )
-            ) { item in
-                NavigationStack {
-                    BRKillMailDetailView(killmail: ["_id": item.killId], character: nil)
-                        .toolbar {
-                            ToolbarItem(placement: .navigationBarLeading) {
-                                Button(NSLocalizedString("Misc_back", comment: "")) {
-                                    killReportToShow = nil
-                                }
-                            }
+        }
+        .presentationDetents([.fraction(0.81)])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var fittingSheetBinding: Binding<FittingSheetItem?> {
+        Binding(
+            get: { fittingToShow.map { FittingSheetItem(fitting: $0) } },
+            set: { if $0 == nil { fittingToShow = nil } }
+        )
+    }
+
+    @ViewBuilder
+    private func fittingSheetContent(_ item: FittingSheetItem) -> some View {
+        NavigationStack {
+            ShipFittingView(temporaryFitting: item.fitting, databaseManager: databaseManager)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button(NSLocalizedString("Misc_back", comment: "")) {
+                            fittingToShow = nil
                         }
+                    }
                 }
-                .presentationDetents([.large])
-                .presentationDragIndicator(.visible)
-            }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+    }
+
+    private var killReportSheetBinding: Binding<KillReportSheetItem?> {
+        Binding(
+            get: { killReportToShow.map { KillReportSheetItem(killId: $0) } },
+            set: { if $0 == nil { killReportToShow = nil } }
+        )
+    }
+
+    @ViewBuilder
+    private func killReportSheetContent(_ item: KillReportSheetItem) -> some View {
+        NavigationStack {
+            KillMailDetailLoaderView(killmailId: item.killId, character: nil)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button(NSLocalizedString("Misc_back", comment: "")) {
+                            killReportToShow = nil
+                        }
+                    }
+                }
+        }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
     }
 
     // MARK: - DNA链接处理方法

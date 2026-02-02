@@ -6,11 +6,9 @@ class BRKillMailUtils {
 
     private init() {}
 
-    func convertImplantsToFitting(victInfo: [String: Any], items: [[Int]]) -> [[Int]] {
+    func convertImplantsToFitting(shipId: Int, items: [[Int]]) -> [[Int]] {
         // 检查是否为太空舱
-        guard let shipId = victInfo["ship"] as? Int,
-              shipId == 670 || shipId == 33328
-        else {
+        guard shipId == 670 || shipId == 33328 else {
             return items
         }
 
