@@ -42,6 +42,14 @@ periphery scan | grep -v "/Thirdparty/" > log.txt
 swift run LocalizableChecker "/EVE-Nexus/EVE Nexus/utils/Language/en.lproj/Localizable.strings" "/EVE-Nexus/EVE Nexus" 2 --extensions swift
 ```
 
+# 扫描 key 与 value 相等的 Localizable 条目
+
+此类条目在 AnyLanguageBundle 的 `result == key` 判断中会被误判为未找到并回退英文，需关注。
+
+```bash
+perl -ne 'next if $ARGV =~ /en\.lproj/; print "$ARGV:$_" if /^"(.*)"\s*=\s*"\1";\s*$/' "EVE Nexus/utils/Language/"*"/Localizable.strings"
+```
+
 # 获取应用 / Get App
 
 iOS / iPadOS / macOS: [Tritanium on the App Store](https://apps.apple.com/us/app/tritanium/id6739530875)

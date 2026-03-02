@@ -96,7 +96,7 @@ struct DynamicItemDetailView: View {
                 Section(
                     header: sectionHeader(NSLocalizedString("Main_Database_Mutation_Attribute", comment: ""))
                 ) {
-                    ForEach(mutationAttributes) { attr in
+                    ForEach(mutationAttributes.sorted { $0.id < $1.id }) { attr in
                         DynamicAttributeRowView(attribute: attr)
                     }
                 }
@@ -415,7 +415,8 @@ private struct DynamicAttributeRowView: View {
                 currentValue: attribute.mutationMultiplier,
                 minValue: attribute.minMutator,
                 maxValue: attribute.maxMutator,
-                highIsGood: attribute.highIsGood
+                highIsGood: attribute.highIsGood,
+                originalValueIsNegative: attribute.originalValue < 0
             )
         }
         .padding(.vertical, 4)

@@ -282,6 +282,7 @@ struct SettingView: View {
     @State private var showingEVEStatusIncidentsView = false
     @State private var isCalculatingCache = false // 缓存计算状态
     @State private var showingTokenScopesView = false // 显示 token scopes sheet
+    @State private var showingFittingDefaultSkillView = false
 
     // MARK: - 数据更新函数
 
@@ -389,6 +390,7 @@ struct SettingView: View {
             createAppearanceGroup(),
             createCorporationAffairsGroup(),
             createMarketStructureGroup(),
+            createFittingSimulationGroup(),
             createOthersGroup(),
             createLogsGroup(),
             createCacheGroup(),
@@ -532,6 +534,21 @@ struct SettingView: View {
                 ) { _ in
                     AnyView(ShowImportantAttributesToggle())
                 },
+            ]
+        )
+    }
+
+    private func createFittingSimulationGroup() -> SettingGroup {
+        SettingGroup(
+            header: NSLocalizedString("Fitting_Setting_Simulation_Section", comment: "装配模拟"),
+            items: [
+                SettingItem(
+                    title: NSLocalizedString("Fitting_Setting_Default_Character", comment: "默认角色"),
+                    detail: NSLocalizedString("Fitting_Setting_Default_Character_Detail", comment: "默认使用哪个角色的技能数据来计算属性"),
+                    icon: "person.crop.circle",
+                    iconColor: .blue,
+                    action: { showingFittingDefaultSkillView = true }
+                ),
             ]
         )
     }
@@ -771,6 +788,9 @@ struct SettingView: View {
         }
         .navigationDestination(isPresented: $showingMarketStructureView) {
             MarketStructureSettingsView()
+        }
+        .navigationDestination(isPresented: $showingFittingDefaultSkillView) {
+            FittingDefaultSkillSettingView()
         }
         .navigationDestination(isPresented: $showingEVEStatusIncidentsView) {
             EVEStatusIncidentsView()

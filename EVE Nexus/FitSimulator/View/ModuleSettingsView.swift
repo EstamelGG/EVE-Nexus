@@ -12,6 +12,7 @@ struct MutationAttribute: Identifiable {
     let maxValue: Double
     let highIsGood: Bool
     var currentValue: Double? // 当前突变值（可变）
+    var originalValue: Double? = nil // 物品的原始属性值（用于判断 originalValueIsNegative）
 }
 
 /// 模块状态枚举
@@ -546,8 +547,8 @@ struct ModuleSettingsView: View {
                             }
                         }
 
-                        // 所有可突变属性的列表行
-                        ForEach(mutaplasmidAttributes, id: \.attributeID) { attribute in
+                        // 所有可突变属性的列表行（按属性ID排序）
+                        ForEach(mutaplasmidAttributes.sorted { $0.attributeID < $1.attributeID }, id: \.attributeID) { attribute in
                             MutationAttributeRowView(
                                 attribute: attribute,
                                 onTap: {
@@ -841,6 +842,28 @@ struct ModuleSettingsView: View {
         if case let .success(rows) = databaseManager.executeQuery(
             attributesQuery, parameters: [mutaplasmidID]
         ) {
+            let attributeIDs = rows.compactMap { $0["attribute_id"] as? Int }
+            // 查询物品的原始属性值（用于 originalValueIsNegative 判断）
+            var originalValues: [Int: Double] = [:]
+            if !attributeIDs.isEmpty {
+                let placeholders = attributeIDs.map { _ in "?" }.joined(separator: ",")
+                let originalQuery = """
+                SELECT attribute_id, value FROM typeAttributes
+                WHERE type_id = ? AND attribute_id IN (\(placeholders))
+                """
+                var params: [Any] = [currentModuleID]
+                params.append(contentsOf: attributeIDs)
+                if case let .success(origRows) = databaseManager.executeQuery(originalQuery, parameters: params) {
+                    for row in origRows {
+                        if let attrId = row["attribute_id"] as? Int,
+                           let value = row["value"] as? Double
+                        {
+                            originalValues[attrId] = value
+                        }
+                    }
+                }
+            }
+
             mutaplasmidAttributes = rows.compactMap { row -> MutationAttribute? in
                 guard let attributeID = row["attribute_id"] as? Int,
                       let name = row["display_name"] as? String,
@@ -857,7 +880,8 @@ struct ModuleSettingsView: View {
                     minValue: minValue,
                     maxValue: maxValue,
                     highIsGood: highIsGood == 1,
-                    currentValue: nil // 初始值为nil
+                    currentValue: nil, // 初始值为nil
+                    originalValue: originalValues[attributeID]
                 )
             }
         }
@@ -1074,7 +1098,8 @@ struct MutationAttributeRowView: View {
                         currentValue: currentValue,
                         minValue: attribute.minValue,
                         maxValue: attribute.maxValue,
-                        highIsGood: attribute.highIsGood
+                        highIsGood: attribute.highIsGood,
+                        originalValueIsNegative: (attribute.originalValue ?? 0) < 0
                     )
                 }
             }
@@ -1101,20 +1126,13 @@ struct MutationAttributeRowView: View {
         return String(format: "%.2f%%", percentage)
     }
 
-    // 获取数值颜色
+    // 获取数值颜色（与 MutationProgressBarView 逻辑一致，需考虑 originalValueIsNegative）
     private func getValueColor(_ value: Double) -> Color {
-        let percentage = (value - 1) * 100
-
-        if percentage > 0 {
-            // 正数：highIsGood=true为绿色，false为红色
-            return attribute.highIsGood ? .green : .red
-        } else if percentage < 0 {
-            // 负数：highIsGood=true为红色，false为绿色
-            return attribute.highIsGood ? .red : .green
-        } else {
-            // 零值
-            return .secondary
-        }
+        if abs(value - 1) < 0.0001 { return .secondary }
+        let originalValueIsNegative = (attribute.originalValue ?? 0) < 0
+        let multiplierIndicatesIncrease = originalValueIsNegative ? (value < 1) : (value > 1)
+        let improved = attribute.highIsGood ? multiplierIndicatesIncrease : !multiplierIndicatesIncrease
+        return improved ? .green : .red
     }
 }
 
@@ -1124,6 +1142,8 @@ struct MutationProgressBarView: View {
     let minValue: Double
     let maxValue: Double
     let highIsGood: Bool
+    /// 当原始值为负时（如 -27），乘数 > 1 表示数值变得更负（diff < 0），需反转判断逻辑
+    var originalValueIsNegative: Bool = false
 
     var body: some View {
         GeometryReader { geometry in
@@ -1140,7 +1160,8 @@ struct MutationProgressBarView: View {
                 minValue: minValue,
                 maxValue: maxValue,
                 baseValue: baseValue,
-                highIsGood: highIsGood
+                highIsGood: highIsGood,
+                originalValueIsNegative: originalValueIsNegative
             )
 
             ZStack(alignment: .leading) {
@@ -1193,7 +1214,8 @@ struct MutationProgressBarView: View {
         minValue: Double,
         maxValue: Double,
         baseValue: Double,
-        highIsGood: Bool
+        highIsGood: Bool,
+        originalValueIsNegative: Bool = false
     ) -> (progress: Double, color: Color, direction: FillDirection) {
         guard let value = currentValue else {
             return (0, .clear, .right)
@@ -1204,9 +1226,10 @@ struct MutationProgressBarView: View {
         let fillDirection: FillDirection
 
         // 判断是变好还是变差
-        // 变好：highIsGood=true 且 value>1.0，或 highIsGood=false 且 value<1.0
-        // 变差：highIsGood=true 且 value<1.0，或 highIsGood=false 且 value>1.0
-        let isGood = (highIsGood && value > baseValue) || (!highIsGood && value < baseValue)
+        // 当 originalValue > 0：乘数 > 1 表示数值增加，< 1 表示减少
+        // 当 originalValue < 0：乘数 > 1 表示数值更负（减少），< 1 表示更接近 0（增加），需反转
+        let multiplierIndicatesIncrease = originalValueIsNegative ? (value < baseValue) : (value > baseValue)
+        let isGood = highIsGood ? multiplierIndicatesIncrease : !multiplierIndicatesIncrease
 
         if isGood {
             // 变好：绿色，向右填充

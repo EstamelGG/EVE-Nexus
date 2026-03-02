@@ -174,6 +174,12 @@ public class CharacterSkillsAPI {
         }
     }
 
+    /// 同步从本地缓存读取技能数据（无网络请求、无阻塞）
+    /// 用于装配等需要即时数据的场景，缓存未命中时返回 nil
+    public func loadSkillsFromCacheIfAvailable(characterId: Int) -> CharacterSkillsResponse? {
+        loadSkillsFromCache(characterId: characterId)
+    }
+
     // 从本地文件读取技能数据
     private func loadSkillsFromCache(characterId: Int) -> CharacterSkillsResponse? {
         let filePath = getSkillsCacheFilePath(characterId: characterId)

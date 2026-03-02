@@ -37,6 +37,12 @@ struct FittingSettingsView: View {
     @State private var showingDeleteConfirmAlert = false
     @State private var isDeletingFitting = false
 
+    // 缺失技能 -> 添加到技能计划（弹窗输入名称）
+    @State private var showAddToSkillPlanAlert = false
+    @State private var addToSkillPlanName = ""
+    @State private var showAddToSkillPlanSuccessAlert = false
+    @State private var savedSkillPlanName = ""
+
     init(
         databaseManager: DatabaseManager, shipTypeID: Int, fittingName: String,
         fittingData: [String: Any], onNameChanged: @escaping ([String: Any]) -> Void,
@@ -51,6 +57,15 @@ struct FittingSettingsView: View {
         self.onSkillModeChanged = onSkillModeChanged
         self.viewModel = viewModel
         self.onDelete = onDelete
+    }
+
+    /// 是否使用角色技能（当前角色或指定角色），用于决定是否显示缺失技能
+    private var isUsingCharacterSkills: Bool {
+        switch skillsMode {
+        case "current_char": return currentCharacterId != 0
+        case "character": return selectedCharacterId != nil
+        default: return false
+        }
     }
 
     private var skillModeText: String {
@@ -90,6 +105,98 @@ struct FittingSettingsView: View {
             return String.localizedStringWithFormat(NSLocalizedString("Fitting_All_Skills", comment: "全5级"), 5)
         default:
             return String.localizedStringWithFormat(NSLocalizedString("Fitting_All_Skills", comment: "全5级"), 5)
+        }
+    }
+
+    @ViewBuilder
+    private var missingSkillsSection: some View {
+        let missing = viewModel.getMissingSkillsForFitting()
+        Section(header: Text(NSLocalizedString("Fitting_Missing_Skills", comment: "缺失技能"))) {
+            if missing.isEmpty {
+                HStack {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.green)
+                    Text(NSLocalizedString("Fitting_No_Missing_Skills", comment: "无缺失技能"))
+                        .foregroundColor(.secondary)
+                }
+            } else {
+                ForEach(missing, id: \.skillID) { item in
+                    HStack {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.skillName)
+                                .font(.body)
+                            Text(
+                                String.localizedStringWithFormat(
+                                    NSLocalizedString("Fitting_Missing_Skill_Level", comment: ""),
+                                    item.currentLevel,
+                                    item.requiredLevel
+                                )
+                            )
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        }
+                        Spacer()
+                        Text("Lv.\(item.requiredLevel)")
+                            .font(.caption)
+                            .foregroundColor(.orange)
+                    }
+                }
+
+                Button {
+                    addToSkillPlanName = ""
+                    showAddToSkillPlanAlert = true
+                } label: {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                        Text(NSLocalizedString("Fitting_Add_To_Skill_Plan", comment: "添加到技能计划"))
+                    }
+                }
+            }
+        }
+        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+        .alert(NSLocalizedString("Fitting_Add_To_Skill_Plan", comment: "添加到技能计划"), isPresented: $showAddToSkillPlanAlert) {
+            TextField(NSLocalizedString("Main_Skills_Plan_Name", comment: "计划名称"), text: $addToSkillPlanName)
+            Button(NSLocalizedString("Main_EVE_Mail_Cancel", comment: ""), role: .cancel) {}
+            Button(NSLocalizedString("Misc_Save", comment: "保存")) {
+                saveMissingSkillsToPlan(name: addToSkillPlanName.trimmingCharacters(in: .whitespaces))
+            }
+        } message: {
+            Text(
+                String.localizedStringWithFormat(
+                    NSLocalizedString("Fitting_Missing_Skills_Count", comment: ""),
+                    viewModel.getMissingSkillsForFitting().count
+                )
+            )
+        }
+        .alert(NSLocalizedString("Fitting_Add_To_Skill_Plan_Success", comment: ""), isPresented: $showAddToSkillPlanSuccessAlert) {
+            Button(NSLocalizedString("Misc_Done", comment: "")) {}
+        } message: {
+            Text(
+                String.localizedStringWithFormat(
+                    NSLocalizedString("Fitting_Add_To_Skill_Plan_Saved_Message", comment: ""),
+                    savedSkillPlanName
+                )
+            )
+        }
+    }
+
+    private func saveMissingSkillsToPlan(name: String) {
+        guard !name.isEmpty else { return }
+        let missingSkills = viewModel.getMissingSkillsForFitting()
+        let charId = skillsMode == "current_char" ? currentCharacterId : (selectedCharacterId ?? 0)
+
+        Task {
+            if let savedName = await AddFittingSkillsToPlanSheet.saveMissingSkillsToPlan(
+                missingSkills: missingSkills,
+                characterId: charId,
+                planName: name,
+                databaseManager: databaseManager
+            ) {
+                await MainActor.run {
+                    savedSkillPlanName = savedName
+                    showAddToSkillPlanSuccessAlert = true
+                }
+            }
         }
     }
 
@@ -197,6 +304,11 @@ struct FittingSettingsView: View {
                     }
                 }
             }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+
+            // 缺失技能（仅在使用角色技能时显示）
+            if isUsingCharacterSkills {
+                missingSkillsSection
+            }
 
             Section(header: Text(NSLocalizedString("Fitting_Setting_Implants", comment: "植入体设置"))) {
                 NavigationLink {

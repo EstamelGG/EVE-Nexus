@@ -11,7 +11,7 @@ class FittingEditorViewModel: ObservableObject {
     @Published private(set) var simulationOutput: SimulationOutput?
 
     // 技能选择状态（在配置生命周期内保持，但不持久化到文件）
-    @Published var currentSkillsMode: String = "all5"
+    @Published var currentSkillsMode: String = UserDefaults.standard.string(forKey: "skillsModePreference") ?? "current_char"
     @Published var currentSelectedCharacterId: Int? = nil
 
     // 元数据
@@ -612,6 +612,57 @@ class FittingEditorViewModel: ObservableObject {
 
         // 通知UI更新
         objectWillChange.send()
+    }
+
+    /// 获取配置所需但当前角色缺失的技能（仅计算上船和使用装备所需的最低技能）
+    /// 注意：始终使用当前角色的实际技能计算，忽略技能模式设置（all0-all5 等）
+    /// - Returns: [(skillID, requiredLevel, currentLevel, skillName)] 按 skillID 升序
+    func getMissingSkillsForFitting() -> [(skillID: Int, requiredLevel: Int, currentLevel: Int, skillName: String)] {
+        // 始终使用当前角色的实际技能，不受 currentSkillsMode 影响
+        let characterSkills = CharacterSkillsUtils.getCharacterSkills(type: .current_char)
+
+        // 1. 收集所有物品的 typeID
+        var typeIDs: [Int] = []
+        typeIDs.append(simulationInput.ship.typeId)
+        for module in simulationInput.modules {
+            typeIDs.append(module.typeId)
+            if let charge = module.charge {
+                typeIDs.append(charge.typeId)
+            }
+        }
+        for drone in simulationInput.drones {
+            typeIDs.append(drone.typeId)
+        }
+        if let fighters = simulationInput.fighters {
+            for squad in fighters {
+                typeIDs.append(squad.typeId)
+            }
+        }
+        for implant in simulationInput.implants {
+            typeIDs.append(implant.typeId)
+        }
+
+        // 2. 合并所有技能要求，取每个技能的最高等级
+        var requiredLevels: [Int: Int] = [:]
+        for typeID in typeIDs {
+            let reqs = databaseManager.getDirectSkillRequirements(for: typeID)
+            for (skillID, level) in reqs {
+                let current = requiredLevels[skillID] ?? 0
+                requiredLevels[skillID] = max(current, level)
+            }
+        }
+
+        // 3. 找出缺失的技能（当前等级 < 所需等级）
+        var missing: [(skillID: Int, requiredLevel: Int, currentLevel: Int, skillName: String)] = []
+        for (skillID, requiredLevel) in requiredLevels {
+            let currentLevel = characterSkills[skillID] ?? 0
+            if currentLevel < requiredLevel {
+                let skillName = SkillTreeManager.shared.getSkillName(for: skillID) ?? "Unknown (\(skillID))"
+                missing.append((skillID: skillID, requiredLevel: requiredLevel, currentLevel: currentLevel, skillName: skillName))
+            }
+        }
+
+        return missing.sorted { $0.skillID < $1.skillID }
     }
 
     /// 更新模块状态
@@ -2452,9 +2503,8 @@ class FittingEditorViewModel: ObservableObject {
 
     /// 从用户偏好设置中获取技能数据
     static func getSkillsFromPreferences() -> [Int: Int] {
-        // 从UserDefaults获取当前选择的技能模式
-        let skillsMode =
-            UserDefaults.standard.string(forKey: "skillsModePreference") ?? "current_char"
+        // 从 UserDefaults 获取当前选择的技能模式，默认使用当前角色（缓存优先，无阻塞）
+        let skillsMode = UserDefaults.standard.string(forKey: "skillsModePreference") ?? "current_char"
 
         // 根据技能模式获取对应的技能类型
         var skillType: CharacterSkillsType

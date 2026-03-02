@@ -205,8 +205,8 @@ struct DroneSettingsView: View {
                             }
                         }
 
-                        // 所有可突变属性的列表行
-                        ForEach(mutaplasmidAttributes) { attribute in
+                        // 所有可突变属性的列表行（按属性ID排序）
+                        ForEach(mutaplasmidAttributes.sorted { $0.attributeID < $1.attributeID }) { attribute in
                             MutationAttributeRowView(
                                 attribute: attribute,
                                 onTap: {
@@ -405,6 +405,28 @@ struct DroneSettingsView: View {
         if case let .success(rows) = databaseManager.executeQuery(
             attributesQuery, parameters: [mutaplasmidID]
         ) {
+            let attributeIDs = rows.compactMap { $0["attribute_id"] as? Int }
+            // 查询物品的原始属性值（用于 originalValueIsNegative 判断）
+            var originalValues: [Int: Double] = [:]
+            if !attributeIDs.isEmpty {
+                let placeholders = attributeIDs.map { _ in "?" }.joined(separator: ",")
+                let originalQuery = """
+                SELECT attribute_id, value FROM typeAttributes
+                WHERE type_id = ? AND attribute_id IN (\(placeholders))
+                """
+                var params: [Any] = [currentDroneID]
+                params.append(contentsOf: attributeIDs)
+                if case let .success(origRows) = databaseManager.executeQuery(originalQuery, parameters: params) {
+                    for row in origRows {
+                        if let attrId = row["attribute_id"] as? Int,
+                           let value = row["value"] as? Double
+                        {
+                            originalValues[attrId] = value
+                        }
+                    }
+                }
+            }
+
             mutaplasmidAttributes = rows.compactMap { row -> MutationAttribute? in
                 guard let attributeID = row["attribute_id"] as? Int,
                       let name = row["display_name"] as? String,
@@ -421,7 +443,8 @@ struct DroneSettingsView: View {
                     minValue: minValue,
                     maxValue: maxValue,
                     highIsGood: highIsGood == 1,
-                    currentValue: nil // 初始值为nil
+                    currentValue: nil, // 初始值为nil
+                    originalValue: originalValues[attributeID]
                 )
             }
         }

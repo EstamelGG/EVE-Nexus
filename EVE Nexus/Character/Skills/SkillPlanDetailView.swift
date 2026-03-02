@@ -270,6 +270,12 @@ struct SkillPlanDetailView: View {
             // 在视图出现时加载数据
             Task {
                 await loadCharacterData()
+                // 检查是否有装配页传来的待添加技能
+                if let pending = PendingFittingSkillsManager.shared.consumePending(forPlanId: plan.id),
+                   pending.characterId == characterId
+                {
+                    await addBatchSkillsToPlan(skills: pending.skills)
+                }
                 // 计算技能依赖关系
                 calculateSkillDependencies()
             }

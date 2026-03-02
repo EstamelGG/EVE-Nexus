@@ -2288,6 +2288,22 @@
 "Fitting_No_Local_Fitting" = "没有本地保存的装配";
 "Fitting_Setting_Ship" = "舰船设置";
 "Fitting_Setting_Skills" = "技能设置";
+"Fitting_Setting_Simulation_Section" = "装配模拟";
+"Fitting_Setting_Default_Character" = "默认角色";
+"Fitting_Setting_Default_Character_Detail" = "默认使用哪个角色的技能数据来计算属性";
+"Fitting_Default_Skill_Source_Section" = "角色技能来源";
+"Fitting_Default_Current_Char_Subtitle" = "跟随主界面当前选择";
+"Fitting_Default_No_Char_Fallback" = "未登录时使用全5级";
+"Fitting_Missing_Skills" = "缺失技能";
+"Fitting_No_Missing_Skills" = "无缺失技能";
+"Fitting_Missing_Skill_Level" = "当前 Lv.%d，需要 Lv.%d";
+"Fitting_Add_To_Skill_Plan" = "添加到技能计划";
+"Fitting_Missing_Skills_Summary" = "待添加技能";
+"Fitting_Missing_Skills_Count" = "共 %d 个技能待添加";
+"Fitting_Select_Skill_Plan" = "选择技能计划";
+"Fitting_Add_To_Skill_Plan_Success" = "已保存";
+"Fitting_Add_To_Skill_Plan_Success_Message" = "请前往技能计划并打开所选计划，技能将自动添加。";
+"Fitting_Add_To_Skill_Plan_Saved_Message" = "已保存到技能计划「%@」";
 "Fitting_Select_Character" = "选择人物";
 "Fitting_All_Characters" = "所有人物";
 "Fitting_Name" = "配置名称";
@@ -2657,7 +2673,7 @@
 "Update_Notification_Title" = "更新内容";
 "Update_Notification_Version" = "版本 %@ - %@";
 "Update_Notification_Got_It" = "知道了";
-"whats_new" = "whats_new";
+"whats_new" = "whats_new_zh";
 
 // 更新历史
 "Update_Log_Version" = "版本";

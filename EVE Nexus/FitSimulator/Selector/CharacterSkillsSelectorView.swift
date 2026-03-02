@@ -76,33 +76,32 @@ enum CharacterSkillsUtils {
     }
 
     /// 获取指定角色的技能等级
+    /// 优先使用本地缓存（无阻塞），缓存缺失时回退 all5 并后台异步更新缓存
     /// - Parameter characterId: 角色ID
     /// - Returns: 技能ID与等级的字典
     private static func getCharacterSkills(characterId: Int) -> [Int: Int] {
-        // 使用信号量来同步异步调用
-        let semaphore = DispatchSemaphore(value: 0)
-        var skillsDict: [Int: Int] = [:]
-
-        Task {
-            do {
-                // 调用API获取技能数据
-                let skillsResponse = try await CharacterSkillsAPI.shared.fetchCharacterSkills(
-                    characterId: characterId,
-                    forceRefresh: false
-                )
-
-                // 从技能映射中提取技能ID到等级的字典
-                skillsDict = Dictionary(uniqueKeysWithValues: skillsResponse.skillsMap.map { ($0.key, $0.value.trained_skill_level) })
-            } catch {
-                Logger.error("获取角色技能数据失败: \(error)")
-            }
-
-            semaphore.signal()
+        // 1. 优先同步读取缓存（无网络、无阻塞）
+        if let cached = CharacterSkillsAPI.shared.loadSkillsFromCacheIfAvailable(characterId: characterId) {
+            return Dictionary(uniqueKeysWithValues: cached.skillsMap.map { ($0.key, $0.value.trained_skill_level) })
         }
 
-        // 等待异步操作完成
-        semaphore.wait()
-        return skillsDict
+        // 2. 缓存缺失：使用 all5 作为即时回退，避免主线程阻塞
+        Logger.info("技能缓存不可用 (角色ID: \(characterId))，使用 all5 作为即时回退，后台异步更新缓存")
+
+        // 3. 后台异步更新缓存，供下次使用
+        Task {
+            do {
+                _ = try await CharacterSkillsAPI.shared.fetchCharacterSkills(
+                    characterId: characterId,
+                    forceRefresh: true
+                )
+                Logger.debug("后台技能缓存更新完成 - 角色ID: \(characterId)")
+            } catch {
+                Logger.error("后台技能缓存更新失败: \(error)")
+            }
+        }
+
+        return getAllSkillsWithLevel(5)
     }
 
     /// 获取所有技能并设置为指定等级
