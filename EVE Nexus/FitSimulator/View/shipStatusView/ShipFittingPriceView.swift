@@ -7,6 +7,10 @@ struct ShipFittingPriceView: View {
     @State private var totalPrice: Double = 0
     @State private var errorMessage: String?
     @State private var hasUnpricedItems = false
+    @State private var showAddToWatchlistAlert = false
+    @State private var addToWatchlistName = ""
+    @State private var showAddToWatchlistSuccessAlert = false
+    @State private var savedWatchlistName = ""
 
     var body: some View {
         // 总价Section
@@ -118,6 +122,22 @@ struct ShipFittingPriceView: View {
                     }
                 }
             }
+
+            // 添加到市场关注列表按钮行（始终显示，样式参考添加到技能计划）
+            Button {
+                let shipName = viewModel.simulationInput.ship.name
+                let fittingName = viewModel.simulationInput.name.isEmpty
+                    ? NSLocalizedString("Fitting_Unnamed_Fitting", comment: "")
+                    : viewModel.simulationInput.name
+                addToWatchlistName = "\(shipName)-\(fittingName)"
+                showAddToWatchlistAlert = true
+            } label: {
+                HStack {
+                    Image(systemName: "plus.circle.fill")
+                    Text(NSLocalizedString("Fitting_Add_To_Watchlist", comment: "添加到市场关注"))
+                }
+            }
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
         } header: {
             Text(NSLocalizedString("Fitting_Price", comment: ""))
                 .fontWeight(.semibold)
@@ -137,6 +157,65 @@ struct ShipFittingPriceView: View {
                 await loadPriceData()
             }
         }
+        .alert(NSLocalizedString("Fitting_Add_To_Watchlist", comment: ""), isPresented: $showAddToWatchlistAlert) {
+            TextField(NSLocalizedString("Main_Market_Watch_List_Name", comment: ""), text: $addToWatchlistName)
+            Button(NSLocalizedString("Main_EVE_Mail_Cancel", comment: ""), role: .cancel) {}
+            Button(NSLocalizedString("Misc_Save", comment: "保存")) {
+                addFittingToWatchlist(name: addToWatchlistName.trimmingCharacters(in: .whitespaces))
+            }
+        } message: {
+            Text(NSLocalizedString("Fitting_Add_To_Watchlist_Name_Prompt", comment: ""))
+        }
+        .alert(NSLocalizedString("Fitting_Add_To_Watchlist_Success_Title", comment: ""), isPresented: $showAddToWatchlistSuccessAlert) {
+            Button(NSLocalizedString("Misc_Done", comment: "")) {}
+        } message: {
+            Text(String(format: NSLocalizedString("Fitting_Add_To_Watchlist_Saved_Message", comment: ""), savedWatchlistName))
+        }
+    }
+
+    /// 从配装收集物品 (typeId, quantity)，不依赖价格数据
+    private func collectFittingItems() -> [(typeId: Int, quantity: Int)] {
+        var map: [Int: Int] = [:]
+        let input = viewModel.simulationInput
+
+        map[input.ship.typeId, default: 0] += 1
+        for module in input.modules {
+            map[module.typeId, default: 0] += module.quantity
+            if let charge = module.charge, let qty = charge.chargeQuantity, qty > 0 {
+                map[charge.typeId, default: 0] += qty
+            }
+        }
+        for drone in input.drones {
+            map[drone.typeId, default: 0] += drone.quantity
+        }
+        if let fighters = input.fighters {
+            for fighter in fighters {
+                map[fighter.typeId, default: 0] += fighter.quantity
+            }
+        }
+        for implant in input.implants {
+            map[implant.typeId, default: 0] += 1
+        }
+        for cargoItem in input.cargo.items {
+            map[cargoItem.typeId, default: 0] += cargoItem.quantity
+        }
+
+        return map.map { ($0.key, $0.value) }
+    }
+
+    private func addFittingToWatchlist(name: String) {
+        guard !name.isEmpty else { return }
+        let items = collectFittingItems()
+        guard !items.isEmpty else { return }
+
+        let newQuickbar = MarketQuickbar(name: name, items: [])
+        var updated = newQuickbar
+        for (typeId, quantity) in items {
+            updated.items.append(QuickbarItem(typeID: typeId, quantity: Int64(quantity)))
+        }
+        MarketQuickbarManager.shared.saveQuickbar(updated)
+        savedWatchlistName = name
+        showAddToWatchlistSuccessAlert = true
     }
 
     // 加载价格数据

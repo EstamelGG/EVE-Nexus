@@ -604,14 +604,31 @@ struct SkillPlanDetailView: View {
 
     private func getLearnedSkills(skillIds: [Int]) async -> [Int: CharacterSkill] {
         do {
-            // 调用API获取技能数据
-            let skillsResponse = try await CharacterSkillsAPI.shared.fetchCharacterSkills(
+            let (skillsResponse, queue) = try await CharacterSkillsAPI.shared.fetchCharacterSkillsAndQueue(
                 characterId: characterId,
                 forceRefresh: false
             )
 
-            // 使用技能ID到技能信息的映射，只返回请求的技能ID对应的技能信息
-            return skillsResponse.skillsMap.filter { skillIds.contains($0.key) }
+            // 合并队列中已完成的部分
+            let baseSkills = Dictionary(uniqueKeysWithValues: skillsResponse.skillsMap.map { ($0.key, $0.value.trained_skill_level) })
+            let mergedLevels = CharacterSkillsUtils.mergeCompletedQueueIntoSkills(
+                baseSkills: baseSkills,
+                queue: queue
+            )
+
+            // 使用合并后的等级构建技能信息（仅返回请求的技能ID）
+            var result: [Int: CharacterSkill] = [:]
+            for skillId in skillIds {
+                let mergedLevel = mergedLevels[skillId] ?? skillsResponse.skillsMap[skillId]?.trained_skill_level ?? 0
+                let skill = skillsResponse.skillsMap[skillId]
+                result[skillId] = CharacterSkill(
+                    active_skill_level: mergedLevel,
+                    skill_id: skillId,
+                    skillpoints_in_skill: skill?.skillpoints_in_skill ?? 0,
+                    trained_skill_level: mergedLevel
+                )
+            }
+            return result
         } catch {
             Logger.error("获取技能数据失败: \(error)")
             return [:]

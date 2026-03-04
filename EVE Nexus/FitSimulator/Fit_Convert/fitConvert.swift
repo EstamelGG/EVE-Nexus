@@ -1316,24 +1316,34 @@ class FitConvert {
     /// - Parameters:
     ///   - localFitting: 本地配置对象
     ///   - databaseManager: 数据库管理器，用于查询物品名称
+    ///   - useEnglishNames: 是否使用英文名称（en_name），用于非英文SDE时导出兼容EFT/Pyfa的格式
     /// - Returns: EFT格式的配置文本
-    static func localFittingToEFT(localFitting: LocalFitting, databaseManager: DatabaseManager)
-        -> String
-    {
+    static func localFittingToEFT(
+        localFitting: LocalFitting, databaseManager: DatabaseManager,
+        useEnglishNames: Bool = false
+    ) -> String {
         if AppConfiguration.Fitting.showDebug {
             Logger.info("开始将本地配置转换为EFT格式 - 配置名称: \(localFitting.name)")
+        }
+
+        func pickName(name: String?, enName: String?) -> String? {
+            if useEnglishNames, let en = enName, !en.isEmpty { return en }
+            return name
         }
 
         var lines: [String] = []
 
         // 1. 获取飞船名称（使用标准name字段以保持EFT格式兼容性）
         var shipName = "Unknown Ship"
-        let shipQuery = "SELECT name FROM types WHERE type_id = ?"
+        let shipQuery = "SELECT name, en_name FROM types WHERE type_id = ?"
         if case let .success(rows) = databaseManager.executeQuery(
             shipQuery, parameters: [localFitting.ship_type_id]
         ),
             let row = rows.first,
-            let name = row["name"] as? String
+            let name = pickName(
+                name: row["name"] as? String,
+                enName: row["en_name"] as? String
+            )
         {
             shipName = name
         }
@@ -1373,14 +1383,17 @@ class FitConvert {
         var itemNames: [Int: String] = [:]
         if !allTypeIds.isEmpty {
             let placeholders = Array(repeating: "?", count: allTypeIds.count).joined(separator: ",")
-            let nameQuery = "SELECT type_id, name FROM types WHERE type_id IN (\(placeholders))"
+            let nameQuery = "SELECT type_id, name, en_name FROM types WHERE type_id IN (\(placeholders))"
 
             if case let .success(rows) = databaseManager.executeQuery(
                 nameQuery, parameters: allTypeIds
             ) {
                 for row in rows {
                     if let typeId = row["type_id"] as? Int,
-                       let name = row["name"] as? String
+                       let name = pickName(
+                           name: row["name"] as? String,
+                           enName: row["en_name"] as? String
+                       )
                     {
                         itemNames[typeId] = name
                     }

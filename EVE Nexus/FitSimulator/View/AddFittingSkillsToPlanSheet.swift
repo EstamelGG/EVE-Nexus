@@ -1,8 +1,14 @@
 import SwiftUI
 
-/// 将装配缺失技能保存到新技能计划
+/// 将装配技能保存到新技能计划
 enum AddFittingSkillsToPlanSheet {
-    /// 保存缺失技能到新计划，返回保存的计划名称，失败返回 nil
+    /// 保存装配所需全部技能到新计划（含已满足和未满足的技能，生成完整队列）
+    /// - Parameters:
+    ///   - requiredSkills: 装配所需的全部技能（含飞船、装备、弹药、无人机、货舱、舰载机）
+    ///   - characterId: 角色ID
+    ///   - planName: 计划名称
+    ///   - databaseManager: 数据库管理器
+    /// - Returns: 保存的计划名称，失败返回 nil
     static func saveMissingSkillsToPlan(
         missingSkills: [(skillID: Int, requiredLevel: Int, currentLevel: Int, skillName: String)],
         characterId: Int,
@@ -33,7 +39,8 @@ enum AddFittingSkillsToPlanSheet {
         let correctedSkills = SkillQueueCorrector(databaseManager: databaseManager)
             .correctSkillQueue(inputSkills: skillsToAdd.map { ($0.skillId, $0.level) })
 
-        let plannedSkills = correctedSkills.map { skill -> PlannedSkill in
+        // 待训练技能
+        var plannedSkills = correctedSkills.map { skill -> PlannedSkill in
             let skillName = SkillTreeManager.shared.getSkillName(for: skill.skillId)
                 ?? "Unknown (\(skill.skillId))"
             return PlannedSkill(
@@ -47,6 +54,28 @@ enum AddFittingSkillsToPlanSheet {
                 prerequisites: [],
                 currentSkillPoints: nil,
                 isCompleted: false
+            )
+        }
+
+        // 已满足的技能也加入队列（作为完整清单）
+        let completedSkills = missingSkills
+            .filter { $0.currentLevel >= $0.requiredLevel }
+            .sorted { $0.skillID < $1.skillID }
+        for item in completedSkills {
+            plannedSkills.insert(
+                PlannedSkill(
+                    id: UUID(),
+                    skillID: item.skillID,
+                    skillName: item.skillName,
+                    currentLevel: item.requiredLevel,
+                    targetLevel: item.requiredLevel,
+                    trainingTime: 0,
+                    requiredSP: 0,
+                    prerequisites: [],
+                    currentSkillPoints: nil,
+                    isCompleted: true
+                ),
+                at: 0
             )
         }
 
@@ -66,11 +95,12 @@ enum AddFittingSkillsToPlanSheet {
     private static func getCurrentSkillLevels(characterId: Int) async -> [Int: Int] {
         guard characterId != 0 else { return [:] }
         do {
-            let response = try await CharacterSkillsAPI.shared.fetchCharacterSkills(
+            let (response, queue) = try await CharacterSkillsAPI.shared.fetchCharacterSkillsAndQueue(
                 characterId: characterId,
                 forceRefresh: false
             )
-            return Dictionary(uniqueKeysWithValues: response.skillsMap.map { ($0.key, $0.value.trained_skill_level) })
+            let baseSkills = Dictionary(uniqueKeysWithValues: response.skillsMap.map { ($0.key, $0.value.trained_skill_level) })
+            return CharacterSkillsUtils.mergeCompletedQueueIntoSkills(baseSkills: baseSkills, queue: queue)
         } catch {
             Logger.error("加载角色技能失败: \(error)")
             return [:]

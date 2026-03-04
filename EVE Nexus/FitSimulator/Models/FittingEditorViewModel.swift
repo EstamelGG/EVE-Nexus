@@ -614,14 +614,8 @@ class FittingEditorViewModel: ObservableObject {
         objectWillChange.send()
     }
 
-    /// 获取配置所需但当前角色缺失的技能（仅计算上船和使用装备所需的最低技能）
-    /// 注意：始终使用当前角色的实际技能计算，忽略技能模式设置（all0-all5 等）
-    /// - Returns: [(skillID, requiredLevel, currentLevel, skillName)] 按 skillID 升序
-    func getMissingSkillsForFitting() -> [(skillID: Int, requiredLevel: Int, currentLevel: Int, skillName: String)] {
-        // 始终使用当前角色的实际技能，不受 currentSkillsMode 影响
-        let characterSkills = CharacterSkillsUtils.getCharacterSkills(type: .current_char)
-
-        // 1. 收集所有物品的 typeID
+    /// 收集装配所需的所有物品 typeID（飞船、装备、弹药、无人机、货舱、舰载机、植入体）
+    private func collectFittingTypeIDs() -> [Int] {
         var typeIDs: [Int] = []
         typeIDs.append(simulationInput.ship.typeId)
         for module in simulationInput.modules {
@@ -638,11 +632,22 @@ class FittingEditorViewModel: ObservableObject {
                 typeIDs.append(squad.typeId)
             }
         }
+        for item in simulationInput.cargo.items {
+            typeIDs.append(item.typeId)
+        }
         for implant in simulationInput.implants {
             typeIDs.append(implant.typeId)
         }
+        return typeIDs
+    }
 
-        // 2. 合并所有技能要求，取每个技能的最高等级
+    /// 获取装配所需的全部技能（含飞船、装备、弹药、无人机、货舱、舰载机、植入体）
+    /// 包含已满足和未满足的技能，用于生成完整技能队列
+    /// - Returns: [(skillID, requiredLevel, currentLevel, skillName)] 按 skillID 升序
+    func getAllRequiredSkillsForFitting() -> [(skillID: Int, requiredLevel: Int, currentLevel: Int, skillName: String)] {
+        let characterSkills = CharacterSkillsUtils.getCharacterSkills(type: .current_char)
+        let typeIDs = collectFittingTypeIDs()
+
         var requiredLevels: [Int: Int] = [:]
         for typeID in typeIDs {
             let reqs = databaseManager.getDirectSkillRequirements(for: typeID)
@@ -652,17 +657,20 @@ class FittingEditorViewModel: ObservableObject {
             }
         }
 
-        // 3. 找出缺失的技能（当前等级 < 所需等级）
-        var missing: [(skillID: Int, requiredLevel: Int, currentLevel: Int, skillName: String)] = []
+        var result: [(skillID: Int, requiredLevel: Int, currentLevel: Int, skillName: String)] = []
         for (skillID, requiredLevel) in requiredLevels {
             let currentLevel = characterSkills[skillID] ?? 0
-            if currentLevel < requiredLevel {
-                let skillName = SkillTreeManager.shared.getSkillName(for: skillID) ?? "Unknown (\(skillID))"
-                missing.append((skillID: skillID, requiredLevel: requiredLevel, currentLevel: currentLevel, skillName: skillName))
-            }
+            let skillName = SkillTreeManager.shared.getSkillName(for: skillID) ?? "Unknown (\(skillID))"
+            result.append((skillID: skillID, requiredLevel: requiredLevel, currentLevel: currentLevel, skillName: skillName))
         }
+        return result.sorted { $0.skillID < $1.skillID }
+    }
 
-        return missing.sorted { $0.skillID < $1.skillID }
+    /// 获取配置所需但当前角色缺失的技能（仅计算上船和使用装备所需的最低技能）
+    /// 注意：始终使用当前角色的实际技能计算，忽略技能模式设置（all0-all5 等）
+    /// - Returns: [(skillID, requiredLevel, currentLevel, skillName)] 按 skillID 升序
+    func getMissingSkillsForFitting() -> [(skillID: Int, requiredLevel: Int, currentLevel: Int, skillName: String)] {
+        getAllRequiredSkillsForFitting().filter { $0.currentLevel < $0.requiredLevel }
     }
 
     /// 更新模块状态

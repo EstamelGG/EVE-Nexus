@@ -13,6 +13,7 @@ struct FittingSettingsView: View {
     let onDelete: (() -> Void)?
 
     @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
+    @AppStorage("selectedDatabaseLanguage") private var selectedDatabaseLanguage: String = "en"
     var onSkillModeChanged: (() -> Void)?
 
     // 从 viewModel 中读取和保存技能选择状态
@@ -111,6 +112,7 @@ struct FittingSettingsView: View {
     @ViewBuilder
     private var missingSkillsSection: some View {
         let missing = viewModel.getMissingSkillsForFitting()
+        let allRequired = viewModel.getAllRequiredSkillsForFitting()
         Section(header: Text(NSLocalizedString("Fitting_Missing_Skills", comment: "缺失技能"))) {
             if missing.isEmpty {
                 HStack {
@@ -141,7 +143,10 @@ struct FittingSettingsView: View {
                             .foregroundColor(.orange)
                     }
                 }
+            }
 
+            // 有装配所需技能时始终显示添加按钮（生成完整技能队列，含已满足和未满足）
+            if !allRequired.isEmpty {
                 Button {
                     addToSkillPlanName = ""
                     showAddToSkillPlanAlert = true
@@ -163,8 +168,8 @@ struct FittingSettingsView: View {
         } message: {
             Text(
                 String.localizedStringWithFormat(
-                    NSLocalizedString("Fitting_Missing_Skills_Count", comment: ""),
-                    viewModel.getMissingSkillsForFitting().count
+                    NSLocalizedString("Fitting_All_Skills_Count", comment: "装配所需技能共 %d 项"),
+                    viewModel.getAllRequiredSkillsForFitting().count
                 )
             )
         }
@@ -182,12 +187,12 @@ struct FittingSettingsView: View {
 
     private func saveMissingSkillsToPlan(name: String) {
         guard !name.isEmpty else { return }
-        let missingSkills = viewModel.getMissingSkillsForFitting()
+        let allRequiredSkills = viewModel.getAllRequiredSkillsForFitting()
         let charId = skillsMode == "current_char" ? currentCharacterId : (selectedCharacterId ?? 0)
 
         Task {
             if let savedName = await AddFittingSkillsToPlanSheet.saveMissingSkillsToPlan(
-                missingSkills: missingSkills,
+                missingSkills: allRequiredSkills,
                 characterId: charId,
                 planName: name,
                 databaseManager: databaseManager
@@ -356,7 +361,7 @@ struct FittingSettingsView: View {
                 .listRowSeparatorTint(Color(UIColor.separator))
 
                 Button {
-                    exportToClipboard()
+                    exportToClipboard(useEnglishNames: false)
                 } label: {
                     HStack {
                         Text(NSLocalizedString("Fitting_Export_To_Clipboard", comment: "导出到剪贴板"))
@@ -368,6 +373,22 @@ struct FittingSettingsView: View {
                 .contentShape(Rectangle())
                 .listRowSeparator(.visible, edges: .bottom)
                 .listRowSeparatorTint(Color(UIColor.separator))
+
+                if selectedDatabaseLanguage != "en" {
+                    Button {
+                        exportToClipboard(useEnglishNames: true)
+                    } label: {
+                        HStack {
+                            Text("Fitting_Export_To_Clipboard_en")
+                                .foregroundColor(.blue)
+                                .font(.system(size: 17))
+                            Spacer()
+                        }
+                    }
+                    .contentShape(Rectangle())
+                    .listRowSeparator(.visible, edges: .bottom)
+                    .listRowSeparatorTint(Color(UIColor.separator))
+                }
 
                 Button {
                     exportToImage()
@@ -547,14 +568,16 @@ struct FittingSettingsView: View {
     }
 
     /// 导出配置到剪贴板
-    private func exportToClipboard() {
+    /// - Parameter useEnglishNames: 是否使用英文名称导出（用于非英文SDE时导出兼容EFT/Pyfa的格式）
+    private func exportToClipboard(useEnglishNames: Bool = false) {
         // 将 SimulationInput 转换为 LocalFitting
         let localFitting = FitConvert.simulationInputToLocalFitting(
             input: viewModel.simulationInput)
 
         // 使用 FitConvert 的 localFittingToEFT 方法生成 EFT 格式文本
         let clipboardText = FitConvert.localFittingToEFT(
-            localFitting: localFitting, databaseManager: databaseManager
+            localFitting: localFitting, databaseManager: databaseManager,
+            useEnglishNames: useEnglishNames
         )
 
         // 将文本复制到剪贴板

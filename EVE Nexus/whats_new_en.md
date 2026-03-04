@@ -388,8 +388,10 @@ Fixes & Improvements:
 4. Add more SDE with localization.
 5. Add "attackers" list for kb function.
 
-# v1.12.1 March 2, 2026
+# v1.12.1 March 12, 2026
 
 1. Fix a bug where mutated equipment attribute values would display the wrong color.
 2. Allow users to select a default character for fitting simulations in Settings.
 3. Allow exporting missing skills for the current fitting to the Skill Queue.
+4. Improved skill queue data collection to avoid missing data.
+5. Allow add items in fitting to market watch list.

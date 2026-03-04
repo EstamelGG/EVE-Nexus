@@ -64,14 +64,18 @@ struct SkillLevelIndicator: View {
     private func blockColor(for index: Int) -> Color {
         let level = index + 1 // index是0-4，对应等级1-5
 
-        // 如果等级在队列中，使用青色
+        // 1. 已完成的等级优先显示黑色（含合并后队列中已完成的）
+        if index < currentLevel {
+            return darkGray
+        }
+
+        // 2. 队列中等待训练的等级使用青色（排除已完成的，因上面已处理）
         if queuedLevels.contains(level) {
             return cyanColor
         }
 
-        if index < currentLevel {
-            return darkGray
-        } else if index < trainingLevel {
+        // 3. 正在训练的目标等级
+        if index < trainingLevel {
             return lightGray
         }
         return .clear

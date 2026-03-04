@@ -49,13 +49,17 @@ class SharedSkillsManager: ObservableObject {
 
         Task {
             do {
-                let skillsResponse = try await CharacterSkillsAPI.shared.fetchCharacterSkills(
+                let (skillsResponse, queue) = try await CharacterSkillsAPI.shared.fetchCharacterSkillsAndQueue(
                     characterId: currentCharacterId,
                     forceRefresh: false
                 )
 
-                // 从技能映射中提取技能ID到等级的字典
-                let skillsDict = Dictionary(uniqueKeysWithValues: skillsResponse.skillsMap.map { ($0.key, $0.value.trained_skill_level) })
+                // 从技能映射中提取技能ID到等级的字典，并合并队列中已完成的部分
+                let baseSkills = Dictionary(uniqueKeysWithValues: skillsResponse.skillsMap.map { ($0.key, $0.value.trained_skill_level) })
+                let skillsDict = CharacterSkillsUtils.mergeCompletedQueueIntoSkills(
+                    baseSkills: baseSkills,
+                    queue: queue
+                )
 
                 await MainActor.run {
                     self.characterSkills = skillsDict

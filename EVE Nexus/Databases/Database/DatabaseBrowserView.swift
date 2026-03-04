@@ -345,6 +345,8 @@ struct DatabaseBrowserView: View {
 struct DatabaseListItemView: View {
     let item: DatabaseListItem
     let showDetails: Bool
+    /// 是否在名称后显示货舱图标（表示该物品在货舱中）
+    var showCargoIndicator: Bool = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -355,6 +357,12 @@ struct DatabaseListItemView: View {
                     .frame(width: 32, height: 32)
                     .cornerRadius(6)
                 Text(item.name)
+                if showCargoIndicator {
+                    Image("cargo_fit")
+                        .resizable()
+                        .frame(width: 24, height: 24)
+                        .foregroundColor(.secondary)
+                }
             }
 
             if showDetails, let categoryID = item.categoryID {

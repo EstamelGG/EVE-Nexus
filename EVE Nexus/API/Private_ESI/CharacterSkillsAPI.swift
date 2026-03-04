@@ -180,6 +180,17 @@ public class CharacterSkillsAPI {
         loadSkillsFromCache(characterId: characterId)
     }
 
+    /// 同步从本地缓存读取技能和技能队列（无网络请求、无阻塞）
+    /// 用于合并技能数据，任一缓存未命中时返回 nil
+    public func loadSkillsAndQueueFromCacheIfAvailable(characterId: Int) -> (skills: CharacterSkillsResponse, queue: [SkillQueueItem])? {
+        guard let skills = loadSkillsFromCache(characterId: characterId),
+              let queue = loadSkillQueue(characterId: characterId)
+        else {
+            return nil
+        }
+        return (skills, queue)
+    }
+
     // 从本地文件读取技能数据
     private func loadSkillsFromCache(characterId: Int) -> CharacterSkillsResponse? {
         let filePath = getSkillsCacheFilePath(characterId: characterId)
@@ -254,6 +265,29 @@ public class CharacterSkillsAPI {
         }
     }
 
+    /// 同时获取角色技能和技能队列（并行请求，一次调用完成合并所需数据）
+    /// - Parameters:
+    ///   - characterId: 角色ID
+    ///   - forceRefresh: 是否强制刷新，默认 false（优先使用缓存）
+    /// - Returns: (技能数据, 技能队列)
+    public func fetchCharacterSkillsAndQueue(
+        characterId: Int,
+        forceRefresh: Bool = false
+    ) async throws -> (skills: CharacterSkillsResponse, queue: [SkillQueueItem]) {
+        // 非强制刷新时，尝试从缓存加载
+        if !forceRefresh {
+            if let cached = loadSkillsAndQueueFromCacheIfAvailable(characterId: characterId) {
+                return cached
+            }
+        }
+
+        // 并行请求技能和队列
+        async let skillsTask = fetchCharacterSkills(characterId: characterId, forceRefresh: forceRefresh)
+        async let queueTask = fetchSkillQueue(characterId: characterId, forceRefresh: forceRefresh)
+
+        return try await (skillsTask, queueTask)
+    }
+
     // 获取技能队列缓存文件路径
     private func getSkillQueueCacheFilePath(characterId: Int) -> URL {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
@@ -285,6 +319,12 @@ public class CharacterSkillsAPI {
             Logger.error("保存技能队列到文件失败: \(error)")
             return false
         }
+    }
+
+    /// 同步从本地缓存读取技能队列（无网络请求、无阻塞）
+    /// 用于合并技能数据时获取队列中已完成的技能等级
+    public func loadSkillQueueFromCacheIfAvailable(characterId: Int) -> [SkillQueueItem]? {
+        loadSkillQueue(characterId: characterId)
     }
 
     // 从本地文件读取技能队列

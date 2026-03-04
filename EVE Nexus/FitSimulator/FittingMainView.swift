@@ -691,6 +691,40 @@ struct FittingMainView: View {
         }
     }
 
+    // 复制装配配置（仅本地配置）
+    private func copyFitting(_ fitting: FittingListItem) {
+        guard sourceType == .local else { return }
+
+        Task {
+            do {
+                let localFitting = try FitConvert.loadLocalFitting(fittingId: fitting.fittingId)
+                let copyName = "\(fitting.name) \(NSLocalizedString("Fitting_Copy_Suffix", comment: "副本"))"
+                let newId = Int(Date().timeIntervalSince1970)
+                let copiedFitting = LocalFitting(
+                    description: localFitting.description,
+                    fitting_id: newId,
+                    items: localFitting.items,
+                    name: copyName,
+                    ship_type_id: localFitting.ship_type_id,
+                    drones: localFitting.drones,
+                    fighters: localFitting.fighters,
+                    cargo: localFitting.cargo,
+                    implants: localFitting.implants,
+                    environment_type_id: localFitting.environment_type_id
+                )
+                try FitConvert.saveLocalFitting(copiedFitting)
+                Logger.success("成功复制装配配置 - 原ID: \(fitting.fittingId), 新ID: \(newId)")
+                await localViewModel.loadLocalFittings(forceRefresh: true)
+            } catch {
+                Logger.error("复制装配配置失败: \(error)")
+                await MainActor.run {
+                    importErrorMessage = error.localizedDescription
+                    showingImportErrorAlert = true
+                }
+            }
+        }
+    }
+
     // 重命名装配配置（仅本地配置）
     private func renameFittingName(fitting: FittingListItem, newName: String) {
         Logger.info("开始重命名装配配置 - ID: \(fitting.fittingId), 新名称: \(newName)")
@@ -878,6 +912,16 @@ struct FittingMainView: View {
                 }
             }
 
+            // 复制按钮 - 仅本地配置
+            if sourceType == .local {
+                Button {
+                    copyFitting(fitting)
+                } label: {
+                    Label(NSLocalizedString("Fitting_Copy", comment: "复制"), systemImage: "doc.on.doc")
+                }
+                .tint(.green)
+            }
+
             // 重命名按钮（后添加，会在左边，更靠近内容）- 仅本地配置
             if sourceType == .local {
                 Button {
@@ -891,6 +935,15 @@ struct FittingMainView: View {
             }
         }
         .contextMenu {
+            // 复制选项 - 仅本地配置
+            if sourceType == .local {
+                Button {
+                    copyFitting(fitting)
+                } label: {
+                    Label(NSLocalizedString("Fitting_Copy", comment: "复制"), systemImage: "doc.on.doc")
+                }
+            }
+
             // 重命名选项 - 仅本地配置
             if sourceType == .local {
                 Button {

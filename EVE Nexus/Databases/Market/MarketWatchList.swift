@@ -862,10 +862,9 @@ struct MarketQuickbarView: View {
 
     private func quickbarRowView(_ quickbar: MarketQuickbar) -> some View {
         HStack(alignment: .center, spacing: 12) {
-            // 显示列表图标
-            if !quickbar.items.isEmpty, let firstItem = quickbar.items.first {
-                // 直接查询并显示第一个物品的图标
-                let icon = getItemIcon(typeID: firstItem.typeID)
+            // 显示列表图标（优先选择第一个飞船的图标）
+            if !quickbar.items.isEmpty, let iconTypeID = getPreferredIconTypeID(for: quickbar) {
+                let icon = getItemIcon(typeID: iconTypeID)
                 Image(uiImage: icon)
                     .resizable()
                     .frame(width: 32, height: 32)
@@ -899,6 +898,27 @@ struct MarketQuickbarView: View {
             .foregroundColor(.secondary)
         }
         .padding(.vertical, 4)
+    }
+
+    /// 获取用于显示列表图标的 typeID，优先选择第一个飞船 (categoryID == 6)
+    private func getPreferredIconTypeID(for quickbar: MarketQuickbar) -> Int? {
+        guard !quickbar.items.isEmpty else { return nil }
+        let typeIDs = quickbar.items.map { String($0.typeID) }.joined(separator: ",")
+        let items = databaseManager.loadMarketItems(
+            whereClause: "t.type_id IN (\(typeIDs))",
+            parameters: []
+        )
+        let typeIDToCategory: [Int: Int] = Dictionary(uniqueKeysWithValues: items.compactMap { item in
+            guard let cat = item.categoryID else { return nil }
+            return (item.id, cat)
+        })
+        // 按 quickbar 顺序，优先找第一个飞船
+        for item in quickbar.items {
+            if typeIDToCategory[item.typeID] == 6 {
+                return item.typeID
+            }
+        }
+        return quickbar.items.first?.typeID
     }
 
     // 获取物品图标的辅助函数

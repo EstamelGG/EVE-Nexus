@@ -75,14 +75,44 @@ enum CharacterSkillsUtils {
         return getCharacterSkills(characterId: currentCharacterId)
     }
 
-    /// 获取指定角色的技能等级
-    /// 优先使用本地缓存（无阻塞），缓存缺失时回退 all5 并后台异步更新缓存
+    /// 将技能队列合并到技能等级字典
+    static func mergeCompletedQueueIntoSkills(
+        baseSkills: [Int: Int],
+        queue: [SkillQueueItem]
+    ) -> [Int: Int] {
+        var result = baseSkills
+        let now = Date()
+
+        for item in queue.sorted(by: { $0.queue_position < $1.queue_position }) {
+            let current = result[item.skill_id] ?? 0
+            let targetLevel = item.finished_level
+
+            if let finishDate = item.finish_date, finishDate <= now {
+                // 已完成
+                if targetLevel > current {
+                    result[item.skill_id] = targetLevel
+                }
+            } else {
+                // 进行中或等待中
+                let minLevel = max(0, targetLevel - 1)
+                if minLevel > current {
+                    result[item.skill_id] = minLevel
+                }
+            }
+        }
+
+        return result
+    }
+
+    /// 获取指定角色的技能等级（含队列中已完成的合并）
+    /// 优先使用本地缓存（无网络、无阻塞），缓存缺失时回退 all5 并后台异步更新缓存
     /// - Parameter characterId: 角色ID
     /// - Returns: 技能ID与等级的字典
     private static func getCharacterSkills(characterId: Int) -> [Int: Int] {
-        // 1. 优先同步读取缓存（无网络、无阻塞）
-        if let cached = CharacterSkillsAPI.shared.loadSkillsFromCacheIfAvailable(characterId: characterId) {
-            return Dictionary(uniqueKeysWithValues: cached.skillsMap.map { ($0.key, $0.value.trained_skill_level) })
+        // 1. 优先同步读取技能和队列缓存（一次调用获取合并所需数据）
+        if let cached = CharacterSkillsAPI.shared.loadSkillsAndQueueFromCacheIfAvailable(characterId: characterId) {
+            let baseSkills = Dictionary(uniqueKeysWithValues: cached.skills.skillsMap.map { ($0.key, $0.value.trained_skill_level) })
+            return mergeCompletedQueueIntoSkills(baseSkills: baseSkills, queue: cached.queue)
         }
 
         // 2. 缓存缺失：使用 all5 作为即时回退，避免主线程阻塞
@@ -303,16 +333,16 @@ struct CharacterSkillsSelectorView: View {
         // 预加载技能数据
         Task {
             do {
-                // 预加载角色的技能数据
-                let skillsResponse = try await CharacterSkillsAPI.shared.fetchCharacterSkills(
+                let (skillsResponse, queue) = try await CharacterSkillsAPI.shared.fetchCharacterSkillsAndQueue(
                     characterId: characterId,
                     forceRefresh: false
                 )
 
-                var skills: [Int: Int] = [:]
-                for skill in skillsResponse.skills {
-                    skills[skill.skill_id] = skill.trained_skill_level
-                }
+                let baseSkills = Dictionary(uniqueKeysWithValues: skillsResponse.skillsMap.map { ($0.key, $0.value.trained_skill_level) })
+                let skills = CharacterSkillsUtils.mergeCompletedQueueIntoSkills(
+                    baseSkills: baseSkills,
+                    queue: queue
+                )
 
                 // 更新UI并关闭页面
                 await MainActor.run {

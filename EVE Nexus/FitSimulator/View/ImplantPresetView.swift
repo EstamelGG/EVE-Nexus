@@ -9,11 +9,11 @@ private class SystemPresetCache {
 
     private init() {}
 
-    func loadIfNeeded(databaseManager: DatabaseManager, gradeList: [String], implantSetList: [String], typeList: [String], implantSetAttributeMap: [String: Int]) {
+    func loadIfNeeded(databaseManager: DatabaseManager, gradeList: [String], implantSetList: [String], typeList: [String], implantSetAttributeMap: [String: [Int]]) {
         guard !isLoaded else { return }
 
-        // 加载属性显示名称
-        let attributeIds = Array(implantSetAttributeMap.values)
+        // 加载属性显示名称（展平多属性为唯一ID列表）
+        let attributeIds = Array(Set(implantSetAttributeMap.values.flatMap { $0 }))
         let placeholders = attributeIds.map { _ in "?" }.joined(separator: ",")
         let attrQuery = """
             SELECT attribute_id, display_name 
@@ -131,18 +131,20 @@ private let localizationMap: [String: String] = [
     "Nirvana": "Implant_Nirvana",
     "Rapture": "Implant_Rapture",
     "Virtue": "Implant_Virtue",
+    "Hydra": "Implant_Hydra",
 ]
 
-// 套装对应的属性ID映射
-private let implantSetAttributeMap: [String: Int] = [
-    "Snake": 315, // 速度加成
-    "Crystal": 548, // 护盾加成
-    "Amulet": 335, // 装甲加成
-    "Ascendancy": 624, // 扫描强度加成
-    "Asklepian": 2457, // 护盾回复加成
-    "Nirvana": 3015, // 装甲回复加成
-    "Rapture": 314, // 电容回复加成
-    "Virtue": 846, // 扫描强度加成
+// 套装对应的属性ID映射（支持单属性或多属性）
+private let implantSetAttributeMap: [String: [Int]] = [
+    "Snake": [315], // 速度加成
+    "Crystal": [548], // 护盾加成
+    "Amulet": [335], // 装甲加成
+    "Ascendancy": [624], // 扫描强度加成
+    "Asklepian": [2457], // 护盾回复加成
+    "Nirvana": [3015], // 装甲回复加成
+    "Rapture": [314], // 电容回复加成
+    "Virtue": [846], // 扫描强度加成
+    "Hydra": [3028, 3029, 3030, 3031], // 九头蛇套多属性
 ]
 
 // 全局本地化函数
@@ -161,7 +163,7 @@ struct ImplantPresetView: View {
     // 预设数据
     private let grade_list = ["High-grade", "Mid-grade", "Low-grade"]
     private let implantSet_list = [
-        "Snake", "Crystal", "Amulet", "Ascendancy", "Asklepian", "Nirvana", "Rapture", "Virtue",
+        "Snake", "Crystal", "Amulet", "Ascendancy", "Asklepian", "Nirvana", "Rapture", "Virtue", "Hydra",
     ]
     private let type_list = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Omega"]
 
@@ -360,12 +362,13 @@ struct GradeDetailView: View {
                                 Text(localizedImplantString(setName))
                                     .font(.body)
 
-                                if let attributeId = implantSetAttributeMap[setName],
-                                   let displayName = attributeDisplayNames[attributeId]
-                                {
-                                    Text(displayName)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
+                                if let attributeIds = implantSetAttributeMap[setName], !attributeIds.isEmpty {
+                                    let displayNames = attributeIds.compactMap { attributeDisplayNames[$0] }
+                                    if !displayNames.isEmpty {
+                                        Text(displayNames.joined(separator: ", "))
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
                                 }
                             }
 

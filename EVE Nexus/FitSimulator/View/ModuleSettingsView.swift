@@ -1321,6 +1321,7 @@ struct ChargeSelectionView: View {
     var onClearCharge: () -> Void
 
     @State private var items: [DatabaseListItem] = []
+    @State private var cargoAmmoDbItems: [DatabaseListItem] = []
     @State private var metaGroupNames: [Int: String] = [:]
     @State private var isLoading = true
     @Environment(\.dismiss) var dismiss
@@ -1419,6 +1420,23 @@ struct ChargeSelectionView: View {
                 }
             }
 
+            // 货舱中的弹药
+            if !cargoAmmoDbItems.isEmpty {
+                Section(header: Text(NSLocalizedString("Fitting_Cargo_Ammo", comment: "货舱中的弹药"))) {
+                    ForEach(cargoAmmoDbItems, id: \.id) { item in
+                        HStack {
+                            DatabaseListItemView(item: item, showDetails: true)
+                            Spacer()
+                        }
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            onChargeSelected(item.id, item.name, item.iconFileName)
+                            dismiss()
+                        }
+                    }
+                }
+            }
+
             if isLoading {
                 HStack {
                     ProgressView()
@@ -1433,7 +1451,11 @@ struct ChargeSelectionView: View {
                     ) {
                         ForEach(groupedItems[metaGroupID] ?? [], id: \.id) { item in
                             HStack {
-                                DatabaseListItemView(item: item, showDetails: true)
+                                DatabaseListItemView(
+                                    item: item,
+                                    showDetails: true,
+                                    showCargoIndicator: cargoTypeIds.contains(item.id)
+                                )
                                 Spacer()
                             }
                             .contentShape(Rectangle())
@@ -1450,6 +1472,11 @@ struct ChargeSelectionView: View {
         .onAppear {
             loadCharges()
         }
+    }
+
+    /// 货舱中的物品 typeId 集合，用于在非货舱弹药列表中显示货舱图标
+    private var cargoTypeIds: Set<Int> {
+        Set(viewModel.simulationInput.cargo.items.map { $0.typeId })
     }
 
     private var groupedItems: [Int: [DatabaseListItem]] {
@@ -1584,6 +1611,21 @@ struct ChargeSelectionView: View {
                 }
             }
         }
+
+        // 加载货舱中可作为弹药的物品（含伤害属性）
+        let cargoTypeIds = viewModel.simulationInput.cargo.items
+            .filter { viewModel.canLoadCharge(moduleTypeId: typeID, chargeTypeId: $0.typeId) }
+            .map { $0.typeId }
+        if !cargoTypeIds.isEmpty {
+            let placeholders = Array(repeating: "?", count: cargoTypeIds.count).joined(separator: ",")
+            cargoAmmoDbItems = databaseManager.loadMarketItems(
+                whereClause: "t.type_id IN (\(placeholders))",
+                parameters: cargoTypeIds
+            )
+        } else {
+            cargoAmmoDbItems = []
+        }
+
         isLoading = false
     }
 }

@@ -73,11 +73,10 @@ class SkillCategoryViewModel: ObservableObject {
             group.learnedTotalSkillPoints >= group.maxTotalSkillPoints
     }
 
-    // 获取指定技能组中在队列中的技能数量（按技能ID去重，忽略等级）
+    // 获取指定技能组中在队列中的技能数量（仅未完成的，按技能ID去重）
     func getQueueCount(for group: SkillGroup) -> Int {
         let groupSkillIds = Set(group.skills.map { $0.skill_id })
-        let queueSkillIds = Set(skillQueue.filter { groupSkillIds.contains($0.skill_id) }.map { $0.skill_id })
-        return queueSkillIds.count
+        return groupSkillIds.filter { hasActiveQueueItem($0) }.count
     }
 
     // 获取指定技能组中队列中技能的点数总和
@@ -133,9 +132,22 @@ class SkillCategoryViewModel: ObservableObject {
         return totalQueuePoints
     }
 
-    // 检查技能是否在队列中
+    // 检查技能是否在队列中（含已完成的）
     func isSkillInQueue(_ skillId: Int) -> Bool {
         return skillQueue.contains { $0.skill_id == skillId }
+    }
+
+    /// 检查技能是否有未完成的队列项（用于"队列中"section，排除已全部完成的技能）
+    /// 已完成：finish_date <= now
+    func hasActiveQueueItem(_ skillId: Int) -> Bool {
+        let now = Date()
+        return skillQueue.contains { item in
+            guard item.skill_id == skillId else { return false }
+            if let finishDate = item.finish_date {
+                return finishDate > now
+            }
+            return true // 无 finish_date 视为暂停，仍算在队列中
+        }
     }
 
     // 检查技能是否正在训练
@@ -182,13 +194,20 @@ class SkillCategoryViewModel: ObservableObject {
         }
 
         do {
-            // 1. 直接调用API获取最新的技能数据
-            let skillsResponse = try await CharacterSkillsAPI.shared.fetchCharacterSkills(
+            // 1. 一次调用获取技能数据和技能队列（API 内部并行请求）
+            let (skillsResponse, queue) = try await CharacterSkillsAPI.shared.fetchCharacterSkillsAndQueue(
                 characterId: characterId,
                 forceRefresh: forceRefresh
             )
 
-            // 使用已学习技能的查找字典
+            // 合并队列中已完成的部分到技能等级，解决刚训练完的技能无法参与计算的问题
+            let baseSkills = Dictionary(uniqueKeysWithValues: skillsResponse.skillsMap.map { ($0.key, $0.value.trained_skill_level) })
+            let mergedSkillLevels = CharacterSkillsUtils.mergeCompletedQueueIntoSkills(
+                baseSkills: baseSkills,
+                queue: queue
+            )
+
+            // 使用已学习技能的查找字典（mergedSkillLevels 用于等级显示和计算）
             let learnedSkills = skillsResponse.skillsMap
 
             // 2. 获取所有技能组和技能信息
@@ -249,6 +268,8 @@ class SkillCategoryViewModel: ObservableObject {
 
                 let timeMultiplier = timeMultipliers[typeId] ?? 1.0
                 let learnedSkill = learnedSkills[typeId]
+                // 使用合并后的等级（含队列中已完成的），确保刚训练完的技能正确参与计算
+                let currentLevel = mergedSkillLevels[typeId] ?? learnedSkill?.trained_skill_level ?? -1
 
                 allSkillsDict[typeId] = (
                     name: name,
@@ -257,7 +278,7 @@ class SkillCategoryViewModel: ObservableObject {
                     groupID: groupId,
                     timeMultiplier: timeMultiplier,
                     currentSkillPoints: learnedSkill?.skillpoints_in_skill ?? 0,
-                    currentLevel: learnedSkill?.trained_skill_level ?? -1,
+                    currentLevel: currentLevel,
                     trainingRate: nil
                 )
             }
@@ -324,20 +345,9 @@ class SkillCategoryViewModel: ObservableObject {
                 }
             }
 
-            // 加载技能队列
-            do {
-                let queue = try await CharacterSkillsAPI.shared.fetchSkillQueue(
-                    characterId: characterId,
-                    forceRefresh: forceRefresh
-                )
-                await MainActor.run {
-                    self.skillQueue = queue
-                }
-            } catch {
-                Logger.error("加载技能队列失败: \(error)")
-                await MainActor.run {
-                    self.skillQueue = []
-                }
+            // 技能队列已在步骤1中并行加载
+            await MainActor.run {
+                self.skillQueue = queue
             }
 
             await MainActor.run {
@@ -534,9 +544,9 @@ struct SkillCellView: View {
                     }
                 }
 
-                // 检查技能状态，在新的一行显示
+                // 检查技能状态，在新的一行显示（仅未完成的队列项显示"队列中"）
                 let isTraining = viewModel?.isSkillCurrentlyTraining(skill.typeId) ?? false
-                let isInQueue = viewModel?.isSkillInQueue(skill.typeId) ?? false
+                let hasActiveQueue = viewModel?.hasActiveQueueItem(skill.typeId) ?? false
 
                 if isTraining {
                     HStack {
@@ -544,7 +554,7 @@ struct SkillCellView: View {
                             .foregroundColor(.green)
                         Spacer()
                     }
-                } else if isInQueue {
+                } else if hasActiveQueue {
                     HStack {
                         Text(NSLocalizedString("Main_Skills_In_Queue", comment: ""))
                             .foregroundColor(.cyan)
@@ -819,14 +829,14 @@ struct SkillGroupDetailView: View {
                     return name1.localizedCaseInsensitiveCompare(name2) == .orderedAscending
                 }
 
-                // 队列中的技能（包括正在训练的和在队列中的）
+                // 队列中的技能（仅未完成的：正在训练或等待中，排除已全部完成的）
                 let queuedSkills = sortedSkills.filter { skill in
-                    viewModel.isSkillInQueue(skill.skill_id)
+                    viewModel.hasActiveQueueItem(skill.skill_id)
                 }
 
-                // 其他技能（不在队列中的）
+                // 其他技能（不在活跃队列中的）
                 let otherSkills = sortedSkills.filter { skill in
-                    !viewModel.isSkillInQueue(skill.skill_id)
+                    !viewModel.hasActiveQueueItem(skill.skill_id)
                 }
 
                 // 将队列中的技能排序：正在训练的技能排在第一个，其他按名称排序
