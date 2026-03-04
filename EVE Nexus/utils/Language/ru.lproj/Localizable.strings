@@ -1,21 +1,246 @@
 /* 
   Localizable.strings
   EVE Nexus - Russian (ru)
-  Created by xxxxx on xxxxx.
+  Created by Max N Moiseev aka Confignsk on 25 Feb 2026.
 */
+
+// Features customization related
+"Features_Too_Many" = "Больше возможностей?";
+"Features_Too_Many_With_Count" = "Пункты меню (%d скрыто)";
+"Features_Customize_Mode" = "Режим редакт. меню";
+"Features_Exit_Customize" = "Закрыть режим редакт.";
+"Features_Restore_Default" = "Сбросит настройки";
+"Main_Pinned_Features" = "Избранное";
 
 // Common
 "Common_Cancel" = "Отмена";
 "Common_Confirm" = "Подтвердить";
 "Common_Done" = "Готово";
 "Common_info" = "Основная информация";
+"Common_OK" = "Да";
+"Common_Error" = "Ошибка";
+"Common_Unknown_Error" = "Произошла неизвестная ошибка";
+"Server_Status_Online" = "Сервер Online";
+"Server_Status_Offline" = "Сервер Offline";
+"Server_Status_Checking" = "Проверка статуса...";
+"Server_Status_Players" = " (%@ игроков)";
 
 // Main navigation
-"Main_Home" = "Главная";
+"Main_Home" = "Основное меню";
 "Main_Character" = "Персонаж";
 "Main_Character_Sheet" = "Карточка персонажа";
 "Main_Setting" = "Настройки";
 "Main_Setting_Title" = "Настройки";
+"Main_Jump_Clones" = "Джамп клоны";
+"Main_Jump_Clones_Available" = "Доступные джамп клоны: ";
+"Main_Skills" = "Навыки";
+"Main_EVE_Mail" = "Почта EVE";
+"Main_Calendar" = "Календарь";
+"Main_Wealth" = "Финансы";
+"Main_Wealth_ISK" = "Кошелек: %@";
+"Main_Loyalty_Points" = "Наградные баллы (ЛП)";
+
+// Skill Queue Countdown
+"Main_Skills_Ponits" = "%@ СП";
+"Main_Skills_Points" = "Очки навыков (СП)";
+"Main_Skills_To_Learn" = "Требуется СП";
+"Main_Skills_Required_Time" = "Требуется времени";
+"Main_Skills_All_Points" = "Всего СП";
+"Main_Skills_Points_Format" = "%@ СП";
+"Main_Skills_Queue_Training_Days" = "Изучается: %d навыков(%dд %dч %dм)";
+"Main_Skills_Queue_Training_Hours" = "Изучается: %d навыков(%dч %dм %dс)";
+"Main_Skills_Queue_Training_Minutes" = "Изучается: %d навыков(%dм %dс)";
+"Main_Skills_Queue_Paused" = "Остановлено: %d навыков";
+"Main_Skills_Queue_Complete" = "Закончено";
+"Main_Skill_Queue_Free_SP" = "Свободные:";
+
+// Account Management
+"Account_Management" = "Управление персонажами";
+"Account_Add_Character" = "Добавить пилота";
+"Account_Logging_In" = "Вход в систему...";
+"Account_Logged_Characters" = "Добавленные пилоты";
+"Account_Cannot_Get_Auth_URL" = "Не удается получить URL-адрес авторизации";
+"Account_Login_Failed" = "Вход не удался";
+"Account_Remove_Confirm_Title" = "Удалить пилота";
+"Account_Remove_Confirm_Cancel" = "Отменить";
+"Account_Remove_Confirm_Remove" = "Удалить";
+"Account_Character_ID" = "ID персонажа";
+"Account_Total_SP" = "Всего SP";
+"Account_Wallet_value" = "Кошелек";
+"Scopes_refresh_hint" = "Нажмите что бы обновить права доступа:";
+"Account_Steam_Login_Hint" = "Авторизация через Steam";
+"Account_Steam_Login_Title" = "Помощь при входе в Steam";
+"Account_Steam_Login_Description" = "Мы получили запрос от пользователя, который обнаружил, что не может авторизоваться через Steam.. \n\nМы проверили эту проблему, но пока не нашли подходящего решения. \n\nЭта проблема в основном возникает на устройствах пользователей iOS с установленным приложением Steam. Если у вас возникла такая же проблема, вы можете принять следующие меры для ее устранения.\n\n";
+"Account_Steam_Login_GIF_Not_Found" = "GIF изображение не найдено";
+"Account_Steam_Login_Reference_Hint" = "Мы рекомендуем обратиться к этому документу, чтобы задать имя учетной записи для учетных записей, созданных через Steam:";
+"Account_Steam_Login_Reference_Link" = "На сайте EVE Online";
+"Account_Logout" = "Выйти из аккаунта";
+
+
+// Eve Mail
+"Main_EVE_Mail_Title" = "Почта EVE";
+"Main_EVE_Mail_All" = "Все письма";
+"Main_EVE_Mail_Mailboxes" = "Папки";
+"Main_EVE_Mail_List" = "Список писем";
+"Main_EVE_Mail_No_Mail" = "Нет почты";
+"Main_EVE_Mail_Inbox" = "Входящие";
+"Main_EVE_Mail_Sent" = "Отправленные";
+"Main_EVE_Mail_Corporation" = "Корпорация";
+"Main_EVE_Mail_Alliance" = "Альянс";
+"Main_EVE_Mail_Spam" = "Спам";
+"Main_EVE_Mail_Loading" = "Загрузка писем...";
+"Main_EVE_Mail_Error" = "Сбой загрузки почты";
+
+"Main_EVE_Mail_Lists" = "Mail Lists";
+"Main_EVE_Mail_List_Name" = "List Name";
+"Main_EVE_Mail_List_Members" = "Member Count";
+"Main_EVE_Mail_List_No_Lists" = "No mailing lists subscribed";
+
+// Mail Compose
+"Main_EVE_Mail_New" = "Новое письмо";
+"Main_EVE_Mail_Recipients" = "Получатели";
+"Main_EVE_Mail_Add_Recipient" = "Добавить получателя";
+"Main_EVE_Mail_Add_Mailing_List" = "Список получателей";
+"Main_EVE_Mail_Subject" = "Тема";
+"Main_EVE_Mail_Body" = "Письмо";
+"Main_EVE_Mail_Send" = "Отправить";
+"Main_EVE_Mail_Send_Success" = "Письмо успешно отправлено";
+"Main_EVE_Mail_Send_Failed" = "Сбой отправки письма";
+"Main_EVE_Mail_Cancel" = "Отмена";
+"Main_EVE_Mail_Search_Recipients" = "Поиск пилотов, корпораций или альяносов";
+"Main_EVE_Mail_Min_Search_Length" = "Пожалуйста, введите не менее 3 символов";
+"Main_EVE_Mail_No_Results" = "Не найдено результатов";
+"Main_EVE_Mail_Select_Mailing_List" = "Выбрать список рассылки";
+"Main_EVE_Mail_No_Mailing_Lists" = "Ни на какие списки рассылки вы не подписаны";
+
+// Mail Detail
+"Main_EVE_Mail_Reply" = "Ответить";
+"Main_EVE_Mail_Reply_All" = "Ответить всем";
+"Main_EVE_Mail_Forward" = "Переслать";
+"Main_EVE_Mail_From" = "От кого: ";
+"Main_EVE_Mail_To" = "Кому: ";
+"Main_EVE_Mail_Unknown_Recipient" = "Неизвестный получатель";
+"Main_EVE_Mail_Unknown_Sender" = "Неизвестный отправитель";
+"Main_EVE_Mail_Load_Failed" = "Не удалось загрузить содержимое почты";
+"Main_EVE_Mail_Original_Message" = "-------- Оригинальное сообщение --------";
+"Main_EVE_Mail_Wrote" = "-----------------";
+"Main_EVE_Mail_Forward_Header" = "-------- Пересланное сообщение --------";
+"Main_EVE_Mail_Forward_From" = "От кого: %@";
+"Main_EVE_Mail_Forward_Date" = "Дата: %@";
+"Main_EVE_Mail_Forward_Subject" = "Тема: %@";
+"Main_EVE_Mail_Forward_To" = "Кому: %@";
+"Main_EVE_Mail_Copy_Sender" = "Копировать отправителя";
+"Main_EVE_Mail_Copy_Recipients" = "Копировать получателя";
+
+// Mail Recipient Types
+"Main_EVE_Mail_Recipient_Character" = "персонаж";
+"Main_EVE_Mail_Recipient_Corporation" = "Корпорация";
+"Main_EVE_Mail_Recipient_Alliance" = "Альянс";
+"Main_EVE_Mail_Recipient_Mailing_List" = "Список рассылки";
+
+// Mail Quick Select
+"Main_EVE_Mail_Quick_Select" = "Быстрый выбор";
+"Main_EVE_Mail_Searching" = "Поиск...";
+"Main_EVE_Mail_Search_Failed" = "Сбой поиска";
+
+"Main_Setting_Function" = "Function Setting";
+"Main_Setting_Show_Corporation_Affairs" = "Show Corporation Affairs";
+
+// Calendar related strings
+"Calendar_Loading" = "Загрузка данных календаря...";
+"Calendar_No_Events" = "Никаких событий в календаре";
+"Calendar_No_Events_Description" = "В настоящее время в календаре нет событий";
+"Calendar_Refresh" = "Обновить";
+"Calendar_Error" = "Ошибка";
+"Calendar_OK" = "OK";
+"Calendar_Load_Failed" = "Ошибка загрузки календаря: %@";
+"Calendar_Unknown_Time" = "Неизвестное время";
+"Calendar_Importance" = "Важное";
+
+// Event response status
+"Calendar_Response_Accepted" = "Принято";
+"Calendar_Response_Declined" = "Отклонено";
+"Calendar_Response_Tentative" = "Условно";
+"Calendar_Response_Not_Responded" = "Не отвечено";
+
+// Calendar date related
+"Calendar_Events_Count" = "события";
+"Calendar_No_Events_On_Date" = "нет событий на эту дату";
+
+// Calendar event detail
+"Calendar_Event_Detail" = "Подробности события";
+"Calendar_Event_Basic_Info" = "Основная информация";
+"Calendar_Event_Date" = "Дата";
+"Calendar_Event_Duration" = "Длительность";
+"Calendar_Event_Response" = "Статус";
+"Calendar_Event_Organizer" = "Инициатор";
+"Calendar_Event_Description" = "Описание";
+"Calendar_Event_Time" = "Время события";
+"Calendar_Load_Detail_Failed" = "Ошибка загрузки подр. события: %@";
+"Calendar_Retry" = "Повтор";
+"Calendar_Minutes" = "мин";
+"Calendar_Hours" = "ч";
+"Calendar_Owner_Character" = "Персонаж";
+"Calendar_Owner_Corporation" = "Корпорация";
+"Calendar_Owner_Alliance" = "Альянс";
+
+// Notification related texts
+"Calendar_Add_Notification" = "Добавить уведомление";
+"Calendar_Reminder_Title_Prefix" = "EVE Событие: ";
+"Calendar_Reminder_Content_Header" = "EVE Online Событие календаря";
+"Calendar_Reminder_Event_Time" = "Время события: ";
+"Calendar_Reminder_Organizer" = "Инициатор: ";
+"Calendar_Reminder_Duration" = "Длительность: ";
+"Calendar_Reminder_Description" = "Описание:";
+"Calendar_Notification_Success" = "Уведомление добавлено";
+"Calendar_Notification_Failed" = "Уведомление не добавлено, проверьте разрешения Esi";
+"Calendar_Notification_Alert_Title" = "Уведомление";
+
+// Scheduled Notifications View
+"Calendar_Scheduled_Notifications" = "Расписание уведомлений";
+"Calendar_No_Scheduled_Notifications" = "Нет заданных уведомлений";
+"Calendar_No_Scheduled_Notifications_Description" = "Вы еще не запланировали никаких уведомлений о событиях";
+"Calendar_Notification_Time" = "Время уведомлений";
+"Calendar_Cancel_Notification" = "Отмена";
+"Calendar_Strategy_One_Hour_Before" = "за 1 час до начала";
+"Calendar_Strategy_Thirty_Minutes_Before" = "за 30 минут до начала";
+"Calendar_Strategy_At_Event_Time" = "Во время события";
+"Calendar_Strategy_Minutes_Before" = "%d минут до";
+
+// Custom notification time options
+"Calendar_Notification_Two_Hours_Before" = "за 2 часа до начала";
+"Calendar_Notification_One_Hour_Before" = "за 1 час до начала";
+"Calendar_Notification_Thirty_Minutes_Before" = "за 30 минут до начала";
+"Calendar_Notification_Fifteen_Minutes_Before" = "за 15 минут до начала";
+"Calendar_Notification_At_Event_Time" = "Во время события";
+"Calendar_Strategy_Two_Hours_Before" = "за 2 часа до начала";
+"Calendar_Strategy_Fifteen_Minutes_Before" = "за 15 минут до начала";
+"Calendar_Select_Notification_Time" = "Выберите время уведомления";
+"Calendar_Notification_Time_Options" = "Опции уведомлений";
+"Calendar_Notification_At_Event_Start" = "В начале мероприятия";
+"Calendar_Notification_At" = "Около";
+
+// Databases
+"Main_Databases" = "Информация";
+"Main_Database" = "Энциклопедия";
+"Main_Database_title" = "Энциклопедия";
+"Main_Database_unpublished" = "Не актуальные";
+"Main_Database_published" = "Актуальные";
+"Main_Database_Search" = "Поиск";
+"Main_Database_Search_Item" = "Поиск предмета";
+"Main_Database_Searching" = "Идет поиск...";
+"Main_Database_Variations" = "Варианты";
+"Main_Database_Browse_Variations" = "Показать %d вариаций";
+"Main_Database_Item_info_Immune" = "Immune";
+"Main_Database_Item_info_NonImmune" = "Non-immune";
+"Main_Database_Item_info_Reprocess" = "Reprocess Output";
+"Main_Database_Randomized_Output" = "Randomized Output";
+"Main_Database_Source" = "Reprocess Source";
+"Main_Database_Required_By" = "Required for";
+"Main_Database_Category" = "Category";
+"Main_Database_Market_Category" = "Market";
+"Main_Database_NPC_Scene" = "NPC";
+"Main_Database_NPC_Ships" = "Ships";
 
 // Language settings (SelectLanguageView)
 "Main_Setting_Language" = "Язык приложения / SDE";
@@ -42,3 +267,58 @@
 "RateLimit_Cooldown_Home_Message" = "Перегрузка сети, охлаждение: %@";
 "RateLimit_Cooldown_Time_MinSec" = "%dм %dс";
 "RateLimit_Cooldown_Time_Sec" = "%dс";
+
+// Time Format
+"Time_Days_Hours_Minutes" = "%dд %dч %dм";
+"Time_Hours_Minutes" = "%dч %dм";
+
+// Character Attributes Time
+"Character_Attributes_Ready_Now" = "Сейчас";
+"Time_Months_Days" = "%dМ %dД";
+"Time_Months" = "%dМ";
+
+// Character Attributes
+"Character_Attributes_Title" = "Характеристики пилота";
+"Character_Attributes_Basic" = "Основные характеристики";
+"Character_Attributes_Remap" = "Перераспределение";
+"Character_Attribute_Perception" = "Восприятие";
+"Character_Attribute_Memory" = "Память";
+"Character_Attribute_Willpower" = "Сила воли";
+"Character_Attribute_Intelligence" = "Интеллект";
+"Character_Attribute_Charisma" = "Харизма";
+"Character_Attributes_Bonus_Remaps" = "Кол-во перераспределений";
+"Character_Attributes_Next_Remap" = "Следующее перераспр. через";
+"Character_Attributes_Load_Failed" = "Ошибка загрузки характеристик";
+"Character_Attributes_Has_Booster" = "Используется бустер, +%d к каждому";
+
+// Skill Categories
+"Main_Skills_No_Skills" = "No skills found";
+
+"Main_Skills_Required_Injectors" = "Требуется инжекторов навыков";
+"Main_Skills_Total_Required_SP" = "Осталось изучить СП: %@ SP";
+"Main_Skills_Total_Injector_Cost" = "Стоимость инжекторов: %@";
+"Main_Skills_Injector_Actual_SP" = "Каждый +%@ SP";
+
+// Settings App
+"Main_Setting" = "Настройки";
+"Main_Setting_Title" = "Настройки";
+"Main_Setting_Language" = "Язык приложения";
+"Main_Setting_Database_Language" = "Язык базы данных";
+"Main_Setting_Select_your_language" = "Выберите ваш язык";
+"Main_Setting_Appearance" = "Внешний вид";
+"Main_Setting_ColorMode" = "Цветовой режим";
+"Main_Setting_Others" = "Разные";
+"Main_Setting_Dark" = "Темный";
+"Main_Setting_Light" = "Светлый";
+"Main_Setting_Auto" = "Авто";
+"Main_Setting_Select_Language" = "Выбрать язык";
+"Main_Setting_Clean_Cache" = "Очистить кэш";
+"Main_Setting_Clean_Character_Database" = "Очистить данные персонажа";
+"Main_Setting_Clean_Character_Database_Detail" = "Reset character database and delete all locally stored character data";
+"Main_Setting_Clean_Character_Database_Title" = "Очистить данные персонажа";
+"Main_Setting_Clean_Character_Database_Message" = "Warning: This will delete all locally stored character data, including wallet history. This action cannot be undone. Are you sure?";
+"Main_Database_Role_Bonuses" = "Role Bonuses";
+"Main_Database_Misc_Bonuses" = "Misc Bonuses";
+"Main_Database_Bonuses_Per_Level" = "bonuses per level";
+"Main_Database_Show_Important_Only" = "Important Attributes Only";
+"Main_Database_Show_Important_Only_Detail" = "Only show important attributes in database function";
