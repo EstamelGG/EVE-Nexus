@@ -143,6 +143,9 @@ public class CharacterSkillsAPI {
     public static let shared = CharacterSkillsAPI()
     private init() {}
 
+    /// 技能与技能队列本地缓存的有效期（秒），两者必须一致，避免只命中一侧导致数据不同步
+    private static let pairedCacheValiditySeconds: TimeInterval = 2 * 60 * 60
+
     // 获取技能缓存文件路径
     private func getSkillsCacheFilePath(characterId: Int) -> URL {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
@@ -167,10 +170,30 @@ public class CharacterSkillsAPI {
             try jsonData.write(to: filePath)
 
             Logger.success("成功缓存技能数据到文件 - 角色ID: \(characterId), 路径: \(filePath.path)")
+            // 仅更新技能时使队列缓存失效，保证「技能+队列」成对有效
+            invalidateSkillQueueCacheFile(characterId: characterId)
             return true
         } catch {
             Logger.error("保存技能数据到文件失败: \(error)")
             return false
+        }
+    }
+
+    /// 删除技能队列缓存文件（与技能缓存配对失效）
+    private func invalidateSkillQueueCacheFile(characterId: Int) {
+        let path = getSkillQueueCacheFilePath(characterId: characterId)
+        if FileManager.default.fileExists(atPath: path.path) {
+            try? FileManager.default.removeItem(at: path)
+            Logger.debug("已使技能队列缓存失效（与技能更新配对）- 角色ID: \(characterId)")
+        }
+    }
+
+    /// 删除技能缓存文件（与队列缓存配对失效）
+    private func invalidateSkillsCacheFile(characterId: Int) {
+        let path = getSkillsCacheFilePath(characterId: characterId)
+        if FileManager.default.fileExists(atPath: path.path) {
+            try? FileManager.default.removeItem(at: path)
+            Logger.debug("已使技能缓存失效（与队列更新配对）- 角色ID: \(characterId)")
         }
     }
 
@@ -200,11 +223,11 @@ public class CharacterSkillsAPI {
             return nil
         }
 
-        // 检查文件修改时间，缓存2小时
+        // 检查文件修改时间（与技能队列缓存使用相同有效期）
         do {
             let attributes = try FileManager.default.attributesOfItem(atPath: filePath.path)
             if let modificationDate = attributes[.modificationDate] as? Date {
-                let cacheExpirationDate = modificationDate.addingTimeInterval(2 * 60 * 60) // 2小时
+                let cacheExpirationDate = modificationDate.addingTimeInterval(Self.pairedCacheValiditySeconds)
                 if Date() > cacheExpirationDate {
                     Logger.debug("技能缓存已过期 - 角色ID: \(characterId)")
                     return nil
@@ -266,24 +289,25 @@ public class CharacterSkillsAPI {
     }
 
     /// 同时获取角色技能和技能队列（并行请求，一次调用完成合并所需数据）
+    /// 缓存：两者共用同一有效期；仅当「技能+队列」缓存同时有效时才使用磁盘缓存。
+    /// 网络拉取：始终同时强制刷新技能与队列，避免出现只更新一侧、与另一侧旧缓存混用的情况。
     /// - Parameters:
     ///   - characterId: 角色ID
-    ///   - forceRefresh: 是否强制刷新，默认 false（优先使用缓存）
+    ///   - forceRefresh: 是否跳过合并缓存直接走网络（与内部对技能/队列的强制刷新一致）
     /// - Returns: (技能数据, 技能队列)
     public func fetchCharacterSkillsAndQueue(
         characterId: Int,
         forceRefresh: Bool = false
     ) async throws -> (skills: CharacterSkillsResponse, queue: [SkillQueueItem]) {
-        // 非强制刷新时，尝试从缓存加载
         if !forceRefresh {
             if let cached = loadSkillsAndQueueFromCacheIfAvailable(characterId: characterId) {
                 return cached
             }
         }
 
-        // 并行请求技能和队列
-        async let skillsTask = fetchCharacterSkills(characterId: characterId, forceRefresh: forceRefresh)
-        async let queueTask = fetchSkillQueue(characterId: characterId, forceRefresh: forceRefresh)
+        // 必须同时从网络拉取两组数据且均强制刷新，保证与磁盘缓存成对、时间一致
+        async let skillsTask = fetchCharacterSkills(characterId: characterId, forceRefresh: true)
+        async let queueTask = fetchSkillQueue(characterId: characterId, forceRefresh: true)
 
         return try await (skillsTask, queueTask)
     }
@@ -302,25 +326,6 @@ public class CharacterSkillsAPI {
         return characterSkillsPath.appendingPathComponent("\(characterId)_skill_queue.json")
     }
 
-    // 保存技能队列到本地文件
-    private func saveSkillQueue(characterId: Int, queue: [SkillQueueItem]) -> Bool {
-        do {
-            let encoder = JSONEncoder()
-            encoder.dateEncodingStrategy = .secondsSince1970
-            let jsonData = try encoder.encode(queue)
-
-            let filePath = getSkillQueueCacheFilePath(characterId: characterId)
-            try jsonData.write(to: filePath)
-
-            Logger.debug(
-                "成功缓存技能队列到文件 - 角色ID: \(characterId), 路径: \(filePath.path), 队列长度: \(queue.count)")
-            return true
-        } catch {
-            Logger.error("保存技能队列到文件失败: \(error)")
-            return false
-        }
-    }
-
     /// 同步从本地缓存读取技能队列（无网络请求、无阻塞）
     /// 用于合并技能数据时获取队列中已完成的技能等级
     public func loadSkillQueueFromCacheIfAvailable(characterId: Int) -> [SkillQueueItem]? {
@@ -336,11 +341,11 @@ public class CharacterSkillsAPI {
             return nil
         }
 
-        // 检查文件修改时间，缓存1小时
+        // 检查文件修改时间（与技能缓存使用相同有效期）
         do {
             let attributes = try FileManager.default.attributesOfItem(atPath: filePath.path)
             if let modificationDate = attributes[.modificationDate] as? Date {
-                let cacheExpirationDate = modificationDate.addingTimeInterval(60 * 60) // 1小时
+                let cacheExpirationDate = modificationDate.addingTimeInterval(Self.pairedCacheValiditySeconds)
                 if Date() > cacheExpirationDate {
                     Logger.debug("技能队列缓存已过期 - 角色ID: \(characterId)")
                     return nil
@@ -406,7 +411,26 @@ public class CharacterSkillsAPI {
         return queue
     }
 
-    // 获取角色属性缓存文件路径
+    // 保存技能队列到本地文件（保存成功后使技能缓存失效，保证与技能缓存成对一致）
+    private func saveSkillQueue(characterId: Int, queue: [SkillQueueItem]) -> Bool {
+        do {
+            let encoder = JSONEncoder()
+            encoder.dateEncodingStrategy = .secondsSince1970
+            let jsonData = try encoder.encode(queue)
+
+            let filePath = getSkillQueueCacheFilePath(characterId: characterId)
+            try jsonData.write(to: filePath)
+
+            Logger.debug(
+                "成功缓存技能队列到文件 - 角色ID: \(characterId), 路径: \(filePath.path), 队列长度: \(queue.count)")
+            invalidateSkillsCacheFile(characterId: characterId)
+            return true
+        } catch {
+            Logger.error("保存技能队列到文件失败: \(error)")
+            return false
+        }
+    }
+
     private func getAttributesCacheFilePath(characterId: Int) -> URL {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
             .first!

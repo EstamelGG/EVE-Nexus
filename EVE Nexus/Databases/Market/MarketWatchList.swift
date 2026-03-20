@@ -2195,13 +2195,20 @@ class MarketClipboardParser {
                     let validQuantity = min(quantity, 999_999_999)
                     itemsToImport.append((name: cleanItemName, quantity: validQuantity))
                     Logger.debug("添加到导入列表: \(cleanItemName) x \(validQuantity)")
-                } else {
-                    Logger.warning("数量解析失败: \(quantityStr) -> \(cleanQuantityStr)")
+                } else if Int64(cleanQuantityStr) != nil {
+                    // 能解析出数字但不合法（如 0、负数）→ 视为失败
+                    Logger.warning("数量不合法: \(quantityStr) -> \(cleanQuantityStr)")
                     failedLines.append(trimmedLine)
+                } else {
+                    // 解析不出数字，将整行视为物品名，由数据库校验；若合法则默认数量为 1
+                    Logger.debug("无法解析数量，将整行视为物品名，默认数量 1: \(trimmedLine)")
+                    itemsToImport.append((name: cleanItemName, quantity: 1))
                 }
             } else {
-                Logger.warning("无法匹配: \(trimmedLine)")
-                failedLines.append(trimmedLine)
+                // 未匹配格式，将整行视为物品名，由数据库校验；若合法则默认数量为 1
+                let cleanItemName = trimmedLine.hasSuffix("*") ? String(trimmedLine.dropLast()) : trimmedLine
+                Logger.debug("无法匹配格式，将整行视为物品名，默认数量 1: \(cleanItemName)")
+                itemsToImport.append((name: cleanItemName, quantity: 1))
             }
         }
 

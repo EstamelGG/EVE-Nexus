@@ -126,9 +126,11 @@ class FittingEditorViewModel: ObservableObject {
     // MARK: - 初始化方法
 
     /// 初始化方法（新建配置）
+    /// - Parameter characterSkills: 若在外部已异步加载（如 `loadSkillsBeforeFittingCalculation`），传入可避免先用全5级再覆盖。
     init(
         shipTypeId: Int, shipInfo: (name: String, iconFileName: String),
-        databaseManager: DatabaseManager
+        databaseManager: DatabaseManager,
+        characterSkills: [Int: Int]? = nil
     ) {
         self.databaseManager = databaseManager
         self.shipInfo = shipInfo
@@ -136,28 +138,29 @@ class FittingEditorViewModel: ObservableObject {
         isLocalFitting = true // 新建配置为本地配置
         attributeCalculator = AttributeCalculator(databaseManager: databaseManager)
 
+        let resolvedSkills = characterSkills ?? FittingCharacterSkillsLoader.skillsFromUserPreferences()
+
         // 创建初始配置
         let localFitting = FitConvert.createInitialFitting(shipTypeId: shipTypeId)
-
-        // 获取已保存的技能设置
-        let characterSkills = FittingEditorViewModel.getSkillsFromPreferences()
 
         // 转换为模拟输入
         simulationInput = FitConvert.localFittingToSimulationInput(
             localFitting: localFitting,
             databaseManager: databaseManager,
-            characterSkills: characterSkills
+            characterSkills: resolvedSkills
         )
 
-        // 计算初始属性
         Logger.info("新建配置，计算初始属性")
         calculateAttributes()
+        syncSelectedCharacterIdFromPreferencesIfNeeded()
     }
 
     /// 初始化方法（加载本地配置）
-    init(fittingId: Int, databaseManager: DatabaseManager) {
+    init(fittingId: Int, databaseManager: DatabaseManager, characterSkills: [Int: Int]? = nil) {
         self.databaseManager = databaseManager
         attributeCalculator = AttributeCalculator(databaseManager: databaseManager)
+
+        let resolvedSkills = characterSkills ?? FittingCharacterSkillsLoader.skillsFromUserPreferences()
 
         do {
             // 加载配置
@@ -182,14 +185,11 @@ class FittingEditorViewModel: ObservableObject {
             isNewFitting = false
             isLocalFitting = true // 本地配置文件
 
-            // 获取已保存的技能设置
-            let characterSkills = FittingEditorViewModel.getSkillsFromPreferences()
-
             // 转换为模拟输入
             let simInput = FitConvert.localFittingToSimulationInput(
                 localFitting: localFitting,
                 databaseManager: databaseManager,
-                characterSkills: characterSkills
+                characterSkills: resolvedSkills
             )
 
             // 验证配置中的装备是否都可以安装
@@ -216,6 +216,7 @@ class FittingEditorViewModel: ObservableObject {
             // 计算初始属性
             Logger.info("加载本地配置，计算初始属性")
             calculateAttributes()
+            syncSelectedCharacterIdFromPreferencesIfNeeded()
         } catch {
             // 错误处理
             Logger.error("加载配置失败: \(error)")
@@ -248,9 +249,11 @@ class FittingEditorViewModel: ObservableObject {
     }
 
     /// 初始化方法（临时装配，如DNA导入，不保存文件）
-    init(temporaryFitting: LocalFitting, databaseManager: DatabaseManager) {
+    init(temporaryFitting: LocalFitting, databaseManager: DatabaseManager, characterSkills: [Int: Int]? = nil) {
         self.databaseManager = databaseManager
         attributeCalculator = AttributeCalculator(databaseManager: databaseManager)
+
+        let resolvedSkills = characterSkills ?? FittingCharacterSkillsLoader.skillsFromUserPreferences()
 
         // 查询飞船信息
         let shipQuery = "SELECT name, icon_filename FROM types WHERE type_id = ?"
@@ -271,14 +274,11 @@ class FittingEditorViewModel: ObservableObject {
         isNewFitting = false
         isLocalFitting = false // 临时装配，不是真正的本地配置文件
 
-        // 获取已保存的技能设置
-        let characterSkills = FittingEditorViewModel.getSkillsFromPreferences()
-
         // 转换为模拟输入
         let simInput = FitConvert.localFittingToSimulationInput(
             localFitting: temporaryFitting,
             databaseManager: databaseManager,
-            characterSkills: characterSkills
+            characterSkills: resolvedSkills
         )
 
         // 验证配置中的装备是否都可以安装
@@ -301,12 +301,15 @@ class FittingEditorViewModel: ObservableObject {
 
         Logger.info("创建临时装配视图模型，计算初始属性")
         calculateAttributes()
+        syncSelectedCharacterIdFromPreferencesIfNeeded()
     }
 
     /// 初始化方法（加载在线配置）
-    init(onlineFitting: CharacterFitting, databaseManager: DatabaseManager) {
+    init(onlineFitting: CharacterFitting, databaseManager: DatabaseManager, characterSkills: [Int: Int]? = nil) {
         self.databaseManager = databaseManager
         attributeCalculator = AttributeCalculator(databaseManager: databaseManager)
+
+        let resolvedSkills = characterSkills ?? FittingCharacterSkillsLoader.skillsFromUserPreferences()
 
         // 查询飞船信息
         let shipQuery = "SELECT name, icon_filename FROM types WHERE type_id = ?"
@@ -351,14 +354,12 @@ class FittingEditorViewModel: ObservableObject {
                let localFitting = localFittings.first
             {
                 Logger.success("成功转换为本地配置: 舰载机数量=\(localFitting.fighters?.count ?? 0)")
-                // 获取已保存的技能设置
-                let characterSkills = FittingEditorViewModel.getSkillsFromPreferences()
 
                 // 转换为模拟输入
                 let simInput = FitConvert.localFittingToSimulationInput(
                     localFitting: localFitting,
                     databaseManager: databaseManager,
-                    characterSkills: characterSkills
+                    characterSkills: resolvedSkills
                 )
                 Logger.info("转换为模拟输入: 舰载机数量=\(simInput.fighters?.count ?? 0)")
 
@@ -479,12 +480,21 @@ class FittingEditorViewModel: ObservableObject {
             )
         }
 
-        // 计算初始属性
-        Logger.info("在线配置转换失败，使用默认数值计算初始属性")
+        Logger.info("在线配置转换结束，计算初始属性")
         calculateAttributes()
+        if simulationInput.ship.typeId != 0 {
+            syncSelectedCharacterIdFromPreferencesIfNeeded()
+        }
     }
 
     // MARK: - 公共方法
+
+    /// 技能模式为「指定人物」时，与设置中的选中 ID 对齐（供设置页展示）
+    private func syncSelectedCharacterIdFromPreferencesIfNeeded() {
+        guard UserDefaults.standard.string(forKey: "skillsModePreference") == "character" else { return }
+        let id = UserDefaults.standard.integer(forKey: "selectedSkillCharacterId")
+        if id != 0 { currentSelectedCharacterId = id }
+    }
 
     /// 保存当前配置
     func saveConfiguration() {
@@ -643,9 +653,10 @@ class FittingEditorViewModel: ObservableObject {
 
     /// 获取装配所需的全部技能（含飞船、装备、弹药、无人机、货舱、舰载机、植入体）
     /// 包含已满足和未满足的技能，用于生成完整技能队列
+    /// 当前等级取自 `simulationInput.characterSkills`，与装配模拟使用的技能来源一致（含「当前角色」「指定角色」等模式）。
     /// - Returns: [(skillID, requiredLevel, currentLevel, skillName)] 按 skillID 升序
     func getAllRequiredSkillsForFitting() -> [(skillID: Int, requiredLevel: Int, currentLevel: Int, skillName: String)] {
-        let characterSkills = CharacterSkillsUtils.getCharacterSkills(type: .current_char)
+        let characterSkills = simulationInput.characterSkills
         let typeIDs = collectFittingTypeIDs()
 
         var requiredLevels: [Int: Int] = [:]
@@ -666,8 +677,8 @@ class FittingEditorViewModel: ObservableObject {
         return result.sorted { $0.skillID < $1.skillID }
     }
 
-    /// 获取配置所需但当前角色缺失的技能（仅计算上船和使用装备所需的最低技能）
-    /// 注意：始终使用当前角色的实际技能计算，忽略技能模式设置（all0-all5 等）
+    /// 获取配置所需但当前所选技能配置下缺失的技能（仅计算上船和使用装备所需的最低技能）
+    /// 与 `simulationInput.characterSkills` 一致；设置里选择「指定角色」时，按该角色技能与需求对比。
     /// - Returns: [(skillID, requiredLevel, currentLevel, skillName)] 按 skillID 升序
     func getMissingSkillsForFitting() -> [(skillID: Int, requiredLevel: Int, currentLevel: Int, skillName: String)] {
         getAllRequiredSkillsForFitting().filter { $0.currentLevel < $0.requiredLevel }
@@ -2507,66 +2518,6 @@ class FittingEditorViewModel: ObservableObject {
 
         // 同时满足组和大小匹配才能装载
         return groupMatches && sizeMatches
-    }
-
-    /// 从用户偏好设置中获取技能数据
-    static func getSkillsFromPreferences() -> [Int: Int] {
-        // 从 UserDefaults 获取当前选择的技能模式，默认使用当前角色（缓存优先，无阻塞）
-        let skillsMode = UserDefaults.standard.string(forKey: "skillsModePreference") ?? "current_char"
-
-        // 根据技能模式获取对应的技能类型
-        var skillType: CharacterSkillsType
-
-        switch skillsMode {
-        case "all5":
-            skillType = .all5
-        case "all4":
-            skillType = .all4
-        case "all3":
-            skillType = .all3
-        case "all2":
-            skillType = .all2
-        case "all1":
-            skillType = .all1
-        case "all0":
-            skillType = .all0
-        case "character":
-            // 指定角色的情况，获取保存的角色ID
-            let charId = UserDefaults.standard.integer(forKey: "selectedSkillCharacterId")
-
-            // 【修复3】检查角色是否还在已登录列表中，且 token 未过期
-            if charId != 0,
-               let characterAuth = EVELogin.shared.getCharacterByID(charId),
-               !characterAuth.character.refreshTokenExpired
-            {
-                // 角色存在且 token 有效
-                skillType = .character(charId)
-                Logger.info("【getSkillsFromPreferences】使用指定角色技能 - 角色ID: \(charId)")
-            } else {
-                // 角色不存在、已删除或 token 已过期
-                if charId != 0 {
-                    if EVELogin.shared.getCharacterByID(charId) == nil {
-                        Logger.warning("【getSkillsFromPreferences】角色不存在或已删除 (ID: \(charId))，自动切换为 all5")
-                    } else {
-                        Logger.warning("【getSkillsFromPreferences】角色 token 已过期 (ID: \(charId))，自动切换为 all5 避免阻塞主线程")
-                    }
-                }
-                // 自动修正为 all5，避免阻塞主线程等待网络请求
-                UserDefaults.standard.removeObject(forKey: "selectedSkillCharacterId")
-                UserDefaults.standard.set("all5", forKey: "skillsModePreference")
-                UserDefaults.standard.synchronize()
-                skillType = .all5
-            }
-        default:
-            // 默认为当前角色
-            skillType = .current_char
-        }
-
-        // 获取技能数据
-        let skills = CharacterSkillsUtils.getCharacterSkills(type: skillType)
-        Logger.info("从用户偏好设置加载技能数据，模式: \(skillsMode)，技能数量: \(skills.count)")
-
-        return skills
     }
 
     /// 获取无人机的分组ID

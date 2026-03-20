@@ -76,27 +76,40 @@ enum CharacterSkillsUtils {
     }
 
     /// 将技能队列合并到技能等级字典
+    ///
+    /// - **已完成**（`finish_date <= now`）：视为该 `finished_level` 已达成，可弥补 ESI `/characters/.../skills` 的延迟。
+    /// - **未完成**（等待中或正在训练）：仅对该技能在队列中的**第一条**未完成项使用 `max(0, finished_level - 1)`，
+    ///   表示「下一档要练到的等级」所隐含的至少已具备等级；**不会**对后续排队项再累加，
+    ///   避免出现「已训 1、队列排着 2/3/4」却被算成 3 级的情况。
     static func mergeCompletedQueueIntoSkills(
         baseSkills: [Int: Int],
         queue: [SkillQueueItem]
     ) -> [Int: Int] {
         var result = baseSkills
         let now = Date()
+        let sorted = queue.sorted { $0.queue_position < $1.queue_position }
+        /// 每个技能仅对第一条「未完成」队列项应用 targetLevel-1 启发式
+        var appliedFirstIncompleteHeuristic: Set<Int> = []
 
-        for item in queue.sorted(by: { $0.queue_position < $1.queue_position }) {
-            let current = result[item.skill_id] ?? 0
+        for item in sorted {
+            let skillId = item.skill_id
+            let current = result[skillId] ?? 0
             let targetLevel = item.finished_level
 
             if let finishDate = item.finish_date, finishDate <= now {
-                // 已完成
+                // 队列项已完成：目标等级已写入（可覆盖 ESI 延迟）
                 if targetLevel > current {
-                    result[item.skill_id] = targetLevel
+                    result[skillId] = targetLevel
                 }
-            } else {
-                // 进行中或等待中
+                continue
+            }
+
+            // 未完成：只处理该技能的第一条未完成项
+            if !appliedFirstIncompleteHeuristic.contains(skillId) {
+                appliedFirstIncompleteHeuristic.insert(skillId)
                 let minLevel = max(0, targetLevel - 1)
                 if minLevel > current {
-                    result[item.skill_id] = minLevel
+                    result[skillId] = minLevel
                 }
             }
         }
@@ -333,16 +346,7 @@ struct CharacterSkillsSelectorView: View {
         // 预加载技能数据
         Task {
             do {
-                let (skillsResponse, queue) = try await CharacterSkillsAPI.shared.fetchCharacterSkillsAndQueue(
-                    characterId: characterId,
-                    forceRefresh: false
-                )
-
-                let baseSkills = Dictionary(uniqueKeysWithValues: skillsResponse.skillsMap.map { ($0.key, $0.value.trained_skill_level) })
-                let skills = CharacterSkillsUtils.mergeCompletedQueueIntoSkills(
-                    baseSkills: baseSkills,
-                    queue: queue
-                )
+                let skills = try await FittingCharacterSkillsLoader.fetchMergedSkills(characterId: characterId)
 
                 // 更新UI并关闭页面
                 await MainActor.run {

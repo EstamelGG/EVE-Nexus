@@ -737,6 +737,8 @@ struct AccountsView: View {
                             character.factionId = publicInfo.faction_id
                         }
                     }
+
+                    await persistCharacterSnapshot(characterId: characterId)
                 }
             }
         }
@@ -778,6 +780,19 @@ struct AccountsView: View {
     @Sendable
     private func updateUI<T>(_ operation: @MainActor () -> T) async -> T {
         await MainActor.run { operation() }
+    }
+
+    /// 将 ViewModel 中的角色信息写回 UserDefaults，使下次进入账号页时技能进度等与上次展示一致
+    private func persistCharacterSnapshot(characterId: Int) async {
+        let snapshot = await MainActor.run {
+            viewModel.getCharacter(by: characterId)
+        }
+        guard let snapshot else { return }
+        do {
+            try await EVELogin.shared.saveCharacterInfo(snapshot)
+        } catch {
+            Logger.debug("保存角色快照失败 \(characterId): \(error.localizedDescription)")
+        }
     }
 
     @MainActor
@@ -909,6 +924,9 @@ struct AccountsView: View {
                                     }
                                 }
                             }
+
+                            await persistCharacterSnapshot(
+                                characterId: characterAuth.character.CharacterID)
 
                         } catch {
                             if case NetworkError.refreshTokenExpired = error {
@@ -1054,6 +1072,8 @@ struct AccountsView: View {
                         }
                     }
 
+                    await persistCharacterSnapshot(characterId: character.CharacterID)
+
                     // 如果成功，跳出循环
                     break
 
@@ -1168,6 +1188,8 @@ struct AccountsView: View {
                 }
             }
 
+            await persistCharacterSnapshot(characterId: character.CharacterID)
+
             Logger.success("成功刷新角色数据 - \(character.CharacterName)")
         } catch {
             Logger.error("刷新角色数据失败 - \(character.CharacterName): \(error)")
@@ -1203,7 +1225,7 @@ struct CharacterRowView: View {
     @State private var factionInfo: (name: String, faction_id: Int, iconName: String, rank: Int?)?
 
     var body: some View {
-        HStack {
+        HStack(alignment: .top, spacing: 0) {
             CharacterAvatarWithBadges(
                 character: character,
                 portrait: portrait,
@@ -1211,7 +1233,7 @@ struct CharacterRowView: View {
                 refreshTokenhasExpired: refreshTokenhasExpired
             )
 
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 // HStack(spacing: 4) {
                 //     if let faction = factionInfo, let rank = faction.rank {
                 //         IconManager.shared.loadImage(for: "\(faction.faction_id)_\(rank)")
@@ -1225,7 +1247,9 @@ struct CharacterRowView: View {
                 // }
                 Text(character.CharacterName)
                     .font(.headline)
-                    .frame(height: 20)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.85)
+                    .fixedSize(horizontal: false, vertical: true)
                 VStack(alignment: .leading, spacing: 2) {
                     if isRefreshing {
                         // 位置信息占位
@@ -1377,7 +1401,6 @@ struct CharacterRowView: View {
                         }
                     }
                 }
-                .frame(height: 72)
             }
             .padding(.leading, 4)
 

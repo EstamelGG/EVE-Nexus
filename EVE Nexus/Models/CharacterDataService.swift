@@ -29,17 +29,13 @@ class CharacterDataService {
         )
     }
 
-    /// 获取技能信息
+    /// 获取技能信息（技能与技能队列成对加载/缓存，与 `CharacterSkillsAPI.fetchCharacterSkillsAndQueue` 一致）
     func getSkillInfo(id: Int, forceRefresh: Bool = false) async throws -> (
         skills: CharacterSkillsResponse, queue: [SkillQueueItem]
     ) {
-        async let skills = CharacterSkillsAPI.shared.fetchCharacterSkills(
+        try await CharacterSkillsAPI.shared.fetchCharacterSkillsAndQueue(
             characterId: id, forceRefresh: forceRefresh
         )
-        async let queue = CharacterSkillsAPI.shared.fetchSkillQueue(
-            characterId: id, forceRefresh: forceRefresh
-        )
-        return try await (skills, queue)
     }
 
     /// 获取位置信息

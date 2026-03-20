@@ -395,3 +395,9 @@ Fixes & Improvements:
 3. Allow exporting missing skills for the current fitting to the Skill Queue.
 4. Improved skill queue data collection to avoid missing data.
 5. Allow add items in fitting to market watch list.
+
+# v1.12.2 March 27, 2026
+
+1. Fix a bug where viewing newly added items after an SDE update would show "failed to load item" error.
+2. Correct skill queue merge logic for displayed skill levels.
+3. Fix bugs with skill loading and missing-skills display in fitting simulation.

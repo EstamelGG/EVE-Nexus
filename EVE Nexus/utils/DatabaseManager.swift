@@ -22,6 +22,8 @@ class DatabaseManager: ObservableObject {
 
         if sqliteManager.openDatabase(withName: databaseName) {
             databaseUpdated.toggle()
+            // 切换 SDE 后重建物品分类缓存
+            ItemInfoMap.initializeCache(databaseManager: self)
         }
     }
 

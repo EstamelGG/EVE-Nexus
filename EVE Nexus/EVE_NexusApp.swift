@@ -322,9 +322,7 @@ struct EVE_NexusApp: App {
                 SkillTreeManager.shared.initialize(databaseManager: databaseManager)
                 Logger.info("技能树初始化完成")
 
-                // 步骤2：初始化物品分类缓存
-                ItemInfoMap.initializeCache(databaseManager: databaseManager)
-                Logger.info("物品分类缓存初始化完成")
+                // 步骤2：物品分类缓存在 loadDatabase 中自动初始化
 
                 // 步骤3：预加载行星资源缓存
                 PIResourceCache.shared.preloadResourceInfo()

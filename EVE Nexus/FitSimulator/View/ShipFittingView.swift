@@ -27,56 +27,72 @@ enum FittingViewType: String, CaseIterable, Identifiable {
 }
 
 struct ShipFittingView: View {
-    @StateObject var viewModel: FittingEditorViewModel
+    private enum Entry {
+        case new(shipTypeId: Int, shipInfo: (name: String, iconFileName: String))
+        case local(fittingId: Int)
+        case online(CharacterFitting)
+        case temporary(LocalFitting)
+    }
+
+    @State private var viewModel: FittingEditorViewModel?
     @State private var showingSettings = false
     @State private var selectedViewType: FittingViewType = .modules
     @Environment(\.dismiss) private var dismiss
 
-    // 构造函数1：新建配置
+    private let entry: Entry
+    private let databaseManager: DatabaseManager
+
     init(
         shipTypeId: Int, shipInfo: (name: String, iconFileName: String),
         databaseManager: DatabaseManager
     ) {
-        _viewModel = StateObject(
-            wrappedValue: FittingEditorViewModel(
-                shipTypeId: shipTypeId,
-                shipInfo: shipInfo,
-                databaseManager: databaseManager
-            ))
+        entry = .new(shipTypeId: shipTypeId, shipInfo: shipInfo)
+        self.databaseManager = databaseManager
     }
 
-    // 构造函数2：打开本地配置
     init(fittingId: Int, databaseManager: DatabaseManager) {
-        _viewModel = StateObject(
-            wrappedValue: FittingEditorViewModel(
-                fittingId: fittingId,
-                databaseManager: databaseManager
-            ))
+        entry = .local(fittingId: fittingId)
+        self.databaseManager = databaseManager
     }
 
-    // 构造函数3：打开在线配置
     init(onlineFitting: CharacterFitting, databaseManager: DatabaseManager) {
-        _viewModel = StateObject(
-            wrappedValue: FittingEditorViewModel(
-                onlineFitting: onlineFitting,
-                databaseManager: databaseManager
-            ))
+        entry = .online(onlineFitting)
+        self.databaseManager = databaseManager
     }
 
-    // 构造函数4：临时装配（如DNA导入，不保存文件）
     init(temporaryFitting: LocalFitting, databaseManager: DatabaseManager) {
-        _viewModel = StateObject(
-            wrappedValue: FittingEditorViewModel(
-                temporaryFitting: temporaryFitting,
-                databaseManager: databaseManager
-            ))
+        entry = .temporary(temporaryFitting)
+        self.databaseManager = databaseManager
     }
 
     var body: some View {
+        ZStack {
+            if let viewModel {
+                fittingBody(viewModel: viewModel)
+                    .transition(Self.detailContentTransition)
+            } else {
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .transition(Self.loadingTransition)
+            }
+        }
+        .navigationTitle(viewModel?.shipInfo.name ?? "")
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await loadViewModel()
+        }
+        .onDisappear {
+            if let viewModel {
+                clearSelectorPreferences(viewModel: viewModel)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func fittingBody(viewModel: FittingEditorViewModel) -> some View {
         VStack(spacing: 0) {
-            // 视图类型选择器
             Picker("ViewType", selection: $selectedViewType) {
-                ForEach(getFittingViewTypes()) { viewType in
+                ForEach(getFittingViewTypes(viewModel: viewModel)) { viewType in
                     Text(viewType.localizedName).tag(viewType)
                 }
             }
@@ -84,7 +100,6 @@ struct ShipFittingView: View {
             .padding(.horizontal)
             .padding(.vertical, 8)
 
-            // 根据选择的视图类型显示不同内容
             switch selectedViewType {
             case .modules:
                 ShipFittingModulesView(viewModel: viewModel)
@@ -98,8 +113,6 @@ struct ShipFittingView: View {
                 ShipFittingStatsView(viewModel: viewModel)
             }
         }
-        .navigationTitle(viewModel.shipInfo.name)
-        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
@@ -125,13 +138,8 @@ struct ShipFittingView: View {
                     ],
                     onNameChanged: { updatedData in
                         if let name = updatedData["name"] as? String {
-                            // 更新名称
                             viewModel.updateName(name)
-
-                            // 立即保存配置到磁盘
                             viewModel.saveConfiguration()
-
-                            // 记录日志
                             Logger.info("配置名称更新并保存: \(name)")
                         }
                     },
@@ -140,62 +148,87 @@ struct ShipFittingView: View {
                     },
                     viewModel: viewModel,
                     onDelete: {
-                        // 本地配置和在线配置都可以删除
-                        deleteFitting()
+                        deleteFitting(viewModel: viewModel)
                     }
                 )
             }
         }
-        .onAppear {
-            // 计算初始属性
-            // viewModel.calculateAttributes()
-        }
-        .onDisappear {
-            // 在离开页面时清除装备选择器的缓存状态
-            clearSelectorPreferences()
+    }
+
+    /// 仅用于「加载中 → 配置详情」切换，不影响导航栈其它动画。
+    private static let switchAnimation: Animation = .easeInOut(duration: 0.38)
+
+    private static let loadingTransition: AnyTransition = .opacity
+
+    private static let detailContentTransition: AnyTransition = .opacity
+
+    private func loadViewModel() async {
+        let skills = await FittingCharacterSkillsLoader.loadSkillsBeforeFittingCalculation()
+        await MainActor.run {
+            let vm: FittingEditorViewModel
+            switch entry {
+            case let .new(shipTypeId, shipInfo):
+                vm = FittingEditorViewModel(
+                    shipTypeId: shipTypeId,
+                    shipInfo: shipInfo,
+                    databaseManager: databaseManager,
+                    characterSkills: skills
+                )
+            case let .local(fittingId):
+                vm = FittingEditorViewModel(
+                    fittingId: fittingId,
+                    databaseManager: databaseManager,
+                    characterSkills: skills
+                )
+            case let .online(onlineFitting):
+                vm = FittingEditorViewModel(
+                    onlineFitting: onlineFitting,
+                    databaseManager: databaseManager,
+                    characterSkills: skills
+                )
+            case let .temporary(localFitting):
+                vm = FittingEditorViewModel(
+                    temporaryFitting: localFitting,
+                    databaseManager: databaseManager,
+                    characterSkills: skills
+                )
+            }
+            withAnimation(Self.switchAnimation) {
+                viewModel = vm
+            }
         }
     }
 
-    /// 根据飞船属性获取应该显示的视图类型
-    private func getFittingViewTypes() -> [FittingViewType] {
+    private func getFittingViewTypes(viewModel: FittingEditorViewModel) -> [FittingViewType] {
         var viewTypes = [FittingViewType]()
-
-        // 始终添加的视图类型
         viewTypes.append(.modules)
         viewTypes.append(.drones)
 
-        // 仅当飞船有战斗机舱时添加fighters选项
         if let fighterTubes = viewModel.simulationInput.ship.baseAttributesByName["fighterTubes"],
            fighterTubes > 0
         {
             viewTypes.append(.fighters)
         }
 
-        // 其他始终添加的视图类型
         viewTypes.append(.cargo)
         viewTypes.append(.stats)
 
         return viewTypes
     }
 
-    /// 删除配置
-    private func deleteFitting() {
+    private func deleteFitting(viewModel: FittingEditorViewModel) {
         Logger.info(
             "开始删除配置: \(viewModel.simulationInput.name) (ID: \(viewModel.simulationInput.fittingId))"
         )
 
         if viewModel.isLocalFitting {
-            // 删除本地配置
-            deleteLocalFitting()
+            deleteLocalFitting(viewModel: viewModel)
         } else {
-            // 删除在线配置
-            deleteOnlineFitting()
+            deleteOnlineFitting(viewModel: viewModel)
         }
     }
 
-    /// 删除本地配置
-    private func deleteLocalFitting() {
-        // 获取文件路径
+    private func deleteLocalFitting(viewModel: FittingEditorViewModel) {
         guard
             let documentsDirectory = FileManager.default.urls(
                 for: .documentDirectory, in: .userDomainMask
@@ -209,29 +242,22 @@ struct ShipFittingView: View {
         let filePath = fittingsDirectory.appendingPathComponent(
             "local_fitting_\(viewModel.simulationInput.fittingId).json")
 
-        // 删除文件
         do {
             try FileManager.default.removeItem(at: filePath)
             Logger.info("本地配置文件删除成功: \(filePath.path)")
-
-            // 关闭当前页面
             dismiss()
-
         } catch {
             Logger.error("删除本地配置文件失败: \(error.localizedDescription)")
         }
     }
 
-    /// 删除在线配置
-    private func deleteOnlineFitting() {
-        // 获取当前角色ID
+    private func deleteOnlineFitting(viewModel: FittingEditorViewModel) {
         let currentCharacterId = UserDefaults.standard.integer(forKey: "currentCharacterId")
         guard currentCharacterId != 0 else {
             Logger.error("删除在线配置失败: 没有当前角色")
             return
         }
 
-        // 立即添加到删除标记容器中（利用删除缓存机制）
         FittingDeletionCacheManager.shared.addDeletedFitting(
             fittingId: viewModel.simulationInput.fittingId,
             characterId: currentCharacterId
@@ -239,71 +265,54 @@ struct ShipFittingView: View {
 
         Logger.info("在线装配配置已标记为删除 - ID: \(viewModel.simulationInput.fittingId)，已添加到5分钟删除缓存")
 
-        // 发送通知以立即刷新配置列表页面
         NotificationCenter.default.post(
             name: NSNotification.Name("RefreshOnlineFittings"),
             object: nil,
             userInfo: ["characterId": currentCharacterId]
         )
 
-        // 立即关闭当前页面
         dismiss()
 
-        // 在后台异步执行API删除操作
         Task {
             do {
                 try await CharacterFittingAPI.deleteCharacterFitting(
                     characterID: currentCharacterId,
                     fittingID: viewModel.simulationInput.fittingId
                 )
-
                 Logger.info("后台API删除成功 - ID: \(viewModel.simulationInput.fittingId)")
-
             } catch {
                 Logger.error("后台API删除失败: \(error)")
-                // 不做任何处理，让删除缓存自然过期（5分钟后重新显示）
             }
         }
     }
 
-    /// 清除所有装备选择器的缓存状态
-    private func clearSelectorPreferences() {
-        // 清理高槽装备选择器状态
+    private func clearSelectorPreferences(viewModel: FittingEditorViewModel) {
         UserDefaults.standard.removeObject(forKey: "LastVisitedHighSlotGroupID")
         UserDefaults.standard.removeObject(forKey: "LastHighSlotSearchKeyword")
 
-        // 清理中槽装备选择器状态
         UserDefaults.standard.removeObject(forKey: "LastVisitedMidSlotGroupID")
         UserDefaults.standard.removeObject(forKey: "LastMidSlotSearchKeyword")
 
-        // 清理低槽装备选择器状态
         UserDefaults.standard.removeObject(forKey: "LastVisitedLowSlotGroupID")
         UserDefaults.standard.removeObject(forKey: "LastLowSlotSearchKeyword")
 
-        // 清理所有包含飞船ID的选择器缓存
         let shipTypeId = viewModel.simulationInput.ship.typeId
 
-        // 清理特定飞船的高槽缓存
         UserDefaults.standard.removeObject(forKey: "LastVisitedHighSlotGroupID_\(shipTypeId)")
         UserDefaults.standard.removeObject(forKey: "LastHighSlotSearchKeyword_\(shipTypeId)")
 
-        // 清理特定飞船的中槽缓存
         UserDefaults.standard.removeObject(forKey: "LastVisitedMidSlotGroupID_\(shipTypeId)")
         UserDefaults.standard.removeObject(forKey: "LastMidSlotSearchKeyword_\(shipTypeId)")
 
-        // 清理特定飞船的低槽缓存
         UserDefaults.standard.removeObject(forKey: "LastVisitedLowSlotGroupID_\(shipTypeId)")
         UserDefaults.standard.removeObject(forKey: "LastLowSlotSearchKeyword_\(shipTypeId)")
 
-        // 清理特定飞船的改装件缓存
         UserDefaults.standard.removeObject(forKey: "LastVisitedRigSlotGroupID_\(shipTypeId)")
         UserDefaults.standard.removeObject(forKey: "LastRigSlotSearchKeyword_\(shipTypeId)")
 
-        // 清理特定飞船的子系统缓存
         UserDefaults.standard.removeObject(forKey: "LastVisitedSubSysSlotGroupID_\(shipTypeId)")
         UserDefaults.standard.removeObject(forKey: "LastSubSysSlotSearchKeyword_\(shipTypeId)")
 
-        // 确保立即写入
         UserDefaults.standard.synchronize()
         Logger.info("已清理所有装备选择器状态，飞船ID：\(shipTypeId)")
     }
