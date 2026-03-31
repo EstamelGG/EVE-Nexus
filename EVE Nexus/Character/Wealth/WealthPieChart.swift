@@ -43,6 +43,8 @@ struct WealthPieChart: View {
             return .green
         case .orders:
             return .orange
+        case .contracts:
+            return .teal
         case .wallet:
             return .purple
         }

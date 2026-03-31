@@ -401,3 +401,11 @@ Fixes & Improvements:
 1. Fix a bug where viewing newly added items after an SDE update would show "failed to load item" error.
 2. Correct skill queue merge logic for displayed skill levels.
 3. Fix bugs with skill loading and missing-skills display in fitting simulation.
+
+# v1.12.3 Apr 15, 2026
+
+1. Market watch list: clipboard import is rejected when more than 200 distinct items (type IDs) would be imported.
+2. View ship fittings in personal assets.
+3. Improved logic of Skill Plan feature .
+4. Home server status shows Tranquility MM/dd HH:mm (UTC) with online state
+5. "Wealth" function includes outstanding item-exchange contracts you issued.

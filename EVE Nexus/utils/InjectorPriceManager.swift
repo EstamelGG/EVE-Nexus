@@ -25,8 +25,7 @@ public class InjectorPriceManager {
             "开始加载注入器价格 - 大型注入器ID: \(SkillInjectorCalculator.largeInjectorTypeId), 小型注入器ID: \(SkillInjectorCalculator.smallInjectorTypeId)"
         )
 
-        // 获取大型和小型注入器的价格
-        let prices = await MarketPriceUtil.getJitaOrderPrices(typeIds: [
+        let prices = await MarketPriceUtil.getJitaOrderPricesFromESI(typeIds: [
             SkillInjectorCalculator.largeInjectorTypeId,
             SkillInjectorCalculator.smallInjectorTypeId,
         ])

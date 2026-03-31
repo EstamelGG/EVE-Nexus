@@ -7,6 +7,7 @@ enum WealthType: String, CaseIterable {
     case assets = "Assets" // 资产
     case implants = "Implants" // 植入体
     case orders = "Orders" // 市场订单
+    case contracts = "Contracts" // 物品交换合同（我发起、未决）
 
     var sortOrder: Int {
         switch self {
@@ -14,6 +15,7 @@ enum WealthType: String, CaseIterable {
         case .assets: return 1
         case .implants: return 2
         case .orders: return 3
+        case .contracts: return 4
         }
     }
 
@@ -27,6 +29,8 @@ enum WealthType: String, CaseIterable {
             return "marketdeliveries"
         case .wallet:
             return "wallet"
+        case .contracts:
+            return "contractitemexchange"
         }
     }
 }
@@ -92,6 +96,7 @@ class CharacterWealthViewModel: ObservableObject {
     @Published var valuedAssets: [ValuedItem] = []
     @Published var valuedImplants: [ValuedItem] = []
     @Published var valuedOrders: [ValuedItem] = []
+    @Published var valuedContracts: [ValuedItem] = []
     @Published var isLoadingDetails = false
 
     // 资产加载进度状态
@@ -171,6 +176,12 @@ class CharacterWealthViewModel: ObservableObject {
                 group.addTask {
                     let result = try await self.calculateOrdersValue(forceRefresh: forceRefresh)
                     return (.orders, result.value, result.count)
+                }
+
+                // 物品交换合同（我发起、未决）中 is_included 物品
+                group.addTask {
+                    let result = try await self.calculateContractsValue(forceRefresh: forceRefresh)
+                    return (.contracts, result.value, result.count)
                 }
 
                 // 处理每个完成的任务
@@ -321,6 +332,66 @@ class CharacterWealthViewModel: ObservableObject {
         return (totalValue, orderCount)
     }
 
+    /// 我发起的、未决的物品交换合同
+    private func relevantOutstandingItemExchangeContracts(_ contracts: [ContractInfo]) -> [ContractInfo] {
+        contracts.filter { c in
+            c.issuer_id == characterId
+                && c.type.caseInsensitiveCompare("item_exchange") == .orderedSame
+                && c.status.caseInsensitiveCompare("outstanding") == .orderedSame
+        }
+    }
+
+    private func mergeIncludedContractItems(
+        contracts: [ContractInfo], forceRefresh: Bool
+    ) async throws -> [Int: Int] {
+        guard !contracts.isEmpty else { return [:] }
+        let charId = characterId
+        let refresh = forceRefresh
+        return try await withThrowingTaskGroup(of: [Int: Int].self) { group in
+            for contract in contracts {
+                let cid = contract.contract_id
+                group.addTask {
+                    let items = try await CharacterContractsAPI.shared.fetchContractItems(
+                        characterId: charId, contractId: cid, forceRefresh: refresh
+                    )
+                    var map: [Int: Int] = [:]
+                    for item in items where item.is_included {
+                        map[item.type_id, default: 0] += item.quantity
+                    }
+                    return map
+                }
+            }
+            var merged: [Int: Int] = [:]
+            for try await map in group {
+                for (k, v) in map {
+                    merged[k, default: 0] += v
+                }
+            }
+            return merged
+        }
+    }
+
+    private func calculateContractsValue(forceRefresh: Bool) async throws -> (
+        value: Double, count: Int
+    ) {
+        let contracts = try await CharacterContractsAPI.shared.fetchContracts(
+            characterId: characterId, forceRefresh: forceRefresh
+        )
+        let relevant = relevantOutstandingItemExchangeContracts(contracts)
+        guard !relevant.isEmpty else { return (0, 0) }
+
+        let merged = try await mergeIncludedContractItems(
+            contracts: relevant, forceRefresh: forceRefresh
+        )
+        var totalValue = 0.0
+        for (typeId, qty) in merged {
+            if let price = marketPrices[typeId] {
+                totalValue += price * Double(qty)
+            }
+        }
+        return (totalValue, relevant.count)
+    }
+
     // 加载资产详情
     func loadAssetDetails() async {
         isLoadingDetails = true
@@ -445,6 +516,35 @@ class CharacterWealthViewModel: ObservableObject {
             }
         } catch {
             Logger.error("加载订单详情失败: \(error)")
+            self.error = error
+        }
+    }
+
+    func loadContractDetails() async {
+        isLoadingDetails = true
+        defer { isLoadingDetails = false }
+
+        do {
+            let contracts = try await CharacterContractsAPI.shared.fetchContracts(
+                characterId: characterId, forceRefresh: false
+            )
+            let relevant = relevantOutstandingItemExchangeContracts(contracts)
+            guard !relevant.isEmpty else {
+                valuedContracts = []
+                return
+            }
+            let merged = try await mergeIncludedContractItems(
+                contracts: relevant, forceRefresh: false
+            )
+            valuedContracts = merged.compactMap { typeId, qty in
+                guard let price = marketPrices[typeId] else { return nil }
+                return ValuedItem(typeId: typeId, quantity: qty, value: price, orderId: 0)
+            }
+            .sorted { $0.totalValue > $1.totalValue }
+            .prefix(20)
+            .map { $0 }
+        } catch {
+            Logger.error("加载合同物品详情失败: \(error)")
             self.error = error
         }
     }

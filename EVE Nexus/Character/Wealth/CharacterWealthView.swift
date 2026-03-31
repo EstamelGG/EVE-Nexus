@@ -158,7 +158,8 @@ struct CharacterWealthView: View {
             async let assets: () = viewModel.loadAssetDetails()
             async let implants: () = viewModel.loadImplantDetails()
             async let orders: () = viewModel.loadOrderDetails()
-            _ = await [assets, implants, orders]
+            async let contracts: () = viewModel.loadContractDetails()
+            _ = await [assets, implants, orders, contracts]
         }
 
         hasLoadedInitialData = true
@@ -172,6 +173,8 @@ struct CharacterWealthView: View {
             return viewModel.valuedImplants
         case .orders:
             return viewModel.valuedOrders
+        case .contracts:
+            return viewModel.valuedContracts
         case .wallet:
             return []
         }

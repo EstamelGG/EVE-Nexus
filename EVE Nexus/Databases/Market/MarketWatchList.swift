@@ -1997,6 +1997,21 @@ extension MarketQuickbarDetailView {
             )
             isShowingClipboardAlert = true
         } else if importResult.successCount > 0 {
+            // 去重后的 type_id 个数超过上限则拒绝创建
+            let distinctTypeCount = Set(importResult.updatedItems.map(\.typeID)).count
+            if distinctTypeCount > MarketClipboardParser.maxImportDistinctTypeCount {
+                clipboardResult = String(
+                    format: NSLocalizedString(
+                        "Main_Market_Clipboard_Distinct_Type_Limit", comment: ""
+                    ),
+                    distinctTypeCount,
+                    MarketClipboardParser.maxImportDistinctTypeCount
+                )
+                isShowingClipboardAlert = true
+                clipboardContentToImport = ""
+                return
+            }
+
             // 情况3和4: 有成功的解析结果，更新列表
             quickbar.items = importResult.updatedItems
 
@@ -2087,6 +2102,9 @@ extension MarketQuickbarDetailView {
 
 // 新增：市场剪贴板解析工具类
 class MarketClipboardParser {
+    /// 剪贴板导入时，去重后的 type_id 个数上限
+    static let maxImportDistinctTypeCount = 200
+
     // 剪贴板解析结果
     struct ParseResult {
         let successCount: Int

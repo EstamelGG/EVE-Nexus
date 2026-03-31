@@ -34,6 +34,8 @@ struct WealthDetailView: View {
             return viewModel.valuedImplants
         case .orders:
             return viewModel.valuedOrders
+        case .contracts:
+            return viewModel.valuedContracts
         case .wallet:
             return []
         }
@@ -71,6 +73,8 @@ struct WealthDetailView: View {
             await viewModel.loadImplantDetails()
         case .orders:
             await viewModel.loadOrderDetails()
+        case .contracts:
+            await viewModel.loadContractDetails()
         case .wallet:
             break
         }

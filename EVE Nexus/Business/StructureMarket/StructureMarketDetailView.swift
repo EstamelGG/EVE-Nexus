@@ -227,18 +227,21 @@ struct StructureMarketDetailView: View {
     // GitHub API 不可用视图
     @ViewBuilder
     private var premiumAPIUnavailableView: some View {
-        HStack {
+        HStack(alignment: .center, spacing: 10) {
             Image(systemName: "exclamationmark.triangle")
                 .foregroundColor(.orange)
-            Text(NSLocalizedString("Structure_Market_GitHub_API_Unavailable", comment: "GitHub API不可达，请重试"))
+            Text(GitHubMarketPriceAPI.localizedPriceListUnavailableMessage())
+                .font(.caption)
                 .foregroundColor(.secondary)
-            Spacer()
-            Button(NSLocalizedString("Main_Setting_Reset", comment: "重试")) {
-                Task {
-                    await loadPremiumItems()
-                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+            Button {
+                Task { await loadPremiumItems(forceRefreshGitHub: true) }
+            } label: {
+                Image(systemName: "arrow.clockwise")
             }
             .buttonStyle(.bordered)
+            .accessibilityLabel(NSLocalizedString("Fitting_Refresh", comment: ""))
         }
         .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
     }
@@ -685,8 +688,8 @@ struct StructureMarketDetailView: View {
         return (topSellItems, topBuyItems)
     }
 
-    // 加载最高溢价的物品
-    private func loadPremiumItems() async {
+    // 加载最高溢价的物品（`forceRefreshGitHub`：用户点刷新时跳过本地 JSON 缓存重新下载）
+    private func loadPremiumItems(forceRefreshGitHub: Bool = false) async {
         await MainActor.run {
             isLoadingPremium = true
             isGitHubAPIUnavailable = false
@@ -706,7 +709,7 @@ struct StructureMarketDetailView: View {
                 // 预加载所有 GitHub 市场数据（不传 typeIds，会先检查缓存）
                 try await GitHubMarketPriceAPI.shared.fetchMarketPrices(
                     typeIds: nil, // 不传 typeIds，获取所有数据（或从缓存加载）
-                    forceRefresh: false
+                    forceRefresh: forceRefreshGitHub
                 )
             }
 

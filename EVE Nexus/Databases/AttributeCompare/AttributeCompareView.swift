@@ -745,7 +745,7 @@ struct AttributeCompareDetailView: View {
         Task {
             do {
                 Logger.info("开始获取市场价格，物品数量: \(typeIDs.count)")
-                let prices = await MarketPriceUtil.getJitaOrderPrices(typeIds: typeIDs)
+                let prices = await MarketPriceUtil.getJitaOrderPricesFromESI(typeIds: typeIDs)
 
                 await MainActor.run {
                     self.marketPrices = prices

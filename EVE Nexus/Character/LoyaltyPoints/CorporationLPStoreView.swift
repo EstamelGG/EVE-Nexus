@@ -14,6 +14,28 @@ struct LPStoreItemInfo {
     let categoryId: Int
 }
 
+/// Jita 清单不可用时：说明文案 + 右侧刷新重试
+private struct LPJitaPriceListErrorBanner: View {
+    let message: String
+    let onRetry: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            Text(message)
+                .font(.caption)
+                .foregroundColor(.orange)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+            Button(action: onRetry) {
+                Image(systemName: "arrow.clockwise")
+            }
+            .buttonStyle(.bordered)
+            .accessibilityLabel(NSLocalizedString("Fitting_Refresh", comment: ""))
+        }
+        .listRowInsets(EdgeInsets(top: 8, leading: 18, bottom: 4, trailing: 18))
+    }
+}
+
 struct LPStoreOfferView: View {
     let offer: LPStoreOffer
     let itemInfo: LPStoreItemInfo
@@ -184,6 +206,7 @@ struct LPStoreGroupView: View {
     @State private var marketPrices: [Int: Double] = [:]
     @State private var isLoadingPrices = false
     @State private var hasLoadedPrices = false
+    @State private var jitaPriceListErrorMessage: String?
 
     private var filteredOffers: [LPStoreOffer] {
         if searchText.isEmpty {
@@ -203,6 +226,11 @@ struct LPStoreGroupView: View {
     var body: some View {
         List {
             Section(NSLocalizedString("Main_LP_Store_section", comment: "")) {
+                if let jitaPriceListErrorMessage {
+                    LPJitaPriceListErrorBanner(message: jitaPriceListErrorMessage) {
+                        Task { await retryLoadJitaPriceList() }
+                    }
+                }
                 if !searchText.isEmpty && filteredOffers.isEmpty {
                     HStack {
                         Spacer()
@@ -235,12 +263,17 @@ struct LPStoreGroupView: View {
         .task {
             // 只在首次加载时获取价格，从子页面返回时不会重新加载
             guard !hasLoadedPrices else { return }
-            await loadMarketPrices()
+            await loadMarketPrices(forceRefresh: false)
         }
     }
 
+    private func retryLoadJitaPriceList() async {
+        await MainActor.run { hasLoadedPrices = false }
+        await loadMarketPrices(forceRefresh: true)
+    }
+
     // 收集所有所需物品并一次性获取价格
-    private func loadMarketPrices() async {
+    private func loadMarketPrices(forceRefresh: Bool) async {
         // 如果已经加载过，直接返回
         if hasLoadedPrices {
             return
@@ -264,15 +297,27 @@ struct LPStoreGroupView: View {
 
         await MainActor.run {
             isLoadingPrices = true
+            jitaPriceListErrorMessage = nil
         }
 
-        // 一次性获取所有价格
-        let prices = await MarketPriceUtil.getJitaOrderPrices(typeIds: Array(typeIds))
-
-        await MainActor.run {
-            self.marketPrices = prices
-            self.isLoadingPrices = false
-            self.hasLoadedPrices = true
+        do {
+            let prices = try await MarketPriceUtil.getJitaOrderPricesFromGitHubList(
+                typeIds: Array(typeIds),
+                forceRefresh: forceRefresh
+            )
+            await MainActor.run {
+                self.marketPrices = prices
+                self.isLoadingPrices = false
+                self.hasLoadedPrices = true
+                self.jitaPriceListErrorMessage = nil
+            }
+        } catch {
+            await MainActor.run {
+                self.marketPrices = [:]
+                self.isLoadingPrices = false
+                self.hasLoadedPrices = true
+                self.jitaPriceListErrorMessage = error.localizedDescription
+            }
         }
     }
 }
@@ -297,6 +342,7 @@ struct CorporationLPStoreView: View {
     @State private var searchText = ""
     @State private var marketPrices: [Int: Double] = [:]
     @State private var isLoadingPrices = false
+    @State private var jitaPriceListErrorMessage: String?
 
     private var filteredOffers: [LPStoreOffer] {
         if searchText.isEmpty {
@@ -367,6 +413,11 @@ struct CorporationLPStoreView: View {
                         }
                     } else {
                         Section(NSLocalizedString("Main_Search_Results", comment: "")) {
+                            if let jitaPriceListErrorMessage {
+                                LPJitaPriceListErrorBanner(message: jitaPriceListErrorMessage) {
+                                    Task { await retryLoadCorporationJitaPriceList() }
+                                }
+                            }
                             ForEach(filteredOffers, id: \.offerId) { offer in
                                 if let itemInfo = itemInfos[offer.typeId] {
                                     LPStoreOfferView(
@@ -383,6 +434,11 @@ struct CorporationLPStoreView: View {
                     }
                 } else {
                     Section(NSLocalizedString("Main_LP_Store_category", comment: "")) {
+                        if let jitaPriceListErrorMessage {
+                            LPJitaPriceListErrorBanner(message: jitaPriceListErrorMessage) {
+                                Task { await retryLoadCorporationJitaPriceList() }
+                            }
+                        }
                         ForEach(categoryOffers, id: \.category.name) { category in
                             NavigationLink(
                                 destination: LPStoreGroupView(
@@ -429,11 +485,16 @@ struct CorporationLPStoreView: View {
                 await loadOffers()
             }
             if !hasLoadedPrices {
-                await loadMarketPrices()
+                await loadMarketPrices(forceRefresh: false)
             }
 
             hasInitialized = true
         }
+    }
+
+    private func retryLoadCorporationJitaPriceList() async {
+        await MainActor.run { hasLoadedPrices = false }
+        await loadMarketPrices(forceRefresh: true)
     }
 
     private func loadOffers() async {
@@ -563,7 +624,7 @@ struct CorporationLPStoreView: View {
     }
 
     // 收集所有所需物品并一次性获取价格
-    private func loadMarketPrices() async {
+    private func loadMarketPrices(forceRefresh: Bool) async {
         // 如果已经加载过，直接返回
         if hasLoadedPrices {
             return
@@ -587,15 +648,27 @@ struct CorporationLPStoreView: View {
 
         await MainActor.run {
             isLoadingPrices = true
+            jitaPriceListErrorMessage = nil
         }
 
-        // 一次性获取所有价格
-        let prices = await MarketPriceUtil.getJitaOrderPrices(typeIds: Array(typeIds))
-
-        await MainActor.run {
-            self.marketPrices = prices
-            self.isLoadingPrices = false
-            self.hasLoadedPrices = true
+        do {
+            let prices = try await MarketPriceUtil.getJitaOrderPricesFromGitHubList(
+                typeIds: Array(typeIds),
+                forceRefresh: forceRefresh
+            )
+            await MainActor.run {
+                self.marketPrices = prices
+                self.isLoadingPrices = false
+                self.hasLoadedPrices = true
+                self.jitaPriceListErrorMessage = nil
+            }
+        } catch {
+            await MainActor.run {
+                self.marketPrices = [:]
+                self.isLoadingPrices = false
+                self.hasLoadedPrices = true
+                self.jitaPriceListErrorMessage = error.localizedDescription
+            }
         }
     }
 }

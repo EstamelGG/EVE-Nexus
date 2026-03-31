@@ -190,7 +190,7 @@ struct ServerStatusView: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Text(formattedUTCTime)
+            Text(formattedUTCDateTime)
                 .font(.monospacedDigit(.caption)())
             Text("-")
                 .font(.caption)
@@ -204,11 +204,12 @@ struct ServerStatusView: View {
         }
     }
 
-    private var formattedUTCTime: String {
+    /// Tranquility 日期与时间同列，UTC，MM/dd HH:mm
+    private var formattedUTCDateTime: String {
         let formatter = DateFormatter()
         formatter.timeZone = TimeZone(identifier: "UTC")
-        formatter.dateStyle = .none
-        formatter.timeStyle = .medium
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "MM/dd HH:mm"
         return formatter.string(from: viewModel.currentTime)
     }
 

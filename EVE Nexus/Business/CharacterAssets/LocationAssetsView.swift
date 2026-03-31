@@ -38,6 +38,103 @@ private func formatLocationFlag(_ flag: String) -> String {
     return NSLocalizedString(key, comment: "")
 }
 
+/// 与 `LocationAssetsViewModel.processFlag` 一致：将 ESI 的逐槽位 flag 归并为分组名
+private func normalizedAssetLocationFlag(_ flag: String) -> String {
+    switch flag {
+    case let f where f.hasPrefix("HiSlot"): return "HiSlots"
+    case let f where f.hasPrefix("MedSlot"): return "MedSlots"
+    case let f where f.hasPrefix("LoSlot"): return "LoSlots"
+    case let f where f.hasPrefix("RigSlot"): return "RigSlots"
+    case let f where f.hasPrefix("SubSystemSlot"): return "SubSystemSlots"
+    case let f where f.hasPrefix("FighterTube"): return "FighterTubes"
+    default: return flag
+    }
+}
+
+// MARK: - 从资产导出装配（DNA → 本地装配）
+
+private enum AssetShipFittingExport {
+    static let slotFlags: Set<String> = ["HiSlots", "MedSlots", "LoSlots", "RigSlots"]
+
+    /// category=6 且 marketGroupID 非空，视为可上架装配的飞船
+    static func isMarketShip(typeId: Int, databaseManager: DatabaseManager) -> Bool {
+        let query = """
+            SELECT 1 FROM types
+            WHERE type_id = ? AND categoryID = 6 AND marketGroupID IS NOT NULL
+        """
+        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]) {
+            return rows.first != nil
+        }
+        return false
+    }
+
+    static func hasAnySlotFitting(in items: [AssetTreeNode]) -> Bool {
+        items.contains { slotFlags.contains(normalizedAssetLocationFlag($0.location_flag)) }
+    }
+
+    /// 子位置视图：可显示「导出装配」的条件
+    static func isExportableFittedShip(parentNode: AssetTreeNode, databaseManager: DatabaseManager) -> Bool {
+        guard let items = parentNode.items, !items.isEmpty else { return false }
+        guard isMarketShip(typeId: parentNode.type_id, databaseManager: databaseManager) else { return false }
+        return hasAnySlotFitting(in: items)
+    }
+
+    /// 仅统计高/中/低/改装件槽内物品，按 type_id 合并数量后生成 DNA
+    static func buildDNAString(shipTypeId: Int, items: [AssetTreeNode]) -> String {
+        var sums: [Int: Int] = [:]
+        for item in items {
+            let g = normalizedAssetLocationFlag(item.location_flag)
+            guard slotFlags.contains(g) else { continue }
+            sums[item.type_id, default: 0] += item.quantity
+        }
+        let pairs = sums.keys.sorted().map { (typeId: $0, quantity: sums[$0]!) }
+        return DNAParser.encodeFittingDNA(shipTypeId: shipTypeId, modules: pairs)
+    }
+
+    /// - Returns: 保存后的本地装配 `fitting_id`
+    @discardableResult
+    static func exportToLocalFitting(
+        parentNode: AssetTreeNode,
+        databaseManager: DatabaseManager,
+        displayName: String
+    ) throws -> Int {
+        let dna = buildDNAString(shipTypeId: parentNode.type_id, items: parentNode.items ?? [])
+        guard let dnaResult = DNAParser.parseDNA(dna, displayName: displayName) else {
+            throw NSError(
+                domain: "AssetShipFittingExport", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "DNA parse failed"]
+            )
+        }
+        guard let base = DNAParser.dnaResultToLocalFitting(dnaResult, databaseManager: databaseManager) else {
+            throw NSError(
+                domain: "AssetShipFittingExport", code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "DNA to LocalFitting failed"]
+            )
+        }
+        let uniqueId = Int(Int64(Date().timeIntervalSince1970 * 1000) * 1000 + Int64.random(in: 0 ... 999))
+        let toSave = LocalFitting(
+            description: base.description,
+            fitting_id: uniqueId,
+            items: base.items,
+            name: base.name,
+            ship_type_id: base.ship_type_id,
+            drones: base.drones,
+            fighters: base.fighters,
+            cargo: base.cargo,
+            implants: base.implants,
+            environment_type_id: base.environment_type_id
+        )
+        try FitConvert.saveLocalFitting(toSave)
+        return uniqueId
+    }
+}
+
+/// 用于 `.sheet(item:)` 打开已保存的本地装配
+private struct SavedFittingSheetItem: Identifiable {
+    let fittingId: Int
+    var id: Int { fittingId }
+}
+
 // 扩展，提供共用的获取位置名称方法
 extension AssetTreeNode {
     func getLocationName(
@@ -266,6 +363,13 @@ struct SubLocationAssetsView: View {
     let solarSystemNameCache: [Int: String]?
     let dynamicResultingTypeIds: Set<Int>
 
+    @State private var isExportableFittedShip = false
+    @State private var exportErrorMessage: String?
+    @State private var showExportSuccessPrompt = false
+    /// 成功保存后、在「是否查看」对话框中使用
+    @State private var exportSuccessFittingId: Int?
+    @State private var savedFittingSheetItem: SavedFittingSheetItem?
+
     init(
         parentNode: AssetTreeNode, preloadedItemInfo: [Int: ItemInfo]? = nil,
         stationNameCache: [Int64: String]? = nil, solarSystemNameCache: [Int: String]? = nil,
@@ -296,8 +400,85 @@ struct SubLocationAssetsView: View {
         }
         .listStyle(.insetGrouped)
         .navigationTitle(getLocationName())
+        .toolbar {
+            if isExportableFittedShip {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        exportFittingToSimulator()
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .accessibilityLabel(Text(NSLocalizedString("Assets_Export_Fitting", comment: "")))
+                }
+            }
+        }
+        .alert(
+            NSLocalizedString("Assets_Export_Fitting_Alert_Title", comment: ""),
+            isPresented: Binding(
+                get: { exportErrorMessage != nil },
+                set: { if !$0 { exportErrorMessage = nil } }
+            ),
+            actions: {
+                Button(NSLocalizedString("OK", comment: ""), role: .cancel) { exportErrorMessage = nil }
+            },
+            message: {
+                Text(exportErrorMessage ?? "")
+            }
+        )
+        .alert(
+            NSLocalizedString("Assets_Export_Fitting_Success_Prompt_Title", comment: ""),
+            isPresented: $showExportSuccessPrompt,
+            actions: {
+                Button(NSLocalizedString("Assets_Export_Fitting_View_Yes", comment: "")) {
+                    if let lastId = exportSuccessFittingId {
+                        savedFittingSheetItem = SavedFittingSheetItem(fittingId: lastId)
+                    }
+                    exportSuccessFittingId = nil
+                }
+                Button(
+                    NSLocalizedString("Assets_Export_Fitting_View_Later", comment: ""),
+                    role: .cancel
+                ) {
+                    exportSuccessFittingId = nil
+                }
+            },
+            message: {
+                Text(NSLocalizedString("Assets_Export_Fitting_Success_Ask_View", comment: ""))
+            }
+        )
+        .sheet(item: $savedFittingSheetItem) { item in
+            NavigationStack {
+                ShipFittingView(fittingId: item.fittingId, databaseManager: viewModel.databaseManager)
+            }
+        }
         .task {
             await viewModel.loadItemInfo()
+            isExportableFittedShip = AssetShipFittingExport.isExportableFittedShip(
+                parentNode: parentNode,
+                databaseManager: viewModel.databaseManager
+            )
+        }
+    }
+
+    private func exportFittingToSimulator() {
+        let displayName =
+            viewModel.itemInfo(for: parentNode.type_id)?.name
+                ?? HTMLUtils.decodeHTMLEntities(parentNode.name ?? "")
+        let name = displayName.isEmpty ? String(parentNode.type_id) : displayName
+        do {
+            let fittingId = try AssetShipFittingExport.exportToLocalFitting(
+                parentNode: parentNode,
+                databaseManager: viewModel.databaseManager,
+                displayName: name
+            )
+            exportSuccessFittingId = fittingId
+            showExportSuccessPrompt = true
+        } catch {
+            Logger.error("资产导出装配失败: \(error)")
+            exportErrorMessage = String(
+                format: NSLocalizedString("Assets_Export_Fitting_Error_Format", comment: ""),
+                error.localizedDescription
+            )
         }
     }
 
@@ -475,7 +656,7 @@ class LocationAssetsViewModel: ObservableObject {
 
         // 第一步：按flag分组
         for item in items {
-            let flag = processFlag(item.location_flag)
+            let flag = normalizedAssetLocationFlag(item.location_flag)
             if groups[flag] == nil {
                 groups[flag] = []
             }
@@ -587,18 +768,6 @@ class LocationAssetsViewModel: ObservableObject {
             .sorted { $0.flag < $1.flag }
 
         return result + remainingResult
-    }
-
-    private func processFlag(_ flag: String) -> String {
-        switch flag {
-        case let f where f.hasPrefix("HiSlot"): return "HiSlots"
-        case let f where f.hasPrefix("MedSlot"): return "MedSlots"
-        case let f where f.hasPrefix("LoSlot"): return "LoSlots"
-        case let f where f.hasPrefix("RigSlot"): return "RigSlots"
-        case let f where f.hasPrefix("SubSystemSlot"): return "SubSystemSlots"
-        case let f where f.hasPrefix("FighterTube"): return "FighterTubes"
-        default: return flag
-        }
     }
 
     private let flagOrder = [

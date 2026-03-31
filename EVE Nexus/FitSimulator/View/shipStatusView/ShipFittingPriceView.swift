@@ -309,8 +309,10 @@ struct ShipFittingPriceView: View {
         print("价格计算: 总共收集了 \(allTypeIds.count) 个不同的物品类型ID")
 
         // 获取价格数据
-        let prices = await MarketPriceUtil.getJitaOrderPrices(
-            typeIds: Array(allTypeIds), forceRefresh: forceRefresh
+        let prices = await MarketPriceUtil.getJitaOrderPricesFromESI(
+            typeIds: Array(allTypeIds),
+            orderType: .sell,
+            forceRefresh: forceRefresh
         )
         print("价格计算: 获取到 \(prices.count) 个物品的价格数据")
 

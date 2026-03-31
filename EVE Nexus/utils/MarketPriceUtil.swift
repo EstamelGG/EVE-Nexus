@@ -14,7 +14,7 @@ struct MarketPriceData {
 ///
 /// 价格数据来源：
 /// - EIV价格：来自 https://esi.evetech.net/markets/prices/（CCP官方统计数据）
-/// - 市场订单价格：来自 GitHub Releases 或 ESI 市场订单数据
+/// - Jita 订单价：`getJitaOrderPricesFromGitHubList` 仅使用 GitHub Release 清单；`getJitaOrderPricesFromESI` 按 type 拉 Forge 订单算 Jita 4-4（装配、属性对比等）
 ///
 /// 使用场景：
 /// - 精炼税费计算：使用 adjustedPrice
@@ -87,95 +87,40 @@ enum MarketPriceUtil {
         }
     }
 
-    /// 获取多个物品的Jita市场价格（实时订单数据）- 便捷方法
+    /// 使用 GitHub Release Jita 聚合清单取价（LP 商店、建筑溢价等）。清单不可用时抛出，**不会**用 ESI 自造全表。
     ///
-    /// 优先使用 GitHub Market Price API（如果可用），否则使用 ESI 市场订单数据
+    /// - Returns: [物品ID: Jita价格]；清单中无数据的 type 不会出现在字典里
+    static func getJitaOrderPricesFromGitHubList(
+        typeIds: [Int],
+        orderType: OrderType = .sell,
+        forceRefresh: Bool = false
+    ) async throws -> [Int: Double] {
+        guard !typeIds.isEmpty else { return [:] }
+
+        let aggregates = try await GitHubMarketPriceAPI.shared.fetchMarketPrices(
+            typeIds: typeIds,
+            forceRefresh: forceRefresh
+        )
+
+        let result = aggregates.compactMapValues { (buy: Double, sell: Double) -> Double? in
+            let price = orderType == .buy ? buy : sell
+            return price > 0 ? price : nil
+        }
+
+        Logger.debug("使用 GitHub 清单获取 \(result.count)/\(typeIds.count) 个物品的\(orderType == .buy ? "买" : "卖")价")
+        return result
+    }
+
+    /// 按物品从 ESI 拉 Forge 订单，计算 Jita 4-4 价（装配价格、属性对比、技能注入器等）。**不使用** GitHub 清单。
     ///
-    /// 使用场景：
-    /// - 技能注入器价格查询：获取大型/小型注入器的Jita卖价
-    /// - 装配价格计算：计算整套装配在Jita的卖价
-    /// - 物品属性对比：显示多个物品的Jita市场价格
-    /// - 买单价格查询：获取Jita买单的最高价格
-    ///
-    /// 示例：
-    /// ```swift
-    /// // 场景1: 获取技能注入器卖价
-    /// let sellPrices = await MarketPriceUtil.getJitaOrderPrices(
-    ///     typeIds: [40520, 45635],  // 大型、小型注入器
-    ///     orderType: .sell  // 默认值，可省略
-    /// )
-    /// let largePrice = sellPrices[40520]  // 大型注入器Jita卖价
-    ///
-    /// // 场景2: 获取买单价格
-    /// let buyPrices = await MarketPriceUtil.getJitaOrderPrices(
-    ///     typeIds: [40520, 45635],
-    ///     orderType: .buy
-    /// )
-    /// let largeBuyPrice = buyPrices[40520]  // 大型注入器Jita买价
-    ///
-    /// // 场景3: 计算装配价格（卖价）
-    /// let fitItemIds = [12076, 2048, 519]  // 装配中的模块ID
-    /// let itemPrices = await MarketPriceUtil.getJitaOrderPrices(typeIds: fitItemIds)
-    /// let totalValue = itemPrices.values.reduce(0, +)
-    /// ```
-    ///
-    /// 数据特点：
-    /// - 固定市场：Jita 4-4 空间站（60003760）
-    /// - 订单类型：根据 orderType 参数返回卖单最低价（.sell）或买单最高价（.buy）
-    /// - 数据源：优先使用 GitHub Market Price API，不可用时使用 ESI 市场订单
-    /// - 缓存策略：GitHub API 数据缓存 1 小时
-    ///
-    /// 注意：
-    /// - 如果需要其他星域/星系，请使用 MarketOrdersUtil.loadOrders() + calculatePrice()
-    ///
-    /// - Parameters:
-    ///   - typeIds: 物品ID数组
-    ///   - orderType: 订单类型，.sell 返回卖单最低价，.buy 返回买单最高价，默认 .sell
-    ///   - forceRefresh: 是否强制刷新缓存，默认false（使用1小时缓存）
     /// - Returns: [物品ID: Jita价格]，无订单的物品不会包含在结果中
-    static func getJitaOrderPrices(
+    static func getJitaOrderPricesFromESI(
         typeIds: [Int],
         orderType: OrderType = .sell,
         forceRefresh: Bool = false
     ) async -> [Int: Double] {
-        // 优先使用 GitHub Market Price API
-        do {
-            let aggregates = try await GitHubMarketPriceAPI.shared.fetchMarketPrices(
-                typeIds: typeIds,
-                forceRefresh: forceRefresh
-            )
+        guard !typeIds.isEmpty else { return [:] }
 
-            // 根据 orderType 选择对应的价格
-            let result = aggregates.compactMapValues { (buy: Double, sell: Double) -> Double? in
-                let price = orderType == .buy ? buy : sell
-                return price > 0 ? price : nil
-            }
-
-            Logger.debug("使用 GitHub Market Price API 获取 \(result.count)/\(typeIds.count) 个物品的\(orderType == .buy ? "买" : "卖")价")
-            return result
-        } catch {
-            Logger.warning("GitHub Market Price API 请求失败，回退到 ESI: \(error.localizedDescription)")
-            // 回退到 ESI
-            return await getJitaOrderPricesFromESI(
-                typeIds: typeIds,
-                orderType: orderType,
-                forceRefresh: forceRefresh
-            )
-        }
-    }
-
-    /// 从 ESI 获取 Jita 市场订单价格（内部方法）
-    ///
-    /// - Parameters:
-    ///   - typeIds: 物品ID数组
-    ///   - orderType: 订单类型，.sell 返回卖单最低价，.buy 返回买单最高价
-    ///   - forceRefresh: 是否强制刷新缓存
-    /// - Returns: [物品ID: Jita价格]，无订单的物品不会包含在结果中
-    private static func getJitaOrderPricesFromESI(
-        typeIds: [Int],
-        orderType: OrderType,
-        forceRefresh: Bool
-    ) async -> [Int: Double] {
         let regionID = 10_000_002 // The Forge (Jita所在星域)
         let systemID = 30_000_142 // Jita星系ID
         let stationID = 60_003_760 // Jita 4-4 空间站 ID

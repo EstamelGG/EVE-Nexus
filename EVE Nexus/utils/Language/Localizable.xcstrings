@@ -3448,6 +3448,118 @@
         }
       }
     },
+    "Assets_Export_Fitting" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export fit to simulator"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出到装配模拟"
+          }
+        }
+      }
+    },
+    "Assets_Export_Fitting_Alert_Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出"
+          }
+        }
+      }
+    },
+    "Assets_Export_Fitting_Error_Format" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Export failed: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导出失败：%@"
+          }
+        }
+      }
+    },
+    "Assets_Export_Fitting_Success_Ask_View" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The fit has been saved locally. Open it now?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已经保存装配到本地，是否查看配置？"
+          }
+        }
+      }
+    },
+    "Assets_Export_Fitting_Success_Prompt_Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Saved"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已保存"
+          }
+        }
+      }
+    },
+    "Assets_Export_Fitting_View_Later" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not now"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂不"
+          }
+        }
+      }
+    },
+    "Assets_Export_Fitting_View_Yes" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "是"
+          }
+        }
+      }
+    },
     "Assets_is_BPC" : {
       "localizations" : {
         "en" : {
@@ -10582,6 +10694,22 @@
         }
       }
     },
+    "Error_Jita_Price_List_Unavailable" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unable to fetch the Jita price list (%@). Please check your network."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法获取 Jita 价格清单（%@），请检查网络。"
+          }
+        }
+      }
+    },
     "ESI_Status_Button_OK" : {
       "localizations" : {
         "en" : {
@@ -12109,24 +12237,6 @@
         }
       }
     },
-    "Fitting_Add_To_New_Watchlist" : {
-      "comment" : "新建并添加",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Create New and Add"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "新建并添加"
-          }
-        }
-      }
-    },
     "Fitting_Add_To_Skill_Plan" : {
       "comment" : "添加到技能计划",
       "localizations" : {
@@ -12210,23 +12320,6 @@
         }
       }
     },
-    "Fitting_Add_To_Watchlist_Footer" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fitting contains %d item types"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "配装包含 %d 种物品"
-          }
-        }
-      }
-    },
     "Fitting_Add_To_Watchlist_Name_Prompt" : {
       "localizations" : {
         "en" : {
@@ -12255,23 +12348,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已保存到关注列表「%@」"
-          }
-        }
-      }
-    },
-    "Fitting_Add_To_Watchlist_Success" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Added %d of %d items"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "已添加 %d/%d 种物品"
           }
         }
       }
@@ -13917,23 +13993,6 @@
         }
       }
     },
-    "Fitting_Missing_Skills_Count" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d skills to add"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "共 %d 个技能待添加"
-          }
-        }
-      }
-    },
     "Fitting_Missing_Skills_Summary" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -14176,23 +14235,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "新建建筑配置"
-          }
-        }
-      }
-    },
-    "Fitting_New_Watchlist_Name_Prompt" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Enter name for new watchlist"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "输入新关注列表的名称"
           }
         }
       }
@@ -14644,24 +14686,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "选择变体"
-          }
-        }
-      }
-    },
-    "Fitting_Select_Watchlist" : {
-      "comment" : "选择要添加到的关注列表",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select watchlist to add to"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选择要添加到的关注列表"
           }
         }
       }
@@ -17242,7 +17266,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%d流程 × %d拷贝"
+            "value" : "%d张 × %d 流程/张"
           }
         }
       }
@@ -25892,6 +25916,23 @@
         }
       }
     },
+    "Main_Market_Clipboard_Distinct_Type_Limit" : {
+      "comment" : "导入失败：去重后 type 个数过多",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cannot import: %d distinct items (maximum %d). Reduce the list and try again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法导入：去重后共 %d 个物品，超过上限 %d。请减少导入物品后再试。"
+          }
+        }
+      }
+    },
     "Main_Market_Clipboard_Empty" : {
       "comment" : "剪贴板为空",
       "localizations" : {
@@ -31428,6 +31469,102 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "成功导入"
+          }
+        }
+      }
+    },
+    "Main_Skills_Plan_Loading_Fetching_Attributes" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading character attributes…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载角色属性…"
+          }
+        }
+      }
+    },
+    "Main_Skills_Plan_Loading_Fetching_Implants" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading implants…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载植入体…"
+          }
+        }
+      }
+    },
+    "Main_Skills_Plan_Loading_Fetching_Injector_Prices" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading injector prices…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在获取注入器价格…"
+          }
+        }
+      }
+    },
+    "Main_Skills_Plan_Loading_Fetching_Injector_SP" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading character skill points…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在获取角色技能点…"
+          }
+        }
+      }
+    },
+    "Main_Skills_Plan_Loading_Fetching_Skills" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading character skills…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载角色技能数据…"
+          }
+        }
+      }
+    },
+    "Main_Skills_Plan_Loading_Placeholder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading skill plan…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载技能计划…"
           }
         }
       }
@@ -41550,6 +41687,7 @@
     },
     "Structure_Market_GitHub_API_Unavailable" : {
       "comment" : "GitHub API不可达，请重试",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -44449,6 +44587,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%d 个订单"
+          }
+        }
+      }
+    },
+    "Wealth_Contracts" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Item Exchange Contracts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "物品交换合同"
+          }
+        }
+      }
+    },
+    "Wealth_Contracts_Count" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d Contracts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d 份未决合同"
           }
         }
       }

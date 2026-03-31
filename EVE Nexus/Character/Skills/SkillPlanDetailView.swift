@@ -4,6 +4,15 @@ import UniformTypeIdentifiers
 
 private let kShowCompletedSkillsKey = "SkillPlan_ShowCompletedSkills"
 
+/// 技能计划详情中网络请求阶段（与 CharacterAssets 进度条样式一致）
+private enum SkillPlanNetworkLoadingPhase: Equatable {
+    case fetchingLearnedSkills
+    case fetchingAttributes
+    case fetchingImplants
+    case fetchingInjectorSkillPoints
+    case fetchingInjectorPrices
+}
+
 struct SkillPlanDetailView: View {
     @State private var plan: SkillPlan
     let characterId: Int
@@ -25,6 +34,9 @@ struct SkillPlanDetailView: View {
     @State private var showAddSkillSheet = false
     @State private var showAddItemSheet = false
     @State private var showExportSuccessAlert = false
+    @State private var networkLoadingPhase: SkillPlanNetworkLoadingPhase?
+    /// 首次进入：完成 `loadCharacterData`（含注入器）及待添加技能后再展示主列表，避免 Unknown 名称等中间态
+    @State private var isInitialLoadComplete = false
 
     init(
         plan: SkillPlan, characterId: Int, databaseManager: DatabaseManager,
@@ -39,213 +51,32 @@ struct SkillPlanDetailView: View {
     }
 
     var body: some View {
+        // 单一 List：与 CharacterSkillsView 等页面一致，用条件区块切换加载/内容，避免 Group 在两种 List 间切换导致导航栏与内容布局不同步
         List {
-            Section(header: Text(NSLocalizedString("Main_Skills_Points", comment: "技能点数"))) {
-                HStack {
-                    Text(NSLocalizedString("Main_Skills_To_Learn", comment: "需要学习"))
-                    Spacer()
-                    Text("\(FormatUtil.format(Double(plan.totalSkillPoints))) SP")
-                        .foregroundColor(.secondary)
-                }
-
-                HStack {
-                    Text(NSLocalizedString("Main_Skills_Required_Time", comment: "需要时间"))
-                    Spacer()
-                    Text(formatTimeInterval(plan.totalTrainingTime))
-                        .foregroundColor(.secondary)
-                }
-
-                HStack {
-                    Text(NSLocalizedString("Main_Skills_All_Points", comment: "全部点数"))
-                    Spacer()
-                    Text("\(FormatUtil.format(Double(calculateAllSkillPoints()))) SP")
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            // 添加注入器需求部分
-            if !plan.skills.isEmpty && !isLoadingInjectors && filteredSkills.count > 0 {
-                if let calculation = injectorCalculation,
-                   calculation.largeInjectorCount + calculation.smallInjectorCount > 0
-                {
-                    Section(
-                        header: Text(
-                            NSLocalizedString("Main_Skills_Required_Injectors", comment: ""))
-                    ) {
-                        // 大型注入器
-                        if let largeInfo = getInjectorInfo(
-                            typeId: SkillInjectorCalculator.largeInjectorTypeId),
-                            calculation.largeInjectorCount > 0
-                        {
-                            injectorItemView(
-                                info: largeInfo, count: calculation.largeInjectorCount,
-                                typeId: SkillInjectorCalculator.largeInjectorTypeId
-                            )
-                        }
-
-                        // 小型注入器
-                        if let smallInfo = getInjectorInfo(
-                            typeId: SkillInjectorCalculator.smallInjectorTypeId),
-                            calculation.smallInjectorCount > 0
-                        {
-                            injectorItemView(
-                                info: smallInfo, count: calculation.smallInjectorCount,
-                                typeId: SkillInjectorCalculator.smallInjectorTypeId
-                            )
-                        }
-
-                        // 总计所需技能点和预计价格
-                        injectorSummaryView(calculation: calculation)
-                    }
-                }
-            }
-
-            Section(
-                header: HStack {
-                    Text(skillPlanHeaderText)
-                    Spacer()
-                    Button {
-                        showCompletedSkills.toggle()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(
-                                systemName: showCompletedSkills
-                                    ? "checkmark.circle.fill" : "circle"
-                            )
-                            Text(NSLocalizedString("Main_Skills_Plan_Show_Completed_Short", comment: ""))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-            ) {
-                if plan.skills.isEmpty {
-                    // 队列为空
-                    Text(NSLocalizedString("Main_Skills_Plan_Empty", comment: ""))
-                        .foregroundColor(.secondary)
-                } else if filteredSkills.count == 0 {
-                    // 队列不为空，但所有技能都已完成（且不显示已完成技能）
-                    Text(NSLocalizedString("Main_Skills_Plan_All_Completed", comment: ""))
-                        .foregroundColor(.green)
-                } else {
-                    ForEach(filteredSkills) { skill in
-                        skillRowView(skill)
-                            .contextMenu {
-                                // 只有无后置依赖的技能才能删除
-                                if !hasPostDependencies(skillId: skill.skillID, level: skill.targetLevel) {
-                                    Button(role: .destructive) {
-                                        if let index = plan.skills.firstIndex(where: { $0.id == skill.id }) {
-                                            deleteSkill(at: IndexSet(integer: index))
-                                        }
-                                    } label: {
-                                        Label(NSLocalizedString("Misc_Delete", comment: ""), systemImage: "trash")
-                                    }
-                                } else {
-                                    Text(NSLocalizedString("Main_Skills_Plan_Has_Dependencies", comment: "此技能被其他技能依赖，无法删除"))
-                                        .foregroundColor(.secondary)
-                                        .font(.caption)
-                                }
-                            }
-                    }
-                    .onDelete { indexSet in
-                        // 检查是否所有要删除的技能都没有后置依赖
-                        let skillsToDelete = indexSet.map { filteredSkills[$0] }
-                        let hasAnyDependencies = skillsToDelete.contains { skill in
-                            hasPostDependencies(skillId: skill.skillID, level: skill.targetLevel)
-                        }
-
-                        if !hasAnyDependencies {
-                            deleteSkill(at: indexSet)
-                        } else {
-                            errorMessage = NSLocalizedString("Main_Skills_Plan_Cannot_Delete_Has_Dependencies", comment: "")
-                            showErrorAlert = true
-                        }
-                    }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                }
-            }
-
-            // 清空队列按钮 - 单独section
-            if !plan.skills.isEmpty {
+            if !isInitialLoadComplete {
                 Section {
-                    Button {
-                        clearAllSkills()
-                    } label: {
-                        HStack {
-                            Image(systemName: "trash")
-                                .foregroundColor(.red)
-                            Text(NSLocalizedString("Main_Skills_Plan_Clear_All", comment: "清空队列"))
-                                .foregroundColor(.red)
-                            Spacer()
-                        }
+                    VStack(spacing: 16) {
+                        ProgressView()
+                        Text(initialLoadStatusText)
+                            .font(.footnote)
+                            .foregroundColor(.secondary)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
                     }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 24)
+                    .listRowBackground(Color.clear)
                 }
+            } else {
+                skillPlanLoadedSections
             }
         }
+        .listStyle(.insetGrouped)
+        .scrollDisabled(!isInitialLoadComplete)
         .navigationTitle(plan.name)
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                HStack(spacing: 16) {
-                    // 导入按钮
-                    Button {
-                        Task {
-                            await importSkillsFromClipboard()
-                        }
-                    } label: {
-                        Image(systemName: "square.and.arrow.down")
-                    }
-
-                    // 导出按钮
-                    if isEnglishLanguage() {
-                        Button {
-                            Task {
-                                await exportSkillPlan(useEnglishNames: true)
-                            }
-                        } label: {
-                            Image(systemName: "square.and.arrow.up")
-                        }
-                    } else {
-                        Menu {
-                            Button {
-                                Task {
-                                    await exportSkillPlan(useEnglishNames: false)
-                                }
-                            } label: {
-                                Label(NSLocalizedString("Main_Skills_Plan_Export_Localized", comment: "导出当前语言"), systemImage: "doc.text")
-                            }
-
-                            Button {
-                                Task {
-                                    await exportSkillPlan(useEnglishNames: true)
-                                }
-                            } label: {
-                                Label(NSLocalizedString("Main_Skills_Plan_Export_English", comment: "导出英文"), systemImage: "doc.text")
-                            }
-                        } label: {
-                            Image(systemName: "square.and.arrow.up")
-                        }
-                    }
-
-                    // 添加按钮
-                    Menu {
-                        Button {
-                            showAddSkillSheet = true
-                        } label: {
-                            Label(NSLocalizedString("Main_Skills_Plan_Add_Skill", comment: "添加技能"), systemImage: "plus")
-                        }
-
-                        Divider()
-
-                        Button {
-                            showAddItemSheet = true
-                        } label: {
-                            Label(NSLocalizedString("Main_Skills_Plan_Add_Item", comment: "添加物品"), systemImage: "cube.box")
-                        }
-                    } label: {
-                        Image(systemName: "plus")
-                    }
-                }
+                skillPlanToolbarTrailing
             }
         }
         .alert(
@@ -266,19 +97,8 @@ struct SkillPlanDetailView: View {
         } message: {
             Text(NSLocalizedString("Main_Skills_Plan_Export_Success_Message", comment: "技能计划已复制到剪贴板"))
         }
-        .onAppear {
-            // 在视图出现时加载数据
-            Task {
-                await loadCharacterData()
-                // 检查是否有装配页传来的待添加技能
-                if let pending = PendingFittingSkillsManager.shared.consumePending(forPlanId: plan.id),
-                   pending.characterId == characterId
-                {
-                    await addBatchSkillsToPlan(skills: pending.skills)
-                }
-                // 计算技能依赖关系
-                calculateSkillDependencies()
-            }
+        .task {
+            await performInitialLoad()
         }
         .onChange(of: plan.skills.count) { _, _ in
             // 技能数量变化时重新计算依赖
@@ -311,6 +131,236 @@ struct SkillPlanDetailView: View {
         }
     }
 
+    @ViewBuilder
+    private var skillPlanToolbarTrailing: some View {
+        if isInitialLoadComplete {
+            HStack(spacing: 16) {
+                Button {
+                    Task {
+                        await importSkillsFromClipboard()
+                    }
+                } label: {
+                    Image(systemName: "square.and.arrow.down")
+                }
+
+                if isEnglishLanguage() {
+                    Button {
+                        Task {
+                            await exportSkillPlan(useEnglishNames: true)
+                        }
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                } else {
+                    Menu {
+                        Button {
+                            Task {
+                                await exportSkillPlan(useEnglishNames: false)
+                            }
+                        } label: {
+                            Label(NSLocalizedString("Main_Skills_Plan_Export_Localized", comment: "导出当前语言"), systemImage: "doc.text")
+                        }
+
+                        Button {
+                            Task {
+                                await exportSkillPlan(useEnglishNames: true)
+                            }
+                        } label: {
+                            Label(NSLocalizedString("Main_Skills_Plan_Export_English", comment: "导出英文"), systemImage: "doc.text")
+                        }
+                    } label: {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                }
+
+                Menu {
+                    Button {
+                        showAddSkillSheet = true
+                    } label: {
+                        Label(NSLocalizedString("Main_Skills_Plan_Add_Skill", comment: "添加技能"), systemImage: "plus")
+                    }
+
+                    Divider()
+
+                    Button {
+                        showAddItemSheet = true
+                    } label: {
+                        Label(NSLocalizedString("Main_Skills_Plan_Add_Item", comment: "添加物品"), systemImage: "cube.box")
+                    }
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
+        }
+    }
+
+    /// 数据就绪后的列表区块（嵌入同一 `List`，与加载占位共用容器）
+    @ViewBuilder
+    private var skillPlanLoadedSections: some View {
+        skillPlanNetworkLoadingSection
+
+        Section(header: Text(NSLocalizedString("Main_Skills_Points", comment: "技能点数"))) {
+            HStack {
+                Text(NSLocalizedString("Main_Skills_To_Learn", comment: "需要学习"))
+                Spacer()
+                Text("\(FormatUtil.format(Double(plan.totalSkillPoints))) SP")
+                    .foregroundColor(.secondary)
+            }
+
+            HStack {
+                Text(NSLocalizedString("Main_Skills_Required_Time", comment: "需要时间"))
+                Spacer()
+                Text(formatTimeInterval(plan.totalTrainingTime))
+                    .foregroundColor(.secondary)
+            }
+
+            HStack {
+                Text(NSLocalizedString("Main_Skills_All_Points", comment: "全部点数"))
+                Spacer()
+                Text("\(FormatUtil.format(Double(calculateAllSkillPoints()))) SP")
+                    .foregroundColor(.secondary)
+            }
+        }
+
+        // 添加注入器需求部分
+        if !plan.skills.isEmpty && !isLoadingInjectors && filteredSkills.count > 0 {
+            if let calculation = injectorCalculation,
+               calculation.largeInjectorCount + calculation.smallInjectorCount > 0
+            {
+                Section(
+                    header: Text(
+                        NSLocalizedString("Main_Skills_Required_Injectors", comment: ""))
+                ) {
+                    // 大型注入器
+                    if let largeInfo = getInjectorInfo(
+                        typeId: SkillInjectorCalculator.largeInjectorTypeId),
+                        calculation.largeInjectorCount > 0
+                    {
+                        injectorItemView(
+                            info: largeInfo, count: calculation.largeInjectorCount,
+                            typeId: SkillInjectorCalculator.largeInjectorTypeId
+                        )
+                    }
+
+                    // 小型注入器
+                    if let smallInfo = getInjectorInfo(
+                        typeId: SkillInjectorCalculator.smallInjectorTypeId),
+                        calculation.smallInjectorCount > 0
+                    {
+                        injectorItemView(
+                            info: smallInfo, count: calculation.smallInjectorCount,
+                            typeId: SkillInjectorCalculator.smallInjectorTypeId
+                        )
+                    }
+
+                    // 总计所需技能点和预计价格
+                    injectorSummaryView(calculation: calculation)
+                }
+            }
+        }
+
+        Section(
+            header: HStack {
+                Text(skillPlanHeaderText)
+                Spacer()
+                Button {
+                    showCompletedSkills.toggle()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(
+                            systemName: showCompletedSkills
+                                ? "checkmark.circle.fill" : "circle"
+                        )
+                        Text(NSLocalizedString("Main_Skills_Plan_Show_Completed_Short", comment: ""))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+        ) {
+            if plan.skills.isEmpty {
+                // 队列为空
+                Text(NSLocalizedString("Main_Skills_Plan_Empty", comment: ""))
+                    .foregroundColor(.secondary)
+            } else if filteredSkills.count == 0 {
+                // 队列不为空，但所有技能都已完成（且不显示已完成技能）
+                Text(NSLocalizedString("Main_Skills_Plan_All_Completed", comment: ""))
+                    .foregroundColor(.green)
+            } else {
+                ForEach(filteredSkills) { skill in
+                    skillRowView(skill)
+                        .contextMenu {
+                            // 只有无后置依赖的技能才能删除
+                            if !hasPostDependencies(skillId: skill.skillID, level: skill.targetLevel) {
+                                Button(role: .destructive) {
+                                    if let index = plan.skills.firstIndex(where: { $0.id == skill.id }) {
+                                        deleteSkill(at: IndexSet(integer: index))
+                                    }
+                                } label: {
+                                    Label(NSLocalizedString("Misc_Delete", comment: ""), systemImage: "trash")
+                                }
+                            } else {
+                                Text(NSLocalizedString("Main_Skills_Plan_Has_Dependencies", comment: "此技能被其他技能依赖，无法删除"))
+                                    .foregroundColor(.secondary)
+                                    .font(.caption)
+                            }
+                        }
+                }
+                .onDelete { indexSet in
+                    // 检查是否所有要删除的技能都没有后置依赖
+                    let skillsToDelete = indexSet.map { filteredSkills[$0] }
+                    let hasAnyDependencies = skillsToDelete.contains { skill in
+                        hasPostDependencies(skillId: skill.skillID, level: skill.targetLevel)
+                    }
+
+                    if !hasAnyDependencies {
+                        deleteSkill(at: indexSet)
+                    } else {
+                        errorMessage = NSLocalizedString("Main_Skills_Plan_Cannot_Delete_Has_Dependencies", comment: "")
+                        showErrorAlert = true
+                    }
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+            }
+        }
+
+        // 清空队列按钮 - 单独section
+        if !plan.skills.isEmpty {
+            Section {
+                Button {
+                    clearAllSkills()
+                } label: {
+                    HStack {
+                        Image(systemName: "trash")
+                            .foregroundColor(.red)
+                        Text(NSLocalizedString("Main_Skills_Plan_Clear_All", comment: "清空队列"))
+                            .foregroundColor(.red)
+                        Spacer()
+                    }
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+            }
+        }
+    }
+
+    private var initialLoadStatusText: String {
+        if let phase = networkLoadingPhase {
+            return skillPlanLoadingPhaseText(phase)
+        }
+        return NSLocalizedString("Main_Skills_Plan_Loading_Placeholder", comment: "")
+    }
+
+    private func performInitialLoad() async {
+        await loadCharacterData()
+        if let pending = PendingFittingSkillsManager.shared.consumePending(forPlanId: plan.id),
+           pending.characterId == characterId
+        {
+            await addBatchSkillsToPlan(skills: pending.skills)
+        }
+        calculateSkillDependencies()
+        await MainActor.run { isInitialLoadComplete = true }
+    }
+
     private var filteredSkills: [PlannedSkill] {
         showCompletedSkills ? plan.skills : plan.skills.filter { !$0.isCompleted }
     }
@@ -327,6 +377,86 @@ struct SkillPlanDetailView: View {
             let uncompletedCount = plan.skills.filter { !$0.isCompleted }.count
             return "\(NSLocalizedString("Main_Skills_Plan", comment: ""))(\(uncompletedCount)/\(totalCount))"
         }
+    }
+
+    @ViewBuilder
+    private var skillPlanNetworkLoadingSection: some View {
+        if let phase = networkLoadingPhase {
+            Section {
+                HStack {
+                    Spacer()
+                    Text(skillPlanLoadingPhaseText(phase))
+                        .font(.footnote)
+                        .foregroundColor(.secondary)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 12)
+                        .background(Color(.secondarySystemGroupedBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                    Spacer()
+                }
+                .listRowBackground(Color.clear)
+                .listRowInsets(EdgeInsets())
+            }
+        }
+    }
+
+    private func skillPlanLoadingPhaseText(_ phase: SkillPlanNetworkLoadingPhase) -> String {
+        switch phase {
+        case .fetchingLearnedSkills:
+            return NSLocalizedString("Main_Skills_Plan_Loading_Fetching_Skills", comment: "")
+        case .fetchingAttributes:
+            return NSLocalizedString("Main_Skills_Plan_Loading_Fetching_Attributes", comment: "")
+        case .fetchingImplants:
+            return NSLocalizedString("Main_Skills_Plan_Loading_Fetching_Implants", comment: "")
+        case .fetchingInjectorSkillPoints:
+            return NSLocalizedString("Main_Skills_Plan_Loading_Fetching_Injector_SP", comment: "")
+        case .fetchingInjectorPrices:
+            return NSLocalizedString("Main_Skills_Plan_Loading_Fetching_Injector_Prices", comment: "")
+        }
+    }
+
+    private func setNetworkLoadingPhase(_ phase: SkillPlanNetworkLoadingPhase?) async {
+        await MainActor.run {
+            networkLoadingPhase = phase
+        }
+    }
+
+    /// 依次请求：已学技能 → 角色属性 → 植入体（仅缓存缺失时拉属性/植入体）。
+    /// - Returns: 若本次请求了 `fetchCharacterSkillsAndQueue`，返回其 `total_sp + unallocated_sp`，供注入器计算复用，避免重复 ESI。
+    private func refreshSkillPlanNetworkCaches(skillIds: [Int]) async -> Int? {
+        var spForInjector: Int?
+
+        if learnedSkills.isEmpty {
+            await setNetworkLoadingPhase(.fetchingLearnedSkills)
+            let (learned, sp) = await getLearnedSkills(skillIds: skillIds)
+            learnedSkills = learned
+            spForInjector = sp
+        } else {
+            let missingSkillIds = skillIds.filter { !learnedSkills.keys.contains($0) }
+            if !missingSkillIds.isEmpty {
+                await setNetworkLoadingPhase(.fetchingLearnedSkills)
+                let (newSkills, sp) = await getLearnedSkills(skillIds: missingSkillIds)
+                learnedSkills.merge(newSkills) { current, _ in current }
+                spForInjector = sp
+            } else if let cached = CharacterSkillsAPI.shared.loadSkillsFromCacheIfAvailable(
+                characterId: characterId
+            ) {
+                // 未再走 fetchCharacterSkillsAndQueue 时仍从合并缓存取 total_sp，供注入器计算，避免再走 fetchCharacterSkills 触发额外读盘/可能写盘
+                spForInjector = cached.total_sp + cached.unallocated_sp
+            }
+        }
+
+        if characterAttributes == nil {
+            await setNetworkLoadingPhase(.fetchingAttributes)
+            characterAttributes = try? await CharacterSkillsAPI.shared.fetchAttributes(
+                characterId: characterId)
+        }
+        if implantBonuses == nil {
+            await setNetworkLoadingPhase(.fetchingImplants)
+            implantBonuses = await SkillTrainingCalculator.getImplantBonuses(characterId: characterId)
+        }
+        await setNetworkLoadingPhase(nil)
+        return spForInjector
     }
 
     private func skillRowView(_ skill: PlannedSkill) -> some View {
@@ -480,9 +610,7 @@ struct SkillPlanDetailView: View {
             // 获取所有技能的ID（用于批量加载数据）
             let allSkillIds = Array(Set(correctedSkills.map { $0.skillId }))
 
-            // 获取新技能的已学习信息
-            let newLearnedSkills = await getLearnedSkills(skillIds: allSkillIds)
-            // 更新缓存
+            let (newLearnedSkills, _) = await getLearnedSkills(skillIds: allSkillIds)
             learnedSkills.merge(newLearnedSkills) { current, _ in current }
 
             // 批量加载新技能的倍增系数
@@ -602,12 +730,15 @@ struct SkillPlanDetailView: View {
         }
     }
 
-    private func getLearnedSkills(skillIds: [Int]) async -> [Int: CharacterSkill] {
+    /// - Returns: 已学技能映射，以及本次 ESI 响应中的角色总技能点（`total_sp + unallocated_sp`），失败时为 `nil`
+    private func getLearnedSkills(skillIds: [Int]) async -> (learned: [Int: CharacterSkill], characterTotalSP: Int?) {
         do {
             let (skillsResponse, queue) = try await CharacterSkillsAPI.shared.fetchCharacterSkillsAndQueue(
                 characterId: characterId,
                 forceRefresh: false
             )
+
+            let totalSP = skillsResponse.total_sp + skillsResponse.unallocated_sp
 
             // 合并队列中已完成的部分
             let baseSkills = Dictionary(uniqueKeysWithValues: skillsResponse.skillsMap.map { ($0.key, $0.value.trained_skill_level) })
@@ -628,40 +759,21 @@ struct SkillPlanDetailView: View {
                     trained_skill_level: mergedLevel
                 )
             }
-            return result
+            return (result, totalSP)
         } catch {
             Logger.error("获取技能数据失败: \(error)")
-            return [:]
+            return ([:], nil)
         }
     }
 
     private func loadCharacterData() async {
-        // 先加载已学习的技能数据
-        if learnedSkills.isEmpty {
-            learnedSkills = await getLearnedSkills(skillIds: plan.skills.map { $0.skillID })
-        }
-
-        // 加载技能名称
-        var updatedSkills = plan.skills
         let skillIds = plan.skills.map { $0.skillID }
-        let query = """
-            SELECT type_id, name
-            FROM types
-            WHERE type_id IN (\(skillIds.sorted().map(String.init).joined(separator: ",")))
-        """
 
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            let nameDict = Dictionary(
-                uniqueKeysWithValues: rows.compactMap { row -> (Int, String)? in
-                    guard let typeId = row["type_id"] as? Int,
-                          let name = row["name"] as? String
-                    else {
-                        return nil
-                    }
-                    return (typeId, name)
-                })
+        let spFromSkillsFetch = await refreshSkillPlanNetworkCaches(skillIds: skillIds)
 
-            // 更新技能名称
+        var updatedSkills = plan.skills
+        if !skillIds.isEmpty {
+            let nameDict = loadSkillNames(skillIds: skillIds)
             updatedSkills = updatedSkills.map { skill in
                 if let name = nameDict[skill.skillID] {
                     return PlannedSkill(
@@ -681,56 +793,9 @@ struct SkillPlanDetailView: View {
             }
         }
 
-        // 加载角色属性
-        characterAttributes = try? await CharacterSkillsAPI.shared.fetchAttributes(
-            characterId: characterId)
-
-        // 加载植入体加成
-        implantBonuses = await SkillTrainingCalculator.getImplantBonuses(characterId: characterId)
-
-        // 批量获取所有技能的倍增系数
         loadSkillTimeMultipliers(skillIds)
 
-        // 批量获取所有技能的主副属性
-        let attributesQuery = """
-            SELECT type_id, attribute_id, value
-            FROM typeAttributes
-            WHERE type_id IN (\(skillIds.sorted().map(String.init).joined(separator: ",")))
-            AND attribute_id IN (180, 181)
-        """
-
-        var skillAttributes: [Int: (primary: Int, secondary: Int)] = [:]
-        if case let .success(rows) = databaseManager.executeQuery(attributesQuery) {
-            // 按技能ID分组
-            var groupedAttributes: [Int: [(attributeId: Int, value: Int)]] = [:]
-            for row in rows {
-                guard let typeId = row["type_id"] as? Int,
-                      let attributeId = row["attribute_id"] as? Int,
-                      let value = row["value"] as? Double
-                else {
-                    continue
-                }
-                groupedAttributes[typeId, default: []].append((attributeId, Int(value)))
-            }
-
-            // 处理每个技能的属性
-            for (typeId, attributes) in groupedAttributes {
-                var primary: Int?
-                var secondary: Int?
-                for attr in attributes {
-                    if attr.attributeId == 180 {
-                        primary = attr.value
-                    } else if attr.attributeId == 181 {
-                        secondary = attr.value
-                    }
-                }
-                if let p = primary, let s = secondary {
-                    skillAttributes[typeId] = (p, s)
-                }
-            }
-        }
-
-        // 计算所有技能的训练速度
+        let skillAttributes = primarySecondaryAttributesForSkills(skillIds: skillIds)
         if let attrs = characterAttributes {
             for skill in updatedSkills {
                 if let (primary, secondary) = skillAttributes[skill.skillID],
@@ -775,8 +840,51 @@ struct SkillPlanDetailView: View {
             }
         }
 
-        // 计算注入器需求
-        await calculateInjectors()
+        await calculateInjectors(preferredCharacterTotalSP: spFromSkillsFetch)
+    }
+
+    /// 从本地 DB 读取技能主属性(180)与副属性(181)
+    private func primarySecondaryAttributesForSkills(skillIds: [Int]) -> [Int: (primary: Int, secondary: Int)] {
+        guard !skillIds.isEmpty else { return [:] }
+
+        let attributesQuery = """
+            SELECT type_id, attribute_id, value
+            FROM typeAttributes
+            WHERE type_id IN (\(skillIds.sorted().map(String.init).joined(separator: ",")))
+            AND attribute_id IN (180, 181)
+        """
+
+        var skillAttributes: [Int: (primary: Int, secondary: Int)] = [:]
+        guard case let .success(rows) = databaseManager.executeQuery(attributesQuery) else {
+            return [:]
+        }
+
+        var groupedAttributes: [Int: [(attributeId: Int, value: Int)]] = [:]
+        for row in rows {
+            guard let typeId = row["type_id"] as? Int,
+                  let attributeId = row["attribute_id"] as? Int,
+                  let value = row["value"] as? Double
+            else {
+                continue
+            }
+            groupedAttributes[typeId, default: []].append((attributeId, Int(value)))
+        }
+
+        for (typeId, attributes) in groupedAttributes {
+            var primary: Int?
+            var secondary: Int?
+            for attr in attributes {
+                if attr.attributeId == 180 {
+                    primary = attr.value
+                } else if attr.attributeId == 181 {
+                    secondary = attr.value
+                }
+            }
+            if let p = primary, let s = secondary {
+                skillAttributes[typeId] = (p, s)
+            }
+        }
+        return skillAttributes
     }
 
     private func loadSkillTimeMultipliers(_ skillIds: [Int]) {
@@ -999,18 +1107,22 @@ struct SkillPlanDetailView: View {
         )
     }
 
-    private func calculateInjectors() async {
-        isLoadingInjectors = true
-        defer { isLoadingInjectors = false }
+    private func calculateInjectors(preferredCharacterTotalSP: Int? = nil) async {
+        await MainActor.run { isLoadingInjectors = true }
 
-        // 使用计划中已计算好的总技能点数
         let totalRequiredSP = plan.totalSkillPoints
         Logger.debug("计划总需求技能点: \(totalRequiredSP)")
 
-        // 获取角色总技能点数
-        let characterTotalSP = await getCharacterTotalSP()
+        let characterTotalSP: Int
+        if let preferred = preferredCharacterTotalSP {
+            characterTotalSP = preferred
+            await setNetworkLoadingPhase(.fetchingInjectorPrices)
+        } else {
+            await setNetworkLoadingPhase(.fetchingInjectorSkillPoints)
+            characterTotalSP = await getCharacterTotalSP()
+            await setNetworkLoadingPhase(.fetchingInjectorPrices)
+        }
 
-        // 计算注入器需求
         injectorCalculation = SkillInjectorCalculator.calculate(
             requiredSkillPoints: totalRequiredSP,
             characterTotalSP: characterTotalSP
@@ -1020,8 +1132,12 @@ struct SkillPlanDetailView: View {
                 "计算结果 - 大型注入器: \(calc.largeInjectorCount), 小型注入器: \(calc.smallInjectorCount)")
         }
 
-        // 获取注入器价格
         await loadInjectorPrices()
+
+        await MainActor.run {
+            isLoadingInjectors = false
+            networkLoadingPhase = nil
+        }
     }
 
     private func loadInjectorPrices() async {
@@ -1153,80 +1269,16 @@ struct SkillPlanDetailView: View {
 
     // 确保技能数据已加载
     private func ensureSkillsDataLoaded(skillIds: [Int]) async {
-        // 1. 加载已学技能数据
-        if learnedSkills.isEmpty {
-            learnedSkills = await getLearnedSkills(skillIds: skillIds)
-        } else {
-            // 只加载缺失的技能数据
-            let missingSkillIds = skillIds.filter { !learnedSkills.keys.contains($0) }
-            if !missingSkillIds.isEmpty {
-                let newSkills = await getLearnedSkills(skillIds: missingSkillIds)
-                learnedSkills.merge(newSkills) { current, _ in current }
-            }
-        }
+        _ = await refreshSkillPlanNetworkCaches(skillIds: skillIds)
 
-        // 2. 加载角色属性（如果尚未加载）
-        if characterAttributes == nil {
-            characterAttributes = try? await CharacterSkillsAPI.shared.fetchAttributes(
-                characterId: characterId)
-        }
-
-        // 3. 加载植入体加成（如果尚未加载）
-        if implantBonuses == nil {
-            implantBonuses = await SkillTrainingCalculator.getImplantBonuses(characterId: characterId)
-        }
-
-        // 4. 批量加载技能倍增系数
         loadSkillTimeMultipliers(skillIds)
 
-        // 5. 计算训练速度（如果有角色属性）
+        let skillAttributes = primarySecondaryAttributesForSkills(skillIds: skillIds)
         if let attrs = characterAttributes {
-            // 批量获取技能的主副属性
-            let attributesQuery = """
-                SELECT type_id, attribute_id, value
-                FROM typeAttributes
-                WHERE type_id IN (\(skillIds.sorted().map(String.init).joined(separator: ",")))
-                AND attribute_id IN (180, 181)
-            """
-
-            var skillAttributes: [Int: (primary: Int, secondary: Int)] = [:]
-            if case let .success(rows) = databaseManager.executeQuery(attributesQuery) {
-                // 按技能ID分组
-                var groupedAttributes: [Int: [(attributeId: Int, value: Int)]] = [:]
-                for row in rows {
-                    guard let typeId = row["type_id"] as? Int,
-                          let attributeId = row["attribute_id"] as? Int,
-                          let value = row["value"] as? Double
-                    else {
-                        continue
-                    }
-                    groupedAttributes[typeId, default: []].append((attributeId, Int(value)))
-                }
-
-                // 处理每个技能的属性
-                for (typeId, attributes) in groupedAttributes {
-                    var primary: Int?
-                    var secondary: Int?
-                    for attr in attributes {
-                        if attr.attributeId == 180 {
-                            primary = attr.value
-                        } else if attr.attributeId == 181 {
-                            secondary = attr.value
-                        }
-                    }
-                    if let p = primary, let s = secondary {
-                        skillAttributes[typeId] = (p, s)
-                    }
-                }
-            }
-
-            // 计算所有技能的训练速度
             for skillId in skillIds {
-                // 如果已经计算过，跳过
                 if trainingRates[skillId] != nil {
                     continue
                 }
-
                 if let (primary, secondary) = skillAttributes[skillId],
                    let rate = SkillTrainingCalculator.calculateTrainingRate(
                        primaryAttrId: primary,

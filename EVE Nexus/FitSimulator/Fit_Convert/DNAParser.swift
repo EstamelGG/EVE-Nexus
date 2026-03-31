@@ -11,6 +11,18 @@ class DNAParser {
         let displayName: String
     }
 
+    /// 将飞船与模块编码为 DNA 字符串（与 `parseDNA` 兼容）
+    /// - Parameters:
+    ///   - shipTypeId: 飞船 `type_id`
+    ///   - modules: 模块 `type_id` 与数量（同一 `type_id` 应先合并）
+    static func encodeFittingDNA(shipTypeId: Int, modules: [(typeId: Int, quantity: Int)]) -> String {
+        var segments: [String] = [String(shipTypeId)]
+        for m in modules where m.quantity > 0 {
+            segments.append("\(m.typeId);\(m.quantity)")
+        }
+        return "fitting:" + segments.joined(separator: ":") + ":"
+    }
+
     /// 解析DNA字符串
     /// - Parameters:
     ///   - dnaString: DNA格式的字符串（如：fitting:73792:2048;1:18945;1:...）

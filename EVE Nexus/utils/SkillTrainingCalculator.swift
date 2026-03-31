@@ -28,14 +28,17 @@ enum SkillTrainingCalculator {
                 WHERE attribute_id IN (175, 176, 177, 178, 179)
             """
 
+            let expectedIds: Set<Int> = [175, 176, 177, 178, 179]
             if case let .success(rows) = DatabaseManager().executeQuery(query) {
-                Logger.debug("植入体属性ID验证结果:")
+                var foundIds = Set<Int>()
                 for row in rows {
-                    if let attrId = row["attribute_id"] as? Int,
-                       let attrName = row["name"] as? String
-                    {
-                        Logger.debug("属性ID: \(attrId), 名称: \(attrName)")
+                    if let attrId = row["attribute_id"] as? Int {
+                        foundIds.insert(attrId)
                     }
+                }
+                if foundIds != expectedIds {
+                    let missing = expectedIds.subtracting(foundIds)
+                    Logger.error("植入体属性ID验证失败，缺失: \(missing.sorted())")
                 }
             } else {
                 Logger.error("无法验证植入体属性ID")
