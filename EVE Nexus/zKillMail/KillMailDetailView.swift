@@ -3,6 +3,7 @@ import SwiftUI
 struct BRKillMailDetailView: View {
     let listEntity: KillMailListEntity
     let character: EVECharacterInfo?
+    @ObservedObject private var killMailFavorites = KillMailFavoritesStore.shared
     @State private var victimCharacterIcon: UIImage?
     @State private var victimCorporationIcon: UIImage?
     @State private var victimAllianceIcon: UIImage?
@@ -18,6 +19,10 @@ struct BRKillMailDetailView: View {
         [:]
     @State private var solarSystemInfo: SolarSystemInfo?
     @State private var zkbInfoFromAPI: ZKBInfo? // 存储从 API 获取的 zkb 信息
+    /// 详情列表中各 type 的单价（EIV average）；未写入前 `ItemRow` 显示加载指示器
+    @State private var kmMarketUnitPriceByType: [Int: Double] = [:]
+    /// 每次开始加载详情时递增，用于丢弃上一轮未完成的价格写入
+    @State private var kmMarketPriceSession: Int = 0
 
     // 监听屏幕方向变化
     @State private var orientation = UIDevice.current.orientation
@@ -104,6 +109,25 @@ struct BRKillMailDetailView: View {
         .listStyle(.insetGrouped)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .navigationBarLeading) {
+                Button {
+                    killMailFavorites.toggle(
+                        killmailId: listEntity.killmailId,
+                        hash: listEntity.zkb.hash
+                    )
+                } label: {
+                    Image(
+                        systemName: killMailFavorites.isFavorite(killmailId: listEntity.killmailId)
+                            ? "star.fill" : "star"
+                    )
+                    .foregroundColor(.yellow)
+                }
+                .accessibilityLabel(
+                    killMailFavorites.isFavorite(killmailId: listEntity.killmailId)
+                        ? NSLocalizedString("KillMail_Favorites_Remove_A11y", comment: "")
+                        : NSLocalizedString("KillMail_Favorites_Add_A11y", comment: "")
+                )
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
                     openZKillboard(killId: listEntity.killmailId)
@@ -630,12 +654,24 @@ struct BRKillMailDetailView: View {
         .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
     }
 
+    /// 装配列表：先按 flag（槽位）升序，同一 flag 内先列装备（category≠8），再列弹药（8）；未知类型视为非弹药
+    private func sortFittingItemsBySlotThenNonAmmoFirst(_ rows: [[Int]]) -> [[Int]] {
+        rows.sorted { a, b in
+            if a[0] != b[0] { return a[0] < b[0] }
+            let aAmmo = itemInfoCache[a[1]]?.categoryID == 8
+            let bAmmo = itemInfoCache[b[1]]?.categoryID == 8
+            if aAmmo != bAmmo { return !aAmmo }
+            return a[1] < b[1]
+        }
+    }
+
     @ViewBuilder
     private func fittingInfoSections(detail: KillMailDetailData) -> some View {
         let items = detail.convertedItemsForFitting
         if !items.isEmpty {
             // 获取所有植入体
-            let implantItems = items.filter { $0[0] == 89 && $0.count >= 4 }
+            let implantItems = sortFittingItemsBySlotThenNonAmmoFirst(
+                items.filter { $0[0] == 89 && $0.count >= 4 })
             if !implantItems.isEmpty {
                 Section(
                     header: Text(NSLocalizedString("Main_KM_Implants", comment: ""))
@@ -650,14 +686,14 @@ struct BRKillMailDetailView: View {
                             ItemRow(
                                 typeId: typeId, quantity: item[2], isDropped: true,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail.pricesForDisplay
+                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
                             )
                         }
                         if item[3] > 0 { // 摧毁数量
                             ItemRow(
                                 typeId: typeId, quantity: item[3], isDropped: false,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail.pricesForDisplay
+                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
                             )
                         }
                     }
@@ -665,9 +701,9 @@ struct BRKillMailDetailView: View {
             }
 
             // 高槽
-            let highSlotItems = items.filter { item in
+            let highSlotItems = sortFittingItemsBySlotThenNonAmmoFirst(items.filter { item in
                 (27 ... 34).contains(item[0]) && item.count >= 4
-            }.sorted { $0[0] < $1[0] } // 按槽位顺序排序
+            })
 
             if !highSlotItems.isEmpty {
                 Section(
@@ -683,14 +719,14 @@ struct BRKillMailDetailView: View {
                             ItemRow(
                                 typeId: typeId, quantity: item[2], isDropped: true,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail.pricesForDisplay
+                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
                             )
                         }
                         if item[3] > 0 { // 摧毁数量
                             ItemRow(
                                 typeId: typeId, quantity: item[3], isDropped: false,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail.pricesForDisplay
+                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
                             )
                         }
                     }
@@ -698,9 +734,9 @@ struct BRKillMailDetailView: View {
             }
 
             // 中槽
-            let mediumSlotItems = items.filter { item in
+            let mediumSlotItems = sortFittingItemsBySlotThenNonAmmoFirst(items.filter { item in
                 (19 ... 26).contains(item[0]) && item.count >= 4
-            }.sorted { $0[0] < $1[0] } // 按槽位顺序排序
+            })
 
             if !mediumSlotItems.isEmpty {
                 Section(
@@ -716,14 +752,14 @@ struct BRKillMailDetailView: View {
                             ItemRow(
                                 typeId: typeId, quantity: item[2], isDropped: true,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail.pricesForDisplay
+                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
                             )
                         }
                         if item[3] > 0 { // 摧毁数量
                             ItemRow(
                                 typeId: typeId, quantity: item[3], isDropped: false,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail.pricesForDisplay
+                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
                             )
                         }
                     }
@@ -731,9 +767,9 @@ struct BRKillMailDetailView: View {
             }
 
             // 低槽
-            let lowSlotItems = items.filter { item in
+            let lowSlotItems = sortFittingItemsBySlotThenNonAmmoFirst(items.filter { item in
                 (11 ... 18).contains(item[0]) && item.count >= 4
-            }.sorted { $0[0] < $1[0] } // 按槽位顺序排序
+            })
 
             if !lowSlotItems.isEmpty {
                 Section(
@@ -749,14 +785,14 @@ struct BRKillMailDetailView: View {
                             ItemRow(
                                 typeId: typeId, quantity: item[2], isDropped: true,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail.pricesForDisplay
+                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
                             )
                         }
                         if item[3] > 0 { // 摧毁数量
                             ItemRow(
                                 typeId: typeId, quantity: item[3], isDropped: false,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail.pricesForDisplay
+                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
                             )
                         }
                     }
@@ -782,14 +818,14 @@ struct BRKillMailDetailView: View {
                             ItemRow(
                                 typeId: typeId, quantity: item[2], isDropped: true,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail.pricesForDisplay
+                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
                             )
                         }
                         if item[3] > 0 { // 摧毁数量
                             ItemRow(
                                 typeId: typeId, quantity: item[3], isDropped: false,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail.pricesForDisplay
+                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
                             )
                         }
                     }
@@ -815,14 +851,14 @@ struct BRKillMailDetailView: View {
                             ItemRow(
                                 typeId: typeId, quantity: item[2], isDropped: true,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail.pricesForDisplay
+                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
                             )
                         }
                         if item[3] > 0 { // 摧毁数量
                             ItemRow(
                                 typeId: typeId, quantity: item[3], isDropped: false,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail.pricesForDisplay
+                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
                             )
                         }
                     }
@@ -848,14 +884,14 @@ struct BRKillMailDetailView: View {
                             ItemRow(
                                 typeId: typeId, quantity: item[2], isDropped: true,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail.pricesForDisplay
+                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
                             )
                         }
                         if item[3] > 0 { // 摧毁数量
                             ItemRow(
                                 typeId: typeId, quantity: item[3], isDropped: false,
                                 itemInfoCache: itemInfoCache,
-                                prices: detail.pricesForDisplay
+                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
                             )
                         }
                     }
@@ -895,14 +931,14 @@ struct BRKillMailDetailView: View {
                                 ItemRow(
                                     typeId: typeId, quantity: item[2], isDropped: true,
                                     itemInfoCache: itemInfoCache,
-                                    prices: detail.pricesForDisplay
+                                    resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
                                 )
                             }
                             if item[3] > 0 { // 摧毁数量
                                 ItemRow(
                                     typeId: typeId, quantity: item[3], isDropped: false,
                                     itemInfoCache: itemInfoCache,
-                                    prices: detail.pricesForDisplay
+                                    resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
                                 )
                             }
                         }
@@ -944,8 +980,12 @@ struct BRKillMailDetailView: View {
 
     // MARK: - 原有的辅助函数
 
+    @MainActor
     private func loadBRKillMailDetail() async {
         isLoading = true
+        kmMarketPriceSession += 1
+        let priceSession = kmMarketPriceSession
+        kmMarketUnitPriceByType = [:]
         defer { isLoading = false }
 
         do {
@@ -953,32 +993,13 @@ struct BRKillMailDetailView: View {
             let hash = listEntity.zkb.hash
             Logger.debug("开始加载战报ID \(killId) 的详细信息")
 
-            var detail = try await KillMailDataConverter.shared.fetchKillMailDetail(
+            let detail = try await KillMailDataConverter.shared.fetchKillMailDetail(
                 killmailId: killId,
                 hash: hash,
                 zkb: listEntity.zkb
             )
 
-            await MainActor.run {
-                if let zkb = detail.zkb { self.zkbInfoFromAPI = zkb }
-            }
-
-            // 收集需要获取价格的物品ID
-            var typeIds = Set<Int>()
-            typeIds.insert(detail.esi.victim.ship_type_id)
-            for item in detail.convertedItemsForFitting {
-                if item.count >= 2 { typeIds.insert(item[1]) }
-            }
-
-            var prices: [Int: Double] = [:]
-            if !typeIds.isEmpty {
-                let marketPrices = await MarketPriceUtil.getMarketPrices(typeIds: Array(typeIds))
-                for (typeId, priceData) in marketPrices {
-                    prices[typeId] = priceData.averagePrice
-                }
-                Logger.debug("成功获取 \(prices.count) 个物品的市场价格")
-            }
-            detail.prices = prices
+            if let zkb = detail.zkb { zkbInfoFromAPI = zkb }
 
             loadAllItemInfo(from: detail)
             await loadIcons(from: detail)
@@ -989,12 +1010,15 @@ struct BRKillMailDetailView: View {
             )
 
             let zkb = zkbInfoFromAPI ?? listEntity.zkb
-            await MainActor.run {
-                self.fittedValue = zkb.fittedValueValue
-                self.droppedValue = zkb.droppedValueValue
-                self.destroyedValue = zkb.destroyedValueValue
-                self.totalValue = zkb.totalValueValue
-                self.detailData = detail
+            fittedValue = zkb.fittedValueValue
+            droppedValue = zkb.droppedValueValue
+            destroyedValue = zkb.destroyedValueValue
+            totalValue = zkb.totalValueValue
+            detailData = detail
+
+            let priceTypeIds = collectKillMailPriceTypeIds(detail)
+            Task {
+                await applyKillMailMarketPrices(typeIds: priceTypeIds, session: priceSession)
             }
         } catch {
             Logger.error("加载战斗日志详情失败: \(error)")
@@ -1002,6 +1026,30 @@ struct BRKillMailDetailView: View {
         }
     }
 
+    private func collectKillMailPriceTypeIds(_ detail: KillMailDetailData) -> [Int] {
+        var typeIds = Set<Int>()
+        typeIds.insert(detail.esi.victim.ship_type_id)
+        for item in detail.convertedItemsForFitting where item.count >= 2 {
+            typeIds.insert(item[1])
+        }
+        return Array(typeIds)
+    }
+
+    private func applyKillMailMarketPrices(typeIds: [Int], session: Int) async {
+        guard !typeIds.isEmpty else { return }
+        let marketPrices = await MarketPriceUtil.getMarketPrices(typeIds: typeIds)
+        Logger.debug("战报详情: 市场价格批量获取完成，写入 \(marketPrices.count)/\(typeIds.count) 条")
+        for typeId in typeIds.sorted() {
+            let unit = marketPrices[typeId]?.averagePrice ?? 0
+            await MainActor.run {
+                guard session == kmMarketPriceSession else { return }
+                kmMarketUnitPriceByType[typeId] = unit
+            }
+            await Task.yield()
+        }
+    }
+
+    @MainActor
     private func loadIcons(from detail: KillMailDetailData) async {
         if let charId = detail.esi.victim.character_id {
             do {
@@ -1135,7 +1183,8 @@ struct ItemRow: View {
     let quantity: Int
     let isDropped: Bool // 是否为掉落物品
     let itemInfoCache: [Int: (name: String, iconFileName: String, categoryID: Int)]
-    let prices: [String: Double]
+    /// 已解析的单价；`nil` 表示价格仍在加载，显示占位指示器
+    let resolvedUnitPrice: Double?
 
     var body: some View {
         if let itemInfo = itemInfoCache[typeId] {
@@ -1153,9 +1202,7 @@ struct ItemRow: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(itemInfo.name)
-                        Text(FormatUtil.formatISK(getItemPrice() * Double(quantity)))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
+                        priceCaptionLine
                     }
 
                     Spacer()
@@ -1181,9 +1228,7 @@ struct ItemRow: View {
                             format: NSLocalizedString("KillMail_Unknown_Item", comment: ""), typeId
                         )
                     )
-                    Text(FormatUtil.formatISK(getItemPrice() * Double(quantity)))
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                    priceCaptionLine
                 }
                 Spacer()
                 if quantity > 1 {
@@ -1195,8 +1240,18 @@ struct ItemRow: View {
         }
     }
 
-    private func getItemPrice() -> Double {
-        return prices[String(typeId)] ?? 0.0
+    @ViewBuilder
+    private var priceCaptionLine: some View {
+        if let unit = resolvedUnitPrice {
+            Text(FormatUtil.formatISK(unit * Double(quantity)))
+                .font(.caption)
+                .foregroundColor(.secondary)
+        } else {
+            ProgressView()
+                .controlSize(.small)
+                .scaleEffect(0.85)
+                .frame(height: 14)
+        }
     }
 }
 
@@ -1270,6 +1325,8 @@ struct KillMailAttackersView: View {
     let detailData: KillMailDetailData
     let character: EVECharacterInfo?
     @State private var searchText = ""
+    /// 参与者页按需加载的实体名称（与 `detailData.names` 合并后展示；受害者名称以详情中为准）
+    @State private var supplementalAttackerNames: [Int: String] = [:]
 
     /// 搜索关键词（至少2字符才生效）
     private var searchQuery: String {
@@ -1280,13 +1337,19 @@ struct KillMailAttackersView: View {
         searchQuery.count >= 2
     }
 
+    /// 详情中已解析名称 + 参与者页补充名称（同 id 以详情为准）
+    private var mergedEntityNames: [Int: String] {
+        supplementalAttackerNames.merging(detailData.names) { _, fromDetail in fromDetail }
+    }
+
     /// 参与者是否匹配搜索（人物名、军团名、联盟名）
     private func attackerMatchesSearch(_ atk: ESIAttacker) -> Bool {
         guard isSearchActive else { return true }
         let q = searchQuery.lowercased()
-        let charName = atk.character_id.map { detailData.characterName(for: $0) } ?? ""
-        let corpName = atk.corporation_id.map { detailData.corporationName(for: $0) } ?? ""
-        let allyName = (atk.alliance_id ?? 0) > 0 ? detailData.allianceName(for: atk.alliance_id!) : ""
+        let m = mergedEntityNames
+        let charName = atk.character_id.map { m[$0] ?? "Character \($0)" } ?? ""
+        let corpName = atk.corporation_id.map { m[$0] ?? "Corporation \($0)" } ?? ""
+        let allyName = (atk.alliance_id ?? 0) > 0 ? (m[atk.alliance_id!] ?? "Alliance \(atk.alliance_id!)") : ""
         return charName.localizedCaseInsensitiveContains(q)
             || corpName.localizedCaseInsensitiveContains(q)
             || allyName.localizedCaseInsensitiveContains(q)
@@ -1354,25 +1417,35 @@ struct KillMailAttackersView: View {
 
     var body: some View {
         let total = totalDamageDone
+        let nameMap = mergedEntityNames
         List {
             if !filteredMyAttackers.isEmpty {
                 Section(NSLocalizedString("Main_KM_Attackers_My_Kills", comment: "")) {
                     ForEach(filteredMyAttackers.map { AttackerRowItem(attacker: $0, stableId: attackerStableId($0), section: "my") }) { item in
-                        AttackerRowView(attacker: item.attacker, detailData: detailData, totalDamageDone: total, character: character)
+                        AttackerRowView(
+                            attacker: item.attacker, entityNameMap: nameMap,
+                            totalDamageDone: total, character: character
+                        )
                     }
                 }
             }
             if !filteredFinalBlowAttackers.isEmpty {
                 Section(NSLocalizedString("Main_KM_Attackers_Final_Blow", comment: "")) {
                     ForEach(filteredFinalBlowAttackers.map { AttackerRowItem(attacker: $0, stableId: attackerStableId($0), section: "final") }) { item in
-                        AttackerRowView(attacker: item.attacker, detailData: detailData, totalDamageDone: total, character: character)
+                        AttackerRowView(
+                            attacker: item.attacker, entityNameMap: nameMap,
+                            totalDamageDone: total, character: character
+                        )
                     }
                 }
             }
             if !filteredMostDamageAttackers.isEmpty {
                 Section(NSLocalizedString("Main_KM_Attackers_Most_Damage", comment: "")) {
                     ForEach(filteredMostDamageAttackers.map { AttackerRowItem(attacker: $0, stableId: attackerStableId($0), section: "damage") }) { item in
-                        AttackerRowView(attacker: item.attacker, detailData: detailData, totalDamageDone: total, character: character)
+                        AttackerRowView(
+                            attacker: item.attacker, entityNameMap: nameMap,
+                            totalDamageDone: total, character: character
+                        )
                     }
                 }
             }
@@ -1384,7 +1457,10 @@ struct KillMailAttackersView: View {
                         .padding()
                 } else {
                     ForEach(filteredAllAttackers.map { AttackerRowItem(attacker: $0, stableId: attackerStableId($0), section: "all") }) { item in
-                        AttackerRowView(attacker: item.attacker, detailData: detailData, totalDamageDone: total, character: character)
+                        AttackerRowView(
+                            attacker: item.attacker, entityNameMap: nameMap,
+                            totalDamageDone: total, character: character
+                        )
                     }
                 }
             }
@@ -1393,6 +1469,33 @@ struct KillMailAttackersView: View {
         .searchable(text: $searchText, prompt: NSLocalizedString("Main_KM_Attackers_Search_Placeholder", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
         .navigationTitle("")
+        .task {
+            await loadAttackerEntityNamesIfNeeded()
+        }
+    }
+
+    /// 仅查询参与者相关且详情中尚未有的实体名称（触发 `universe_names` 等）
+    private func loadAttackerEntityNamesIfNeeded() async {
+        var ids = Set<Int>()
+        for atk in detailData.attackers {
+            if let c = atk.character_id { ids.insert(c) }
+            if let c = atk.corporation_id { ids.insert(c) }
+            if let a = atk.alliance_id, a > 0 { ids.insert(a) }
+        }
+        let missing = ids.filter { detailData.names[$0] == nil }
+        guard !missing.isEmpty else { return }
+        do {
+            let fetched = try await UniverseAPI.shared.getNamesWithFallback(ids: Array(missing))
+            await MainActor.run {
+                var merged = supplementalAttackerNames
+                for (id, pair) in fetched {
+                    merged[id] = pair.name
+                }
+                supplementalAttackerNames = merged
+            }
+        } catch {
+            Logger.error("战报参与者: 批量解析名称失败 - \(error)")
+        }
     }
 }
 
@@ -1400,7 +1503,8 @@ struct KillMailAttackersView: View {
 
 private struct AttackerRowView: View {
     let attacker: ESIAttacker
-    let detailData: KillMailDetailData
+    /// 角色/军团/联盟 id → 名称（含详情预取 + 参与者页补充）
+    let entityNameMap: [Int: String]
     let totalDamageDone: Int
     let character: EVECharacterInfo?
     @State private var characterPortrait: UIImage?
@@ -1427,9 +1531,9 @@ private struct AttackerRowView: View {
     }
 
     private var displayName: String {
-        if let id = attacker.character_id { return detailData.characterName(for: id) }
-        if let id = attacker.alliance_id, id > 0 { return detailData.allianceName(for: id) }
-        if let id = attacker.corporation_id { return detailData.corporationName(for: id) }
+        if let id = attacker.character_id { return entityNameMap[id] ?? "Character \(id)" }
+        if let id = attacker.alliance_id, id > 0 { return entityNameMap[id] ?? "Alliance \(id)" }
+        if let id = attacker.corporation_id { return entityNameMap[id] ?? "Corporation \(id)" }
         return NSLocalizedString("Unknown", comment: "")
     }
 
@@ -1443,12 +1547,12 @@ private struct AttackerRowView: View {
 
     private var corporationName: String {
         guard let id = attacker.corporation_id else { return "-" }
-        return detailData.corporationName(for: id)
+        return entityNameMap[id] ?? "Corporation \(id)"
     }
 
     private var allianceName: String {
         guard let id = attacker.alliance_id, id > 0 else { return "-" }
-        return detailData.allianceName(for: id)
+        return entityNameMap[id] ?? "Alliance \(id)"
     }
 
     /// 上方图标：优先 ship_type_id，缺失时用 weapon_type_id 替代

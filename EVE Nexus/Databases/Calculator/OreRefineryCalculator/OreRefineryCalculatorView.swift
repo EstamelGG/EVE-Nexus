@@ -471,33 +471,8 @@ struct OreRefineryCalculatorView: View {
             MarketItemSelectorView(
                 databaseManager: databaseManager,
                 existingItems: Set(oreItems.map { $0.typeID }),
-                onItemSelected: { item in
-                    if !oreItems.contains(where: { $0.typeID == item.id }) {
-                        items.append(item)
-                        oreItems.append(QuickbarItem(typeID: item.id))
-                        // 重新排序并同步数据
-                        let sorted = items.sorted(by: { $0.id < $1.id })
-                        items = sorted
-                        oreItems = sorted.map { item in
-                            QuickbarItem(
-                                typeID: item.id,
-                                quantity: oreItems.first(where: { $0.typeID == item.id })?.quantity
-                                    ?? 1
-                            )
-                        }
-                        // 更新数量字典
-                        itemQuantities = Dictionary(
-                            uniqueKeysWithValues: oreItems.map { ($0.typeID, $0.quantity) }
-                        )
-                        loadItemVolumes()
-                        // 添加物品后立即计算精炼比例
-                        calculateBatchRefineryRatios()
-                        // 添加物品后自动加载市场订单
-                        Task {
-                            await loadAllMarketOrders()
-                        }
-                    }
-                },
+                onItemSelected: { applyOreSelectorItems([$0]) },
+                onBatchItemsSelected: { applyOreSelectorItems($0) },
                 onItemDeselected: { item in
                     if let index = items.firstIndex(where: { $0.id == item.id }) {
                         items.remove(at: index)
@@ -604,6 +579,31 @@ struct OreRefineryCalculatorView: View {
 
             // 初始化时计算精炼比例
             calculateBatchRefineryRatios()
+        }
+    }
+
+    /// 选择器批量添加矿石：一次体积与精炼比例更新、一次订单任务
+    private func applyOreSelectorItems(_ newItems: [DatabaseListItem]) {
+        let existingTypeIDs = Set(oreItems.map(\.typeID))
+        let toAdd = newItems.filter { !existingTypeIDs.contains($0.id) }
+        guard !toAdd.isEmpty else { return }
+        for item in toAdd {
+            items.append(item)
+            oreItems.append(QuickbarItem(typeID: item.id))
+        }
+        let sorted = items.sorted(by: { $0.id < $1.id })
+        items = sorted
+        oreItems = sorted.map { item in
+            QuickbarItem(
+                typeID: item.id,
+                quantity: oreItems.first(where: { $0.typeID == item.id })?.quantity ?? 1
+            )
+        }
+        itemQuantities = Dictionary(uniqueKeysWithValues: oreItems.map { ($0.typeID, $0.quantity) })
+        loadItemVolumes()
+        calculateBatchRefineryRatios()
+        Task {
+            await loadAllMarketOrders()
         }
     }
 

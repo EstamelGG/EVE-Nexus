@@ -34,30 +34,6 @@ extension View {
     }
 }
 
-// 优化数据模型为值类型
-struct TableRowNode: Identifiable, Equatable {
-    let id = UUID()
-    let title: String
-    let iconName: String
-    let note: String?
-    let destination: AnyView?
-
-    static func == (lhs: TableRowNode, rhs: TableRowNode) -> Bool {
-        lhs.id == rhs.id && lhs.title == rhs.title && lhs.iconName == rhs.iconName
-            && lhs.note == rhs.note
-    }
-}
-
-struct TableNode: Identifiable, Equatable {
-    let id = UUID()
-    let title: String
-    var rows: [TableRowNode]
-
-    static func == (lhs: TableNode, rhs: TableNode) -> Bool {
-        lhs.id == rhs.id && lhs.title == rhs.title && lhs.rows == rhs.rows
-    }
-}
-
 // 优化 ServerStatusView
 class ServerStatusViewModel: ObservableObject {
     @Published var status: ServerStatus?
@@ -1998,40 +1974,6 @@ struct ContentView: View {
                 .resizable()
                 .frame(width: 28, height: 24)
                 .foregroundColor(.red)
-        }
-    }
-
-    // MARK: - 通用组件
-
-    struct RowView: View {
-        let title: String
-        let icon: String
-        var note: String?
-        var noteView: AnyView? = nil
-
-        var body: some View {
-            HStack {
-                Image(icon)
-                    .resizable()
-                    .frame(width: 36, height: 36)
-                    .cornerRadius(6)
-                    .drawingGroup()
-
-                VStack(alignment: .leading) {
-                    Text(title)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if let noteView = noteView {
-                        noteView
-                    } else if let note = note, !note.isEmpty {
-                        Text(note)
-                            .font(.system(size: 12))
-                            .foregroundColor(.gray)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .lineLimit(1)
-                    }
-                }
-                Spacer()
-            }
         }
     }
 }

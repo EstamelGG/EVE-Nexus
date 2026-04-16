@@ -83,6 +83,10 @@ struct BRKillMailFittingView: View {
     // 添加飞船图片状态
     @State private var shipImage: Image?
     @State private var equipmentIcons: [Int: Image] = [:]
+    /// 每个 flag 槽位上首个弹药（categoryID == 8）的图标，绘制在槽位内侧（靠近船体）
+    @State private var chargeIcons: [Int: Image] = [:]
+    /// 该 flag 上存在 quantity_dropped > 0 的物品时，扇形铺浅绿底（与列表掉落行一致）
+    @State private var droppedSlotIds: Set<Int> = []
     @State private var isLoading = true
 
     // 从EVE官方API加载飞船图片
@@ -155,21 +159,36 @@ struct BRKillMailFittingView: View {
         let typeInfos = getIconFileNames(typeIds: Array(uniqueTypeIds))
         await initializeSlotConfig(shipId: shipId, items: convertedItems, typeInfos: typeInfos)
 
+        var newEquipmentIcons: [Int: Image] = [:]
+        var newChargeIcons: [Int: Image] = [:]
+        var newDroppedSlots: Set<Int> = []
+
         for (slotId, items) in slotItems {
-            let nonAmmoItems = items.filter { item in
-                if let typeInfo = typeInfos[item[1]] { return typeInfo.1 != 8 }
-                return false
-            }
-            if let firstItem = nonAmmoItems.first,
-               let typeInfo = typeInfos[firstItem[1]]
-            {
-                await MainActor.run {
-                    equipmentIcons[slotId] = IconManager.shared.loadImage(for: typeInfo.0)
+            var firstNonAmmoIcon: String?
+            var firstAmmoIcon: String?
+            var hasDropped = false
+            for item in items {
+                if item.count > 2, item[2] > 0 { hasDropped = true }
+                guard let typeInfo = typeInfos[item[1]] else { continue }
+                if typeInfo.1 == 8 {
+                    if firstAmmoIcon == nil { firstAmmoIcon = typeInfo.0 }
+                } else if firstNonAmmoIcon == nil {
+                    firstNonAmmoIcon = typeInfo.0
                 }
+            }
+            if hasDropped { newDroppedSlots.insert(slotId) }
+            if let name = firstNonAmmoIcon {
+                newEquipmentIcons[slotId] = IconManager.shared.loadImage(for: name)
+            }
+            if let name = firstAmmoIcon {
+                newChargeIcons[slotId] = IconManager.shared.loadImage(for: name)
             }
         }
 
         await MainActor.run {
+            equipmentIcons = newEquipmentIcons
+            chargeIcons = newChargeIcons
+            droppedSlotIds = newDroppedSlots
             isLoading = false
             // Logger.debug("装配图标: 加载完成")
         }
@@ -340,6 +359,10 @@ struct BRKillMailFittingView: View {
             let innerSlotCenterRadius = (innerSlotOuterRadius + innerSlotInnerRadius) / 2
 
             let equipmentIconSize: CGFloat = 32 * scale
+            // 弹药图标略小；半径在「船体外缘 ↔ 槽位内弧」之间，靠向船体一侧
+            let chargeIconSize: CGFloat = 26 * scale
+            let chargeRadiusHighMedLow =
+                innerCircleRadius + (slotInnerRadius - innerCircleRadius) * 0.5
 
             ZStack {
                 // 外层阴影和发光效果
@@ -430,8 +453,22 @@ struct BRKillMailFittingView: View {
                     .stroke(Color.primary.opacity(0.4), lineWidth: outerStrokeWidth)
                 }
 
-                // 高槽区域 (-52° to 52°)
+                // 高槽区域 (-52° to 52°)：掉落槽位浅绿底 → 描边
                 if actualSlotConfig.highSlots > 0 {
+                    ForEach(0 ..< actualSlotConfig.highSlots, id: \.self) { index in
+                        if droppedSlotIds.contains(highSlots[index].id) {
+                            SingleSlotWedge(
+                                center: center,
+                                innerRadius: slotInnerRadius,
+                                outerRadius: slotOuterRadius,
+                                startAngle: -52,
+                                endAngle: 52,
+                                maxSlots: 8,
+                                slotIndex: index
+                            )
+                            .fill(Color.green.opacity(0.22))
+                        }
+                    }
                     SlotSection(
                         center: center,
                         innerRadius: slotInnerRadius,
@@ -448,6 +485,20 @@ struct BRKillMailFittingView: View {
 
                 // 低槽区域 (68° to 172°)
                 if actualSlotConfig.lowSlots > 0 {
+                    ForEach(0 ..< actualSlotConfig.lowSlots, id: \.self) { index in
+                        if droppedSlotIds.contains(lowSlots[index].id) {
+                            SingleSlotWedge(
+                                center: center,
+                                innerRadius: slotInnerRadius,
+                                outerRadius: slotOuterRadius,
+                                startAngle: 68,
+                                endAngle: 172,
+                                maxSlots: 8,
+                                slotIndex: index
+                            )
+                            .fill(Color.green.opacity(0.22))
+                        }
+                    }
                     SlotSection(
                         center: center,
                         innerRadius: slotInnerRadius,
@@ -464,6 +515,20 @@ struct BRKillMailFittingView: View {
 
                 // 中槽区域 (188° to 292°)
                 if actualSlotConfig.mediumSlots > 0 {
+                    ForEach(0 ..< actualSlotConfig.mediumSlots, id: \.self) { index in
+                        if droppedSlotIds.contains(mediumSlots[index].id) {
+                            SingleSlotWedge(
+                                center: center,
+                                innerRadius: slotInnerRadius,
+                                outerRadius: slotOuterRadius,
+                                startAngle: 188,
+                                endAngle: 292,
+                                maxSlots: 8,
+                                slotIndex: index
+                            )
+                            .fill(Color.green.opacity(0.22))
+                        }
+                    }
                     SlotSection(
                         center: center,
                         innerRadius: slotInnerRadius,
@@ -480,6 +545,20 @@ struct BRKillMailFittingView: View {
 
                 // 改装槽区域 (142° to 218°)
                 if actualSlotConfig.rigSlots > 0 {
+                    ForEach(0 ..< actualSlotConfig.rigSlots, id: \.self) { index in
+                        if droppedSlotIds.contains(rigSlots[index].id) {
+                            SingleSlotWedge(
+                                center: center,
+                                innerRadius: innerSlotInnerRadius,
+                                outerRadius: innerSlotOuterRadius,
+                                startAngle: 142,
+                                endAngle: 218,
+                                maxSlots: 3,
+                                slotIndex: index
+                            )
+                            .fill(Color.green.opacity(0.22))
+                        }
+                    }
                     SlotSection(
                         center: center,
                         innerRadius: innerSlotInnerRadius,
@@ -496,6 +575,20 @@ struct BRKillMailFittingView: View {
 
                 // 子系统区域 (-48° to 48°)
                 if actualSlotConfig.subsystemSlots > 0 {
+                    ForEach(0 ..< actualSlotConfig.subsystemSlots, id: \.self) { index in
+                        if droppedSlotIds.contains(subsystemSlots[index].id) {
+                            SingleSlotWedge(
+                                center: center,
+                                innerRadius: innerSlotInnerRadius,
+                                outerRadius: innerSlotOuterRadius,
+                                startAngle: -48,
+                                endAngle: 48,
+                                maxSlots: 4,
+                                slotIndex: index
+                            )
+                            .fill(Color.green.opacity(0.22))
+                        }
+                    }
                     SlotSection(
                         center: center,
                         innerRadius: innerSlotInnerRadius,
@@ -510,9 +603,25 @@ struct BRKillMailFittingView: View {
                     .stroke(Color.gray.opacity(0.5), lineWidth: innerStrokeWidth)
                 }
 
-                // 高槽装备图标
+                // 高槽：弹药（内侧）+ 装备，单次 ForEach
                 ForEach(0 ..< actualSlotConfig.highSlots, id: \.self) { index in
-                    if let icon = equipmentIcons[highSlots[index].id] {
+                    let slotId = highSlots[index].id
+                    if let cIcon = chargeIcons[slotId] {
+                        cIcon
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: chargeIconSize, height: chargeIconSize)
+                            .position(
+                                calculateSlotPosition(
+                                    center: center,
+                                    radius: chargeRadiusHighMedLow,
+                                    startAngle: -52,
+                                    slotIndex: index,
+                                    maxSlots: 8,
+                                    totalAngle: 104
+                                ))
+                    }
+                    if let icon = equipmentIcons[slotId] {
                         icon
                             .resizable()
                             .scaledToFit()
@@ -527,7 +636,6 @@ struct BRKillMailFittingView: View {
                                     totalAngle: 104
                                 ))
                     } else {
-                        // 显示默认高槽图标
                         let position = calculateSlotPosition(
                             center: center,
                             radius: slotCenterRadius,
@@ -536,7 +644,6 @@ struct BRKillMailFittingView: View {
                             maxSlots: 8,
                             totalAngle: 104
                         )
-                        // 计算从圆心到该位置的角度
                         let angle = atan2(position.y - center.y, position.x - center.x) + .pi / 2
 
                         IconManager.shared.loadImage(for: "highSlot")
@@ -549,9 +656,24 @@ struct BRKillMailFittingView: View {
                     }
                 }
 
-                // 低槽装备图标
                 ForEach(0 ..< actualSlotConfig.lowSlots, id: \.self) { index in
-                    if let icon = equipmentIcons[lowSlots[index].id] {
+                    let slotId = lowSlots[index].id
+                    if let cIcon = chargeIcons[slotId] {
+                        cIcon
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: chargeIconSize, height: chargeIconSize)
+                            .position(
+                                calculateSlotPosition(
+                                    center: center,
+                                    radius: chargeRadiusHighMedLow,
+                                    startAngle: 68,
+                                    slotIndex: index,
+                                    maxSlots: 8,
+                                    totalAngle: 104
+                                ))
+                    }
+                    if let icon = equipmentIcons[slotId] {
                         icon
                             .resizable()
                             .scaledToFit()
@@ -566,7 +688,6 @@ struct BRKillMailFittingView: View {
                                     totalAngle: 104
                                 ))
                     } else {
-                        // 显示默认低槽图标
                         let position = calculateSlotPosition(
                             center: center,
                             radius: slotCenterRadius,
@@ -575,7 +696,6 @@ struct BRKillMailFittingView: View {
                             maxSlots: 8,
                             totalAngle: 104
                         )
-                        // 计算从圆心到该位置的角度
                         let angle = atan2(position.y - center.y, position.x - center.x) + .pi / 2
 
                         IconManager.shared.loadImage(for: "lowSlot")
@@ -588,9 +708,24 @@ struct BRKillMailFittingView: View {
                     }
                 }
 
-                // 中槽装备图标
                 ForEach(0 ..< actualSlotConfig.mediumSlots, id: \.self) { index in
-                    if let icon = equipmentIcons[mediumSlots[index].id] {
+                    let slotId = mediumSlots[index].id
+                    if let cIcon = chargeIcons[slotId] {
+                        cIcon
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: chargeIconSize, height: chargeIconSize)
+                            .position(
+                                calculateSlotPosition(
+                                    center: center,
+                                    radius: chargeRadiusHighMedLow,
+                                    startAngle: 188,
+                                    slotIndex: index,
+                                    maxSlots: 8,
+                                    totalAngle: 104
+                                ))
+                    }
+                    if let icon = equipmentIcons[slotId] {
                         icon
                             .resizable()
                             .scaledToFit()
@@ -605,7 +740,6 @@ struct BRKillMailFittingView: View {
                                     totalAngle: 104
                                 ))
                     } else {
-                        // 显示默认中槽图标
                         let position = calculateSlotPosition(
                             center: center,
                             radius: slotCenterRadius,
@@ -614,7 +748,6 @@ struct BRKillMailFittingView: View {
                             maxSlots: 8,
                             totalAngle: 104
                         )
-                        // 计算从圆心到该位置的角度
                         let angle = atan2(position.y - center.y, position.x - center.x) + .pi / 2
 
                         IconManager.shared.loadImage(for: "midSlot")
@@ -627,7 +760,6 @@ struct BRKillMailFittingView: View {
                     }
                 }
 
-                // 改装槽图标
                 ForEach(0 ..< actualSlotConfig.rigSlots, id: \.self) { index in
                     if let icon = equipmentIcons[rigSlots[index].id] {
                         icon
@@ -644,7 +776,6 @@ struct BRKillMailFittingView: View {
                                     totalAngle: 76
                                 ))
                     } else {
-                        // 显示默认改装槽图标
                         let position = calculateSlotPosition(
                             center: center,
                             radius: innerSlotCenterRadius,
@@ -653,7 +784,6 @@ struct BRKillMailFittingView: View {
                             maxSlots: 3,
                             totalAngle: 76
                         )
-                        // 计算从圆心到该位置的角度
                         let angle = atan2(position.y - center.y, position.x - center.x) + .pi / 2
 
                         IconManager.shared.loadImage(for: "rigSlot")
@@ -666,7 +796,6 @@ struct BRKillMailFittingView: View {
                     }
                 }
 
-                // 子系统图标
                 ForEach(0 ..< actualSlotConfig.subsystemSlots, id: \.self) { index in
                     if let icon = equipmentIcons[subsystemSlots[index].id] {
                         icon
@@ -695,6 +824,52 @@ struct BRKillMailFittingView: View {
                 await loadKillMailData()
             }
         }
+    }
+}
+
+/// 与 `SlotSection` 同一角度体系下的单槽扇形（用于掉落高亮填充）
+private struct SingleSlotWedge: Shape {
+    let center: CGPoint
+    let innerRadius: CGFloat
+    let outerRadius: CGFloat
+    let startAngle: Double
+    let endAngle: Double
+    let maxSlots: Int
+    let slotIndex: Int
+
+    func path(in _: CGRect) -> Path {
+        let adjustment = -90.0
+        let totalAngle = endAngle - startAngle
+        let slotWidth = totalAngle / Double(maxSlots)
+        let a0 = startAngle + slotWidth * Double(slotIndex)
+        let a1 = startAngle + slotWidth * Double(slotIndex + 1)
+        let r0 = (a0 + adjustment) * .pi / 180
+        let r1 = (a1 + adjustment) * .pi / 180
+
+        func pt(radius r: CGFloat, rad: Double) -> CGPoint {
+            CGPoint(x: center.x + r * Foundation.cos(rad), y: center.y + r * Foundation.sin(rad))
+        }
+
+        var path = Path()
+        path.move(to: pt(radius: innerRadius, rad: r0))
+        path.addLine(to: pt(radius: outerRadius, rad: r0))
+        path.addArc(
+            center: center,
+            radius: outerRadius,
+            startAngle: .radians(r0),
+            endAngle: .radians(r1),
+            clockwise: false
+        )
+        path.addLine(to: pt(radius: innerRadius, rad: r1))
+        path.addArc(
+            center: center,
+            radius: innerRadius,
+            startAngle: .radians(r1),
+            endAngle: .radians(r0),
+            clockwise: true
+        )
+        path.closeSubpath()
+        return path
     }
 }
 

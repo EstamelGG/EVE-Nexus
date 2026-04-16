@@ -409,3 +409,10 @@ Fixes & Improvements:
 3. Improved logic of Skill Plan feature .
 4. Home server status shows Tranquility MM/dd HH:mm (UTC) with online state
 5. "Wealth" function includes outstanding item-exchange contracts you issued.
+
+# v1.12.4 May 1, 2026
+
+1. Add items from the item database to the currently selected market watch list.
+2. Market watch list: when importing from the clipboard, choose Replace existing or Append to existing.
+3. Market watch list: when adding items, each meta / tech tier section has a Select all button.
+4. Add "Favorites" feature to Killmail function.

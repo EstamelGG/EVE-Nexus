@@ -6,17 +6,6 @@ class DroneState: ObservableObject, Identifiable {
     @Published var droneTypeId: Int?
 }
 
-// 包装 Int 类型使其符合 Identifiable
-struct DroneTypeIdentifier: Identifiable {
-    let id: Int
-    let typeId: Int
-
-    init(typeId: Int) {
-        id = typeId
-        self.typeId = typeId
-    }
-}
-
 struct ShipFittingDronesView: View {
     @ObservedObject var viewModel: FittingEditorViewModel
     @State private var showingDroneSelector = false

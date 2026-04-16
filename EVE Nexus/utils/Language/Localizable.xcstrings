@@ -467,6 +467,16 @@
       },
       "shouldTranslate" : false
     },
+    "%@(%lld)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@(%2$lld)"
+          }
+        }
+      }
+    },
     "%@/%@ " : {
       "localizations" : {
         "en" : {
@@ -19164,6 +19174,102 @@
         }
       }
     },
+    "KillMail_Favorites_Add_A11y" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to favorites"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加入收藏"
+          }
+        }
+      }
+    },
+    "KillMail_Favorites_Empty" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No saved killmails yet."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂无收藏的战斗记录。"
+          }
+        }
+      }
+    },
+    "KillMail_Favorites_Link" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View Favorites"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看收藏夹"
+          }
+        }
+      }
+    },
+    "KillMail_Favorites_Load_Failed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Could not load saved killmails. Pull to refresh."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法加载已收藏的战斗记录，请下拉重试。"
+          }
+        }
+      }
+    },
+    "KillMail_Favorites_Remove_A11y" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from favorites"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消收藏"
+          }
+        }
+      }
+    },
+    "KillMail_Favorites_Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favorites"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收藏夹"
+          }
+        }
+      }
+    },
     "KillMail_Filter" : {
       "localizations" : {
         "en" : {
@@ -25816,6 +25922,103 @@
         }
       }
     },
+    "Main_Market_Add_To_Watchlist_Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to Market Watchlist"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加入市场关注列表"
+          }
+        }
+      }
+    },
+    "Main_Market_Add_To_Watchlist_Already_Message" : {
+      "comment" : "Shown when confirming add to watchlist but item already in selected list",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This item is already in the selected watchlist."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "该物品已在所选关注列表中。"
+          }
+        }
+      }
+    },
+    "Main_Market_Add_To_Watchlist_Already_Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Already Added"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已在列表中"
+          }
+        }
+      }
+    },
+    "Main_Market_Add_To_Watchlist_Picker_Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose Watchlist"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择关注列表"
+          }
+        }
+      }
+    },
+    "Main_Market_Add_To_Watchlist_Success_Message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The item has been added to \"%@\"."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "物品已添加到「%@」。"
+          }
+        }
+      }
+    },
+    "Main_Market_Add_To_Watchlist_Success_Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Added"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加成功"
+          }
+        }
+      }
+    },
     "Main_Market_All_Regions" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -25912,23 +26115,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "成功解析全部 %d 个物品"
-          }
-        }
-      }
-    },
-    "Main_Market_Clipboard_Distinct_Type_Limit" : {
-      "comment" : "导入失败：去重后 type 个数过多",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cannot import: %d distinct items (maximum %d). Reduce the list and try again."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法导入：去重后共 %d 个物品，超过上限 %d。请减少导入物品后再试。"
           }
         }
       }
@@ -26051,6 +26237,22 @@
         }
       }
     },
+    "Main_Market_Clipboard_Import_Append" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Merge with Existing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "追加"
+          }
+        }
+      }
+    },
     "Main_Market_Clipboard_Import_Confirm" : {
       "comment" : "Clipboard import confirmation related",
       "localizations" : {
@@ -26096,6 +26298,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "确认导入"
+          }
+        }
+      }
+    },
+    "Main_Market_Clipboard_Import_Mode_Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import Clipboard"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "导入剪贴板"
+          }
+        }
+      }
+    },
+    "Main_Market_Clipboard_Import_Overwrite" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replace List"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "覆盖现有"
           }
         }
       }
@@ -26528,6 +26762,22 @@
         }
       }
     },
+    "Main_Market_Select_All_In_Section" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select All"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全选"
+          }
+        }
+      }
+    },
     "Main_Market_Select_Location" : {
       "comment" : "选择位置",
       "localizations" : {
@@ -26843,6 +27093,22 @@
         }
       }
     },
+    "Main_Market_Watch_List_Edit_Item_Quantity" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit Quantity"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "修改数量"
+          }
+        }
+      }
+    },
     "Main_Market_Watch_List_Empty" : {
       "localizations" : {
         "en" : {
@@ -26887,6 +27153,70 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "关注列表名称"
+          }
+        }
+      }
+    },
+    "Main_Market_Watch_List_Quantity_Field_Placeholder" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quantity"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数量"
+          }
+        }
+      }
+    },
+    "Main_Market_Watch_List_Quantity_Prompt" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter a quantity between 1 and 999,999,999."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请输入 1 至 999,999,999 之间的数量。"
+          }
+        }
+      }
+    },
+    "Main_Market_Watch_List_Type_Limit_Message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This watchlist supports at most %d item types. Extra types were removed from the end; remove some types before adding more."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "列表过长（%d个），无法再添加物品。"
+          }
+        }
+      }
+    },
+    "Main_Market_Watch_List_Type_Limit_Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watchlist Limit"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "列表过长"
           }
         }
       }
@@ -41685,24 +42015,6 @@
         }
       }
     },
-    "Structure_Market_GitHub_API_Unavailable" : {
-      "comment" : "GitHub API不可达，请重试",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub API unavailable, please retry"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "GitHub API不可达，请重试"
-          }
-        }
-      }
-    },
     "Structure_Market_Group_Distribution" : {
       "comment" : "分组分布",
       "localizations" : {
@@ -43408,50 +43720,6 @@
         }
       }
     },
-    "Time_Months" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%dM"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%dМ"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d月"
-          }
-        }
-      }
-    },
-    "Time_Months_Days" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%dM %dD"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%dМ %dД"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d月%d日"
-          }
-        }
-      }
-    },
     "Time_Remaining" : {
       "localizations" : {
         "en" : {
@@ -43904,57 +44172,6 @@
         }
       }
     },
-    "Update_Notification_Got_It" : {
-      "comment" : "知道了",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "OK"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "知道了"
-          }
-        }
-      }
-    },
-    "Update_Notification_Title" : {
-      "comment" : "更新内容",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Update"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更新内容"
-          }
-        }
-      }
-    },
-    "Update_Notification_Version" : {
-      "comment" : "版本 %@ - %@",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Version %@ - %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "版本 %@ - %@"
-          }
-        }
-      }
-    },
     "v%@" : {
       "shouldTranslate" : false
     },
@@ -44374,6 +44591,40 @@
         }
       }
     },
+    "Wealth_Contracts" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Item Exchange Contracts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "物品交换合同"
+          }
+        }
+      }
+    },
+    "Wealth_Contracts_Count" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d Contracts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d 份未决合同"
+          }
+        }
+      }
+    },
     "Wealth_Detail_HasPrice" : {
       "localizations" : {
         "en" : {
@@ -44587,40 +44838,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%d 个订单"
-          }
-        }
-      }
-    },
-    "Wealth_Contracts" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Item Exchange Contracts"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "物品交换合同"
-          }
-        }
-      }
-    },
-    "Wealth_Contracts_Count" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d Contracts"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d 份未决合同"
           }
         }
       }

@@ -101,44 +101,15 @@ struct CharacterAttributesView: View {
     }
 
     private func formatNextRemapTime(_ dateString: String) -> String {
-        let dateFormatter = ISO8601DateFormatter()
-        dateFormatter.formatOptions = [.withInternetDateTime]
-
-        guard let date = dateFormatter.date(from: dateString) else {
+        guard let date = FormatUtil.parseUTCDate(dateString) else {
             return NSLocalizedString("Character_Never", comment: "")
         }
 
-        let now = Date()
-        if now > date {
+        if Date() >= date {
             return NSLocalizedString("Character_Attributes_Ready_Now", comment: "")
         }
 
-        let calendar = Calendar.current
-        let components = calendar.dateComponents([.month, .day, .hour], from: now, to: date)
-
-        if let months = components.month, months > 0 {
-            if let days = components.day, days > 0 {
-                return String(
-                    format: NSLocalizedString("Time_Months_Days", comment: ""), months, days
-                )
-            }
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Months", comment: ""), months)
-        }
-
-        if let days = components.day, days > 0 {
-            if let hours = components.hour, hours > 0 {
-                return String(
-                    format: NSLocalizedString("Time_Days_Hours", comment: ""), days, hours
-                )
-            }
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Days", comment: ""), days)
-        }
-
-        if let hours = components.hour, hours > 0 {
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Hours", comment: ""), hours)
-        }
-
-        return NSLocalizedString("Character_Attributes_Ready_Now", comment: "")
+        return FormatUtil.formatDateToLocalTime(date)
     }
 
     private func fetchAttributes(forceRefresh: Bool = false) async {

@@ -177,9 +177,6 @@ class EVELoginViewModel: ObservableObject {
     @Published var characterPortraits: [Int: UIImage] = [:]
     let databaseManager: DatabaseManager
 
-    // 添加私有队列来保证角色数组操作的线程安全
-    private let characterQueue = DispatchQueue(label: "character.queue", qos: .userInitiated)
-
     init(databaseManager: DatabaseManager = DatabaseManager()) {
         self.databaseManager = databaseManager
         NotificationCenter.default.addObserver(

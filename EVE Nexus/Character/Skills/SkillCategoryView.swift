@@ -132,11 +132,6 @@ class SkillCategoryViewModel: ObservableObject {
         return totalQueuePoints
     }
 
-    // 检查技能是否在队列中（含已完成的）
-    func isSkillInQueue(_ skillId: Int) -> Bool {
-        return skillQueue.contains { $0.skill_id == skillId }
-    }
-
     /// 检查技能是否有未完成的队列项（用于"队列中"section，排除已全部完成的技能）
     /// 已完成：finish_date <= now
     func hasActiveQueueItem(_ skillId: Int) -> Bool {

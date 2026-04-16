@@ -111,7 +111,6 @@ struct SimCharacter {
     var typeId: Int = 1373 // 角色类型ID
     var baseAttributes: [Int: Double] = [:] // 属性ID:值，适合高效计算
     var baseAttributesByName: [String: Double] = [:] // 属性名:值，便于可读性和调试
-    var effects: [Int] = [] // 角色自带效果ID列表
 
     // 修饰器（由Step3初始化）
     var attributeModifiers: [Int: [SimAttributeModifier]] = [:] // 属性ID: [修饰器]
@@ -322,13 +321,6 @@ struct SimEnvironmentEffect {
 }
 
 // MARK: - 属性修饰器与结果
-
-/// 单个属性的模拟结果（原始值、最终值、修饰器列表）
-struct SimAttributeResult {
-    let original: Double // 原始属性值
-    let modified: Double // 最终属性值
-    let modifiers: [SimAttributeModifier] // 所有影响该属性的修饰器
-}
 
 /// 属性修饰器，记录每一步属性变化的来源和方式
 struct SimAttributeModifier {

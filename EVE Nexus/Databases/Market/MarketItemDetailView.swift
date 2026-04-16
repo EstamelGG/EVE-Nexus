@@ -13,51 +13,91 @@ struct MarketItemBasicInfoView: View {
     let itemDetails: ItemDetails
     let marketPath: [String]
 
+    @State private var itemNameShowsEnglish = false
+
+    private var itemNameCanToggleEnglish: Bool {
+        guard let en = itemDetails.en_name, !en.isEmpty else { return false }
+        return en != itemDetails.name
+    }
+
+    private var itemTitleDisplayName: String {
+        if itemNameCanToggleEnglish, itemNameShowsEnglish, let en = itemDetails.en_name {
+            return en
+        }
+        return itemDetails.name
+    }
+
+    private var itemTitleAlternateName: String? {
+        guard itemNameCanToggleEnglish, let en = itemDetails.en_name else { return nil }
+        return itemNameShowsEnglish ? itemDetails.name : en
+    }
+
+    private static let itemNameToggleAnimation = Animation.spring(
+        response: 0.38,
+        dampingFraction: 0.82
+    )
+
+    private func toggleItemNameLanguageAnimated() {
+        guard itemNameCanToggleEnglish else { return }
+        withAnimation(Self.itemNameToggleAnimation) {
+            itemNameShowsEnglish.toggle()
+        }
+    }
+
     var body: some View {
-        HStack {
+        HStack(alignment: .center) {
             IconManager.shared.loadImage(for: itemDetails.iconFileName)
                 .resizable()
                 .frame(width: 60, height: 60)
                 .cornerRadius(8)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(itemDetails.name)
-                    .font(.title)
-                    .contextMenu {
+                HStack(spacing: 0) {
+                    Text(itemTitleDisplayName)
+                        .font(.title)
+                        .multilineTextAlignment(.leading)
+                        .contentTransition(.interpolate)
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture(perform: toggleItemNameLanguageAnimated)
+                .contextMenu {
+                    Button {
+                        UIPasteboard.general.string = itemTitleDisplayName
+                    } label: {
+                        Label(
+                            NSLocalizedString("Misc_Copy_Name", comment: ""),
+                            systemImage: "doc.on.doc"
+                        )
+                    }
+                    if let alt = itemTitleAlternateName {
                         Button {
-                            UIPasteboard.general.string = itemDetails.name
+                            UIPasteboard.general.string = alt
                         } label: {
                             Label(
-                                NSLocalizedString("Misc_Copy_Name", comment: ""),
-                                systemImage: "doc.on.doc"
+                                NSLocalizedString("Misc_Copy_Trans", comment: ""),
+                                systemImage: "translate"
                             )
                         }
-                        if let en_name = itemDetails.en_name, !en_name.isEmpty,
-                           en_name != itemDetails.name
-                        {
-                            Button {
-                                UIPasteboard.general.string = itemDetails.en_name
-                            } label: {
-                                Label(
-                                    NSLocalizedString("Misc_Copy_Trans", comment: ""),
-                                    systemImage: "translate"
-                                )
-                            }
-                        }
                     }
+                }
                 Text(
                     "\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)"
                 )
                 .font(.subheadline)
                 .foregroundColor(.gray)
             }
-
-            Spacer()
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             // 添加右箭头提示
             Image(systemName: "chevron.right")
                 .foregroundColor(.secondary)
                 .font(.caption)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onChange(of: itemDetails.typeId) { _, _ in
+            itemNameShowsEnglish = false
         }
     }
 }
@@ -554,6 +594,14 @@ enum PriceHistoryTimeRange: String, CaseIterable {
 }
 
 struct MarketItemDetailView: View {
+    /// 同一视图只能稳定呈现一个 sheet；用枚举合并，避免「presentation is in progress」与误 dismiss
+    private enum ActiveSheet: String, Identifiable {
+        case regionPicker
+        case itemInfo
+
+        var id: String { rawValue }
+    }
+
     @ObservedObject var databaseManager: DatabaseManager
     let itemID: Int
     @State private var marketPath: [String] = []
@@ -564,8 +612,7 @@ struct MarketItemDetailView: View {
     @State private var marketHistory: [MarketHistory]?
     @State private var isLoadingHistory: Bool = false
     @State private var isFromParent: Bool = true
-    @State private var showRegionPicker = false
-    @State private var showItemInfo = false // 添加显示物品信息的状态
+    @State private var activeSheet: ActiveSheet?
     @State private var selectedRegionID: Int
     @State private var selectedRegionName: String = ""
     @State private var saveSelection: Bool = true
@@ -589,6 +636,14 @@ struct MarketItemDetailView: View {
         _selectedRegionID = State(initialValue: selectedRegionID)
     }
 
+    /// 推迟到下一 run loop 再呈现，避免与 NavigationStack / List / 其它转场叠在一起
+    private func presentSheet(_ sheet: ActiveSheet) {
+        Task { @MainActor in
+            await Task.yield()
+            activeSheet = sheet
+        }
+    }
+
     var body: some View {
         List {
             // 基本信息部分
@@ -600,7 +655,7 @@ struct MarketItemDetailView: View {
                     )
                     .contentShape(Rectangle()) // 扩展点击区域到整个视图
                     .onTapGesture {
-                        showItemInfo = true
+                        presentSheet(.itemInfo)
                     }
                 }
             }
@@ -686,6 +741,26 @@ struct MarketItemDetailView: View {
                     }
                 }
                 .disabled(isLoadingPrice)
+
+                NavigationLink {
+                    MarketQuickbarDestinationPickerView(
+                        databaseManager: databaseManager,
+                        typeID: itemID
+                    )
+                } label: {
+                    HStack(alignment: .center) {
+                        Image("searchmarket")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 32, height: 32)
+                            .cornerRadius(6)
+                        Text(NSLocalizedString("Main_Market_Add_To_Watchlist_Button", comment: ""))
+                            .foregroundColor(.primary)
+                        Spacer(minLength: 0)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                }
             }
 
             // 历史价格图表部分
@@ -727,30 +802,32 @@ struct MarketItemDetailView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
-                    showRegionPicker = true
+                    presentSheet(.regionPicker)
                 }) {
                     Text(selectedRegionName)
                         .foregroundColor(.blue)
                 }
             }
         }
-        .sheet(isPresented: $showRegionPicker) {
-            MarketRegionPickerView(
-                selectedRegionID: $selectedRegionID, selectedRegionName: $selectedRegionName,
-                saveSelection: $saveSelection,
-                databaseManager: databaseManager
-            )
-        }
-        .sheet(isPresented: $showItemInfo) {
-            NavigationStack {
-                ItemInfoMap.getItemInfoView(
-                    itemID: itemID,
+        .sheet(item: $activeSheet) { sheet in
+            switch sheet {
+            case .regionPicker:
+                MarketRegionPickerView(
+                    selectedRegionID: $selectedRegionID, selectedRegionName: $selectedRegionName,
+                    saveSelection: $saveSelection,
                     databaseManager: databaseManager
                 )
-                .toolbar {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button(NSLocalizedString("Common_Done", comment: "完成")) {
-                            showItemInfo = false
+            case .itemInfo:
+                NavigationStack {
+                    ItemInfoMap.getItemInfoView(
+                        itemID: itemID,
+                        databaseManager: databaseManager
+                    )
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button(NSLocalizedString("Common_Done", comment: "完成")) {
+                                activeSheet = nil
+                            }
                         }
                     }
                 }

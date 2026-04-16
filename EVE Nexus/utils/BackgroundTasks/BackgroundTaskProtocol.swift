@@ -33,22 +33,9 @@ protocol ProcessingTaskProtocol {
     func handle(task: BGProcessingTask)
 }
 
-/// 通用后台任务协议，用于统一管理不同类型的后台任务
-@MainActor
-protocol AnyBackgroundTask {
-    /// 任务标识符
-    var identifier: String { get }
-
-    /// 取消任务
-    func cancel()
-
-    /// 安排任务
-    func schedule()
-}
-
 /// 后台任务基类，提供通用功能
 @MainActor
-class BaseBackgroundTask: BackgroundTaskProtocol, AnyBackgroundTask {
+class BaseBackgroundTask: BackgroundTaskProtocol {
     let identifier: String
     let interval: TimeInterval
     private var task: Task<Void, Never>?
@@ -108,19 +95,12 @@ class BaseBackgroundTask: BackgroundTaskProtocol, AnyBackgroundTask {
             Logger.error("安排后台任务失败: \(identifier), 错误: \(error)")
         }
     }
-
-    /// 取消任务
-    func cancel() {
-        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier)
-        task?.cancel()
-        Logger.warning("后台任务已取消: \(identifier)")
-    }
 }
 
 /// 处理任务基类，提供更长的执行时间
 /// 使用 BGProcessingTask 而不是 BGAppRefreshTask，可以获得更长的执行时间窗口
 @MainActor
-class BaseProcessingTask: ProcessingTaskProtocol, AnyBackgroundTask {
+class BaseProcessingTask: ProcessingTaskProtocol {
     let identifier: String
     let interval: TimeInterval
     private var task: Task<Void, Never>?
@@ -184,12 +164,5 @@ class BaseProcessingTask: ProcessingTaskProtocol, AnyBackgroundTask {
         } catch {
             Logger.error("安排后台处理任务失败: \(identifier), 错误: \(error)")
         }
-    }
-
-    /// 取消任务
-    func cancel() {
-        BGTaskScheduler.shared.cancel(taskRequestWithIdentifier: identifier)
-        task?.cancel()
-        Logger.warning("后台处理任务已取消: \(identifier)")
     }
 }

@@ -15,17 +15,6 @@ class FighterState: ObservableObject, Identifiable {
     }
 }
 
-// 包装 Int 类型使其符合 Identifiable
-struct FighterTypeIdentifier: Identifiable {
-    let id: Int
-    let typeId: Int
-
-    init(typeId: Int) {
-        id = typeId
-        self.typeId = typeId
-    }
-}
-
 // 舰载机管视图项
 struct FighterTubeItem: Identifiable {
     let id = UUID()

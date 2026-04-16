@@ -135,7 +135,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         imageCache.delegate = self
     }
 
-    /// 内部方法：执行请求并返回 Data 与 HTTPURLResponse，供 fetchData 和 fetchDataWithPages 复用
+    /// 内部方法：执行请求并返回 Data 与 HTTPURLResponse，供 fetchData 等复用
     private func fetchDataWithResponse(
         from url: URL,
         method: String = "GET",
@@ -494,25 +494,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
         }
     }
 
-    /// 公共API请求，返回响应头中的页数信息（不需要token）
-    /// 复用 fetchData 的请求逻辑，仅额外解析 X-Pages 响应头
-    func fetchDataWithPages(
-        from url: URL,
-        headers: [String: String]? = nil,
-        noRetryKeywords: [String]? = nil,
-        timeouts: [TimeInterval]? = nil
-    ) async throws -> (Data, Int) {
-        let (data, response) = try await fetchDataWithResponse(
-            from: url,
-            headers: headers,
-            noRetryKeywords: noRetryKeywords,
-            timeouts: timeouts
-        )
-        let totalPages = Int(response.value(forHTTPHeaderField: "X-Pages") ?? "1") ?? 1
-        Logger.info("获取到总页数: \(totalPages)")
-        return (data, totalPages)
-    }
-
     /// 处理分页数据的通用方法
     /// - Parameters:
     ///   - baseUrl: 基础URL，不包含页码参数
@@ -662,151 +643,6 @@ class NetworkManager: NSObject, @unchecked Sendable {
         Logger.info("数据获取完成，共\(allItems.count)个项目")
         return allItems
     }
-
-    /// 处理公共API分页数据的通用方法（不需要token）
-    /// - Parameters:
-    ///   - baseUrl: 基础URL，不包含页码参数
-    ///   - maxConcurrentPages: 最大并发请求数，默认3
-    ///   - decoder: 用于解码数据的闭包
-    ///   - progressCallback: 进度回调闭包，提供当前页数和总页数
-    /// - Returns: 解码后的数据数组
-    func fetchPaginatedDataPublic<T>(
-        from baseUrl: URL,
-        maxConcurrentPages: Int = 3,
-        decoder: @escaping (Data) throws -> [T],
-        progressCallback: ((Int, Int) -> Void)? = nil
-    ) async throws -> [T] {
-        var allItems: [T] = []
-
-        // 构建第一页的URL
-        let firstPageUrlString =
-            baseUrl.absoluteString + (baseUrl.absoluteString.contains("?") ? "&" : "?") + "page=1"
-        guard let firstPageUrl = URL(string: firstPageUrlString) else {
-            throw NetworkError.invalidURL
-        }
-
-        Logger.info("开始获取第1页数据")
-
-        // 获取第一页数据和总页数
-        let (firstPageData, totalPages) = try await fetchDataWithPages(
-            from: firstPageUrl,
-            timeouts: [10, 10, 10]
-        )
-
-        progressCallback?(1, totalPages)
-
-        let firstPageItems = try decoder(firstPageData)
-        Logger.success("成功获取第1页数据，本页包含\(firstPageItems.count)个项目")
-        allItems.append(contentsOf: firstPageItems)
-
-        // 如果有多页，使用并发获取剩余页面
-        if totalPages > 1 {
-            Logger.info("检测到总共有\(totalPages)页数据，开始并发获取剩余页面")
-
-            do {
-                try await withThrowingTaskGroup(of: (page: Int, items: [T]).self) { group in
-                    var currentPage = 2
-                    var inProgressPages = 0
-                    var completedPages = Set<Int>()
-                    completedPages.insert(1) // 第一页已完成
-
-                    // 添加初始任务
-                    while currentPage <= totalPages, inProgressPages < maxConcurrentPages {
-                        let page = currentPage
-                        group.addTask(priority: .userInitiated) {
-                            let pageUrlString =
-                                baseUrl.absoluteString
-                                    + (baseUrl.absoluteString.contains("?") ? "&" : "?")
-                                    + "page=\(page)"
-                            guard let pageUrl = URL(string: pageUrlString) else {
-                                throw NetworkError.invalidURL
-                            }
-
-                            Logger.info("开始获取第\(page)页数据")
-
-                            let data = try await self.fetchData(
-                                from: pageUrl,
-                                timeouts: [10, 10, 10]
-                            )
-
-                            let pageItems = try decoder(data)
-                            Logger.success("成功获取第\(page)页数据，本页包含\(pageItems.count)个项目")
-
-                            // 添加短暂延迟以避免请求过于频繁
-                            try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000)) // 100ms延迟
-
-                            return (page: page, items: pageItems)
-                        }
-                        currentPage += 1
-                        inProgressPages += 1
-                    }
-
-                    // 处理完成的任务并添加新任务
-                    for try await result in group {
-                        allItems.append(contentsOf: result.items)
-                        completedPages.insert(result.page)
-                        inProgressPages -= 1
-
-                        // 更新进度回调
-                        progressCallback?(completedPages.count, totalPages)
-
-                        // 如果还有更多页面要获取，添加新任务
-                        if currentPage <= totalPages {
-                            let page = currentPage
-                            group.addTask(priority: .userInitiated) {
-                                let pageUrlString =
-                                    baseUrl.absoluteString
-                                        + (baseUrl.absoluteString.contains("?") ? "&" : "?")
-                                        + "page=\(page)"
-                                guard let pageUrl = URL(string: pageUrlString) else {
-                                    throw NetworkError.invalidURL
-                                }
-
-                                Logger.info("开始获取第\(page)页数据")
-
-                                let data = try await self.fetchData(
-                                    from: pageUrl,
-                                    timeouts: [10, 10, 10]
-                                )
-
-                                let pageItems = try decoder(data)
-                                Logger.success("成功获取第\(page)页数据，本页包含\(pageItems.count)个项目")
-
-                                // 添加短暂延迟以避免请求过于频繁
-                                try await Task.sleep(nanoseconds: UInt64(0.1 * 1_000_000_000)) // 100ms延迟
-
-                                return (page: page, items: pageItems)
-                            }
-                            currentPage += 1
-                            inProgressPages += 1
-                        }
-                    }
-
-                    // 检查是否所有页面都已获取
-                    if completedPages.count != totalPages {
-                        let missingPages = Set(1 ... totalPages).subtracting(completedPages)
-                        Logger.warning("部分页面未能获取: \(missingPages)")
-                    }
-                }
-            } catch {
-                // 如果是取消错误，直接抛出
-                if error is CancellationError {
-                    throw error
-                }
-
-                // 对于其他错误，如果已经获取了一些数据，记录错误但继续返回已获取的数据
-                if !allItems.isEmpty {
-                    Logger.error("获取部分页面时出错: \(error)，但已获取\(allItems.count)个项目")
-                } else {
-                    // 如果没有获取到任何数据，则抛出错误
-                    throw error
-                }
-            }
-        }
-
-        Logger.info("数据获取完成，共\(allItems.count)个项目")
-        return allItems
-    }
 }
 
 // 网络错误枚举
@@ -850,13 +686,13 @@ enum NetworkError: LocalizedError {
         case .unauthed:
             return NSLocalizedString("Network_Error_Unauthed", comment: "")
         case let .invalidToken(reason):
-            return "Token无效: \(reason)"
+            return "Invaild Token:\(reason)"
         case .maxRetriesExceeded:
-            return "已达到最大重试次数"
+            return "Max Retries Exceeded"
         case let .authenticationError(reason):
-            return "认证出错: \(reason)"
+            return "Authentication Error: \(reason)"
         case let .decodingError(error):
-            return "解码响应数据失败: \(error)"
+            return "Decoding Error: \(error)"
         case .rateLimitCooldown:
             return NSLocalizedString("Network_Error_RateLimit_Cooldown", comment: "")
         }

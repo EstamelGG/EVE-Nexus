@@ -12,10 +12,6 @@ enum DeviceUtils {
         UIScreen.main.bounds.width
     }
 
-    static var screenHeight: CGFloat {
-        UIScreen.main.bounds.height
-    }
-
     // 判断当前设备是否为 iPad
     static var isIPad: Bool {
         UIDevice.current.userInterfaceIdiom == .pad
@@ -30,12 +26,6 @@ enum DeviceUtils {
     static var isLandscape: Bool {
         let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene
         return windowScene?.interfaceOrientation.isLandscape ?? false
-    }
-
-    // 判断当前界面是否处于竖屏模式
-    static var isPortrait: Bool {
-        let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene
-        return windowScene?.interfaceOrientation.isPortrait ?? false
     }
 
     // 判断是否是 iPhone 的横屏模式

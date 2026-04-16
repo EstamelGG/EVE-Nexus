@@ -352,11 +352,6 @@ struct SkillPlanDetailView: View {
 
     private func performInitialLoad() async {
         await loadCharacterData()
-        if let pending = PendingFittingSkillsManager.shared.consumePending(forPlanId: plan.id),
-           pending.characterId == characterId
-        {
-            await addBatchSkillsToPlan(skills: pending.skills)
-        }
         calculateSkillDependencies()
         await MainActor.run { isInitialLoadComplete = true }
     }

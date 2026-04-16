@@ -57,6 +57,22 @@ struct MarketQuickbar: Identifiable, Codable {
     }
 }
 
+extension MarketQuickbar {
+    /// 与 `MarketQuickbarView` 首页、`MarketQuickbarDestinationPickerView` 共用：先按 `lastUpdated` 升序，相同时按名称、再按 `id`，避免仅依赖目录遍历顺序。
+    static func sortedForWatchListHome(_ quickbars: [MarketQuickbar]) -> [MarketQuickbar] {
+        quickbars.sorted {
+            if $0.lastUpdated != $1.lastUpdated {
+                return $0.lastUpdated < $1.lastUpdated
+            }
+            let nameCmp = $0.name.localizedStandardCompare($1.name)
+            if nameCmp != .orderedSame {
+                return nameCmp == .orderedAscending
+            }
+            return $0.id.uuidString < $1.id.uuidString
+        }
+    }
+}
+
 struct QuickbarItem: Codable, Equatable {
     let typeID: Int
     var quantity: Int64 // 使用 Int64 来存储更大的数值
@@ -132,10 +148,10 @@ class MarketQuickbarManager {
                     return nil
                 }
             }
-            .sorted { $0.lastUpdated < $1.lastUpdated }
 
-            Logger.success("成功加载市场关注列表数量: \(quickbars.count)")
-            return quickbars
+            let ordered = MarketQuickbar.sortedForWatchListHome(quickbars)
+            Logger.success("成功加载市场关注列表数量: \(ordered.count)")
+            return ordered
 
         } catch {
             Logger.error("读取市场关注列表目录失败: \(error)")
@@ -165,6 +181,8 @@ struct MarketItemSelectorBaseView<Content: View>: View {
     let searchParameters: (String) -> [Any]
     let existingItems: Set<Int>
     let onItemSelected: (DatabaseListItem) -> Void
+    /// 搜索分组「全选」等；为 `nil` 时不显示批量按钮
+    var onBatchItemsSelected: (([DatabaseListItem]) -> Void)? = nil
     let onItemDeselected: (DatabaseListItem) -> Void
     let onDismiss: () -> Void
     let showSelected: Bool // 要不要展示已选/未选的指示图标
@@ -258,13 +276,7 @@ struct MarketItemSelectorBaseView<Content: View>: View {
             if isShowingSearchResults {
                 // 搜索结果视图，按市场组分类显示
                 ForEach(groupedSearchResults, id: \.id) { group in
-                    Section(
-                        header: Text(group.name)
-                            .fontWeight(.semibold)
-                            .font(.system(size: 18))
-                            .foregroundColor(.primary)
-                            .textCase(.none)
-                    ) {
+                    Section {
                         ForEach(group.items) { item in
                             Button {
                                 if existingItems.contains(item.id) {
@@ -293,6 +305,30 @@ struct MarketItemSelectorBaseView<Content: View>: View {
                             }
                             .foregroundColor(existingItems.contains(item.id) ? .primary : .primary)
                             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        }
+                    } header: {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(group.name)
+                                .fontWeight(.semibold)
+                                .font(.system(size: 18))
+                                .foregroundColor(.primary)
+                                .textCase(.none)
+                            if let batch = onBatchItemsSelected {
+                                Spacer(minLength: 8)
+                                Button {
+                                    let toAdd = group.items.filter { !existingItems.contains($0.id) }
+                                    guard !toAdd.isEmpty else { return }
+                                    batch(toAdd)
+                                } label: {
+                                    Text(
+                                        NSLocalizedString(
+                                            "Main_Market_Select_All_In_Section", comment: ""
+                                        )
+                                    )
+                                    .font(.subheadline.weight(.medium))
+                                }
+                                .buttonStyle(.borderless)
+                            }
                         }
                     }
                 }
@@ -392,6 +428,8 @@ struct MarketItemSelectorView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let existingItems: Set<Int>
     let onItemSelected: (DatabaseListItem) -> Void
+    /// 全选等批量添加时使用；为 `nil` 时仍逐条调用 `onItemSelected`
+    var onBatchItemsSelected: (([DatabaseListItem]) -> Void)? = nil
     let onItemDeselected: (DatabaseListItem) -> Void
     let showSelected: Bool
     let allowTypeIDs: Set<Int>? // 新增：物品ID白名单
@@ -406,6 +444,7 @@ struct MarketItemSelectorView: View {
                 allowTypeIDs: allowTypeIDs, // 传递物品ID白名单
                 existingItems: existingItems,
                 onItemSelected: onItemSelected,
+                onBatchItemsSelected: onBatchItemsSelected,
                 onItemDeselected: onItemDeselected,
                 onDismiss: { dismiss() },
                 showSelected: showSelected
@@ -424,6 +463,7 @@ struct MarketItemSelectorGroupView: View {
     let allowTypeIDs: Set<Int>? // 新增：物品ID白名单
     let existingItems: Set<Int>
     let onItemSelected: (DatabaseListItem) -> Void
+    var onBatchItemsSelected: (([DatabaseListItem]) -> Void)? = nil
     let onItemDeselected: (DatabaseListItem) -> Void
     let onDismiss: () -> Void
     let showSelected: Bool
@@ -442,6 +482,7 @@ struct MarketItemSelectorGroupView: View {
                         databaseManager: databaseManager,
                         existingItems: existingItems,
                         onItemSelected: onItemSelected,
+                        onBatchItemsSelected: onBatchItemsSelected,
                         onItemDeselected: onItemDeselected,
                         onDismiss: onDismiss,
                         showSelected: showSelected
@@ -471,6 +512,7 @@ struct MarketItemSelectorGroupView: View {
             },
             existingItems: existingItems,
             onItemSelected: onItemSelected,
+            onBatchItemsSelected: onBatchItemsSelected,
             onItemDeselected: onItemDeselected,
             onDismiss: onDismiss,
             showSelected: showSelected
@@ -500,6 +542,7 @@ struct MarketItemSelectorGroupRow: View {
     let databaseManager: DatabaseManager
     let existingItems: Set<Int>
     let onItemSelected: (DatabaseListItem) -> Void
+    var onBatchItemsSelected: (([DatabaseListItem]) -> Void)? = nil
     let onItemDeselected: (DatabaseListItem) -> Void
     let onDismiss: () -> Void
     let showSelected: Bool
@@ -516,6 +559,7 @@ struct MarketItemSelectorGroupRow: View {
                         title: group.name,
                         existingItems: existingItems,
                         onItemSelected: onItemSelected,
+                        onBatchItemsSelected: onBatchItemsSelected,
                         onItemDeselected: onItemDeselected,
                         onDismiss: onDismiss,
                         showSelected: showSelected
@@ -534,6 +578,7 @@ struct MarketItemSelectorGroupRow: View {
                         allowTypeIDs: allowTypeIDs, // 新增：传递物品ID白名单
                         existingItems: existingItems,
                         onItemSelected: onItemSelected,
+                        onBatchItemsSelected: onBatchItemsSelected,
                         onItemDeselected: onItemDeselected,
                         onDismiss: onDismiss,
                         showSelected: showSelected
@@ -564,6 +609,7 @@ struct MarketItemSelectorItemListView: View {
     let title: String
     let existingItems: Set<Int>
     let onItemSelected: (DatabaseListItem) -> Void
+    var onBatchItemsSelected: (([DatabaseListItem]) -> Void)? = nil
     let onItemDeselected: (DatabaseListItem) -> Void
     let onDismiss: () -> Void
     let showSelected: Bool
@@ -624,13 +670,7 @@ struct MarketItemSelectorItemListView: View {
             title: title,
             content: {
                 ForEach(groupedItems, id: \.id) { group in
-                    Section(
-                        header: Text(group.name)
-                            .fontWeight(.semibold)
-                            .font(.system(size: 18))
-                            .foregroundColor(.primary)
-                            .textCase(.none)
-                    ) {
+                    Section {
                         ForEach(group.items) { item in
                             Button {
                                 if existingItems.contains(item.id) {
@@ -660,6 +700,30 @@ struct MarketItemSelectorItemListView: View {
                             .foregroundColor(existingItems.contains(item.id) ? .primary : .primary)
                             .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                         }
+                    } header: {
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(group.name)
+                                .fontWeight(.semibold)
+                                .font(.system(size: 18))
+                                .foregroundColor(.primary)
+                                .textCase(.none)
+                            Spacer(minLength: 8)
+                            Button {
+                                let toAdd = group.items.filter { !existingItems.contains($0.id) }
+                                guard !toAdd.isEmpty else { return }
+                                if let batch = onBatchItemsSelected {
+                                    batch(toAdd)
+                                } else {
+                                    for item in toAdd {
+                                        onItemSelected(item)
+                                    }
+                                }
+                            } label: {
+                                Text(NSLocalizedString("Main_Market_Select_All_In_Section", comment: ""))
+                                    .font(.subheadline.weight(.medium))
+                            }
+                            .buttonStyle(.borderless)
+                        }
                     }
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
@@ -681,6 +745,7 @@ struct MarketItemSelectorItemListView: View {
             },
             existingItems: existingItems,
             onItemSelected: onItemSelected,
+            onBatchItemsSelected: onBatchItemsSelected,
             onItemDeselected: onItemDeselected,
             onDismiss: onDismiss,
             showSelected: showSelected
@@ -1006,8 +1071,12 @@ struct MarketQuickbarDetailView: View {
     @State private var clipboardResult = "" // 新增：存储剪贴板导入结果
     @State private var isShowingExportAlert = false // 新增：控制剪贴板导出提示
     @State private var exportResult = "" // 新增：存储剪贴板导出结果
-    @State private var isShowingImportConfirmation = false // 新增：控制导入确认对话框
+    @State private var showClipboardImportModeDialog = false
     @State private var clipboardContentToImport = "" // 新增：存储待导入的剪贴板内容
+    @State private var showQuantityEditAlert = false
+    @State private var quantityEditTypeID: Int?
+    @State private var quantityEditText = ""
+    @State private var showDistinctTypeLimitAlert = false
 
     // 新增：订单类型枚举
     private enum OrderType: String, CaseIterable {
@@ -1182,11 +1251,13 @@ struct MarketQuickbarDetailView: View {
                     }
                 } header: {
                     HStack {
-                        Text(NSLocalizedString("Main_Market_Item_List", comment: ""))
-                            .fontWeight(.semibold)
-                            .font(.system(size: 18))
-                            .foregroundColor(.primary)
-                            .textCase(.none)
+                        Text(
+                            "\(NSLocalizedString("Main_Market_Item_List", comment: ""))(\(sortedItems.count))"
+                        )
+                        .fontWeight(.semibold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
                         Spacer()
                         Button(
                             isEditingQuantity
@@ -1258,55 +1329,62 @@ struct MarketQuickbarDetailView: View {
         } message: {
             Text(exportResult)
         }
-        .alert(
-            NSLocalizedString("Main_Market_Clipboard_Import_Confirm", comment: ""),
-            isPresented: $isShowingImportConfirmation
+        .confirmationDialog(
+            NSLocalizedString("Main_Market_Clipboard_Import_Mode_Title", comment: ""),
+            isPresented: $showClipboardImportModeDialog,
+            titleVisibility: .visible
         ) {
+            Button(NSLocalizedString("Main_Market_Clipboard_Import_Overwrite", comment: "")) {
+                importFromClipboard(mode: .replace)
+            }
+            Button(NSLocalizedString("Main_Market_Clipboard_Import_Append", comment: "")) {
+                importFromClipboard(mode: .append)
+            }
             Button(NSLocalizedString("Main_EVE_Mail_Cancel", comment: ""), role: .cancel) {
                 clipboardContentToImport = ""
             }
-            Button(
-                NSLocalizedString("Main_Market_Clipboard_Import_Confirm_Yes", comment: ""),
-                role: .destructive
-            ) {
-                importFromClipboard()
+        }
+        .alert(
+            NSLocalizedString("Main_Market_Watch_List_Edit_Item_Quantity", comment: ""),
+            isPresented: $showQuantityEditAlert
+        ) {
+            TextField(
+                NSLocalizedString("Main_Market_Watch_List_Quantity_Field_Placeholder", comment: ""),
+                text: $quantityEditText
+            )
+            .keyboardType(.numberPad)
+            Button(NSLocalizedString("Misc_Done", comment: "")) {
+                applyQuantityEditFromAlert()
             }
+            Button(NSLocalizedString("Main_EVE_Mail_Cancel", comment: ""), role: .cancel) {
+                quantityEditTypeID = nil
+                quantityEditText = ""
+            }
+        } message: {
+            Text(NSLocalizedString("Main_Market_Watch_List_Quantity_Prompt", comment: ""))
+        }
+        .alert(
+            NSLocalizedString("Main_Market_Watch_List_Type_Limit_Title", comment: ""),
+            isPresented: $showDistinctTypeLimitAlert
+        ) {
+            Button(NSLocalizedString("Misc_Done", comment: "")) {}
         } message: {
             Text(
                 String(
                     format: NSLocalizedString(
-                        "Main_Market_Clipboard_Import_Confirm_Message", comment: ""
+                        "Main_Market_Watch_List_Type_Limit_Message",
+                        comment: ""
                     ),
-                    quickbar.items.count
-                ))
+                    MarketQuickbarDestinationPicker.maxDistinctTypeCount
+                )
+            )
         }
         .sheet(isPresented: $isShowingItemSelector) {
             MarketItemSelectorView(
                 databaseManager: databaseManager,
                 existingItems: Set(quickbar.items.map { $0.typeID }),
-                onItemSelected: { item in
-                    if !quickbar.items.contains(where: { $0.typeID == item.id }) {
-                        items.append(item)
-                        quickbar.items.append(QuickbarItem(typeID: item.id))
-                        // 重新排序并保存
-                        let sorted = items.sorted(by: { $0.id < $1.id })
-                        items = sorted
-                        quickbar.items = sorted.map { item in
-                            QuickbarItem(
-                                typeID: item.id,
-                                quantity: quickbar.items.first(where: { $0.typeID == item.id })?
-                                    .quantity ?? 1
-                            )
-                        }
-                        MarketQuickbarManager.shared.saveQuickbar(quickbar)
-                        // 重新加载物品体积信息
-                        loadItemVolumes()
-                        // 添加物品后自动加载市场订单
-                        Task {
-                            await loadAllMarketOrders()
-                        }
-                    }
-                },
+                onItemSelected: { applyNewWatchlistItems([$0]) },
+                onBatchItemsSelected: { applyNewWatchlistItems($0) },
                 onItemDeselected: { item in
                     if let index = items.firstIndex(where: { $0.id == item.id }) {
                         items.remove(at: index)
@@ -1620,6 +1698,20 @@ struct MarketQuickbarDetailView: View {
                         .foregroundColor(.secondary)
                 }
             }
+            .contextMenu {
+                Button {
+                    quantityEditTypeID = item.id
+                    quantityEditText = String(
+                        quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1
+                    )
+                    showQuantityEditAlert = true
+                } label: {
+                    Label(
+                        NSLocalizedString("Main_Market_Watch_List_Edit_Item_Quantity", comment: ""),
+                        systemImage: "number"
+                    )
+                }
+            }
         }
     }
 
@@ -1633,6 +1725,9 @@ struct MarketQuickbarDetailView: View {
 
     private func loadItems() {
         if !quickbar.items.isEmpty {
+            if MarketQuickbarDestinationPicker.trimToMaxDistinctTypesRemovingFromEnd(&quickbar.items) {
+                MarketQuickbarManager.shared.saveQuickbar(quickbar)
+            }
             let itemIDs = quickbar.items.map { String($0.typeID) }.joined(separator: ",")
             items = databaseManager.loadMarketItems(
                 whereClause: "t.type_id IN (\(itemIDs))",
@@ -1735,6 +1830,7 @@ struct MarketItemSelectorIntegratedView: View {
     let allowTypeIDs: Set<Int>? // 新增：物品ID白名单
     let existingItems: Set<Int>
     let onItemSelected: (DatabaseListItem) -> Void
+    var onBatchItemsSelected: (([DatabaseListItem]) -> Void)? = nil
     let onItemDeselected: (DatabaseListItem) -> Void
     let onDismiss: () -> Void
     let showSelected: Bool
@@ -1758,6 +1854,7 @@ struct MarketItemSelectorIntegratedView: View {
                         databaseManager: databaseManager,
                         existingItems: existingItems,
                         onItemSelected: onItemSelected,
+                        onBatchItemsSelected: onBatchItemsSelected,
                         onItemDeselected: onItemDeselected,
                         onDismiss: onDismiss,
                         showSelected: showSelected
@@ -1791,6 +1888,7 @@ struct MarketItemSelectorIntegratedView: View {
             },
             existingItems: existingItems,
             onItemSelected: onItemSelected,
+            onBatchItemsSelected: onBatchItemsSelected,
             onItemDeselected: onItemDeselected,
             onDismiss: onDismiss,
             showSelected: showSelected
@@ -1909,6 +2007,34 @@ struct MarketItemSelectorIntegratedView: View {
 // MARK: - MarketQuickbarDetailView扩展
 
 extension MarketQuickbarDetailView {
+    /// 从选择器合并新增物品：一次保存、一次体积查询、一次订单加载（与剪贴板导入思路一致）
+    private func applyNewWatchlistItems(_ newItems: [DatabaseListItem]) {
+        let existingTypeIDs = Set(quickbar.items.map(\.typeID))
+        let toAdd = newItems.filter { !existingTypeIDs.contains($0.id) }
+        guard !toAdd.isEmpty else { return }
+        for item in toAdd {
+            items.append(item)
+            quickbar.items.append(QuickbarItem(typeID: item.id))
+        }
+        let sorted = items.sorted(by: { $0.id < $1.id })
+        items = sorted
+        quickbar.items = sorted.map { item in
+            QuickbarItem(
+                typeID: item.id,
+                quantity: quickbar.items.first(where: { $0.typeID == item.id })?.quantity ?? 1
+            )
+        }
+        if MarketQuickbarDestinationPicker.trimToMaxDistinctTypesRemovingFromEnd(&quickbar.items) {
+            showDistinctTypeLimitAlert = true
+            loadItems()
+        }
+        MarketQuickbarManager.shared.saveQuickbar(quickbar)
+        loadItemVolumes()
+        Task {
+            await loadAllMarketOrders()
+        }
+    }
+
     // 根据建筑ID获取建筑信息
     private func getStructureById(_ structureId: Int64) -> MarketStructure? {
         return MarketStructureManager.shared.structures.first { $0.structureId == Int(structureId) }
@@ -1944,6 +2070,34 @@ extension MarketQuickbarDetailView {
 
 // 新增：剪贴板导入功能
 extension MarketQuickbarDetailView {
+    fileprivate enum ClipboardImportMergeMode {
+        case replace
+        case append
+    }
+
+    private func applyQuantityEditFromAlert() {
+        guard let tid = quantityEditTypeID else {
+            quantityEditText = ""
+            return
+        }
+        let trimmed = quantityEditText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let value = Int64(trimmed), value >= 1, value <= 999_999_999 else {
+            quantityEditTypeID = nil
+            quantityEditText = ""
+            return
+        }
+        if let idx = quickbar.items.firstIndex(where: { $0.typeID == tid }) {
+            quickbar.items[idx].quantity = value
+            itemQuantities[tid] = value
+        }
+        MarketQuickbarManager.shared.saveQuickbar(quickbar)
+        quantityEditTypeID = nil
+        quantityEditText = ""
+        Task {
+            await loadAllMarketOrders()
+        }
+    }
+
     // 准备从剪贴板导入物品（显示确认对话框）
     private func prepareImportFromClipboard() {
         guard let clipboardContent = UIPasteboard.general.string else {
@@ -1962,17 +2116,15 @@ extension MarketQuickbarDetailView {
         // 存储剪贴板内容
         clipboardContentToImport = clipboardContent
 
-        // 如果当前列表有内容，显示确认对话框
-        if quickbar.items.count > 0 {
-            isShowingImportConfirmation = true
+        if quickbar.items.isEmpty {
+            importFromClipboard(mode: .replace)
         } else {
-            // 当前列表为空，直接导入
-            importFromClipboard()
+            showClipboardImportModeDialog = true
         }
     }
 
     // 从剪贴板导入物品
-    private func importFromClipboard() {
+    private func importFromClipboard(mode: ClipboardImportMergeMode) {
         guard !clipboardContentToImport.isEmpty else {
             clipboardResult = NSLocalizedString("Main_Market_Clipboard_Empty", comment: "剪贴板为空")
             isShowingClipboardAlert = true
@@ -1982,7 +2134,7 @@ extension MarketQuickbarDetailView {
         let importResult = MarketClipboardParser.parseClipboardContent(
             clipboardContentToImport,
             databaseManager: databaseManager,
-            existingItems: quickbar.items
+            existingItems: []
         )
 
         // 根据解析结果处理不同情况
@@ -1997,23 +2149,22 @@ extension MarketQuickbarDetailView {
             )
             isShowingClipboardAlert = true
         } else if importResult.successCount > 0 {
-            // 去重后的 type_id 个数超过上限则拒绝创建
-            let distinctTypeCount = Set(importResult.updatedItems.map(\.typeID)).count
-            if distinctTypeCount > MarketClipboardParser.maxImportDistinctTypeCount {
-                clipboardResult = String(
-                    format: NSLocalizedString(
-                        "Main_Market_Clipboard_Distinct_Type_Limit", comment: ""
-                    ),
-                    distinctTypeCount,
-                    MarketClipboardParser.maxImportDistinctTypeCount
-                )
-                isShowingClipboardAlert = true
-                clipboardContentToImport = ""
-                return
-            }
+            let mergedItems: [QuickbarItem] = {
+                switch mode {
+                case .replace:
+                    return importResult.updatedItems
+                case .append:
+                    return MarketQuickbarDestinationPicker.mergeQuickbarItems(
+                        existing: quickbar.items,
+                        imported: importResult.updatedItems
+                    )
+                }
+            }()
 
-            // 情况3和4: 有成功的解析结果，更新列表
-            quickbar.items = importResult.updatedItems
+            // 情况3和4: 有成功的解析结果，更新列表（若种类超过上限则从末尾裁剪）
+            quickbar.items = mergedItems
+            let typeLimitTrimmed = MarketQuickbarDestinationPicker.trimToMaxDistinctTypesRemovingFromEnd(
+                &quickbar.items)
 
             // 保存更改
             MarketQuickbarManager.shared.saveQuickbar(quickbar)
@@ -2062,6 +2213,17 @@ extension MarketQuickbarDetailView {
                     format: NSLocalizedString("Main_Market_Clipboard_All_Success", comment: ""),
                     importResult.successCount
                 )
+            }
+
+            if typeLimitTrimmed {
+                clipboardResult += "\n\n"
+                    + String(
+                        format: NSLocalizedString(
+                            "Main_Market_Watch_List_Type_Limit_Message",
+                            comment: ""
+                        ),
+                        MarketQuickbarDestinationPicker.maxDistinctTypeCount
+                    )
             }
 
             isShowingClipboardAlert = true

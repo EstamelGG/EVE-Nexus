@@ -33,7 +33,7 @@ periphery scan | grep -v "/Thirdparty/" > log.txt
 ```
 
 ```regexp
-(Enum|Property|Function|Initializer|Class).*is unused
+unused (Enum|Property|Function|Initializer|Class|struct)
 ```
 
 # 未被定义的strings

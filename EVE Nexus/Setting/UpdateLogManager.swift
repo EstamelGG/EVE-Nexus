@@ -19,20 +19,11 @@ struct UpdateLog: Identifiable, Codable {
 class UpdateLogManager: ObservableObject {
     static let shared = UpdateLogManager()
 
-    private let lastShownVersionKey = "lastShownUpdateVersion"
-
     private init() {
         // 移除初始化时的加载
     }
 
     // MARK: - 公共方法
-
-    /// 标记已显示更新通知
-    func markUpdateNotificationShown() {
-        let currentVersion = AppConfiguration.Version.fullVersion
-        UserDefaults.standard.set(currentVersion, forKey: lastShownVersionKey)
-        Logger.info("已标记更新通知为已显示 - 版本: \(currentVersion)")
-    }
 
     /// 获取所有更新日志（用于设置页面）
     func getAllUpdateLogs() -> [UpdateLog] {
@@ -109,111 +100,6 @@ class UpdateLogManager: ObservableObject {
         }
 
         return logs
-    }
-}
-
-// MARK: - 更新通知视图
-
-struct UpdateNotificationView: View {
-    let updateLog: UpdateLog
-    @Binding var isPresented: Bool
-    @State private var animateContent = false
-
-    var body: some View {
-        NavigationView {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 20) {
-                    // 标题区域
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Image(systemName: "sparkles")
-                                .font(.title2)
-                                .foregroundColor(.blue)
-
-                            Text(NSLocalizedString("Update_Notification_Title", comment: "更新内容"))
-                                .font(.title2)
-                                .fontWeight(.bold)
-                        }
-
-                        Text(
-                            String(
-                                format: NSLocalizedString(
-                                    "Update_Notification_Version", comment: "版本 %@ - %@"
-                                ),
-                                updateLog.version, updateLog.date
-                            )
-                        )
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                    }
-
-                    Divider()
-
-                    // 更新内容
-                    VStack(alignment: .leading, spacing: 12) {
-                        ForEach(Array(updateLog.changes.enumerated()), id: \.offset) {
-                            index, change in
-                            HStack(alignment: .top, spacing: 12) {
-                                // 图标
-                                if change.hasPrefix("**") && change.hasSuffix("**") {
-                                    // 标题类型
-                                    Image(systemName: "folder.fill")
-                                        .font(.caption)
-                                        .foregroundColor(.orange)
-                                        .frame(width: 16, height: 16)
-                                } else {
-                                    // 普通更新项
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .font(.caption)
-                                        .foregroundColor(.green)
-                                        .frame(width: 16, height: 16)
-                                }
-
-                                // 内容
-                                Text(formatChangeText(change))
-                                    .font(.body)
-                                    .fixedSize(horizontal: false, vertical: true)
-
-                                Spacer()
-                            }
-                            .opacity(animateContent ? 1 : 0)
-                            .offset(y: animateContent ? 0 : 20)
-                            .animation(
-                                .easeOut(duration: 0.5).delay(Double(index) * 0.1),
-                                value: animateContent
-                            )
-                        }
-                    }
-
-                    Spacer(minLength: 20)
-                }
-                .padding()
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("Update_Notification_Got_It", comment: "知道了")) {
-                        isPresented = false
-                        UpdateLogManager.shared.markUpdateNotificationShown()
-                    }
-                    .fontWeight(.semibold)
-                }
-            }
-        }
-        .onAppear {
-            withAnimation(.easeOut(duration: 0.3).delay(0.2)) {
-                animateContent = true
-                UpdateLogManager.shared.markUpdateNotificationShown()
-            }
-        }
-    }
-
-    private func formatChangeText(_ change: String) -> String {
-        if change.hasPrefix("**") && change.hasSuffix("**") {
-            // 移除markdown标记并返回标题
-            return String(change.dropFirst(2).dropLast(2))
-        }
-        return change
     }
 }
 

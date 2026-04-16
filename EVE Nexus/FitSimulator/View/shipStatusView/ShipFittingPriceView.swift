@@ -11,6 +11,7 @@ struct ShipFittingPriceView: View {
     @State private var addToWatchlistName = ""
     @State private var showAddToWatchlistSuccessAlert = false
     @State private var savedWatchlistName = ""
+    @State private var addWatchlistSuccessMessageBody = ""
 
     var body: some View {
         // 总价Section
@@ -169,7 +170,7 @@ struct ShipFittingPriceView: View {
         .alert(NSLocalizedString("Fitting_Add_To_Watchlist_Success_Title", comment: ""), isPresented: $showAddToWatchlistSuccessAlert) {
             Button(NSLocalizedString("Misc_Done", comment: "")) {}
         } message: {
-            Text(String(format: NSLocalizedString("Fitting_Add_To_Watchlist_Saved_Message", comment: ""), savedWatchlistName))
+            Text(addWatchlistSuccessMessageBody)
         }
     }
 
@@ -213,8 +214,24 @@ struct ShipFittingPriceView: View {
         for (typeId, quantity) in items {
             updated.items.append(QuickbarItem(typeID: typeId, quantity: Int64(quantity)))
         }
+        let trimmedForTypeLimit = MarketQuickbarDestinationPicker.trimToMaxDistinctTypesRemovingFromEnd(
+            &updated.items)
         MarketQuickbarManager.shared.saveQuickbar(updated)
         savedWatchlistName = name
+        addWatchlistSuccessMessageBody = String(
+            format: NSLocalizedString("Fitting_Add_To_Watchlist_Saved_Message", comment: ""),
+            name
+        )
+        if trimmedForTypeLimit {
+            addWatchlistSuccessMessageBody += "\n\n"
+                + String(
+                    format: NSLocalizedString(
+                        "Main_Market_Watch_List_Type_Limit_Message",
+                        comment: ""
+                    ),
+                    MarketQuickbarDestinationPicker.maxDistinctTypeCount
+                )
+        }
         showAddToWatchlistSuccessAlert = true
     }
 

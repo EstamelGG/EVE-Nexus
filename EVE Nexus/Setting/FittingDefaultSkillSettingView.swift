@@ -5,7 +5,6 @@ import SwiftUI
 struct FittingDefaultSkillSettingView: View {
     @AppStorage("skillsModePreference") private var skillsModePreference: String = "current_char"
     @AppStorage("selectedSkillCharacterId") private var selectedSkillCharacterId: Int = 0
-    @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
 
     var body: some View {
         List {

@@ -2480,11 +2480,4 @@ class FitConvert {
             muta: nil
         )
     }
-
-    /// 解析无人机/舰载机行的结果
-    private struct DroneOrFighterResult {
-        let typeId: Int
-        let quantity: Int
-        let isFighter: Bool
-    }
 }

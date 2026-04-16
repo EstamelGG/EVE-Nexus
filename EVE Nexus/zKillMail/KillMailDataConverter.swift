@@ -185,47 +185,20 @@ class KillMailDataConverter {
         shipTypeIds.insert(esiDetail.victim.ship_type_id)
         solarSystemIds.insert(esiDetail.solar_system_id)
 
-        // 物品信息
+        // 物品信息（仅 type_id，不参与 universe_names 批量查询）
         if let items = esiDetail.victim.items {
             for item in items {
                 shipTypeIds.insert(item.item_type_id)
             }
         }
 
-        // 参与者（attackers）信息
-        if let attackers = esiDetail.attackers {
-            for atk in attackers {
-                if let charId = atk.character_id { characterIds.insert(charId) }
-                if let corpId = atk.corporation_id { corporationIds.insert(corpId) }
-                if let allyId = atk.alliance_id { allianceIds.insert(allyId) }
-                if let shipId = atk.ship_type_id { shipTypeIds.insert(shipId) }
-                if let weaponId = atk.weapon_type_id { shipTypeIds.insert(weaponId) }
-            }
-        }
+        // 参与者名称不在此预取，避免打开详情即查库；进入参与者页时再批量解析（见 KillMailAttackersView）
 
         Logger.debug("收集到 - 角色: \(characterIds.count), 军团: \(corporationIds.count), 联盟: \(allianceIds.count), 物品: \(shipTypeIds.count), 星系: \(solarSystemIds.count)")
 
         // 批量获取名称
         let allEntityIds = Array(characterIds) + Array(corporationIds) + Array(allianceIds)
         let namesMap = try await UniverseAPI.shared.getNamesWithFallback(ids: allEntityIds)
-
-        // 按类别分类名称
-        var characterNames: [Int: String] = [:]
-        var corporationNames: [Int: String] = [:]
-        var allianceNames: [Int: String] = [:]
-
-        for (id, (name, category)) in namesMap {
-            switch category {
-            case "character":
-                characterNames[id] = name
-            case "corporation":
-                corporationNames[id] = name
-            case "alliance":
-                allianceNames[id] = name
-            default:
-                break
-            }
-        }
 
         let systemInfoMap = await getBatchSolarSystemInfo(
             solarSystemIds: Array(solarSystemIds),

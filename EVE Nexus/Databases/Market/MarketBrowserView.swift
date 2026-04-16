@@ -1,10 +1,5 @@
 import SwiftUI
 
-// 创建一个环境键，用于存储返回到根视图的函数
-private struct RootPresentationModeKey: EnvironmentKey {
-    static let defaultValue: Binding<Bool> = .constant(false)
-}
-
 // 基础市场视图
 struct MarketBaseView<Content: View>: View {
     @ObservedObject var databaseManager: DatabaseManager

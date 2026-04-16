@@ -45,18 +45,13 @@ struct KillMailListEntity: Codable, Identifiable {
 
 // MARK: - 详情用数据（ESI + ZKB + 补充数据）
 
-/// 战斗记录详情（以 ESI 为核心，补充名称、星系、价格等）
+/// 战斗记录详情（以 ESI 为核心，补充名称、星系等；列表单价由详情视图异步拉取）
 struct KillMailDetailData {
     let killmailId: Int
     let esi: ESIKillMail
     let zkb: ZKBInfo?
     let names: [Int: String]
     let system: KillMailSystemSummary?
-    var prices: [Int: Double] = [:] // type_id -> 价格，由详情页异步填充
-
-    var pricesForDisplay: [String: Double] {
-        Dictionary(uniqueKeysWithValues: prices.map { (String($0.key), $0.value) })
-    }
 
     var timestamp: Int? {
         let formatter = ISO8601DateFormatter()

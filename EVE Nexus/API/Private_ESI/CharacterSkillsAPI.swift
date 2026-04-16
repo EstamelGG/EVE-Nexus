@@ -329,10 +329,6 @@ public class CharacterSkillsAPI {
         return (skills, queue)
     }
 
-    public func loadSkillQueueFromCacheIfAvailable(characterId: Int) -> [SkillQueueItem]? {
-        loadSkillQueue(characterId: characterId)
-    }
-
     private func loadSkillQueue(characterId: Int) -> [SkillQueueItem]? {
         guard let bundle = loadDiskBundle(characterId: characterId),
               let queue = bundle.queue

@@ -709,10 +709,21 @@ struct BRKillMailView: View {
                 }
             }
 
-            // 搜索入口
+            // 搜索入口与收藏夹
             Section {
                 NavigationLink(destination: BRKillMailSearchView(characterId: characterId)) {
-                    Text(NSLocalizedString("KillMail_Search_Title", comment: ""))
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(.secondary)
+                        Text(NSLocalizedString("KillMail_Search_Title", comment: ""))
+                    }
+                }
+                NavigationLink(destination: BRKillMailFavoritesView(characterId: characterId, eveCharacter: character)) {
+                    HStack {
+                        Image(systemName: "star.fill")
+                            .foregroundColor(.yellow)
+                        Text(NSLocalizedString("KillMail_Favorites_Link", comment: ""))
+                    }
                 }
             }
 

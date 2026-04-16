@@ -22,6 +22,9 @@ struct ItemBasicInfoView: View {
     // 模型可用性状态
     @State private var isModelAvailable: Bool = false
 
+    /// 物品名称与英文不同时，点击名称在本地显示名与英文名之间切换
+    @State private var itemNameShowsEnglish = false
+
     // iOS 标准圆角半径
     private let cornerRadius: CGFloat = 10
     // 标准边距
@@ -49,6 +52,38 @@ struct ItemBasicInfoView: View {
             return modifiedValue
         }
         return originalValue
+    }
+
+    /// 当前名称是否与英文版本不同（可点击切换）
+    private var itemNameCanToggleEnglish: Bool {
+        guard let en = itemDetails.en_name, !en.isEmpty else { return false }
+        return en != itemDetails.name
+    }
+
+    /// 标题行当前展示的名称（本地或英文）
+    private var itemTitleDisplayName: String {
+        if itemNameCanToggleEnglish, itemNameShowsEnglish, let en = itemDetails.en_name {
+            return en
+        }
+        return itemDetails.name
+    }
+
+    /// 与当前展示名称相对的另一种语言名称（用于长按复制「翻译」）
+    private var itemTitleAlternateName: String? {
+        guard itemNameCanToggleEnglish, let en = itemDetails.en_name else { return nil }
+        return itemNameShowsEnglish ? itemDetails.name : en
+    }
+
+    private static let itemNameToggleAnimation = Animation.spring(
+        response: 0.38,
+        dampingFraction: 0.82
+    )
+
+    private func toggleItemNameLanguageAnimated() {
+        guard itemNameCanToggleEnglish else { return }
+        withAnimation(Self.itemNameToggleAnimation) {
+            itemNameShowsEnglish.toggle()
+        }
     }
 
     // 获取属性值的颜色
@@ -174,39 +209,45 @@ struct ItemBasicInfoView: View {
                 .padding(.trailing, 8)
 
             VStack(alignment: .leading, spacing: 8) {
-                Text(itemDetails.name)
-                    .font(.title)
-                    .lineLimit(2)
-                    .contextMenu {
+                HStack(spacing: 0) {
+                    Text(itemTitleDisplayName)
+                        .font(.title)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .contentTransition(.interpolate)
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture(perform: toggleItemNameLanguageAnimated)
+                .contextMenu {
+                    Button {
+                        UIPasteboard.general.string = itemTitleDisplayName
+                    } label: {
+                        Label(
+                            NSLocalizedString("Misc_Copy_Name", comment: ""),
+                            systemImage: "doc.on.doc"
+                        )
+                    }
+                    if let alt = itemTitleAlternateName {
                         Button {
-                            UIPasteboard.general.string = itemDetails.name
+                            UIPasteboard.general.string = alt
                         } label: {
                             Label(
-                                NSLocalizedString("Misc_Copy_Name", comment: ""),
-                                systemImage: "doc.on.doc"
-                            )
-                        }
-                        if let en_detail = itemDetails.en_name, !en_detail.isEmpty,
-                           en_detail != itemDetails.name
-                        {
-                            Button {
-                                UIPasteboard.general.string = itemDetails.en_name
-                            } label: {
-                                Label(
-                                    NSLocalizedString("Misc_Copy_Trans", comment: ""),
-                                    systemImage: "translate"
-                                )
-                            }
-                        }
-                        Button {
-                            saveRenderImageToPhotos()
-                        } label: {
-                            Label(
-                                NSLocalizedString("Misc_Save_Render_Image", comment: ""),
-                                systemImage: "photo"
+                                NSLocalizedString("Misc_Copy_Trans", comment: ""),
+                                systemImage: "translate"
                             )
                         }
                     }
+                    Button {
+                        saveRenderImageToPhotos()
+                    } label: {
+                        Label(
+                            NSLocalizedString("Misc_Save_Render_Image", comment: ""),
+                            systemImage: "photo"
+                        )
+                    }
+                }
 
                 Text(
                     "\(NSLocalizedString("Main_Database_Category", comment: "")): \(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)"
@@ -225,10 +266,10 @@ struct ItemBasicInfoView: View {
                     .lineLimit(2)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 8)
-
-            Spacer()
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 8)
     }
 
@@ -246,26 +287,34 @@ struct ItemBasicInfoView: View {
 
             // 物品信息覆盖层
             VStack(alignment: .leading, spacing: 4) {
-                Text(itemDetails.name)
-                    .font(.title)
+                HStack(spacing: 0) {
+                    Text(itemTitleDisplayName)
+                        .font(.title)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                        .contentTransition(.interpolate)
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture(perform: toggleItemNameLanguageAnimated)
                 Text(
                     "\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)"
                 )
                 .font(.subheadline)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .contextMenu {
                 Button {
-                    UIPasteboard.general.string = itemDetails.name
+                    UIPasteboard.general.string = itemTitleDisplayName
                 } label: {
                     Label(
                         NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc"
                     )
                 }
-                if let en_detail = itemDetails.en_name, !en_detail.isEmpty,
-                   en_detail != itemDetails.name
-                {
+                if let alt = itemTitleAlternateName {
                     Button {
-                        UIPasteboard.general.string = itemDetails.en_name
+                        UIPasteboard.general.string = alt
                     } label: {
                         Label(
                             NSLocalizedString("Misc_Copy_Trans", comment: ""),
@@ -298,44 +347,52 @@ struct ItemBasicInfoView: View {
     // 原始布局（无渲染图时的回退布局）
     @ViewBuilder
     private func originalLayoutView() -> some View {
-        HStack {
+        HStack(alignment: .center) {
             IconManager.shared.loadImage(for: itemDetails.iconFileName)
                 .resizable()
                 .frame(width: 60, height: 60)
                 .cornerRadius(8)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(itemDetails.name)
-                    .font(.title)
-                    .contextMenu {
+                HStack(spacing: 0) {
+                    Text(itemTitleDisplayName)
+                        .font(.title)
+                        .multilineTextAlignment(.leading)
+                        .contentTransition(.interpolate)
+                    Spacer(minLength: 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture(perform: toggleItemNameLanguageAnimated)
+                .contextMenu {
+                    Button {
+                        UIPasteboard.general.string = itemTitleDisplayName
+                    } label: {
+                        Label(
+                            NSLocalizedString("Misc_Copy_Name", comment: ""),
+                            systemImage: "doc.on.doc"
+                        )
+                    }
+                    if let alt = itemTitleAlternateName {
                         Button {
-                            UIPasteboard.general.string = itemDetails.name
+                            UIPasteboard.general.string = alt
                         } label: {
                             Label(
-                                NSLocalizedString("Misc_Copy_Name", comment: ""),
-                                systemImage: "doc.on.doc"
+                                NSLocalizedString("Misc_Copy_Trans", comment: ""),
+                                systemImage: "translate"
                             )
                         }
-                        if let en_name = itemDetails.en_name, en_name != itemDetails.name,
-                           !en_name.isEmpty
-                        {
-                            Button {
-                                UIPasteboard.general.string = itemDetails.en_name
-                            } label: {
-                                Label(
-                                    NSLocalizedString("Misc_Copy_Trans", comment: ""),
-                                    systemImage: "translate"
-                                )
-                            }
-                        }
                     }
+                }
                 Text(
                     "\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)"
                 )
                 .font(.subheadline)
                 .foregroundColor(.gray)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     var body: some View {
@@ -428,6 +485,26 @@ struct ItemBasicInfoView: View {
                                 Text(NSLocalizedString("Main_Market", comment: ""))
                                 Spacer()
                             }
+                        }
+
+                        NavigationLink {
+                            MarketQuickbarDestinationPickerView(
+                                databaseManager: databaseManager,
+                                typeID: itemDetails.typeId
+                            )
+                        } label: {
+                            HStack(alignment: .center) {
+                                Image("searchmarket")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                Text(NSLocalizedString("Main_Market_Add_To_Watchlist_Button", comment: ""))
+                                    .foregroundColor(.primary)
+                                Spacer(minLength: 0)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
                         }
                     }
 
@@ -543,6 +620,9 @@ struct ItemBasicInfoView: View {
                     }
                 }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
+        }
+        .onChange(of: itemDetails.typeId) { _, _ in
+            itemNameShowsEnglish = false
         }
     }
 

@@ -597,47 +597,6 @@ struct MiningLedgerView: View {
     }
 }
 
-struct MiningItemRow: View {
-    let entry: MiningItemSummary
-    let databaseManager: DatabaseManager
-    @State private var itemIcon: Image?
-
-    var body: some View {
-        NavigationLink {
-            MarketItemDetailView(databaseManager: databaseManager, itemID: entry.id)
-        } label: {
-            HStack(spacing: 12) {
-                // 矿石图标
-                if let icon = itemIcon {
-                    icon
-                        .resizable()
-                        .frame(width: 36, height: 36)
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                } else {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.gray.opacity(0.3))
-                        .frame(width: 36, height: 36)
-                }
-
-                VStack(alignment: .leading) {
-                    Text(entry.name)
-                        .font(.body)
-                    Text("× \(FormatUtil.format(Double(entry.totalQuantity)))")
-                        .font(.system(.caption, design: .monospaced))
-                        .foregroundColor(.secondary)
-                }
-
-                Spacer()
-            }
-            .padding(.vertical, 2)
-        }
-        .task {
-            // 加载图标
-            itemIcon = IconManager.shared.loadImage(for: entry.iconFileName)
-        }
-    }
-}
-
 struct MiningSettingsSheet: View {
     @ObservedObject var viewModel: MiningLedgerViewModel
     @Environment(\.dismiss) private var dismiss

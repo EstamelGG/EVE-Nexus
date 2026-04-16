@@ -7,25 +7,6 @@
 
 import Foundation
 
-// 节点结构，用于A*算法
-struct PathNode: Hashable {
-    let systemId: Int
-    var parent: Int? // 父节点星系ID
-    var g: Double = 0 // 起点到当前点的实际代价
-    var h: Double = 0 // 当前点到终点的估计代价
-    var distance: Double = 0 // 从父节点到当前节点的距离
-
-    // Hashable 实现
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(systemId)
-    }
-
-    // Equatable 实现
-    static func == (lhs: PathNode, rhs: PathNode) -> Bool {
-        return lhs.systemId == rhs.systemId
-    }
-}
-
 // 跳跃连接结构，保存两个星系间的跳跃信息
 struct JumpConnection {
     let sourceId: Int

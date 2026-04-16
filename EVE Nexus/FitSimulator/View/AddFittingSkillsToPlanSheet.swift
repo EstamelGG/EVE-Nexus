@@ -107,27 +107,3 @@ enum AddFittingSkillsToPlanSheet {
         }
     }
 }
-
-/// 待添加技能管理器 - 用于装配页与技能计划页之间的数据传递（添加技能到已有计划时使用）
-final class PendingFittingSkillsManager {
-    static let shared = PendingFittingSkillsManager()
-
-    private struct PendingData {
-        let skills: [(skillId: Int, skillName: String, level: Int)]
-        let characterId: Int
-    }
-
-    private var pending: [UUID: PendingData] = [:]
-
-    private init() {}
-
-    func setPending(skills: [(skillId: Int, skillName: String, level: Int)], forPlanId planId: UUID, characterId: Int) {
-        pending[planId] = PendingData(skills: skills, characterId: characterId)
-    }
-
-    func consumePending(forPlanId planId: UUID) -> (skills: [(skillId: Int, skillName: String, level: Int)], characterId: Int)? {
-        guard let data = pending[planId] else { return nil }
-        pending.removeValue(forKey: planId)
-        return (data.skills, data.characterId)
-    }
-}

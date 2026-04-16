@@ -51,12 +51,6 @@ class AppIconManager: ObservableObject {
     }
 }
 
-struct AppIcon: Identifiable {
-    let id: String?
-    let name: String
-    let displayName: String
-}
-
 enum AppIconError: LocalizedError {
     case notSupported
 
