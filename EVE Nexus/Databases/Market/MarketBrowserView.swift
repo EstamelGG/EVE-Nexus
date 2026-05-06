@@ -1,5 +1,10 @@
 import SwiftUI
 
+private struct AttributeQuickComparePresentation: Identifiable {
+    let id: Int
+    var marketGroupID: Int { id }
+}
+
 // 基础市场视图
 struct MarketBaseView<Content: View>: View {
     @ObservedObject var databaseManager: DatabaseManager
@@ -7,6 +12,8 @@ struct MarketBaseView<Content: View>: View {
     let content: () -> Content // 常规内容视图
     let searchQuery: (String) -> String // SQL查询语句生成器
     let searchParameters: (String) -> [Any] // SQL参数生成器
+    /// 在市场树加载时由上层一次性计算（`AttributeCompareMarketPolicy.eligibleMarketGroupIDs`）
+    let attributeCompareEligibleMarketGroupIDs: Set<Int>
 
     @State private var items: [DatabaseListItem] = []
     @State private var metaGroupNames: [Int: String] = [:] // 添加科技等级名称字典
@@ -15,6 +22,9 @@ struct MarketBaseView<Content: View>: View {
     @State private var isLoading = false
     @State private var isShowingSearchResults = false
     @StateObject private var searchController = SearchController()
+
+    /// 长按物品行「快速比对」时呈现，与 `AttributeQuickCompareSheet` 对应
+    @State private var attributeQuickComparePresentation: AttributeQuickComparePresentation?
 
     // 搜索结果分组
     var groupedSearchResults: [(id: Int, name: String, items: [DatabaseListItem])] {
@@ -107,7 +117,11 @@ struct MarketBaseView<Content: View>: View {
                             } label: {
                                 DatabaseListItemView(
                                     item: item,
-                                    showDetails: true
+                                    showDetails: true,
+                                    attributeCompareEligibleMarketGroupIDs:
+                                    attributeCompareEligibleMarketGroupIDs,
+                                    onAttributeQuickCompare: attributeCompareEligibleMarketGroupIDs.isEmpty
+                                        ? nil : presentSearchResultQuickCompare
                                 )
                             }
                         }
@@ -165,12 +179,22 @@ struct MarketBaseView<Content: View>: View {
             }
         }
         .navigationTitle(title)
+        .sheet(item: $attributeQuickComparePresentation) { presentation in
+            AttributeQuickCompareSheet(
+                databaseManager: databaseManager,
+                marketGroupID: presentation.marketGroupID
+            )
+        }
         .onAppear {
             setupSearch()
             // 加载科技等级名称
             let metaGroupIDs = Set(items.compactMap { $0.metaGroupID })
             metaGroupNames = databaseManager.loadMetaGroupNames(for: Array(metaGroupIDs))
         }
+    }
+
+    private func presentSearchResultQuickCompare(marketGroupID: Int) {
+        attributeQuickComparePresentation = AttributeQuickComparePresentation(id: marketGroupID)
     }
 
     private func setupSearch() {
@@ -202,6 +226,8 @@ struct MarketBaseView<Content: View>: View {
 struct MarketBrowserView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var marketGroups: [MarketGroup] = []
+    /// 属性快速比对允许的市场组（与市场树同时建立）
+    @State private var attributeCompareEligibleMarketGroupIDs: Set<Int> = []
     @State private var path = NavigationPath()
 
     var body: some View {
@@ -223,14 +249,16 @@ struct MarketBrowserView: View {
                 },
                 searchParameters: { text in
                     ["%\(text)%", "%\(text)%", "\(text)"]
-                }
+                },
+                attributeCompareEligibleMarketGroupIDs: attributeCompareEligibleMarketGroupIDs
             )
             .navigationDestination(for: MarketGroup.self) { group in
                 MarketGroupView(
                     databaseManager: databaseManager,
                     group: group,
                     allGroups: marketGroups,
-                    path: $path
+                    path: $path,
+                    attributeCompareEligibleMarketGroupIDs: attributeCompareEligibleMarketGroupIDs
                 )
             }
             .navigationDestination(for: MarketItemDestination.self) { destination in
@@ -238,12 +266,15 @@ struct MarketBrowserView: View {
                     databaseManager: databaseManager,
                     marketGroupID: destination.marketGroupID,
                     title: destination.title,
+                    attributeCompareEligibleMarketGroupIDs: attributeCompareEligibleMarketGroupIDs,
                     path: $path
                 )
             }
             .onAppear {
                 marketGroups = MarketManager.shared.loadMarketGroups(
                     databaseManager: databaseManager)
+                attributeCompareEligibleMarketGroupIDs = AttributeCompareMarketPolicy
+                    .eligibleMarketGroupIDs(marketGroups: marketGroups)
             }
         }
     }
@@ -261,6 +292,7 @@ struct MarketGroupView: View {
     let group: MarketGroup
     let allGroups: [MarketGroup]
     @Binding var path: NavigationPath
+    let attributeCompareEligibleMarketGroupIDs: Set<Int>
 
     var body: some View {
         MarketBaseView(
@@ -284,7 +316,8 @@ struct MarketGroupView: View {
             },
             searchParameters: { text in
                 ["%\(text)%", "%\(text)%"]
-            }
+            },
+            attributeCompareEligibleMarketGroupIDs: attributeCompareEligibleMarketGroupIDs
         )
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -304,9 +337,11 @@ struct MarketItemListView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let marketGroupID: Int
     let title: String
+    let attributeCompareEligibleMarketGroupIDs: Set<Int>
     @State private var items: [DatabaseListItem] = []
     @State private var metaGroupNames: [Int: String] = [:]
     @Binding var path: NavigationPath
+    @State private var leafQuickComparePresentation: AttributeQuickComparePresentation?
 
     var groupedItems: [(id: Int, name: String, items: [DatabaseListItem])] {
         let publishedItems = items.filter { $0.published }
@@ -389,7 +424,11 @@ struct MarketItemListView: View {
                             } label: {
                                 DatabaseListItemView(
                                     item: item,
-                                    showDetails: true
+                                    showDetails: true,
+                                    attributeCompareEligibleMarketGroupIDs:
+                                    attributeCompareEligibleMarketGroupIDs,
+                                    onAttributeQuickCompare: attributeCompareEligibleMarketGroupIDs.isEmpty
+                                        ? nil : presentLeafItemQuickCompare
                                 )
                             }
                         }
@@ -401,8 +440,15 @@ struct MarketItemListView: View {
             },
             searchParameters: { text in
                 [marketGroupID, "%\(text)%", "%\(text)%"]
-            }
+            },
+            attributeCompareEligibleMarketGroupIDs: attributeCompareEligibleMarketGroupIDs
         )
+        .sheet(item: $leafQuickComparePresentation) { presentation in
+            AttributeQuickCompareSheet(
+                databaseManager: databaseManager,
+                marketGroupID: presentation.marketGroupID
+            )
+        }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {
@@ -416,6 +462,10 @@ struct MarketItemListView: View {
         .onAppear {
             loadItems()
         }
+    }
+
+    private func presentLeafItemQuickCompare(marketGroupID: Int) {
+        leafQuickComparePresentation = AttributeQuickComparePresentation(id: marketGroupID)
     }
 
     private func loadItems() {

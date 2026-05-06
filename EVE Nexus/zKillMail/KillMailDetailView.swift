@@ -1,5 +1,10 @@
 import SwiftUI
 
+private struct KMVictimShipSheetItem: Identifiable {
+    let typeId: Int
+    var id: Int { typeId }
+}
+
 struct BRKillMailDetailView: View {
     let listEntity: KillMailListEntity
     let character: EVECharacterInfo?
@@ -23,6 +28,8 @@ struct BRKillMailDetailView: View {
     @State private var kmMarketUnitPriceByType: [Int: Double] = [:]
     /// 每次开始加载详情时递增，用于丢弃上一轮未完成的价格写入
     @State private var kmMarketPriceSession: Int = 0
+    @State private var showZkbLinkCopiedAlert = false
+    @State private var victimShipDetailSheetItem: KMVictimShipSheetItem?
 
     // 监听屏幕方向变化
     @State private var orientation = UIDevice.current.orientation
@@ -113,7 +120,10 @@ struct BRKillMailDetailView: View {
                 Button {
                     killMailFavorites.toggle(
                         killmailId: listEntity.killmailId,
-                        hash: listEntity.zkb.hash
+                        hash: listEntity.zkb.hash,
+                        value: listEntity.zkb.totalValue,
+                        droppedValue: listEntity.zkb.droppedValue,
+                        destroyedValue: listEntity.zkb.destroyedValue
                     )
                 } label: {
                     Image(
@@ -130,10 +140,46 @@ struct BRKillMailDetailView: View {
             }
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button {
+                    UIPasteboard.general.string = zkillboardKillPageURLString(
+                        killId: listEntity.killmailId
+                    )
+                    showZkbLinkCopiedAlert = true
+                } label: {
+                    Image(systemName: "square.and.arrow.up")
+                }
+                .accessibilityLabel(
+                    NSLocalizedString("KillMail_ZKB_Copy_Link_A11y", comment: "")
+                )
+            }
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
                     openZKillboard(killId: listEntity.killmailId)
                 } label: {
-                    Text("zkillboard")
                     Image(systemName: "safari")
+                    Text("zKB")
+                }
+            }
+        }
+        .alert(
+            NSLocalizedString("Misc_Copied", comment: ""),
+            isPresented: $showZkbLinkCopiedAlert
+        ) {
+            Button(NSLocalizedString("Common_OK", comment: ""), role: .cancel) {}
+        } message: {
+            Text(NSLocalizedString("KillMail_ZKB_Link_Copy_Alert_Message", comment: ""))
+        }
+        .sheet(item: $victimShipDetailSheetItem) { item in
+            NavigationStack {
+                ItemInfoMap.getItemInfoView(
+                    itemID: item.typeId,
+                    databaseManager: DatabaseManager.shared
+                )
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(NSLocalizedString("Common_OK", comment: "")) {
+                            victimShipDetailSheetItem = nil
+                        }
+                    }
                 }
             }
         }
@@ -342,8 +388,23 @@ struct BRKillMailDetailView: View {
                         .foregroundColor(.secondary)
                 }
             }
-            Spacer()
+            Spacer(minLength: 4)
+            victimShipDetailInlineButton(shipTypeId: shipId)
         }
+    }
+
+    @ViewBuilder
+    private func victimShipDetailInlineButton(shipTypeId: Int) -> some View {
+        Button {
+            victimShipDetailSheetItem = KMVictimShipSheetItem(typeId: shipTypeId)
+        } label: {
+            Image(systemName: "info.circle")
+                .font(.system(size: 18))
+                .symbolRenderingMode(.hierarchical)
+                .foregroundStyle(.secondary)
+        }
+        .buttonStyle(.borderless)
+        .accessibilityLabel(Text(NSLocalizedString("View Ship", comment: "")))
     }
 
     @ViewBuilder
@@ -552,6 +613,8 @@ struct BRKillMailDetailView: View {
                         .foregroundColor(.secondary)
                 }
             }
+            Spacer(minLength: 8)
+            victimShipDetailInlineButton(shipTypeId: shipId)
         }
         .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
 
@@ -652,6 +715,37 @@ struct BRKillMailDetailView: View {
             }
         }
         .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+    }
+
+    /// 非装配槽位（货舱等）：主序为同类堆叠总价（掉落+摧毁 × 单价）降序；**次序为物品 type id 升序**；同 type 多 stack 时再按掉落、摧毁数量区分。
+    private func sortedNonFittingFlagItemsByStackedValue(
+        _ flagItems: [[Int]],
+        unitPriceByType: [Int: Double]
+    ) -> [[Int]] {
+        guard !flagItems.isEmpty else { return flagItems }
+        let valueByType: [Int: Double] = Dictionary(grouping: flagItems, by: { $0[1] })
+            .mapValues { rows in
+                rows.reduce(0.0) { partial, row in
+                    let qty = row[2] + row[3]
+                    let unit = unitPriceByType[row[1]] ?? 0
+                    return partial + Double(qty) * unit
+                }
+            }
+        return flagItems.sorted { lhs, rhs in
+            let lhsStack = valueByType[lhs[1], default: 0]
+            let rhsStack = valueByType[rhs[1], default: 0]
+            if lhsStack != rhsStack {
+                return lhsStack > rhsStack
+            }
+            // 次要顺序：物品 type id（升序）
+            let lhsType = lhs[1]
+            let rhsType = rhs[1]
+            if lhsType != rhsType {
+                return lhsType < rhsType
+            }
+            if lhs[2] != rhs[2] { return lhs[2] > rhs[2] }
+            return lhs[3] > rhs[3]
+        }
     }
 
     /// 装配列表：先按 flag（槽位）升序，同一 flag 内先列装备（category≠8），再列弹药（8）；未知类型视为非弹药
@@ -924,8 +1018,14 @@ struct BRKillMailDetailView: View {
                             .foregroundColor(.primary)
                             .textCase(.none)
                     ) {
-                        // 显示直接在该舱室的物品
-                        ForEach(flagItems, id: \.self) { item in
+                        // 显示直接在该舱室的物品（默认按堆叠总价降序）
+                        ForEach(
+                            sortedNonFittingFlagItemsByStackedValue(
+                                flagItems,
+                                unitPriceByType: kmMarketUnitPriceByType
+                            ),
+                            id: \.self
+                        ) { item in
                             let typeId = item[1]
                             if item[2] > 0 { // 掉落数量
                                 ItemRow(
@@ -1015,6 +1115,15 @@ struct BRKillMailDetailView: View {
             destroyedValue = zkb.destroyedValueValue
             totalValue = zkb.totalValueValue
             detailData = detail
+
+            if killMailFavorites.isFavorite(killmailId: killId) {
+                KillMailFavoritesStore.shared.updateStoredZkbFieldsIfMissing(
+                    killmailId: killId,
+                    totalValue: zkb.totalValue,
+                    droppedValue: zkb.droppedValue,
+                    destroyedValue: zkb.destroyedValue
+                )
+            }
 
             let priceTypeIds = collectKillMailPriceTypeIds(detail)
             Task {
@@ -1136,8 +1245,12 @@ struct BRKillMailDetailView: View {
         return formatter.string(from: NSNumber(value: number)) ?? "\(number)"
     }
 
+    private func zkillboardKillPageURLString(killId: Int) -> String {
+        "https://zkillboard.com/kill/\(killId)/"
+    }
+
     private func openZKillboard(killId: Int) {
-        if let url = URL(string: "https://zkillboard.com/kill/\(killId)/") {
+        if let url = URL(string: zkillboardKillPageURLString(killId: killId)) {
             UIApplication.shared.open(url)
         }
     }

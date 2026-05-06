@@ -60,7 +60,23 @@ class CorpIndustryAPI {
             throw NetworkError.authenticationError("无法获取军团ID")
         }
 
-        // 2. 如果不是强制刷新，先尝试从文件缓存加载未过期数据
+        return try await fetchCorpIndustryJobsForCorporation(
+            corporationId: corporationId,
+            characterId: characterId,
+            forceRefresh: forceRefresh,
+            includeCompleted: includeCompleted,
+            progressCallback: progressCallback
+        )
+    }
+
+    /// 按指定军团 ID 拉取工业列表（需 `characterId` 对应 token 具备该军团工业权限）
+    func fetchCorpIndustryJobsForCorporation(
+        corporationId: Int,
+        characterId: Int,
+        forceRefresh: Bool = false,
+        includeCompleted: Bool = true,
+        progressCallback: ((Int, Int) -> Void)? = nil
+    ) async throws -> [CorpIndustryJob] {
         if !forceRefresh {
             if let cachedJobs = loadJobsFromCache(corporationId: corporationId) {
                 Logger.info("使用缓存的军团工业项目数据 - 军团ID: \(corporationId)")
@@ -68,10 +84,11 @@ class CorpIndustryAPI {
             }
         }
 
-        // 3. 从网络获取最新数据
         return try await fetchJobsFromServer(
-            corporationId: corporationId, characterId: characterId,
-            includeCompleted: includeCompleted, progressCallback: progressCallback
+            corporationId: corporationId,
+            characterId: characterId,
+            includeCompleted: includeCompleted,
+            progressCallback: progressCallback
         )
     }
 

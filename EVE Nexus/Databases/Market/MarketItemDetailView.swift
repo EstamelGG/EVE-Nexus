@@ -12,6 +12,7 @@ struct Region: Identifiable {
 struct MarketItemBasicInfoView: View {
     let itemDetails: ItemDetails
     let marketPath: [String]
+    let onInfoTap: () -> Void
 
     @State private var itemNameShowsEnglish = false
 
@@ -90,10 +91,11 @@ struct MarketItemBasicInfoView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            // 添加右箭头提示
-            Image(systemName: "chevron.right")
-                .foregroundColor(.secondary)
-                .font(.caption)
+            Button(action: onInfoTap) {
+                Image(systemName: "info.circle")
+                    .font(.system(size: 18))
+            }
+            .buttonStyle(.borderless)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .onChange(of: itemDetails.typeId) { _, _ in
@@ -651,12 +653,9 @@ struct MarketItemDetailView: View {
                 if let details = itemDetails {
                     MarketItemBasicInfoView(
                         itemDetails: details,
-                        marketPath: marketPath
+                        marketPath: marketPath,
+                        onInfoTap: { presentSheet(.itemInfo) }
                     )
-                    .contentShape(Rectangle()) // 扩展点击区域到整个视图
-                    .onTapGesture {
-                        presentSheet(.itemInfo)
-                    }
                 }
             }
 

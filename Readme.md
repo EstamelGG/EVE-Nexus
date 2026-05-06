@@ -28,13 +28,19 @@ swiftformat .
 
 # 扫描未被使用的函数
 
+执行此命令以扫描项目代码
+
 ```bash
 periphery scan | grep -v "/Thirdparty/" > log.txt
 ```
 
-```regexp
-unused (Enum|Property|Function|Initializer|Class|struct)
+在 `log.txt` 中执行此正则以过滤出我们需要处理的行
+
+```bash
+grep -E 'Unused (Enum|Property|Function|Initializer|Class|struct)' log.txt
 ```
+
+针对这些过滤出的行进行优化即可
 
 # 未被定义的strings
 

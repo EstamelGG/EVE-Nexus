@@ -6,6 +6,16 @@ struct PlanetTypeInfo {
     let icon: String
 }
 
+/// 多人物多选时：各星球类型在已选人物下的殖民数量汇总
+struct AggregatedPlanetTypeSummary: Identifiable {
+    let planetTypeKey: String
+    let count: Int
+    let displayName: String
+    let iconFileName: String
+
+    var id: String { planetTypeKey }
+}
+
 // 最终产品模型
 struct FinalProduct: Identifiable {
     let id: Int // typeId
@@ -65,6 +75,16 @@ final class CharacterPlanetaryViewModel: ObservableObject {
         }
     }
 
+    /// 多人物模式下是否在列表顶部展示星球类型汇总（默认关闭，写入 UserDefaults）
+    @Published var showPlanetTypeSummaryInMultiSelect = false {
+        didSet {
+            UserDefaults.standard.set(
+                showPlanetTypeSummaryInMultiSelect,
+                forKey: "showPlanetTypeSummary_planetary"
+            )
+        }
+    }
+
     @Published var availableCharacters: [(id: Int, name: String)] = []
 
     var planetsWithOwner: [PlanetWithOwner] = [] // 包含所有者信息的行星列表
@@ -87,6 +107,8 @@ final class CharacterPlanetaryViewModel: ObservableObject {
 
         // 从 UserDefaults 读取多人物聚合设置
         multiCharacterMode = UserDefaults.standard.bool(forKey: "multiCharacterMode_planetary")
+        showPlanetTypeSummaryInMultiSelect = UserDefaults.standard.bool(
+            forKey: "showPlanetTypeSummary_planetary")
         let savedCharacterIds =
             UserDefaults.standard.array(forKey: "selectedCharacterIds_planetary") as? [Int] ?? []
         selectedCharacterIds = Set(savedCharacterIds)
@@ -386,6 +408,27 @@ final class CharacterPlanetaryViewModel: ObservableObject {
         return nil
     }
 
+    /// 与 `PlanetRow` 采集器提示共用：该殖民地是否应以红色突出采集器状态（已停工、约 1 小时内停工、或最早到期已过期 / 不足 24h）
+    func planetNeedsExtractorAttention(planetId: Int, characterId: Int) -> Bool {
+        if let status = getExtractorStatus(for: planetId, characterId: characterId), status.totalCount > 0 {
+            if status.expiredCount > 0 { return true }
+            if status.expiringSoonCount > 0 { return true }
+        }
+        guard let expiryDate = getEarliestExtractorExpiry(for: planetId, characterId: characterId) else {
+            return false
+        }
+        // 已过期（remaining ≤ 0）与 24h 内到期均满足 remaining < 24h
+        return expiryDate.timeIntervalSince(Date()) < 24 * 3600
+    }
+
+    /// 表头部署数标红：该角色下列表行所需的行星详情**全部加载完成后**，若任一行会出现红色采集器提示则为 true
+    func characterHeaderShowsExtractorAttention(planets: [CharacterPlanetaryInfo], characterId: Int) -> Bool {
+        guard planets.allSatisfy({ !isLoadingPlanetDetail(for: $0.planetId, characterId: characterId) }) else {
+            return false
+        }
+        return planets.contains { planetNeedsExtractorAttention(planetId: $0.planetId, characterId: characterId) }
+    }
+
     func isLoadingPlanetDetail(for planetId: Int, characterId: Int? = nil) -> Bool {
         if let characterId = characterId {
             return loadingPlanets.contains(makePlanetKey(characterId: characterId, planetId: planetId))
@@ -476,6 +519,40 @@ final class CharacterPlanetaryViewModel: ObservableObject {
             }
             // 其他情况按角色ID排序
             return first.characterId < second.characterId
+        }
+    }
+
+    /// 多选人物（>1）时：已选人物殖民星球按 `planet_type` 的数量汇总，供列表顶部 Section 使用
+    var aggregatedPlanetTypeSummariesForMultiSelect: [AggregatedPlanetTypeSummary] {
+        guard multiCharacterMode, selectedCharacterIds.count > 1, showPlanetTypeSummaryInMultiSelect else {
+            return []
+        }
+
+        var counts: [String: Int] = [:]
+        for planetWithOwner in planetsWithOwner where selectedCharacterIds.contains(planetWithOwner.ownerId) {
+            let key = planetWithOwner.planet.planetType
+            counts[key, default: 0] += 1
+        }
+
+        return counts.map { planetTypeKey, count -> AggregatedPlanetTypeSummary in
+            if let info = getPlanetTypeInfo(for: planetTypeKey) {
+                let icon = info.icon.isEmpty ? DatabaseConfig.defaultItemIcon : info.icon
+                return AggregatedPlanetTypeSummary(
+                    planetTypeKey: planetTypeKey,
+                    count: count,
+                    displayName: info.name,
+                    iconFileName: icon
+                )
+            }
+            return AggregatedPlanetTypeSummary(
+                planetTypeKey: planetTypeKey,
+                count: count,
+                displayName: NSLocalizedString("Main_Planetary_Unknown_Type", comment: ""),
+                iconFileName: DatabaseConfig.defaultItemIcon
+            )
+        }
+        .sorted {
+            $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending
         }
     }
 
@@ -1088,6 +1165,8 @@ struct CharacterPlanetaryView: View {
     @StateObject private var viewModel: CharacterPlanetaryViewModel
     @State private var selectedPlanet: SelectedPlanet?
     @State private var showSettingsSheet = false
+    /// 多人物模式下已折叠的角色 ID；默认空 = 全部展开
+    @State private var collapsedCharacterIdsInMultiMode: Set<Int> = []
 
     init(characterId: Int?) {
         self.characterId = characterId
@@ -1124,35 +1203,125 @@ struct CharacterPlanetaryView: View {
                                     NoDataSection()
                                 }
                             } else {
-                                ForEach(groupedPlanets, id: \.characterId) { group in
+                                if !viewModel.aggregatedPlanetTypeSummariesForMultiSelect.isEmpty {
                                     Section(
-                                        header: HStack(spacing: 16) {
-                                            CharacterPortraitView(characterId: group.characterId)
-                                                .frame(width: 24, height: 24)
-                                            Text(group.characterName)
-                                                .fontWeight(.semibold)
-                                                .font(.system(size: 18))
-                                                .foregroundColor(.primary)
-                                            Spacer()
-                                            Text("\(group.planets.count)/\(group.maxPlanets)")
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                        }
-                                        .textCase(.none)
+                                        header:
+                                            Text(NSLocalizedString("Planetary_MultiSelect_Planet_Type_Summary", comment: ""))
+                                            .fontWeight(.semibold)
+                                            .font(.system(size: 18))
+                                            .foregroundColor(.primary)
+                                            .textCase(.none)
                                     ) {
-                                        ForEach(group.planets, id: \.planetId) { planet in
-                                            PlanetRow(
-                                                planet: planet,
-                                                viewModel: viewModel,
-                                                characterId: group.characterId,
-                                                onPlanetSelected: { planetId, planetName in
-                                                    selectedPlanet = SelectedPlanet(
+                                        ForEach(viewModel.aggregatedPlanetTypeSummariesForMultiSelect) { summary in
+                                            HStack(spacing: 12) {
+                                                Image(uiImage: IconManager.shared.loadUIImage(for: summary.iconFileName))
+                                                    .resizable()
+                                                    .frame(width: 32, height: 32)
+                                                    .cornerRadius(6)
+                                                Text(summary.displayName)
+                                                    .foregroundColor(.primary)
+                                                Spacer()
+                                                Text("\(summary.count)")
+                                                    .font(.headline)
+                                                    .fontWeight(.medium)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                        }
+                                    }
+                                }
+                                ForEach(groupedPlanets, id: \.characterId) { group in
+                                    let isCollapsed = collapsedCharacterIdsInMultiMode.contains(
+                                        group.characterId)
+                                    if groupedPlanets.count > 1 {
+                                        Section(
+                                            header: HStack(spacing: 16) {
+                                                CharacterPortraitView(characterId: group.characterId)
+                                                    .frame(width: 24, height: 24)
+                                                Text(group.characterName)
+                                                    .fontWeight(.semibold)
+                                                    .font(.system(size: 18))
+                                                    .foregroundColor(.primary)
+                                                Spacer()
+                                                deployedColoniesCountCaption(
+                                                    deployed: group.planets.count,
+                                                    max: group.maxPlanets,
+                                                    needsAttention: viewModel.characterHeaderShowsExtractorAttention(
+                                                        planets: group.planets,
+                                                        characterId: group.characterId
+                                                    )
+                                                )
+                                                Image(
+                                                    systemName: isCollapsed ? "chevron.right" : "chevron.down"
+                                                )
+                                                .font(.caption.weight(.semibold))
+                                                .foregroundColor(.secondary)
+                                                .accessibilityHidden(true)
+                                            }
+                                            .textCase(.none)
+                                            .contentShape(Rectangle())
+                                            .onTapGesture {
+                                                toggleMultiCharacterSectionExpansion(characterId: group
+                                                    .characterId)
+                                            }
+                                            .accessibilityAddTraits(.isButton)
+                                            .accessibilityLabel(
+                                                accessibilityLabelForMultiCharacterHeader(
+                                                    characterName: group.characterName,
+                                                    isCollapsed: isCollapsed
+                                                ))
+                                        ) {
+                                            if !isCollapsed {
+                                                ForEach(group.planets, id: \.planetId) { planet in
+                                                    PlanetRow(
+                                                        planet: planet,
+                                                        viewModel: viewModel,
                                                         characterId: group.characterId,
-                                                        planetId: planetId,
-                                                        planetName: planetName
+                                                        onPlanetSelected: { planetId, planetName in
+                                                            selectedPlanet = SelectedPlanet(
+                                                                characterId: group.characterId,
+                                                                planetId: planetId,
+                                                                planetName: planetName
+                                                            )
+                                                        }
                                                     )
                                                 }
-                                            )
+                                            }
+                                        }
+                                    } else {
+                                        Section(
+                                            header: HStack(spacing: 16) {
+                                                CharacterPortraitView(characterId: group.characterId)
+                                                    .frame(width: 24, height: 24)
+                                                Text(group.characterName)
+                                                    .fontWeight(.semibold)
+                                                    .font(.system(size: 18))
+                                                    .foregroundColor(.primary)
+                                                Spacer()
+                                                deployedColoniesCountCaption(
+                                                    deployed: group.planets.count,
+                                                    max: group.maxPlanets,
+                                                    needsAttention: viewModel.characterHeaderShowsExtractorAttention(
+                                                        planets: group.planets,
+                                                        characterId: group.characterId
+                                                    )
+                                                )
+                                            }
+                                            .textCase(.none)
+                                        ) {
+                                            ForEach(group.planets, id: \.planetId) { planet in
+                                                PlanetRow(
+                                                    planet: planet,
+                                                    viewModel: viewModel,
+                                                    characterId: group.characterId,
+                                                    onPlanetSelected: { planetId, planetName in
+                                                        selectedPlanet = SelectedPlanet(
+                                                            characterId: group.characterId,
+                                                            planetId: planetId,
+                                                            planetName: planetName
+                                                        )
+                                                    }
+                                                )
+                                            }
                                         }
                                     }
                                 }
@@ -1163,6 +1332,13 @@ struct CharacterPlanetaryView: View {
                                 ? viewModel.selectedCharacterIds.first!
                                 : characterId
                             let maxPlanets = currentCharacterId != nil ? (viewModel.maxPlanetsByCharacter[currentCharacterId!] ?? 1) : 1
+                            let headerAttentionCharacterId = currentCharacterId ?? characterId
+                            let headerNeedsAttention =
+                                headerAttentionCharacterId.map {
+                                    viewModel.characterHeaderShowsExtractorAttention(
+                                        planets: viewModel.planets, characterId: $0
+                                    )
+                                } ?? false
 
                             Section(
                                 header: HStack {
@@ -1171,9 +1347,11 @@ struct CharacterPlanetaryView: View {
                                         .font(.system(size: 18))
                                         .foregroundColor(.primary)
                                     Spacer()
-                                    Text("\(viewModel.planets.count)/\(maxPlanets)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
+                                    deployedColoniesCountCaption(
+                                        deployed: viewModel.planets.count,
+                                        max: maxPlanets,
+                                        needsAttention: headerNeedsAttention
+                                    )
                                 }
                                 .textCase(.none)
                             ) {
@@ -1251,6 +1429,38 @@ struct CharacterPlanetaryView: View {
             .interactiveDismissDisabled()
         }
     }
+
+    @ViewBuilder
+    private func deployedColoniesCountCaption(deployed: Int, max: Int, needsAttention: Bool) -> some View {
+        HStack(spacing: 0) {
+            Text("\(deployed)")
+                .foregroundColor(needsAttention ? .red : .secondary)
+            Text("/\(max)")
+                .foregroundColor(.secondary)
+        }
+        .font(.caption)
+    }
+
+    private func toggleMultiCharacterSectionExpansion(characterId: Int) {
+        withAnimation {
+            var next = collapsedCharacterIdsInMultiMode
+            if next.contains(characterId) {
+                next.remove(characterId)
+            } else {
+                next.insert(characterId)
+            }
+            collapsedCharacterIdsInMultiMode = next
+        }
+    }
+
+    private func accessibilityLabelForMultiCharacterHeader(characterName: String, isCollapsed: Bool)
+        -> String
+    {
+        let action = isCollapsed
+            ? NSLocalizedString("Planetary_Expand_Character_Colonies", comment: "")
+            : NSLocalizedString("Planetary_Collapse_Character_Colonies", comment: "")
+        return "\(characterName). \(action)"
+    }
 }
 
 // 行星设置界面
@@ -1276,6 +1486,14 @@ struct PlanetarySettingsSheet: View {
                             )
                             .font(.caption)
                             .foregroundColor(.secondary)
+                        }
+                    }
+
+                    if viewModel.multiCharacterMode {
+                        Toggle(isOn: $viewModel.showPlanetTypeSummaryInMultiSelect) {
+                            Text(
+                                NSLocalizedString(
+                                    "Planetary_Settings_Show_Type_Summary", comment: "显示汇总"))
                         }
                     }
                 }
@@ -1515,7 +1733,11 @@ struct PlanetRow: View {
                             if timeRemaining > 0 {
                                 Text("\(NSLocalizedString("Planet_Detail_Extractor_Expiry_Time", comment: "")): \(formatTimeRemaining(timeRemaining))")
                                     .font(.caption2)
-                                    .foregroundColor(timeRemaining < 1 * 24 * 3600 ? .red : .green)
+                                    .foregroundColor(
+                                        viewModel.planetNeedsExtractorAttention(
+                                            planetId: planet.planetId,
+                                            characterId: characterId
+                                        ) ? .red : .green)
                             } else {
                                 Text(NSLocalizedString("Planet_Detail_Extractor_Expired", comment: ""))
                                     .font(.caption2)
@@ -1528,7 +1750,11 @@ struct PlanetRow: View {
                         if timeRemaining > 0 {
                             Text("\(NSLocalizedString("Planet_Detail_Extractor_Expiry_Time", comment: "")): \(formatTimeRemaining(timeRemaining))")
                                 .font(.caption2)
-                                .foregroundColor(timeRemaining < 1 * 24 * 3600 ? .red : .green)
+                                .foregroundColor(
+                                    viewModel.planetNeedsExtractorAttention(
+                                        planetId: planet.planetId,
+                                        characterId: characterId
+                                    ) ? .red : .green)
                         } else {
                             Text(NSLocalizedString("Planet_Detail_Extractor_Expired", comment: ""))
                                 .font(.caption2)

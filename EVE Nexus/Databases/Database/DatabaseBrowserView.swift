@@ -347,6 +347,16 @@ struct DatabaseListItemView: View {
     let showDetails: Bool
     /// 是否在名称后显示货舱图标（表示该物品在货舱中）
     var showCargoIndicator: Bool = false
+    /// 由市场浏览器在加载目录树后传入：可属性快速比对的市场组 ID（见 `AttributeCompareMarketPolicy.eligibleMarketGroupIDs`）
+    var attributeCompareEligibleMarketGroupIDs: Set<Int> = []
+    /// 非 nil 且物品 `marketGroupID` 属于上方集合时，上下文菜单显示「快速比对」
+    var onAttributeQuickCompare: ((Int) -> Void)? = nil
+
+    private var showsAttributeQuickCompareMenuItem: Bool {
+        guard onAttributeQuickCompare != nil else { return false }
+        guard let mg = item.marketGroupID else { return false }
+        return attributeCompareEligibleMarketGroupIDs.contains(mg)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -490,6 +500,16 @@ struct DatabaseListItemView: View {
                             systemImage: "translate"
                         )
                     }
+                }
+            }
+            if showsAttributeQuickCompareMenuItem, let mg = item.marketGroupID {
+                Button {
+                    onAttributeQuickCompare?(mg)
+                } label: {
+                    Label(
+                        NSLocalizedString("Main_Attribute_Quick_Compare", comment: ""),
+                        systemImage: "square.split.2x1"
+                    )
                 }
             }
         }

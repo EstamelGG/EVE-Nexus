@@ -48,6 +48,9 @@
     "-%@ ISK" : {
       "shouldTranslate" : false
     },
+    "—" : {
+
+    },
     "・" : {
       "shouldTranslate" : false
     },
@@ -100,6 +103,9 @@
     },
     "[%@%%]" : {
       "shouldTranslate" : false
+    },
+    "/%lld" : {
+
     },
     "%" : {
       "shouldTranslate" : false
@@ -16963,6 +16969,23 @@
         }
       }
     },
+    "Industry_Job_Source_Corp_Suffix" : {
+      "comment" : "军团挂接的工业任务：项目类型名称后缀",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " · Corp"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " · 军团"
+          }
+        }
+      }
+    },
     "Industry_Loading_Progress" : {
       "comment" : "已加载人物 %d/%d",
       "localizations" : {
@@ -19124,22 +19147,6 @@
         }
       }
     },
-    "KillMail_Cancel" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cancel"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "取消"
-          }
-        }
-      }
-    },
     "KillMail_Data_Source" : {
       "comment" : "KillMail Stats",
       "localizations" : {
@@ -19517,22 +19524,6 @@
         }
       }
     },
-    "KillMail_Search" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "搜索"
-          }
-        }
-      }
-    },
     "KillMail_Search_Alliance" : {
       "localizations" : {
         "en" : {
@@ -19581,6 +19572,23 @@
         }
       }
     },
+    "KillMail_Search_Direct_KM" : {
+      "comment" : "按 ID 匹配的战斗记录",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Killmail"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "战斗记录"
+          }
+        }
+      }
+    },
     "KillMail_Search_Input_Prompt" : {
       "localizations" : {
         "en" : {
@@ -19613,18 +19621,19 @@
         }
       }
     },
-    "KillMail_Search_Prompt" : {
+    "KillMail_Search_Recent_History" : {
+      "comment" : "最近搜索的关键词",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Tap here to start searching..."
+            "value" : "Recent searches"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "点击这里输入关键词..."
+            "value" : "最近搜索"
           }
         }
       }
@@ -19641,6 +19650,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "区域"
+          }
+        }
+      }
+    },
+    "KillMail_Search_Skipped_Online_Results_Banner" : {
+      "comment" : "关键词过短时未请求 zkill 联网补全的提示",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Online results (characters, corporations, etc.) require at least 3 characters. This list only includes local ship names and any killmail ID match."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "联网结果（角色、军团等）需至少 3 个字符才会查询。当前列表仅含本地舰船名与 killmail ID 命中项。"
           }
         }
       }
@@ -19739,6 +19765,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "战斗记录"
+          }
+        }
+      }
+    },
+    "KillMail_ZKB_Copy_Link_A11y" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy zKillboard link"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制 zKillboard 链接"
+          }
+        }
+      }
+    },
+    "KillMail_ZKB_Link_Copy_Alert_Message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The zKillboard page link has been copied to the clipboard."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "zKillboard 页面链接已复制到剪贴板。"
           }
         }
       }
@@ -21387,6 +21445,73 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "只展示有差异的属性"
+          }
+        }
+      }
+    },
+    "Main_Attribute_Quick_Compare" : {
+      "comment" : "Market item detail — compare all types in same market leaf group",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick Compare"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "快速比对"
+          }
+        }
+      }
+    },
+    "Main_Attribute_Quick_Compare_Count_Format" : {
+      "comment" : "Format with one int: number of items in market group",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d types in this market group"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本组共 %d 种物品"
+          }
+        }
+      }
+    },
+    "Main_Attribute_Quick_Compare_Need_Two" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Need at least two types"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "至少需要两个物品"
+          }
+        }
+      }
+    },
+    "Main_Attribute_Quick_Compare_Single_Item_Format" : {
+      "comment" : "Format with one int: current count of types in group",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This market group only has %d type(s). Add another type or pick a different group."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前市场组仅有 %d 件物品，无法进行属性对比。"
           }
         }
       }
@@ -25922,22 +26047,6 @@
         }
       }
     },
-    "Main_Market_Add_To_Watchlist_Button" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Add to Market Watchlist"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "加入市场关注列表"
-          }
-        }
-      }
-    },
     "Main_Market_Add_To_Watchlist_Already_Message" : {
       "comment" : "Shown when confirming add to watchlist but item already in selected list",
       "localizations" : {
@@ -25967,6 +26076,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已在列表中"
+          }
+        }
+      }
+    },
+    "Main_Market_Add_To_Watchlist_Button" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to Market Watchlist"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加入市场关注列表"
           }
         }
       }
@@ -28351,22 +28476,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请至少输入%d个字符"
-          }
-        }
-      }
-    },
-    "Main_Search_Network_Min_Length" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "At least 3 characters to search online"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "联网搜索需要最少3个字符"
           }
         }
       }
@@ -37632,6 +37741,23 @@
         }
       }
     },
+    "Planetary_Collapse_Character_Colonies" : {
+      "comment" : "Accessibility: collapse one character's PI list in multi-character mode",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Collapse this character's colonies"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "折叠此角色的殖民地列表"
+          }
+        }
+      }
+    },
     "Planetary_Coverage" : {
       "localizations" : {
         "en" : {
@@ -37660,6 +37786,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "生产周期"
+          }
+        }
+      }
+    },
+    "Planetary_Expand_Character_Colonies" : {
+      "comment" : "Accessibility: expand one character's PI list",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand this character's colonies"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "展开此角色的殖民地列表"
           }
         }
       }
@@ -37775,6 +37918,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "本地可用资源："
+          }
+        }
+      }
+    },
+    "Planetary_MultiSelect_Planet_Type_Summary" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Summary"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "汇总"
           }
         }
       }
@@ -38024,6 +38183,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "选择角色"
+          }
+        }
+      }
+    },
+    "Planetary_Settings_Show_Type_Summary" : {
+      "comment" : "显示汇总",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show summary"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "显示汇总"
           }
         }
       }
@@ -45045,8 +45221,8 @@
         }
       }
     },
-    "zkillboard" : {
-      "shouldTranslate" : false
+    "zKB" : {
+
     },
     "zKillboard" : {
       "shouldTranslate" : false

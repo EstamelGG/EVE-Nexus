@@ -416,3 +416,9 @@ Fixes & Improvements:
 2. Market watch list: when importing from the clipboard, choose Replace existing or Append to existing.
 3. Market watch list: when adding items, each meta / tech tier section has a Select all button.
 4. Add "Favorites" feature to Killmail function.
+
+# v1.12.5 May 8, 2026
+
+1. Fixed an issue where self-initiated corp industry jobs were not visible in the "Industry Jobs" feature. 
+2. Optimized the UI design for the "Planetary Industry" feature.
+3. Optimize the search and favorite experience for the KillBoard.

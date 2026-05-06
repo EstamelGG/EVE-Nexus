@@ -1,6 +1,21 @@
 import Foundation
 import SwiftUI
 
+/// 属性对比可选物品的顶级市场分组范围（与 `AttributeItemSelectorView` / `MarketItemSelectorIntegratedView` 一致）
+enum AttributeCompareMarketPolicy {
+    static let allowedTopMarketGroupIDs: Set<Int> = [4, 9, 157, 11, 477, 2202, 2203, 24, 955]
+
+    /// 允许属性对比/快速比对的全部市场目录 ID（顶级白名单及其所有子孙组，一次性由市场树算出）
+    static func eligibleMarketGroupIDs(marketGroups: [MarketGroup]) -> Set<Int> {
+        Set(
+            MarketManager.shared.getAllSubGroupIDsFromIDs(
+                marketGroups,
+                allowedIDs: allowedTopMarketGroupIDs
+            )
+        )
+    }
+}
+
 // 属性对比列表项目
 struct AttributeCompare: Identifiable, Codable {
     let id: UUID
@@ -367,9 +382,6 @@ struct AttributeCompareDetailView: View {
     @State private var isLoadingPrices: Bool = false
     @AppStorage("showOnlyDifferences") private var showOnlyDifferences: Bool = false
 
-    // 允许的顶级市场分组ID
-    private static let allowedTopMarketGroupIDs: Set<Int> = [4, 9, 157, 11, 477, 2202, 2203, 24, 955]
-
     init(databaseManager: DatabaseManager, compare: AttributeCompare) {
         self.databaseManager = databaseManager
 
@@ -615,7 +627,7 @@ struct AttributeCompareDetailView: View {
         .sheet(isPresented: $isShowingItemSelector) {
             AttributeItemSelectorView(
                 databaseManager: databaseManager,
-                allowedTopMarketGroupIDs: AttributeCompareDetailView.allowedTopMarketGroupIDs,
+                allowedTopMarketGroupIDs: AttributeCompareMarketPolicy.allowedTopMarketGroupIDs,
                 existingItems: Set(compare.items.map { $0.typeID }),
                 onItemSelected: { item in
                     if !compare.items.contains(where: { $0.typeID == item.id }) {
@@ -1002,14 +1014,14 @@ extension AttributeCompareUtil {
             }
 
             let unitID = row["unitID"] as? Int
-            let displayName = row["display_name"] as? String
+            _ = row["display_name"] as? String
             // let name = row["name"] as? String
             let iconID = row["iconID"] as? Int
             let iconFileName = (row["icon_filename"] as? String) ?? ""
             let highIsGood = (row["highIsGood"] as? Int) == 1
 
             // 属性名称处理
-            let attributeName = displayName ?? "Unknown Attribute"
+//            let attributeName = displayName ?? "Unknown Attribute"
             // let attributeName = displayName.flatMap { $0.isEmpty ? nil : $0 } ?? name ?? "未知属性"
 
             let attributeIDString = String(attributeID)
@@ -1038,8 +1050,8 @@ extension AttributeCompareUtil {
             }
 
             // 此处可以添加属性名称到日志，用于调试
-            Logger.debug(
-                "处理属性: \(attributeIDString) (\(attributeName)), 物品ID: \(typeIDString), 值: \(value)")
+//            Logger.debug(
+//                "处理属性: \(attributeIDString) (\(attributeName)), 物品ID: \(typeIDString), 值: \(value)")
         }
 
         // 查询 types 表中的额外属性值 - mass(4), capacity(38), volume(161)
@@ -1091,9 +1103,9 @@ extension AttributeCompareUtil {
                             value: value, unitID: nil
                         )
 
-                        Logger.debug(
-                            "添加 types 属性: \(attributeIDString) (\(columnName)), 物品ID: \(typeIDString), 值: \(value)"
-                        )
+//                        Logger.debug(
+//                            "添加 types 属性: \(attributeIDString) (\(columnName)), 物品ID: \(typeIDString), 值: \(value)"
+//                        )
                     }
                 }
             }
@@ -1176,14 +1188,10 @@ extension AttributeCompareUtil {
             attributeHighIsGood: attributeHighIsGood
         )
 
-        // 使用JSONEncoder直接序列化Codable对象
         do {
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-            let jsonData = try encoder.encode(result)
-            if let jsonString = String(data: jsonData, encoding: .utf8) {
-                Logger.info("属性对比结果JSON:\n\(jsonString)")
-            }
+            _ = try encoder.encode(result)
         } catch {
             Logger.error("无法将结果转换为JSON: \(error)")
         }

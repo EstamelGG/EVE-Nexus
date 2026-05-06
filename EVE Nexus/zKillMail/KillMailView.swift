@@ -845,6 +845,42 @@ struct BRKillMailCell: View {
     let characterId: Int
     let searchResult: SearchResult?
     let character: EVECharacterInfo?
+    /// 收藏夹：ESI 先出列后，zkill 估值异步写入；未就绪且 `isAsyncTotalValueLoading` 时显示指示器
+    var asyncTotalValue: Double? = nil
+    var isAsyncTotalValueLoading: Bool = false
+
+    /// 与 12pt medium monospaced 数值行高对齐，避免加载指示器 ↔ 文本切换时上下跳变
+    private static let valueRowHeight: CGFloat = 20
+    private static let valueMinWidth: CGFloat = 92
+
+    @ViewBuilder
+    private var totalValueView: some View {
+        let mono = Font.system(size: 12, weight: .medium, design: .monospaced)
+        ZStack(alignment: .trailing) {
+            if entity.zkb.totalValue != nil {
+                Text(FormatUtil.formatISK(entity.totalValue))
+                    .font(mono)
+                    .foregroundColor(valueColor)
+                    .lineLimit(1)
+            } else if isAsyncTotalValueLoading {
+                ProgressView()
+                    .controlSize(.small)
+                    .tint(valueColor)
+            } else if let asyncTotalValue {
+                Text(FormatUtil.formatISK(asyncTotalValue))
+                    .font(mono)
+                    .foregroundColor(valueColor)
+                    .lineLimit(1)
+            } else {
+                Text("—")
+                    .font(mono)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
+        }
+        .frame(minWidth: Self.valueMinWidth, minHeight: Self.valueRowHeight, alignment: .trailing)
+        .fixedSize(horizontal: false, vertical: true)
+    }
 
     private var isLoss: Bool {
         if let searchResult = searchResult {
@@ -929,9 +965,7 @@ struct BRKillMailCell: View {
 
                     Spacer()
 
-                    Text(FormatUtil.formatISK(entity.totalValue))
-                        .font(.system(size: 12, weight: .medium, design: .monospaced))
-                        .foregroundColor(valueColor)
+                    totalValueView
                 }
             }
         }

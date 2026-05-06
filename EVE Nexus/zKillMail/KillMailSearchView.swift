@@ -1,9 +1,66 @@
 import SwiftUI
 
+// MARK: - 关键词搜索历史（键盘「搜索」提交且至少命中一条结果时写入）
+
+private enum KillMailKeywordSearchHistory {
+    private static let userDefaultsKey = "KillMailKeywordSearchHistory.v1"
+    private static let maxCount = 20
+
+    private struct Entry: Codable, Equatable {
+        let keyword: String
+        let timestamp: TimeInterval
+    }
+
+    private static func loadEntries() -> [Entry] {
+        guard let data = UserDefaults.standard.data(forKey: userDefaultsKey),
+              let decoded = try? JSONDecoder().decode([Entry].self, from: data)
+        else { return [] }
+        return decoded
+    }
+
+    private static func saveEntries(_ entries: [Entry]) {
+        guard let data = try? JSONEncoder().encode(entries) else { return }
+        UserDefaults.standard.set(data, forKey: userDefaultsKey)
+    }
+
+    /// 最近关键词，从新到旧，最多 20 条
+    static func recentKeywords() -> [String] {
+        loadEntries()
+            .sorted { $0.timestamp > $1.timestamp }
+            .map(\.keyword)
+    }
+
+    /// 记录一次搜索（去重后按时间置顶，截断为 20）。应在确认有搜索结果后调用。
+    static func recordSearchSubmission(_ raw: String) {
+        let keyword = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !keyword.isEmpty else { return }
+
+        var entries = loadEntries()
+        entries.removeAll { $0.keyword == keyword }
+        entries.append(Entry(keyword: keyword, timestamp: Date().timeIntervalSince1970))
+        entries.sort { $0.timestamp > $1.timestamp }
+        if entries.count > maxCount {
+            entries = Array(entries.prefix(maxCount))
+        }
+        saveEntries(entries)
+    }
+
+    /// 从历史中删除指定关键词（与记录时使用相同裁剪规则）
+    static func removeKeyword(_ raw: String) {
+        let keyword = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !keyword.isEmpty else { return }
+        var entries = loadEntries()
+        entries.removeAll { $0.keyword == keyword }
+        saveEntries(entries)
+    }
+}
+
 struct BRKillMailSearchView: View {
     let characterId: Int
     @StateObject private var viewModel = BRKillMailSearchViewModel()
-    @State private var showSearchSheet = false
+    @State private var searchFieldText = ""
+    @State private var hasSubmittedKeywordSearch = false
+    @State private var recentKeywords: [String] = []
     @State private var killMails: [KillMailListEntity] = []
     @State private var isLoading = false
     @State private var isLoadingMore = false
@@ -30,40 +87,61 @@ struct BRKillMailSearchView: View {
 
     var body: some View {
         List {
-            // 搜索对象选择区域
             Section {
-                if viewModel.selectedResult != nil {
-                    HStack {
-                        KMSearchResultRow(result: viewModel.selectedResult!)
-                        Spacer()
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundColor(.secondary)
+                    TextField(
+                        NSLocalizedString("KillMail_Search_Input_Prompt", comment: ""),
+                        text: $searchFieldText
+                    )
+                    .textFieldStyle(.plain)
+                    .submitLabel(.search)
+                    .onSubmit {
+                        submitKeywordSearch(recordHistory: true)
+                    }
+                    .onChange(of: searchFieldText) { _, newValue in
+                        if newValue.isEmpty {
+                            hasSubmittedKeywordSearch = false
+                            viewModel.resetKeywordSearchResults()
+                        }
+                    }
+
+                    if !searchFieldText.isEmpty {
                         Button {
-                            viewModel.selectedResult = nil
-                            killMails = []
+                            searchFieldText = ""
+                            hasSubmittedKeywordSearch = false
+                            viewModel.resetKeywordSearchResults()
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .foregroundColor(.gray)
                         }
                         .buttonStyle(.plain)
                     }
-                    .contentShape(Rectangle())
-                    .onTapGesture {
-                        showSearchSheet = true
-                    }
-                } else {
-                    Button {
-                        showSearchSheet = true
-                    } label: {
-                        HStack {
-                            Image(systemName: "magnifyingglass")
-                            Text(NSLocalizedString("KillMail_Search_Prompt", comment: ""))
-                            Spacer()
-                        }
-                    }
                 }
+                .padding(.vertical, 4)
             }
 
-            // 搜索结果展示区域
             if viewModel.selectedResult != nil {
+                Section {
+                    HStack {
+                        KMSearchResultRow(result: viewModel.selectedResult!)
+                        Spacer()
+                        Button {
+                            viewModel.selectedResult = nil
+                            killMails = []
+                            hasSubmittedKeywordSearch = false
+                            searchFieldText = ""
+                            viewModel.resetKeywordSearchResults()
+                            recentKeywords = KillMailKeywordSearchHistory.recentKeywords()
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .foregroundColor(.gray)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+
                 Section {
                     // 只在非星系和星域搜索时显示过滤器
                     if let selectedResult = viewModel.selectedResult,
@@ -141,20 +219,109 @@ struct BRKillMailSearchView: View {
                         }
                     }
                 }
+            } else if hasSubmittedKeywordSearch {
+                if viewModel.isSearching,
+                   viewModel.searchResults.values.allSatisfy(\.isEmpty),
+                   viewModel.directKillMailEntity == nil
+                {
+                    Section {
+                        ProgressView()
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding()
+                    }
+                } else if viewModel.searchResults.values.allSatisfy(\.isEmpty),
+                          viewModel.directKillMailEntity == nil
+                {
+                    Section {
+                        Text(NSLocalizedString("Main_Search_No_Results", comment: ""))
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding()
+                    }
+                } else {
+                    if let notice = viewModel.skippedOnlineSearchNotice {
+                        Section {
+                            Text(notice)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+
+                    if let kmEntity = viewModel.directKillMailEntity {
+                        Section {
+                            NavigationLink {
+                                BRKillMailDetailView(
+                                    listEntity: kmEntity,
+                                    character: character
+                                )
+                            } label: {
+                                KillMailDirectSearchResultRow(entity: kmEntity)
+                            }
+                        } header: {
+                            Text(
+                                NSLocalizedString(
+                                    "KillMail_Search_Direct_KM", comment: "按 ID 匹配的战斗记录"
+                                )
+                            )
+                        }
+                    }
+
+                    ForEach(viewModel.categories, id: \.self) { category in
+                        if let results = viewModel.searchResults[category], !results.isEmpty {
+                            Section(header: Text(category.localizedTitle)) {
+                                ForEach(results) { result in
+                                    Button {
+                                        viewModel.selectedResult = result
+                                    } label: {
+                                        KMSearchResultRow(result: result)
+                                            .foregroundColor(.primary)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             } else {
                 Section {
-                    Text(NSLocalizedString("Main_Search_Results_Placeholder", comment: ""))
-                        .foregroundColor(.secondary)
+                    if recentKeywords.isEmpty {
+                        Text(NSLocalizedString("Main_Search_Results_Placeholder", comment: ""))
+                            .foregroundColor(.secondary)
+                    } else {
+                        ForEach(recentKeywords, id: \.self) { keyword in
+                            HStack(spacing: 8) {
+                                Button {
+                                    applyHistoryKeyword(keyword)
+                                } label: {
+                                    Text(keyword)
+                                        .foregroundColor(.secondary)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+
+                                Button {
+                                    KillMailKeywordSearchHistory.removeKeyword(keyword)
+                                    recentKeywords = KillMailKeywordSearchHistory.recentKeywords()
+                                } label: {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .foregroundStyle(.secondary)
+                                        .imageScale(.medium)
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                } header: {
+                    Text(NSLocalizedString("KillMail_Search_Recent_History", comment: ""))
                 }
             }
         }
         .navigationTitle(NSLocalizedString("KillMail_Search_Title", comment: ""))
-        .sheet(isPresented: $showSearchSheet) {
-            SearchSelectorSheet(characterId: characterId, viewModel: viewModel)
+        .onAppear {
+            recentKeywords = KillMailKeywordSearchHistory.recentKeywords()
         }
         .onChange(of: viewModel.selectedResult) { _, newValue in
             if newValue != nil {
-                // 如果是星系或星域搜索，重置过滤器为all
                 if newValue?.category == .solar_system || newValue?.category == .region {
                     selectedFilter = .all
                 }
@@ -162,6 +329,27 @@ struct BRKillMailSearchView: View {
                     await loadKillMails()
                 }
             }
+        }
+    }
+
+    private func submitKeywordSearch(recordHistory: Bool) {
+        let q = searchFieldText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return }
+        hasSubmittedKeywordSearch = true
+        Task {
+            await viewModel.search(characterId: characterId, searchText: q, force: true)
+            if recordHistory, viewModel.hasAnyKeywordSearchResults() {
+                KillMailKeywordSearchHistory.recordSearchSubmission(q)
+                recentKeywords = KillMailKeywordSearchHistory.recentKeywords()
+            }
+        }
+    }
+
+    private func applyHistoryKeyword(_ keyword: String) {
+        searchFieldText = keyword
+        hasSubmittedKeywordSearch = true
+        Task {
+            await viewModel.search(characterId: characterId, searchText: keyword, force: true)
         }
     }
 
@@ -349,118 +537,65 @@ struct BRKillMailSearchView: View {
     }
 }
 
-// 搜索选择器sheet
-struct SearchSelectorSheet: View {
-    let characterId: Int
-    @ObservedObject var viewModel: BRKillMailSearchViewModel
-    @Environment(\.dismiss) private var dismiss
-    @State private var searchText = ""
-    @FocusState private var isSearchFocused: Bool
+/// 按 killmail ID 直接搜索时的首行展示：左侧船型图标，右侧船名 + 受害者显示名
+struct KillMailDirectSearchResultRow: View {
+    let entity: KillMailListEntity
+    @State private var shipName: String = ""
+    @State private var shipIconFileName: String = DatabaseConfig.defaultItemIcon
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                // 搜索框区域
-                VStack(spacing: 8) {
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .foregroundColor(.gray)
-                        TextField(
-                            NSLocalizedString("KillMail_Search_Input_Prompt", comment: ""),
-                            text: $searchText
-                        )
-                        .textFieldStyle(.plain)
-                        .focused($isSearchFocused)
-                        .onChange(of: searchText) { _, newValue in
-                            if !newValue.isEmpty && newValue.count >= 3 {
-                                viewModel.debounceSearch(
-                                    characterId: characterId, searchText: newValue
-                                )
-                            } else {
-                                viewModel.searchResults = [:]
-                            }
-                        }
-                        .submitLabel(.search)
-                        .onSubmit {
-                            if !searchText.isEmpty && searchText.count >= 3 {
-                                Task {
-                                    await viewModel.search(
-                                        characterId: characterId, searchText: searchText
-                                    )
-                                }
-                            }
-                        }
+        HStack(alignment: .center, spacing: 12) {
+            IconManager.shared.loadImage(for: shipIconFileName)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 48, height: 48)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
 
-                        if !searchText.isEmpty {
-                            Button {
-                                searchText = ""
-                                viewModel.searchResults = [:]
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .foregroundColor(.gray)
-                            }
-                        }
-                    }
-                    .padding(8)
-                    .background(Color(uiColor: .secondarySystemBackground))
-                    .cornerRadius(8)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(resolvedShipName)
+                    .font(.body.weight(.medium))
+                    .lineLimit(1)
+                Text(entity.displayName)
+                    .font(.subheadline)
+                    .foregroundColor(.secondary)
+                    .lineLimit(1)
+            }
 
-                    if searchText.count < 3 {
-                        Text(NSLocalizedString("Main_Search_Network_Min_Length", comment: ""))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                .padding()
-                .background(Color(uiColor: .systemBackground))
+            Spacer(minLength: 0)
+        }
+        .task(id: entity.killmailId) {
+            await loadShipInfoFromDatabase()
+        }
+    }
 
-                if viewModel.isSearching {
-                    Spacer()
-                    ProgressView()
-                        .padding()
-                    Spacer()
-                } else if !searchText.isEmpty {
-                    if viewModel.searchResults.isEmpty {
-                        Spacer()
-                        Text(NSLocalizedString("Main_Search_No_Results", comment: ""))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    } else {
-                        List {
-                            ForEach(viewModel.categories, id: \.self) { category in
-                                if let results = viewModel.searchResults[category], !results.isEmpty {
-                                    Section(header: Text(category.localizedTitle)) {
-                                        ForEach(results) { result in
-                                            Button {
-                                                viewModel.selectedResult = result
-                                                dismiss()
-                                            } label: {
-                                                KMSearchResultRow(result: result)
-                                                    .foregroundColor(.primary)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        .listStyle(.insetGrouped)
-                    }
-                } else {
-                    Spacer()
-                }
-            }
-            .navigationTitle(NSLocalizedString("KillMail_Search", comment: ""))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(NSLocalizedString("KillMail_Cancel", comment: "")) {
-                        dismiss()
-                    }
-                }
-            }
-            .onAppear {
-                isSearchFocused = true
-            }
+    private var resolvedShipName: String {
+        if !shipName.isEmpty { return shipName }
+        return String(
+            format: NSLocalizedString("KillMail_Unknown_Item", comment: ""),
+            entity.shipTypeId
+        )
+    }
+
+    private func loadShipInfoFromDatabase() async {
+        let query = """
+            SELECT name, icon_filename
+            FROM types
+            WHERE type_id = ?
+        """
+        let tid = entity.shipTypeId
+        guard case let .success(rows) = DatabaseManager.shared.executeQuery(
+            query, parameters: [tid]
+        ),
+            let row = rows.first,
+            let name = row["name"] as? String
+        else {
+            return
+        }
+        let rawIcon = row["icon_filename"] as? String ?? ""
+        let icon = rawIcon.isEmpty ? DatabaseConfig.defaultItemIcon : rawIcon
+        await MainActor.run {
+            shipName = name
+            shipIconFileName = icon
         }
     }
 }
@@ -569,6 +704,10 @@ class BRKillMailSearchViewModel: ObservableObject {
     @Published var searchResults: [SearchResultCategory: [SearchResult]] = [:]
     @Published var isSearching = false
     @Published var selectedResult: SearchResult?
+    /// 关键词为纯数字时，按 killmail ID 解析到的单条记录（展示在列表首段）
+    @Published var directKillMailEntity: KillMailListEntity?
+    /// 关键词不足 3 字时未请求 zkill 联网补全，在结果顶部提示
+    @Published var skippedOnlineSearchNotice: String?
     private var lastSearchText: String = ""
 
     let categories: [SearchResultCategory] = [
@@ -576,51 +715,39 @@ class BRKillMailSearchViewModel: ObservableObject {
         .solar_system, .region,
     ]
 
-    private var searchTask: Task<Void, Never>?
-
-    func debounceSearch(characterId: Int, searchText: String) {
-        // 检查搜索文本长度
-        guard searchText.count >= 3 else {
-            searchResults = [:]
-            lastSearchText = ""
-            return
-        }
-
-        // 如果搜索关键词与上次相同，不执行新的搜索
-        if searchText == lastSearchText, !searchResults.isEmpty {
-            return
-        }
-
-        // 取消之前的任务
-        searchTask?.cancel()
-
-        // 创建新的搜索任务
-        searchTask = Task {
-            // 等待600毫秒
-            try? await Task.sleep(nanoseconds: 600_000_000)
-
-            // 如果任务被取消，直接返回
-            guard !Task.isCancelled else { return }
-
-            // 执行搜索
-            await search(characterId: characterId, searchText: searchText)
-        }
+    /// 清空关键词搜索状态（不改变已选搜索对象 selectedResult）
+    func resetKeywordSearchResults() {
+        searchResults = [:]
+        directKillMailEntity = nil
+        lastSearchText = ""
+        skippedOnlineSearchNotice = nil
     }
 
-    func search(characterId: Int, searchText: String) async {
-        guard !searchText.isEmpty, searchText.count >= 3 else {
-            searchResults = [:]
-            lastSearchText = ""
+    /// 当前关键词搜索是否命中任意一条结果（本地舰船、联网分类、或 killmail ID）
+    func hasAnyKeywordSearchResults() -> Bool {
+        if directKillMailEntity != nil { return true }
+        return searchResults.values.contains { !$0.isEmpty }
+    }
+
+    func search(characterId: Int, searchText: String, force: Bool = false) async {
+        guard !searchText.isEmpty else {
+            resetKeywordSearchResults()
             return
         }
 
-        // 如果搜索关键词与上次相同，不执行新的搜索
-        if searchText == lastSearchText, !searchResults.isEmpty {
+        if !force,
+           searchText == lastSearchText,
+           !searchResults.isEmpty || directKillMailEntity != nil
+        {
             return
         }
 
         isSearching = true
         defer { isSearching = false }
+
+        skippedOnlineSearchNotice = nil
+        directKillMailEntity = nil
+        async let directKillmailTask = fetchDirectKillMailIfApplicable(searchText: searchText)
 
         // 联网搜索
         var networkResults: [SearchResultCategory: [SearchResult]] = [:]
@@ -659,9 +786,6 @@ class BRKillMailSearchViewModel: ObservableObject {
                 }
             }
 
-            // 更新上次搜索的关键词
-            lastSearchText = searchText
-
             // 开始异步加载图标
             Task {
                 for category in categories {
@@ -689,7 +813,35 @@ class BRKillMailSearchViewModel: ObservableObject {
             Logger.error("联网搜索失败: \(error)")
         }
 
-        // 更新UI
         searchResults = networkResults
+        directKillMailEntity = await directKillmailTask
+
+        lastSearchText = searchText
+
+        if searchText.count < 3 {
+            skippedOnlineSearchNotice = NSLocalizedString(
+                "KillMail_Search_Skipped_Online_Results_Banner", comment: ""
+            )
+        } else {
+            skippedOnlineSearchNotice = nil
+        }
+    }
+
+    /// 关键词为纯数字时，尝试按 killmail ID 拉取并转换为列表实体
+    private func fetchDirectKillMailIfApplicable(searchText: String) async -> KillMailListEntity? {
+        guard searchText.allSatisfy({ $0.isNumber }),
+              let killmailId = Int(searchText)
+        else { return nil }
+
+        do {
+            let zkbEntry = try await zKbToolAPI.shared.fetchZKBKillMailByID(killmailId: killmailId)
+            let entities = try await KillMailDataConverter.shared.fetchKillMailListEntities(
+                zkbEntries: [zkbEntry]
+            )
+            return entities.first
+        } catch {
+            Logger.debug("按 ID 解析 killmail 失败: \(error.localizedDescription)")
+            return nil
+        }
     }
 }

@@ -48,57 +48,56 @@ class zKbToolAPI {
             }
         }
 
-        // 2. 从 zkillboard 获取在线搜索结果
-        guard
-            let encodedText = searchText.addingPercentEncoding(
-                withAllowedCharacters: .urlQueryAllowed),
-            let url = URL(string: "https://zkillboard.com/autocomplete/\(encodedText)/")
-        else {
-            throw NSError(
-                domain: "zkillboard", code: -1, userInfo: [NSLocalizedDescriptionKey: "无效的搜索URL"]
+        // 2. zkillboard 在线自动补全（至少 3 个字符才请求；短关键词仍可使用上方本地舰船搜索）
+        if searchText.count >= 3 {
+            guard
+                let encodedText = searchText.addingPercentEncoding(
+                    withAllowedCharacters: .urlQueryAllowed),
+                let url = URL(string: "https://zkillboard.com/autocomplete/\(encodedText)/")
+            else {
+                throw NSError(
+                    domain: "zkillboard", code: -1,
+                    userInfo: [NSLocalizedDescriptionKey: "无效的搜索URL"]
+                )
+            }
+
+            let headers = [
+                "Accept-Encoding": "gzip",
+                "Accept": "application/json",
+            ]
+            Logger.debug("开始发送zkillboard搜索请求...")
+            let data = try await NetworkManager.shared.fetchData(
+                from: url,
+                headers: headers
             )
-        }
+            Logger.debug("收到zkillboard响应，数据大小: \(data.count) 字节")
 
-        // 发送请求
-        let headers = [
-            "Accept-Encoding": "gzip",
-            "Accept": "application/json",
-        ]
-        Logger.debug("开始发送zkillboard搜索请求...")
-        let data = try await NetworkManager.shared.fetchData(
-            from: url,
-            headers: headers
-        )
-        Logger.debug("收到zkillboard响应，数据大小: \(data.count) 字节")
+            guard let zkbResults = try? JSONDecoder().decode([ZKBSearchResult].self, from: data) else {
+                throw NSError(
+                    domain: "zkillboard", code: -2,
+                    userInfo: [NSLocalizedDescriptionKey: "解析JSON失败: \(data)"]
+                )
+            }
 
-        // 解析 JSON 响应
-        guard let zkbResults = try? JSONDecoder().decode([ZKBSearchResult].self, from: data) else {
-            throw NSError(
-                domain: "zkillboard", code: -2,
-                userInfo: [NSLocalizedDescriptionKey: "解析JSON失败: \(data)"]
-            )
-        }
-
-        // 根据类型分类结果
-        for item in zkbResults {
-            switch item.type {
-            case "alliance":
-                result["alliance"]?.append(item)
-            case "character":
-                result["character"]?.append(item)
-            case "corporation":
-                result["corporation"]?.append(item)
-            case "ship":
-                // 检查是否已存在于本地搜索结果中
-                if !result["inventory_type"]!.contains(where: { $0.id == item.id }) {
-                    result["inventory_type"]?.append(item)
+            for item in zkbResults {
+                switch item.type {
+                case "alliance":
+                    result["alliance"]?.append(item)
+                case "character":
+                    result["character"]?.append(item)
+                case "corporation":
+                    result["corporation"]?.append(item)
+                case "ship":
+                    if !result["inventory_type"]!.contains(where: { $0.id == item.id }) {
+                        result["inventory_type"]?.append(item)
+                    }
+                case "system":
+                    result["solar_system"]?.append(item)
+                case "region":
+                    result["region"]?.append(item)
+                default:
+                    break
                 }
-            case "system":
-                result["solar_system"]?.append(item)
-            case "region":
-                result["region"]?.append(item)
-            default:
-                break
             }
         }
 
@@ -449,5 +448,33 @@ struct ZKBInfo: Codable {
 
     var totalValueValue: Double {
         totalValue ?? 0
+    }
+}
+
+extension ZKBKillMailEntry {
+    /// 本地已有 ESI 所需的 killmail hash 时构造条目，无需先请求 zkillboard 全量 JSON。
+    /// - Parameter storedTotalValue: 收藏等场景下已缓存的 zkill 总价；有值则列表侧可不请求总价。
+    /// - Parameter storedDroppedValue / storedDestroyedValue: 收藏缓存的掉落/摧毁估价，供详情等使用。
+    init(
+        killmailId: Int,
+        storedHash: String,
+        storedTotalValue: Double? = nil,
+        storedDroppedValue: Double? = nil,
+        storedDestroyedValue: Double? = nil
+    ) {
+        killmail_id = killmailId
+        zkb = ZKBInfo(
+            locationID: nil,
+            hash: storedHash,
+            fittedValue: nil,
+            droppedValue: storedDroppedValue,
+            destroyedValue: storedDestroyedValue,
+            totalValue: storedTotalValue,
+            points: nil,
+            npc: nil,
+            solo: nil,
+            awox: nil,
+            labels: nil
+        )
     }
 }

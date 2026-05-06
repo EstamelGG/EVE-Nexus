@@ -25,7 +25,8 @@ func getActivityTypeIcon(for activityId: Int) -> String {
 // 扩展IndustryJob来包含角色归属信息
 struct IndustryJobWithOwner {
     let job: IndustryJob
-    let ownerId: Int // 该工业项目归属的角色ID
+    let ownerId: Int // 该工业项目归属的角色ID（人物工业为主号；军团工业为 installer_id）
+    let isFromCorporation: Bool
 }
 
 // 进度更新 Actor（用于线程安全地更新进度）
@@ -572,7 +573,9 @@ class CharacterIndustryViewModel: ObservableObject {
                         // 为每个项目添加所有者信息
                         for job in jobs {
                             allJobsWithOwner.append(
-                                IndustryJobWithOwner(job: job, ownerId: characterId))
+                                IndustryJobWithOwner(
+                                    job: job, ownerId: characterId, isFromCorporation: false
+                                ))
                         }
                     case .failure:
                         // 失败时继续处理，不中断
@@ -603,15 +606,139 @@ class CharacterIndustryViewModel: ObservableObject {
 
             // 单人模式也创建所有者信息
             for job in allJobs {
-                allJobsWithOwner.append(IndustryJobWithOwner(job: job, ownerId: targetCharacterId))
+                allJobsWithOwner.append(
+                    IndustryJobWithOwner(
+                        job: job, ownerId: targetCharacterId, isFromCorporation: false
+                    ))
             }
         }
+
+        let characterIdsForCorpMerge: Set<Int> = {
+            if multiCharacterMode, !selectedCharacterIds.isEmpty {
+                return selectedCharacterIds
+            }
+            return [characterId]
+        }()
+
+        await appendCorpIndustryJobs(
+            forCharacterIds: characterIdsForCorpMerge,
+            allJobs: &allJobs,
+            allJobsWithOwner: &allJobsWithOwner,
+            forceRefresh: forceRefresh
+        )
 
         // 更新缓存
         cachedJobs = allJobs
         jobsWithOwner = allJobsWithOwner
 
         return allJobs
+    }
+
+    /// 在个人工业列表之后，合并这些角色所在军团（军团 ID 去重）的工业项目。
+    private func appendCorpIndustryJobs(
+        forCharacterIds characterIds: Set<Int>,
+        allJobs: inout [IndustryJob],
+        allJobsWithOwner: inout [IndustryJobWithOwner],
+        forceRefresh: Bool
+    ) async {
+        let includeCompleted = !hideCompletedAndCancelled
+
+        var corpIdToCharacterIds: [Int: [Int]] = [:]
+        for cid in characterIds {
+            do {
+                if let corpId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(
+                    characterId: cid)
+                {
+                    corpIdToCharacterIds[corpId, default: []].append(cid)
+                }
+            } catch {
+                continue
+            }
+        }
+
+        let uniqueCorpIds = Array(corpIdToCharacterIds.keys)
+        guard !uniqueCorpIds.isEmpty else { return }
+
+        var corpJobBatches: [[CorpIndustryAPI.CorpIndustryJob]] = []
+
+        await withTaskGroup(of: Result<[CorpIndustryAPI.CorpIndustryJob], Error>.self) { group in
+            for corpId in uniqueCorpIds {
+                guard let tokenCharacterId = corpIdToCharacterIds[corpId]?.sorted().first else {
+                    continue
+                }
+                group.addTask {
+                    do {
+                        let jobs = try await CorpIndustryAPI.shared.fetchCorpIndustryJobsForCorporation(
+                            corporationId: corpId,
+                            characterId: tokenCharacterId,
+                            forceRefresh: forceRefresh,
+                            includeCompleted: includeCompleted,
+                            progressCallback: nil
+                        )
+                        return .success(jobs)
+                    } catch {
+                        Logger.error(
+                            "获取军团 \(corpId) 工业项目失败（跳过，可能无权限）: \(error.localizedDescription)"
+                        )
+                        return .failure(error)
+                    }
+                }
+            }
+
+            for await result in group {
+                if case let .success(jobs) = result {
+                    corpJobBatches.append(jobs)
+                }
+            }
+        }
+
+        var seenJobIds = Set(allJobs.map(\.job_id))
+        let allowedInstallers = characterIds
+
+        for batch in corpJobBatches {
+            for cj in batch {
+                guard allowedInstallers.contains(cj.installer_id) else { continue }
+                let ij = Self.industryJob(fromCorpJob: cj)
+                if seenJobIds.insert(ij.job_id).inserted {
+                    allJobs.append(ij)
+                    allJobsWithOwner.append(
+                        IndustryJobWithOwner(
+                            job: ij, ownerId: cj.installer_id, isFromCorporation: true
+                        ))
+                }
+            }
+        }
+    }
+
+    private static func industryJob(fromCorpJob corp: CorpIndustryAPI.CorpIndustryJob) -> IndustryJob {
+        IndustryJob(
+            activity_id: corp.activity_id,
+            blueprint_id: corp.blueprint_id,
+            blueprint_location_id: corp.blueprint_location_id,
+            blueprint_type_id: corp.blueprint_type_id,
+            completed_character_id: corp.completed_character_id,
+            completed_date: corp.completed_date,
+            cost: corp.cost,
+            duration: corp.duration,
+            end_date: corp.end_date,
+            facility_id: corp.facility_id,
+            installer_id: corp.installer_id,
+            job_id: corp.job_id,
+            licensed_runs: corp.licensed_runs,
+            output_location_id: corp.output_location_id,
+            pause_date: corp.pause_date,
+            probability: corp.probability,
+            product_type_id: corp.product_type_id,
+            runs: corp.runs,
+            start_date: corp.start_date,
+            station_id: corp.location_id,
+            status: corp.status,
+            successful_runs: corp.successful_runs
+        )
+    }
+
+    func isJobFromCorporation(_ job: IndustryJob) -> Bool {
+        jobsWithOwner.first(where: { $0.job.job_id == job.job_id })?.isFromCorporation ?? false
     }
 
     private func loadItemNames() async {
@@ -1495,7 +1622,8 @@ struct CharacterIndustryView: View {
                                     currentTime: Date(), // 使用当前时间作为倒计时基准
                                     showInstaller: viewModel.multiCharacterMode,
                                     installerName: getInstallerName(for: job),
-                                    installerImage: getInstallerImage(for: job)
+                                    installerImage: getInstallerImage(for: job),
+                                    isFromCorporation: viewModel.isJobFromCorporation(job)
                                 )
                             }
                         }
@@ -1551,6 +1679,7 @@ struct IndustryJobRow: View {
     let showInstaller: Bool
     let installerName: String?
     let installerImage: UIImage?
+    let isFromCorporation: Bool
     @StateObject private var databaseManager = DatabaseManager()
     @Environment(\.colorScheme) private var colorScheme
 
@@ -1637,32 +1766,32 @@ struct IndustryJobRow: View {
             switch job.activity_id {
             case 1:
                 return StatusText(
-                    text: NSLocalizedString("Industry_Type_Manufacturing_Short", comment: ""),
+                    text: getActivityTypeText(),
                     color: Color(red: 204 / 255, green: 153 / 255, blue: 0 / 255)
                 )
             case 3:
                 return StatusText(
-                    text: NSLocalizedString("Industry_Type_Research_Time_Short", comment: ""),
+                    text: getActivityTypeText(),
                     color: Color.blue
                 )
             case 4:
                 return StatusText(
-                    text: NSLocalizedString("Industry_Type_Research_Material_Short", comment: ""),
+                    text: getActivityTypeText(),
                     color: Color.blue
                 )
             case 5:
                 return StatusText(
-                    text: NSLocalizedString("Industry_Type_Copying", comment: ""),
+                    text: getActivityTypeText(),
                     color: Color.blue
                 )
             case 8:
                 return StatusText(
-                    text: NSLocalizedString("Industry_Type_Invention", comment: ""),
+                    text: getActivityTypeText(),
                     color: Color.blue
                 )
             case 9:
                 return StatusText(
-                    text: NSLocalizedString("Industry_Type_Reaction", comment: ""),
+                    text: getActivityTypeText(),
                     color: Color.cyan
                 )
             default:
@@ -1683,24 +1812,29 @@ struct IndustryJobRow: View {
         return formatter.string(from: date)
     }
 
-    // 获取活动类型文本
+    // 获取活动类型文本（军团挂接任务会附加后缀）
     private func getActivityTypeText() -> String {
+        let base: String
         switch job.activity_id {
         case 1:
-            return NSLocalizedString("Industry_Type_Manufacturing_Short", comment: "")
+            base = NSLocalizedString("Industry_Type_Manufacturing_Short", comment: "")
         case 3:
-            return NSLocalizedString("Industry_Type_Research_Time_Short", comment: "")
+            base = NSLocalizedString("Industry_Type_Research_Time_Short", comment: "")
         case 4:
-            return NSLocalizedString("Industry_Type_Research_Material_Short", comment: "")
+            base = NSLocalizedString("Industry_Type_Research_Material_Short", comment: "")
         case 5:
-            return NSLocalizedString("Industry_Type_Copying", comment: "")
+            base = NSLocalizedString("Industry_Type_Copying", comment: "")
         case 8:
-            return NSLocalizedString("Industry_Type_Invention", comment: "")
+            base = NSLocalizedString("Industry_Type_Invention", comment: "")
         case 9:
-            return NSLocalizedString("Industry_Type_Reaction", comment: "")
+            base = NSLocalizedString("Industry_Type_Reaction", comment: "")
         default:
-            return ""
+            base = ""
         }
+        if isFromCorporation, !base.isEmpty {
+            return base + NSLocalizedString("Industry_Job_Source_Corp_Suffix", comment: "")
+        }
+        return base
     }
 
     var body: some View {
