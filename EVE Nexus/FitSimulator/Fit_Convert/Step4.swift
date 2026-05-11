@@ -13,6 +13,10 @@ class Step4 {
         "PreMul", "PreDiv", "PostMul", "PostDiv", "PostPercent",
     ]
 
+    /// `damageMultiplierBonusMax`：DPS 修正为 `raw_dps * (1 + bonus)`
+    private let damageMultiplierBonusMaxAttributeId = 2734
+    private let damageTypeAttributeIds: [Int] = [114, 116, 117, 118]
+
     // 递归计算过程中记录的详细信息，用于调试
     private var attributeCalculationProcess: [String: String] = [:]
 
@@ -373,6 +377,10 @@ class Step4 {
                     }
                 }
             }
+
+            applyDamageMultiplierBonusMaxToModuleIfNeeded(
+                &output.modules[index], isSpoolUpFull: input.modules[index].isSpoolUpFull
+            )
         }
 
         // 更新无人机属性
@@ -411,6 +419,40 @@ class Step4 {
                     }
                 }
             }
+        }
+    }
+
+    /// 若模块存在 `damageMultiplierBonusMax`（2734），将各伤害类型数值乘以 `(1 + bonus)`。
+    /// 未完全预热时按 `bonus = 1` 参与计算（见装配「完全预热」开关）。
+    private func applyDamageMultiplierBonusMaxToModuleIfNeeded(
+        _ module: inout SimModuleOutput, isSpoolUpFull: Bool
+    ) {
+        let rawBonus =
+            module.attributes[damageMultiplierBonusMaxAttributeId]
+                ?? module.attributesByName["damageMultiplierBonusMax"]
+        guard let rawBonus else { return }
+        let effectiveBonus = isSpoolUpFull ? rawBonus : 0
+        let factor = 1.0 + effectiveBonus
+        for attributeId in damageTypeAttributeIds {
+            if var v = module.attributes[attributeId] {
+                v *= factor
+                module.attributes[attributeId] = v
+                if let attrName = getAttributeName(for: attributeId) {
+                    module.attributesByName[attrName] = v
+                }
+            }
+        }
+        if var charge = module.charge {
+            for attributeId in damageTypeAttributeIds {
+                if var v = charge.attributes[attributeId] {
+                    v *= factor
+                    charge.attributes[attributeId] = v
+                    if let attrName = getAttributeName(for: attributeId) {
+                        charge.attributesByName[attrName] = v
+                    }
+                }
+            }
+            module.charge = charge
         }
     }
 

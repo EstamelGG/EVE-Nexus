@@ -75,9 +75,6 @@
     "(%lld)" : {
       "shouldTranslate" : false
     },
-    "(%lldm³)" : {
-      "shouldTranslate" : false
-    },
     "(+%@)" : {
       "shouldTranslate" : false
     },
@@ -143,6 +140,9 @@
         }
       },
       "shouldTranslate" : false
+    },
+    "%@ (—)" : {
+
     },
     "%@ (%@)" : {
       "localizations" : {
@@ -15020,6 +15020,22 @@
         }
       }
     },
+    "Fitting_Spool_Up_Full" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spool up"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完全预热"
+          }
+        }
+      }
+    },
     "Fitting_stat_capacitor" : {
       "comment" : "电容",
       "localizations" : {
@@ -22946,6 +22962,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "舰船"
+          }
+        }
+      }
+    },
+    "Main_Database_precise_match_section" : {
+      "comment" : "精准匹配",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exact match"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "精准匹配"
           }
         }
       }
@@ -37478,6 +37511,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "星球已停工"
+          }
+        }
+      }
+    },
+    "Planet_Colony_Upgrade_Level" : {
+      "comment" : "殖民地升级等级，格式：等级 + 数值；%lld 为 ESI upgrade_level",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lv %lld"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等级 %lld"
           }
         }
       }

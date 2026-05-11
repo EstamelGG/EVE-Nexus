@@ -13,6 +13,7 @@ struct PlanetDetailView: View {
     @State private var typeMarketGroupIds: [Int: Int] = [:] // 存储type_id到marketGroupID的映射（用于排序仓储内容）
     @State private var typeVolumes: [Int: Double] = [:] // 存储type_id到体积的映射
     @State private var typeEnNames: [Int: String] = [:] // 存储type_id到en_name的映射（用于识别工厂类型）
+    @State private var storageContentMarketPrices: [Int: MarketPriceData] = [:] // 仓储物品 EIV 估价（整页一次拉取）
     @State private var schematicDetails: [Int: SchematicInfo] = [:]
     @State private var simulatedColony: Colony? // 添加模拟结果状态
     @State private var hourlySnapshots: [Int: Colony] = [:] // 快照 [分钟数: 殖民地状态]，使用分钟数作为key以保留精度
@@ -131,17 +132,18 @@ struct PlanetDetailView: View {
                             return priority1 < priority2
                         }
 
-                        // 如果都是工厂（groupId == 1028），按输入物品种类数量排序
+                        // 如果都是工厂（groupId == 1028）：输出等级 P4>P3>P2>P1>P0，再按输入种类数，再 pinId
                         if group1 == 1028 && group2 == 1028 {
+                            let level1 = getFactoryOutputProductLevel(pin: pin1)
+                            let level2 = getFactoryOutputProductLevel(pin: pin2)
+                            if level1 != level2 {
+                                return level1 > level2
+                            }
                             let inputCount1 = getFactoryInputCount(pin: pin1)
                             let inputCount2 = getFactoryInputCount(pin: pin2)
-
-                            // 输入物品种类多的排在前面
                             if inputCount1 != inputCount2 {
                                 return inputCount1 > inputCount2
                             }
-
-                            // 输入物品种类数量相同，按设施id排序
                             return pin1.pinId < pin2.pinId
                         }
 
@@ -168,13 +170,17 @@ struct PlanetDetailView: View {
                                         typeGroupIds: typeGroupIds,
                                         typeMarketGroupIds: typeMarketGroupIds,
                                         typeEnNames: typeEnNames,
+                                        marketPrices: storageContentMarketPrices,
                                         capacity: storageCapacities[groupId] ?? 0,
                                         hourlySnapshots: hourlySnapshots,
                                         selectedMinutes: selectedMinutes,
                                         realtimeColony: simulatedColony,
                                         isSnapshotsReady: !hourlySnapshots.isEmpty && !isGeneratingSnapshots,
                                         storageVolumeCache: storageVolumeCache,
-                                        isColonyStopped: isRealtimeColonyStopped
+                                        isColonyStopped: isRealtimeColonyStopped,
+                                        commandCenterUpgradeLevel: groupId == 1027
+                                            ? (displayColony?.upgradeLevel ?? simulatedColony?.upgradeLevel)
+                                            : nil
                                     )
 
                                 } footer: {
@@ -566,6 +572,23 @@ struct PlanetDetailView: View {
         }
     }
 
+    /// 工厂配方产出物在 PI 中的等级（P0=0 … P4=4），未知为 -1（排在 P0 之后）
+    private func getFactoryOutputProductLevel(pin: PlanetaryPin) -> Int {
+        let schematicId: Int?
+        if let factoryDetails = pin.factoryDetails {
+            schematicId = factoryDetails.schematicId
+        } else {
+            schematicId = pin.schematicId
+        }
+        guard let id = schematicId,
+              let schematic = schematicDetails[id]
+        else {
+            return -1
+        }
+        let marketGroupId = typeMarketGroupIds[schematic.outputTypeId] ?? -1
+        return PlanetaryUtils.determineResourceLevel(marketGroupId: marketGroupId)
+    }
+
     /// 获取工厂的输入物品种类数量
     /// - Parameter pin: 工厂pin
     /// - Returns: 输入物品种类数量，如果没有配方则返回0
@@ -814,6 +837,7 @@ struct PlanetDetailView: View {
         let task = Task { @MainActor in
             isLoading = true
             error = nil
+            storageContentMarketPrices = [:]
 
             do {
                 // 获取行星基本信息
@@ -1055,6 +1079,14 @@ struct PlanetDetailView: View {
                     }
                 }
 
+                if let detail = planetDetail {
+                    await loadStorageContentMarketPrices(
+                        detail: detail, simulatedColony: simulatedColony
+                    )
+                } else {
+                    storageContentMarketPrices = [:]
+                }
+
                 // 数据加载完成后，更新当前时间以确保显示最新的倒计时
                 currentTime = Date()
 
@@ -1062,6 +1094,7 @@ struct PlanetDetailView: View {
                 if (error as? CancellationError) == nil {
                     self.error = error
                 }
+                storageContentMarketPrices = [:]
             }
 
             // 如果没有执行初始模拟，立即设置 isLoading = false
@@ -1125,7 +1158,77 @@ struct PlanetDetailView: View {
             self.simulatedColony = newSimulatedColony
             self.isSimulating = false
             self.lastSimulationTime = now
+            if let detail = self.planetDetail {
+                Task {
+                    await self.loadStorageContentMarketPrices(
+                        detail: detail, simulatedColony: newSimulatedColony
+                    )
+                }
+            }
         }
+    }
+
+    /// 所有仓储设施中实际会出现的物品 type_id（ESI 快照 + 模拟后库存并集），用于批量拉价
+    private func storageContentTypeIds(
+        from detail: PlanetaryDetail,
+        simulatedColony: Colony?
+    ) -> [Int] {
+        var ids = Set<Int>()
+        for pin in detail.pins {
+            guard let groupId = typeGroupIds[pin.typeId],
+                  storageCapacities.keys.contains(groupId)
+            else {
+                continue
+            }
+            pin.contents?.forEach { ids.insert($0.typeId) }
+        }
+        if let colony = simulatedColony {
+            for pin in colony.pins {
+                guard let groupId = typeGroupIds[pin.type.id],
+                      storageCapacities.keys.contains(groupId)
+                else {
+                    continue
+                }
+                for (contentType, amount) in pin.contents where amount > 0 {
+                    ids.insert(contentType.id)
+                }
+            }
+        }
+        return Array(ids)
+    }
+
+    /// 先 `getMarketPrices` 批量取 EIV/均价；对仍无有效单价的 type 用 Jita 清单补价（仍无则由 UI 显示占位）
+    private func loadStorageContentMarketPrices(
+        detail: PlanetaryDetail,
+        simulatedColony: Colony?
+    ) async {
+        let storageIds = storageContentTypeIds(from: detail, simulatedColony: simulatedColony)
+        guard !storageIds.isEmpty else {
+            storageContentMarketPrices = [:]
+            return
+        }
+        var prices = await MarketPriceUtil.getMarketPrices(typeIds: storageIds)
+        let needJita = storageIds.filter { id in
+            guard let p = prices[id] else { return true }
+            return p.averagePrice <= 0 && p.adjustedPrice <= 0
+        }
+        if !needJita.isEmpty {
+            do {
+                let jita = try await MarketPriceUtil.getJitaOrderPricesFromGitHubList(
+                    typeIds: needJita
+                )
+                for (id, sell) in jita where sell > 0 {
+                    if prices[id] == nil {
+                        prices[id] = MarketPriceData(adjustedPrice: sell, averagePrice: sell)
+                    } else if let p = prices[id], p.averagePrice <= 0, p.adjustedPrice <= 0 {
+                        prices[id] = MarketPriceData(adjustedPrice: sell, averagePrice: sell)
+                    }
+                }
+            } catch {
+                Logger.warning("仓储估价 Jita 补价失败: \(error)")
+            }
+        }
+        storageContentMarketPrices = prices
     }
 
     /// 获取恒星系名称

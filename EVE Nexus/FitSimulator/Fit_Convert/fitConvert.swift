@@ -320,7 +320,8 @@ class FitConvert {
                         status: 1, // 默认设置为在线状态(1)，原来是nil
                         charge_type_id: nil, // 在线配置中没有弹药信息
                         charge_quantity: nil, // 在线配置中没有弹药数量信息
-                        muta: nil
+                        muta: nil,
+                        spool_up_full: nil
                     )
                 },
                 name: online.name,
@@ -603,7 +604,8 @@ class FitConvert {
                         status: 1,
                         charge_type_id: nil,
                         charge_quantity: nil,
-                        muta: nil
+                        muta: nil,
+                        spool_up_full: nil
                     )
                     moduleItems.append(modeItem)
                     if AppConfiguration.Fitting.showDebug {
@@ -749,7 +751,8 @@ class FitConvert {
                     mutatedAttributes: mutatedAttributes,
                     mutatedTypeId: mutatedTypeId,
                     mutatedName: mutatedName,
-                    mutatedIconFileName: mutatedIconFileName
+                    mutatedIconFileName: mutatedIconFileName,
+                    isSpoolUpFull: item.spool_up_full ?? true
                 )
 
                 modules.append(simModule)
@@ -1147,7 +1150,8 @@ class FitConvert {
                 status: module.status,
                 charge_type_id: module.charge?.typeId,
                 charge_quantity: module.charge?.chargeQuantity,
-                muta: mutaData
+                muta: mutaData,
+                spool_up_full: module.isSpoolUpFull ? nil : false
             )
         }
 
@@ -2477,7 +2481,8 @@ class FitConvert {
             status: 1, // 默认在线状态
             charge_type_id: chargeTypeId,
             charge_quantity: chargeTypeId != nil ? 1 : nil,
-            muta: nil
+            muta: nil,
+            spool_up_full: nil
         )
     }
 }

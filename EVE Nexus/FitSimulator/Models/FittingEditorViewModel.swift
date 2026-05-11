@@ -430,7 +430,8 @@ class FittingEditorViewModel: ObservableObject {
                         mutatedAttributes: module.mutatedAttributes,
                         mutatedTypeId: module.mutatedTypeId,
                         mutatedName: module.mutatedName,
-                        mutatedIconFileName: module.mutatedIconFileName
+                        mutatedIconFileName: module.mutatedIconFileName,
+                        isSpoolUpFull: module.isSpoolUpFull
                     )
 
                     Logger.info("设置装备状态: \(module.name), 最大状态: \(maxStatus), 设置状态: \(newStatus)")
@@ -741,13 +742,12 @@ class FittingEditorViewModel: ObservableObject {
                 mutatedAttributes: currentModule.mutatedAttributes,
                 mutatedTypeId: currentModule.mutatedTypeId,
                 mutatedName: currentModule.mutatedName,
-                mutatedIconFileName: currentModule.mutatedIconFileName
+                mutatedIconFileName: currentModule.mutatedIconFileName,
+                isSpoolUpFull: currentModule.isSpoolUpFull
             )
 
-            // 更新模块列表
             simulationInput.modules[index] = updatedModule
 
-            // 如果有同组限制，需要检查和调整其他装备的状态
             if maxGroupOnline > 0 || maxGroupActive > 0 {
                 // 使用ModuleGroupManager处理同组装备的连锁降级
                 ModuleGroupManager.handleGroupDowngrade(
@@ -774,6 +774,82 @@ class FittingEditorViewModel: ObservableObject {
 
             Logger.info("更新模块状态成功: \(currentModule.name), 从 \(originalStatus) 到 \(newStatus)")
         }
+    }
+
+    func updateModuleSpoolUpFull(flag: FittingFlag, isFull: Bool) {
+        guard let index = simulationInput.modules.firstIndex(where: { $0.flag == flag }) else { return }
+        let currentModule = simulationInput.modules[index]
+        if currentModule.isSpoolUpFull == isFull { return }
+
+        simulationInput.modules[index] = SimModule(
+            instanceId: currentModule.instanceId,
+            typeId: currentModule.typeId,
+            attributes: currentModule.attributes,
+            attributesByName: currentModule.attributesByName,
+            effects: currentModule.effects,
+            groupID: currentModule.groupID,
+            status: currentModule.status,
+            charge: currentModule.charge,
+            flag: currentModule.flag,
+            quantity: currentModule.quantity,
+            name: currentModule.name,
+            iconFileName: currentModule.iconFileName,
+            requiredSkills: currentModule.requiredSkills,
+            selectedMutaplasmidID: currentModule.selectedMutaplasmidID,
+            mutatedAttributes: currentModule.mutatedAttributes,
+            mutatedTypeId: currentModule.mutatedTypeId,
+            mutatedName: currentModule.mutatedName,
+            mutatedIconFileName: currentModule.mutatedIconFileName,
+            isSpoolUpFull: isFull
+        )
+
+        Logger.info(
+            "更新装备完全预热: \(currentModule.name), isSpoolUpFull=\(isFull)"
+        )
+        calculateAttributes()
+        hasUnsavedChanges = true
+        objectWillChange.send()
+        saveConfiguration()
+    }
+
+    func batchUpdateModuleSpoolUpFull(flags: [FittingFlag], isFull: Bool) {
+        var didChange = false
+        for flag in flags {
+            guard let index = simulationInput.modules.firstIndex(where: { $0.flag == flag }) else {
+                continue
+            }
+            let currentModule = simulationInput.modules[index]
+            if currentModule.isSpoolUpFull == isFull { continue }
+            didChange = true
+            simulationInput.modules[index] = SimModule(
+                instanceId: currentModule.instanceId,
+                typeId: currentModule.typeId,
+                attributes: currentModule.attributes,
+                attributesByName: currentModule.attributesByName,
+                effects: currentModule.effects,
+                groupID: currentModule.groupID,
+                status: currentModule.status,
+                charge: currentModule.charge,
+                flag: currentModule.flag,
+                quantity: currentModule.quantity,
+                name: currentModule.name,
+                iconFileName: currentModule.iconFileName,
+                requiredSkills: currentModule.requiredSkills,
+                selectedMutaplasmidID: currentModule.selectedMutaplasmidID,
+                mutatedAttributes: currentModule.mutatedAttributes,
+                mutatedTypeId: currentModule.mutatedTypeId,
+                mutatedName: currentModule.mutatedName,
+                mutatedIconFileName: currentModule.mutatedIconFileName,
+                isSpoolUpFull: isFull
+            )
+        }
+        guard didChange else { return }
+
+        Logger.info("批量更新装备完全预热: \(flags.count) 个槽位, isSpoolUpFull=\(isFull)")
+        calculateAttributes()
+        hasUnsavedChanges = true
+        objectWillChange.send()
+        saveConfiguration()
     }
 
     /// 批量更新模块状态（优化版本，只在最后计算一次属性）
@@ -844,7 +920,8 @@ class FittingEditorViewModel: ObservableObject {
                         mutatedAttributes: currentModule.mutatedAttributes,
                         mutatedTypeId: currentModule.mutatedTypeId,
                         mutatedName: currentModule.mutatedName,
-                        mutatedIconFileName: currentModule.mutatedIconFileName
+                        mutatedIconFileName: currentModule.mutatedIconFileName,
+                        isSpoolUpFull: currentModule.isSpoolUpFull
                     )
 
                     // 更新模块列表
@@ -1030,7 +1107,8 @@ class FittingEditorViewModel: ObservableObject {
                     mutatedAttributes: currentModule.mutatedAttributes,
                     mutatedTypeId: currentModule.mutatedTypeId,
                     mutatedName: currentModule.mutatedName,
-                    mutatedIconFileName: currentModule.mutatedIconFileName
+                    mutatedIconFileName: currentModule.mutatedIconFileName,
+                    isSpoolUpFull: currentModule.isSpoolUpFull
                 )
 
                 // 更新模块列表
@@ -1083,7 +1161,8 @@ class FittingEditorViewModel: ObservableObject {
                     mutatedAttributes: currentModule.mutatedAttributes,
                     mutatedTypeId: currentModule.mutatedTypeId,
                     mutatedName: currentModule.mutatedName,
-                    mutatedIconFileName: currentModule.mutatedIconFileName
+                    mutatedIconFileName: currentModule.mutatedIconFileName,
+                    isSpoolUpFull: currentModule.isSpoolUpFull
                 )
 
                 // 更新模块列表
@@ -1225,7 +1304,8 @@ class FittingEditorViewModel: ObservableObject {
                 mutatedAttributes: currentModule.mutatedAttributes,
                 mutatedTypeId: currentModule.mutatedTypeId,
                 mutatedName: currentModule.mutatedName,
-                mutatedIconFileName: currentModule.mutatedIconFileName
+                mutatedIconFileName: currentModule.mutatedIconFileName,
+                isSpoolUpFull: currentModule.isSpoolUpFull
             )
 
             // 更新模块列表
@@ -1277,7 +1357,8 @@ class FittingEditorViewModel: ObservableObject {
                 mutatedAttributes: currentModule.mutatedAttributes,
                 mutatedTypeId: currentModule.mutatedTypeId,
                 mutatedName: currentModule.mutatedName,
-                mutatedIconFileName: currentModule.mutatedIconFileName
+                mutatedIconFileName: currentModule.mutatedIconFileName,
+                isSpoolUpFull: currentModule.isSpoolUpFull
             )
 
             // 更新模块列表
@@ -1557,7 +1638,8 @@ class FittingEditorViewModel: ObservableObject {
             mutatedAttributes: mutatedAttributes,
             mutatedTypeId: mutatedTypeId,
             mutatedName: mutatedName,
-            mutatedIconFileName: mutatedIconFileName
+            mutatedIconFileName: mutatedIconFileName,
+            isSpoolUpFull: currentModule.isSpoolUpFull
         )
 
         simulationInput.modules[index] = updatedModule
@@ -1754,7 +1836,8 @@ class FittingEditorViewModel: ObservableObject {
             iconFileName: model_iconFilename,
             requiredSkills: FitConvert.extractRequiredSkills(attributes: attributes),
             selectedMutaplasmidID: nil, // 装备更换后清除突变信息
-            mutatedAttributes: [:] // 装备更换后清除突变信息
+            mutatedAttributes: [:], // 装备更换后清除突变信息
+            isSpoolUpFull: oldModule?.isSpoolUpFull ?? true
         )
 
         // 尝试保留原有装备的弹药
@@ -1803,7 +1886,8 @@ class FittingEditorViewModel: ObservableObject {
                     iconFileName: model_iconFilename,
                     requiredSkills: newModule.requiredSkills,
                     selectedMutaplasmidID: nil, // 装备更换后清除突变信息
-                    mutatedAttributes: [:] // 装备更换后清除突变信息
+                    mutatedAttributes: [:], // 装备更换后清除突变信息
+                    isSpoolUpFull: oldModule?.isSpoolUpFull ?? true
                 )
 
                 // 使用带有弹药的模块

@@ -146,7 +146,8 @@ class DNAParser {
                     status: 1,
                     charge_type_id: nil,
                     charge_quantity: nil,
-                    muta: nil
+                    muta: nil,
+                    spool_up_full: nil
                 ))
         }
 
@@ -192,7 +193,8 @@ class DNAParser {
                         status: module.isOffline ? 0 : 1,
                         charge_type_id: nil,
                         charge_quantity: nil,
-                        muta: nil
+                        muta: nil,
+                        spool_up_full: nil
                     ))
 
                 Logger.debug("创建装备项: \(module.typeId) -> \(currentFlag)")

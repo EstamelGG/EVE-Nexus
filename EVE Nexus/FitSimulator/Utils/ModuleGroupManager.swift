@@ -158,7 +158,8 @@ class ModuleGroupManager {
                         name: module.name,
                         iconFileName: module.iconFileName,
                         requiredSkills: FitConvert.extractRequiredSkills(
-                            attributes: module.attributes)
+                            attributes: module.attributes),
+                        isSpoolUpFull: module.isSpoolUpFull
                     )
                     modules[moduleIndex] = updatedModule
                     modifiedIndices.append(moduleIndex)
@@ -198,7 +199,8 @@ class ModuleGroupManager {
                         name: module.name,
                         iconFileName: module.iconFileName,
                         requiredSkills: FitConvert.extractRequiredSkills(
-                            attributes: module.attributes)
+                            attributes: module.attributes),
+                        isSpoolUpFull: module.isSpoolUpFull
                     )
                     modules[moduleIndex] = updatedModule
                     modifiedIndices.append(moduleIndex)

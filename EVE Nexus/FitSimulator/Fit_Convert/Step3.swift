@@ -1343,7 +1343,8 @@ class Step3 {
             name: originalModule.name,
             iconFileName: originalModule.iconFileName,
             requiredSkills: originalModule.requiredSkills,
-            attributeModifiers: originalModule.attributeModifiers
+            attributeModifiers: originalModule.attributeModifiers,
+            isSpoolUpFull: originalModule.isSpoolUpFull
         )
     }
 

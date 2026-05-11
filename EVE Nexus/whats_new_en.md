@@ -422,3 +422,9 @@ Fixes & Improvements:
 1. Fixed an issue where self-initiated corp industry jobs were not visible in the "Industry Jobs" feature. 
 2. Optimized the UI design for the "Planetary Industry" feature.
 3. Optimize the search and favorite experience for the KillBoard.
+
+
+# v1.12.6 May 20, 2026
+
+1. Entropic Disintegrator: Added "Preheat Mode" to calculate fully spooled DPS.
+2. Show Command Center levels in Planetary Industry views.

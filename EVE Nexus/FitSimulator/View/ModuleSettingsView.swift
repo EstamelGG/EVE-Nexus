@@ -453,6 +453,39 @@ struct ModuleSettingsView: View {
                             }
                         }
                     )
+
+                    if !isLoading, moduleDetails?.categoryID == 7,
+                       let actualForSpool = viewModel.simulationInput.modules.first(where: {
+                           $0.flag == slotFlag
+                       }),
+                       actualForSpool.attributes[2734] != nil
+                       || actualForSpool.attributesByName["damageMultiplierBonusMax"] != nil
+                    {
+                        Section {
+                            Toggle(
+                                NSLocalizedString("Fitting_Spool_Up_Full", comment: ""),
+                                isOn: Binding(
+                                    get: {
+                                        viewModel.simulationInput.modules.first(where: {
+                                            $0.flag == slotFlag
+                                        })?.isSpoolUpFull ?? true
+                                    },
+                                    set: { newValue in
+                                        if isBatchMode {
+                                            let flags = relatedModules.compactMap { $0.flag }
+                                            viewModel.batchUpdateModuleSpoolUpFull(
+                                                flags: flags, isFull: newValue
+                                            )
+                                        } else {
+                                            viewModel.updateModuleSpoolUpFull(
+                                                flag: slotFlag, isFull: newValue
+                                            )
+                                        }
+                                    }
+                                )
+                            )
+                        }
+                    }
                 }
 
                 // 如果模块可以装载弹药，显示弹药设置

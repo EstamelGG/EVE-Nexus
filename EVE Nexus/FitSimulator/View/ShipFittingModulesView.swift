@@ -159,7 +159,8 @@ struct ShipFittingModulesView: View {
             mutatedAttributes: mutatedAttributes,
             mutatedTypeId: mutatedTypeId,
             mutatedName: mutatedName,
-            mutatedIconFileName: mutatedIconFileName
+            mutatedIconFileName: mutatedIconFileName,
+            isSpoolUpFull: inputModule?.isSpoolUpFull ?? true
         )
     }
 
@@ -794,7 +795,8 @@ struct ShipFittingModulesView: View {
                             quantity: 1,
                             name: model_name,
                             iconFileName: model_iconFilename,
-                            requiredSkills: FitConvert.extractRequiredSkills(attributes: attributes)
+                            requiredSkills: FitConvert.extractRequiredSkills(attributes: attributes),
+                            isSpoolUpFull: oldModule.isSpoolUpFull
                         )
 
                         viewModel.simulationInput.modules[index] = updatedModule
@@ -816,7 +818,8 @@ struct ShipFittingModulesView: View {
                             quantity: 1,
                             name: model_name,
                             iconFileName: model_iconFilename,
-                            requiredSkills: FitConvert.extractRequiredSkills(attributes: attributes)
+                            requiredSkills: FitConvert.extractRequiredSkills(attributes: attributes),
+                            isSpoolUpFull: oldModule.isSpoolUpFull
                         )
 
                         viewModel.simulationInput.modules[index] = newModule
@@ -836,7 +839,8 @@ struct ShipFittingModulesView: View {
                         quantity: 1,
                         name: model_name,
                         iconFileName: model_iconFilename,
-                        requiredSkills: FitConvert.extractRequiredSkills(attributes: attributes)
+                        requiredSkills: FitConvert.extractRequiredSkills(attributes: attributes),
+                        isSpoolUpFull: oldModule.isSpoolUpFull
                     )
 
                     viewModel.simulationInput.modules[index] = newModule

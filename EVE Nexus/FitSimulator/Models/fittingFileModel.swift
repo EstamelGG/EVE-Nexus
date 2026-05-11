@@ -87,6 +87,8 @@ struct LocalFittingItem: Codable {
     let charge_type_id: Int? // 弹药类型ID（可选）
     let charge_quantity: Int? // 弹药数量（可选）
     let muta: [MutationData]? // 突变数据（可选）
+    /// 完全预热；缺失或为 `nil` 时视为开启（与旧装配文件兼容）
+    let spool_up_full: Bool?
 }
 
 struct LocalFitting: Codable {

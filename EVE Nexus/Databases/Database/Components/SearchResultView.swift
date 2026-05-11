@@ -251,13 +251,44 @@ struct DatabaseListView: View {
         }
     }
 
+    private func trimmedSearchQuery() -> String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func isExactDatabaseNameMatch(item: DatabaseListItem, query: String) -> Bool {
+        guard !query.isEmpty else { return false }
+        let cn = item.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cn == query { return true }
+        if let raw = item.enName {
+            let en = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !en.isEmpty else { return false }
+            if en.caseInsensitiveCompare(query) == .orderedSame { return true }
+        }
+        return false
+    }
+
     // 已发布物品的分组
     private var groupedPublishedItems: [(id: Int, name: String, items: [DatabaseListItem])] {
         let publishedItems = items.filter { $0.published }
 
         // 使用 isShowingSearchResults 而不是 searchText.isEmpty
         if isShowingSearchResults {
-            return groupItemsByGroup(publishedItems)
+            let query = trimmedSearchQuery()
+            let exactPublished = publishedItems.filter {
+                isExactDatabaseNameMatch(item: $0, query: query)
+            }
+            guard !exactPublished.isEmpty else {
+                return groupItemsByGroup(publishedItems)
+            }
+            let restPublished = publishedItems.filter {
+                !isExactDatabaseNameMatch(item: $0, query: query)
+            }
+            let pinSection: (id: Int, name: String, items: [DatabaseListItem]) = (
+                -1,
+                NSLocalizedString("Main_Database_precise_match_section", comment: "精准匹配"),
+                exactPublished
+            )
+            return [pinSection] + groupItemsByGroup(restPublished)
         } else if groupingType == .metaGroups {
             return groupItemsByMetaGroup(publishedItems)
         } else {

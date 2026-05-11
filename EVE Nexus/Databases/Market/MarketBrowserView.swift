@@ -5,6 +5,11 @@ private struct AttributeQuickComparePresentation: Identifiable {
     var marketGroupID: Int { id }
 }
 
+private enum MarketSearchPreciseSection {
+    /// 置顶「精准匹配」ForEach/Section id（不与真实 group id / 占位 id 重叠）
+    static let groupID = -9_887_642
+}
+
 // 基础市场视图
 struct MarketBaseView<Content: View>: View {
     @ObservedObject var databaseManager: DatabaseManager
@@ -26,8 +31,56 @@ struct MarketBaseView<Content: View>: View {
     /// 长按物品行「快速比对」时呈现，与 `AttributeQuickCompareSheet` 对应
     @State private var attributeQuickComparePresentation: AttributeQuickComparePresentation?
 
-    // 搜索结果分组
     var groupedSearchResults: [(id: Int, name: String, items: [DatabaseListItem])] {
+        guard !items.isEmpty else { return [] }
+
+        if isShowingSearchResults {
+            let query = trimmedSearchQuery()
+            let exactItems = items.filter { isExactDatabaseNameMatch(item: $0, query: query) }
+            if !exactItems.isEmpty {
+                let exactIDs = Set(exactItems.map(\.id))
+                let remainder = items.filter { !exactIDs.contains($0.id) }
+                let pin: (id: Int, name: String, items: [DatabaseListItem]) = (
+                    MarketSearchPreciseSection.groupID,
+                    NSLocalizedString("Main_Database_precise_match_section", comment: "精准匹配"),
+                    Self.sortItemsForMarketSearchSection(exactItems)
+                )
+                return [pin] + groupMarketSearchItems(remainder)
+            }
+        }
+
+        return groupMarketSearchItems(items)
+    }
+
+    private func trimmedSearchQuery() -> String {
+        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func isExactDatabaseNameMatch(item: DatabaseListItem, query: String) -> Bool {
+        guard !query.isEmpty else { return false }
+        let cn = item.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cn == query { return true }
+        if let raw = item.enName {
+            let en = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !en.isEmpty else { return false }
+            if en.caseInsensitiveCompare(query) == .orderedSame { return true }
+        }
+        return false
+    }
+
+    /// 与市场搜索其它分组内排序一致：先 meta 等级，再名称
+    private static func sortItemsForMarketSearchSection(_ list: [DatabaseListItem]) -> [DatabaseListItem] {
+        list.sorted { item1, item2 in
+            if item1.metaGroupID != item2.metaGroupID {
+                return (item1.metaGroupID ?? -1) < (item2.metaGroupID ?? -1)
+            }
+            return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
+        }
+    }
+
+    private func groupMarketSearchItems(_ items: [DatabaseListItem]) -> [(
+        id: Int, name: String, items: [DatabaseListItem]
+    )] {
         guard !items.isEmpty else { return [] }
 
         // 按categoryID和groupID组织数据
@@ -78,15 +131,7 @@ struct MarketBaseView<Content: View>: View {
 
                 for group in sortedGroups {
                     // 对组内物品进行排序
-                    let sortedItems = group.items.sorted { item1, item2 in
-                        // 首先按科技等级排序
-                        if item1.metaGroupID != item2.metaGroupID {
-                            return (item1.metaGroupID ?? -1) < (item2.metaGroupID ?? -1)
-                        }
-                        // 科技等级相同时按名称排序
-                        return item1.name.localizedCaseInsensitiveCompare(item2.name)
-                            == .orderedAscending
-                    }
+                    let sortedItems = Self.sortItemsForMarketSearchSection(group.items)
 
                     result.append((id: group.groupID, name: group.name, items: sortedItems))
                 }

@@ -184,6 +184,9 @@ struct SimModule {
     var mutatedName: String? // 突变后的名称（用于UI显示）
     var mutatedIconFileName: String? // 突变后的图标文件名（用于UI显示）
 
+    /// 完全预热（Spool up）。为 `false` 时 DPS 按 `damageMultiplierBonusMax = 1` 参与 `(1 + bonus)` 修正。
+    var isSpoolUpFull: Bool = true
+
     // 自定义初始化器，允许指定instanceId
     init(
         instanceId: UUID = UUID(),
@@ -204,7 +207,8 @@ struct SimModule {
         mutatedAttributes: [Int: Double] = [:],
         mutatedTypeId: Int? = nil,
         mutatedName: String? = nil,
-        mutatedIconFileName: String? = nil
+        mutatedIconFileName: String? = nil,
+        isSpoolUpFull: Bool = true
     ) {
         self.instanceId = instanceId
         self.typeId = typeId
@@ -225,6 +229,7 @@ struct SimModule {
         self.mutatedTypeId = mutatedTypeId
         self.mutatedName = mutatedName
         self.mutatedIconFileName = mutatedIconFileName
+        self.isSpoolUpFull = isSpoolUpFull
     }
 }
 

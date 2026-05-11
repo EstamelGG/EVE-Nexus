@@ -10,6 +10,7 @@ struct StorageFacilityView: View {
     let typeGroupIds: [Int: Int] // types 表中的 groupID，用于设施图标映射
     let typeMarketGroupIds: [Int: Int] // marketGroupID，用于排序存储内容物
     let typeEnNames: [Int: String] // 添加 typeEnNames 用于图标映射
+    let marketPrices: [Int: MarketPriceData] // 仓储物品单价（行星详情页一次 getMarketPrices）
     let capacity: Double
     let hourlySnapshots: [Int: Colony] // 快照数据 [分钟数: 殖民地状态]
     let selectedMinutes: Int // 当前选中的分钟数（0 = 当前时间）
@@ -17,6 +18,8 @@ struct StorageFacilityView: View {
     let isSnapshotsReady: Bool // 快照是否已计算完成
     let storageVolumeCache: [Int64: [Int: Double]] // 存储设施体积缓存 [pinId: [小时数: 体积]]
     let isColonyStopped: Bool // 殖民地是否已停工
+    /// 仅指挥中心：在类型名称右侧显示 `upgrade_level`（与殖民地列表文案一致）；非指挥中心为 `nil`
+    let commandCenterUpgradeLevel: Int?
     @State private var isChartExpanded = false // 图表是否展开
 
     // 检查该仓储是否有传入路由
@@ -59,13 +62,28 @@ struct StorageFacilityView: View {
             }
 
             VStack(alignment: .leading, spacing: 6) {
-                HStack {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(
                         typeNames[pin.typeId] ?? NSLocalizedString("Planet_Detail_Unknown_Type", comment: "")
                     )
                     .fontWeight(.semibold)
                     .lineLimit(1)
+                    if let level = commandCenterUpgradeLevel {
+                        Spacer(minLength: 0)
+                        Text(
+                            String.localizedStringWithFormat(
+                                NSLocalizedString("Planet_Colony_Upgrade_Level", comment: ""),
+                                level
+                            )
+                        )
+                        .font(.subheadline)
+                        .fontWeight(.regular)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .multilineTextAlignment(.trailing)
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 // 容量进度条
                 let total = calculateStorageVolume()
@@ -90,6 +108,7 @@ struct StorageFacilityView: View {
                         .foregroundColor(.secondary)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
 
         // 仓储变化图表按钮（仅当有传入路由时显示）
@@ -175,14 +194,29 @@ struct StorageFacilityView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(typeNames[type.id] ?? type.name)
                                     .font(.subheadline)
-                                HStack {
+                                HStack(alignment: .firstTextBaseline, spacing: 4) {
                                     Text("\(amount)")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                     let volume = typeVolumes[type.id] ?? type.volume
-                                    Text("(\(Int(Double(amount) * volume))m³)")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
+                                    let volumePart = "(\(Int(Double(amount) * volume))m³)"
+                                    let priceData = marketPrices[type.id]
+                                    let unitForEstimate: Double = {
+                                        guard let p = priceData else { return 0 }
+                                        if p.averagePrice > 0 { return p.averagePrice }
+                                        if p.adjustedPrice > 0 { return p.adjustedPrice }
+                                        return 0
+                                    }()
+                                    if unitForEstimate > 0 {
+                                        let estimate = unitForEstimate * Double(amount)
+                                        Text("\(volumePart) (\(FormatUtil.formatISK(estimate)))")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    } else {
+                                        Text("\(volumePart) (—)")
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
                                 }
                             }
                             Spacer()

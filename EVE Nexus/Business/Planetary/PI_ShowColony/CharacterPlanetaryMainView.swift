@@ -1206,7 +1206,7 @@ struct CharacterPlanetaryView: View {
                                 if !viewModel.aggregatedPlanetTypeSummariesForMultiSelect.isEmpty {
                                     Section(
                                         header:
-                                            Text(NSLocalizedString("Planetary_MultiSelect_Planet_Type_Summary", comment: ""))
+                                        Text(NSLocalizedString("Planetary_MultiSelect_Planet_Type_Summary", comment: ""))
                                             .fontWeight(.semibold)
                                             .font(.system(size: 18))
                                             .foregroundColor(.primary)
@@ -1493,7 +1493,8 @@ struct PlanetarySettingsSheet: View {
                         Toggle(isOn: $viewModel.showPlanetTypeSummaryInMultiSelect) {
                             Text(
                                 NSLocalizedString(
-                                    "Planetary_Settings_Show_Type_Summary", comment: "显示汇总"))
+                                    "Planetary_Settings_Show_Type_Summary", comment: "显示汇总"
+                                ))
                         }
                     }
                 }
@@ -1705,15 +1706,21 @@ struct PlanetRow: View {
                         }
                     }
 
-                    if let typeInfo = viewModel.getPlanetTypeInfo(for: planet.planetType) {
-                        Text(typeInfo.name)
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
-                    } else {
-                        Text(NSLocalizedString("Main_Planetary_Unknown_Type", comment: ""))
-                            .font(.subheadline)
-                            .foregroundColor(.gray)
+                    HStack(spacing: 6) {
+                        if let typeInfo = viewModel.getPlanetTypeInfo(for: planet.planetType) {
+                            Text(typeInfo.name)
+                        } else {
+                            Text(NSLocalizedString("Main_Planetary_Unknown_Type", comment: ""))
+                        }
+                        Text(
+                            String.localizedStringWithFormat(
+                                NSLocalizedString("Planet_Colony_Upgrade_Level", comment: ""),
+                                planet.upgradeLevel
+                            )
+                        )
                     }
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
 
                     // 显示采集器停工状态
                     if let status = viewModel.getExtractorStatus(for: planet.planetId, characterId: characterId), status.totalCount > 0 {
