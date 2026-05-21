@@ -179,7 +179,8 @@ class SkillCategoryViewModel: ObservableObject {
     func loadSkills(forceRefresh: Bool = false) async {
         if forceRefresh {
             isRefreshing = true
-        } else {
+        } else if allSkillsDict.isEmpty {
+            // 已有数据时不显示全屏加载，避免从子页面返回时列表被替换导致滚动位置丢失
             isLoading = true
         }
 
@@ -914,11 +915,6 @@ struct SkillGroupDetailView: View {
         .refreshable {
             // 下拉刷新功能
             await viewModel.loadSkills(forceRefresh: true)
-        }
-        .onAppear {
-            Task {
-                await viewModel.loadSkills()
-            }
         }
     }
 }
