@@ -41,22 +41,22 @@ License details can be found in the source code or the respective project websit
 
 ## EVE Online 内容与数据使用说明 / Use of EVE Online Content and Data
 
-本应用使用了 EVE Online 的 ESI 接口获取公开数据，并可能包含来自 CCP 的图像或文本信息。  
-This application uses public data via the EVE Online ESI API and may include images or textual content from CCP.
+本应用使用了 EVE Online 的 ESI 接口获取公开数据，并可能包含来自 Fenris Creations 的图像或文本信息。  
+This application uses public data via the EVE Online ESI API and may include images or textual content from Fenris Creations.
 
-EVE Online® 是 CCP ehf. 的注册商标。  
-所有相关图像与资料版权归 CCP 所有。  
-EVE Online® is a registered trademark of CCP ehf.  
-All associated images and content are copyrighted by CCP.
+EVE Online® 是 Fenris Creations ehf. 的注册商标。  
+所有相关图像与资料版权归 Fenris Creations 所有。  
+EVE Online® is a registered trademark of Fenris Creations ehf.  
+All associated images and content are copyrighted by Fenris Creations.
 
-本应用为非官方项目，与 CCP 公司无任何隶属关系，遵守以下政策：  
-This is an unofficial project with no affiliation to CCP and complies with the following policies:
+本应用为非官方项目，与 Fenris Creations 公司无任何隶属关系，遵守以下政策：  
+This is an unofficial project with no affiliation to Fenris Creations and complies with the following policies:
 
 - 第三方开发者许可协议 / Third-Party Developer License Agreement:  
   https://developers.eveonline.com/license-agreement
 
-如 CCP 或相关权利方对本应用有异议，请联系开发者进行调整或下架。  
-If CCP or other rights holders have concerns, please contact the developer for review or removal.
+如 Fenris Creations 或相关权利方对本应用有异议，请联系开发者进行调整或下架。  
+If Fenris Creations or other rights holders have concerns, please contact the developer for review or removal.
 
 ---
 
