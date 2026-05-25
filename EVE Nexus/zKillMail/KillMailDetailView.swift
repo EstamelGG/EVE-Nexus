@@ -717,45 +717,53 @@ struct BRKillMailDetailView: View {
         .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
     }
 
-    /// 非装配槽位（货舱等）：主序为同类堆叠总价（掉落+摧毁 × 单价）降序；**次序为物品 type id 升序**；同 type 多 stack 时再按掉落、摧毁数量区分。
-    private func sortedNonFittingFlagItemsByStackedValue(
-        _ flagItems: [[Int]],
-        unitPriceByType: [Int: Double]
-    ) -> [[Int]] {
-        guard !flagItems.isEmpty else { return flagItems }
-        let valueByType: [Int: Double] = Dictionary(grouping: flagItems, by: { $0[1] })
-            .mapValues { rows in
-                rows.reduce(0.0) { partial, row in
-                    let qty = row[2] + row[3]
-                    let unit = unitPriceByType[row[1]] ?? 0
-                    return partial + Double(qty) * unit
-                }
+    private func itemDepth(_ item: [Int]) -> Int {
+        item.count > 5 ? item[5] : 0
+    }
+
+    @ViewBuilder
+    private func killMailLegacyItemRows(_ items: [[Int]]) -> some View {
+        ForEach(items, id: \.self) { item in
+            let typeId = item[1]
+            let depth = itemDepth(item)
+            if item[2] > 0 {
+                ItemRow(
+                    typeId: typeId, quantity: item[2], isDropped: true,
+                    itemInfoCache: itemInfoCache,
+                    resolvedUnitPrice: kmMarketUnitPriceByType[typeId],
+                    depth: depth
+                )
             }
-        return flagItems.sorted { lhs, rhs in
-            let lhsStack = valueByType[lhs[1], default: 0]
-            let rhsStack = valueByType[rhs[1], default: 0]
-            if lhsStack != rhsStack {
-                return lhsStack > rhsStack
+            if item[3] > 0 {
+                ItemRow(
+                    typeId: typeId, quantity: item[3], isDropped: false,
+                    itemInfoCache: itemInfoCache,
+                    resolvedUnitPrice: kmMarketUnitPriceByType[typeId],
+                    depth: depth
+                )
             }
-            // 次要顺序：物品 type id（升序）
-            let lhsType = lhs[1]
-            let rhsType = rhs[1]
-            if lhsType != rhsType {
-                return lhsType < rhsType
-            }
-            if lhs[2] != rhs[2] { return lhs[2] > rhs[2] }
-            return lhs[3] > rhs[3]
         }
     }
 
-    /// 装配列表：先按 flag（槽位）升序，同一 flag 内先列装备（category≠8），再列弹药（8）；未知类型视为非弹药
-    private func sortFittingItemsBySlotThenNonAmmoFirst(_ rows: [[Int]]) -> [[Int]] {
-        rows.sorted { a, b in
-            if a[0] != b[0] { return a[0] < b[0] }
-            let aAmmo = itemInfoCache[a[1]]?.categoryID == 8
-            let bAmmo = itemInfoCache[b[1]]?.categoryID == 8
-            if aAmmo != bAmmo { return !aAmmo }
-            return a[1] < b[1]
+    @ViewBuilder
+    private func killMailDisplayItemRows(_ rows: [KillMailDisplayRow]) -> some View {
+        ForEach(rows) { row in
+            if row.quantityDropped > 0 {
+                ItemRow(
+                    typeId: row.typeId, quantity: row.quantityDropped, isDropped: true,
+                    itemInfoCache: itemInfoCache,
+                    resolvedUnitPrice: kmMarketUnitPriceByType[row.typeId],
+                    depth: row.depth
+                )
+            }
+            if row.quantityDestroyed > 0 {
+                ItemRow(
+                    typeId: row.typeId, quantity: row.quantityDestroyed, isDropped: false,
+                    itemInfoCache: itemInfoCache,
+                    resolvedUnitPrice: kmMarketUnitPriceByType[row.typeId],
+                    depth: row.depth
+                )
+            }
         }
     }
 
@@ -763,289 +771,121 @@ struct BRKillMailDetailView: View {
     private func fittingInfoSections(detail: KillMailDetailData) -> some View {
         let items = detail.convertedItemsForFitting
         if !items.isEmpty {
-            // 获取所有植入体
-            let implantItems = sortFittingItemsBySlotThenNonAmmoFirst(
-                items.filter { $0[0] == 89 && $0.count >= 4 })
-            if !implantItems.isEmpty {
-                Section(
-                    header: Text(NSLocalizedString("Main_KM_Implants", comment: ""))
-                        .fontWeight(.semibold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
-                ) {
-                    ForEach(implantItems, id: \.self) { item in
-                        let typeId = item[1]
-                        if item[2] > 0 { // 掉落数量
-                            ItemRow(
-                                typeId: typeId, quantity: item[2], isDropped: true,
-                                itemInfoCache: itemInfoCache,
-                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
-                            )
-                        }
-                        if item[3] > 0 { // 摧毁数量
-                            ItemRow(
-                                typeId: typeId, quantity: item[3], isDropped: false,
-                                itemInfoCache: itemInfoCache,
-                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
-                            )
-                        }
-                    }
-                }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+            shipFittingSlotSections(items: items)
+            nonFittingNestedItemSections(detail: detail)
+        }
+    }
+
+    @ViewBuilder
+    private func shipFittingSlotSections(items: [[Int]]) -> some View {
+        let rowInsets = EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18)
+        let implantItems = KillMailItemTreeBuilder.sortFittingSiblingRows(
+            items.filter { $0[0] == 89 && $0.count >= 4 },
+            itemInfoCache: itemInfoCache
+        )
+        if !implantItems.isEmpty {
+            Section(header: kmSectionHeader(NSLocalizedString("Main_KM_Implants", comment: ""))) {
+                killMailLegacyItemRows(implantItems)
             }
+            .listRowInsets(rowInsets)
+        }
 
-            // 高槽
-            let highSlotItems = sortFittingItemsBySlotThenNonAmmoFirst(items.filter { item in
-                (27 ... 34).contains(item[0]) && item.count >= 4
-            })
+        fittingSlotSection(
+            title: NSLocalizedString("Main_KM_High_Slots", comment: ""),
+            slotItems: KillMailItemTreeBuilder.sortFittingSiblingRows(
+                items.filter { (27 ... 34).contains($0[0]) && $0.count >= 4 },
+                itemInfoCache: itemInfoCache
+            ),
+            rowInsets: rowInsets
+        )
+        fittingSlotSection(
+            title: NSLocalizedString("Main_KM_Medium_Slots", comment: ""),
+            slotItems: KillMailItemTreeBuilder.sortFittingSiblingRows(
+                items.filter { (19 ... 26).contains($0[0]) && $0.count >= 4 },
+                itemInfoCache: itemInfoCache
+            ),
+            rowInsets: rowInsets
+        )
+        fittingSlotSection(
+            title: NSLocalizedString("Main_KM_Low_Slots", comment: ""),
+            slotItems: KillMailItemTreeBuilder.sortFittingSiblingRows(
+                items.filter { (11 ... 18).contains($0[0]) && $0.count >= 4 },
+                itemInfoCache: itemInfoCache
+            ),
+            rowInsets: rowInsets
+        )
+        fittingSlotSection(
+            title: NSLocalizedString("Main_KM_Rig_Slots", comment: ""),
+            slotItems: items.filter { (92 ... 94).contains($0[0]) && $0.count >= 4 }.sorted { $0[0] < $1[0] },
+            rowInsets: rowInsets
+        )
+        fittingSlotSection(
+            title: NSLocalizedString("Main_KM_Subsystem_Slots", comment: ""),
+            slotItems: items.filter { (125 ... 128).contains($0[0]) && $0.count >= 4 }.sorted { $0[0] < $1[0] },
+            rowInsets: rowInsets
+        )
+        fittingSlotSection(
+            title: NSLocalizedString("Main_KM_Fighter_Tubes", comment: ""),
+            slotItems: items.filter { (159 ... 163).contains($0[0]) && $0.count >= 4 }.sorted { $0[0] < $1[0] },
+            rowInsets: rowInsets
+        )
+    }
 
-            if !highSlotItems.isEmpty {
-                Section(
-                    header: Text(NSLocalizedString("Main_KM_High_Slots", comment: ""))
-                        .fontWeight(.semibold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
-                ) {
-                    ForEach(highSlotItems, id: \.self) { item in
-                        let typeId = item[1]
-                        if item[2] > 0 { // 掉落数量
-                            ItemRow(
-                                typeId: typeId, quantity: item[2], isDropped: true,
-                                itemInfoCache: itemInfoCache,
-                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
-                            )
-                        }
-                        if item[3] > 0 { // 摧毁数量
-                            ItemRow(
-                                typeId: typeId, quantity: item[3], isDropped: false,
-                                itemInfoCache: itemInfoCache,
-                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
-                            )
-                        }
-                    }
-                }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+    @ViewBuilder
+    private func fittingSlotSection(
+        title: String,
+        slotItems: [[Int]],
+        rowInsets: EdgeInsets
+    ) -> some View {
+        if !slotItems.isEmpty {
+            Section(header: kmSectionHeader(title)) {
+                killMailLegacyItemRows(slotItems)
             }
+            .listRowInsets(rowInsets)
+        }
+    }
 
-            // 中槽
-            let mediumSlotItems = sortFittingItemsBySlotThenNonAmmoFirst(items.filter { item in
-                (19 ... 26).contains(item[0]) && item.count >= 4
-            })
+    private func kmSectionHeader(_ title: String) -> some View {
+        Text(title)
+            .fontWeight(.semibold)
+            .font(.system(size: 18))
+            .foregroundColor(.primary)
+            .textCase(.none)
+    }
 
-            if !mediumSlotItems.isEmpty {
-                Section(
-                    header: Text(NSLocalizedString("Main_KM_Medium_Slots", comment: ""))
-                        .fontWeight(.semibold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
-                ) {
-                    ForEach(mediumSlotItems, id: \.self) { item in
-                        let typeId = item[1]
-                        if item[2] > 0 { // 掉落数量
-                            ItemRow(
-                                typeId: typeId, quantity: item[2], isDropped: true,
-                                itemInfoCache: itemInfoCache,
-                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
-                            )
-                        }
-                        if item[3] > 0 { // 摧毁数量
-                            ItemRow(
-                                typeId: typeId, quantity: item[3], isDropped: false,
-                                itemInfoCache: itemInfoCache,
-                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
-                            )
-                        }
-                    }
-                }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+    @ViewBuilder
+    private func nonFittingNestedItemSections(detail: KillMailDetailData) -> some View {
+        let victimRoots = detail.esi.victim.items ?? []
+        let nonFittingFlags = Set(
+            victimRoots.map(\.flag).filter { !isShipFittingFlag($0) }
+        ).sorted()
+
+        ForEach(nonFittingFlags, id: \.self) { flag in
+            nonFittingFlagSection(detail: detail, flag: flag)
+        }
+    }
+
+    private func isShipFittingFlag(_ flag: Int) -> Bool {
+        (11 ... 18).contains(flag)
+            || (19 ... 26).contains(flag)
+            || (27 ... 34).contains(flag)
+            || (92 ... 94).contains(flag)
+            || (125 ... 128).contains(flag)
+            || (159 ... 163).contains(flag)
+            || flag == 89
+    }
+
+    @ViewBuilder
+    private func nonFittingFlagSection(detail: KillMailDetailData, flag: Int) -> some View {
+        let displayRows = detail.displayRows(
+            forFlag: flag,
+            unitPriceByType: kmMarketUnitPriceByType
+        )
+        if !displayRows.isEmpty {
+            Section(header: kmSectionHeader(getFlagName(flag))) {
+                killMailDisplayItemRows(displayRows)
             }
-
-            // 低槽
-            let lowSlotItems = sortFittingItemsBySlotThenNonAmmoFirst(items.filter { item in
-                (11 ... 18).contains(item[0]) && item.count >= 4
-            })
-
-            if !lowSlotItems.isEmpty {
-                Section(
-                    header: Text(NSLocalizedString("Main_KM_Low_Slots", comment: ""))
-                        .fontWeight(.semibold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
-                ) {
-                    ForEach(lowSlotItems, id: \.self) { item in
-                        let typeId = item[1]
-                        if item[2] > 0 { // 掉落数量
-                            ItemRow(
-                                typeId: typeId, quantity: item[2], isDropped: true,
-                                itemInfoCache: itemInfoCache,
-                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
-                            )
-                        }
-                        if item[3] > 0 { // 摧毁数量
-                            ItemRow(
-                                typeId: typeId, quantity: item[3], isDropped: false,
-                                itemInfoCache: itemInfoCache,
-                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
-                            )
-                        }
-                    }
-                }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-            }
-
-            // 改装槽
-            let rigSlotItems = items.filter { item in
-                (92 ... 94).contains(item[0]) && item.count >= 4
-            }.sorted { $0[0] < $1[0] } // 按槽位顺序排序
-
-            if !rigSlotItems.isEmpty {
-                Section(
-                    header: Text(NSLocalizedString("Main_KM_Rig_Slots", comment: ""))
-                        .fontWeight(.semibold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
-                ) {
-                    ForEach(rigSlotItems, id: \.self) { item in
-                        let typeId = item[1]
-                        if item[2] > 0 { // 掉落数量
-                            ItemRow(
-                                typeId: typeId, quantity: item[2], isDropped: true,
-                                itemInfoCache: itemInfoCache,
-                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
-                            )
-                        }
-                        if item[3] > 0 { // 摧毁数量
-                            ItemRow(
-                                typeId: typeId, quantity: item[3], isDropped: false,
-                                itemInfoCache: itemInfoCache,
-                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
-                            )
-                        }
-                    }
-                }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-            }
-
-            // 子系统槽
-            let subsystemSlotItems = items.filter { item in
-                (125 ... 128).contains(item[0]) && item.count >= 4
-            }.sorted { $0[0] < $1[0] } // 按槽位顺序排序
-
-            if !subsystemSlotItems.isEmpty {
-                Section(
-                    header: Text(NSLocalizedString("Main_KM_Subsystem_Slots", comment: ""))
-                        .fontWeight(.semibold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
-                ) {
-                    ForEach(subsystemSlotItems, id: \.self) { item in
-                        let typeId = item[1]
-                        if item[2] > 0 { // 掉落数量
-                            ItemRow(
-                                typeId: typeId, quantity: item[2], isDropped: true,
-                                itemInfoCache: itemInfoCache,
-                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
-                            )
-                        }
-                        if item[3] > 0 { // 摧毁数量
-                            ItemRow(
-                                typeId: typeId, quantity: item[3], isDropped: false,
-                                itemInfoCache: itemInfoCache,
-                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
-                            )
-                        }
-                    }
-                }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-            }
-
-            // 战斗机发射管
-            let fighterTubeItems = items.filter { item in
-                (159 ... 163).contains(item[0]) && item.count >= 4
-            }.sorted { $0[0] < $1[0] } // 按槽位顺序排序
-
-            if !fighterTubeItems.isEmpty {
-                Section(
-                    header: Text(NSLocalizedString("Main_KM_Fighter_Tubes", comment: ""))
-                        .fontWeight(.semibold)
-                        .font(.system(size: 18))
-                        .foregroundColor(.primary)
-                        .textCase(.none)
-                ) {
-                    ForEach(fighterTubeItems, id: \.self) { item in
-                        let typeId = item[1]
-                        if item[2] > 0 { // 掉落数量
-                            ItemRow(
-                                typeId: typeId, quantity: item[2], isDropped: true,
-                                itemInfoCache: itemInfoCache,
-                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
-                            )
-                        }
-                        if item[3] > 0 { // 摧毁数量
-                            ItemRow(
-                                typeId: typeId, quantity: item[3], isDropped: false,
-                                itemInfoCache: itemInfoCache,
-                                resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
-                            )
-                        }
-                    }
-                }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-            }
-
-            // 获取所有非装配槽位的物品，按flag分组
-            let nonFittingItems = items.filter { item in
-                // 排除装配槽位的物品
-                !(11 ... 18).contains(item[0]) // 低槽
-                    && !(19 ... 26).contains(item[0]) // 中槽
-                    && !(27 ... 34).contains(item[0]) // 高槽
-                    && !(92 ... 94).contains(item[0]) // 改装槽
-                    && !(125 ... 128).contains(item[0]) // 子系统槽
-                    && !(159 ... 163).contains(item[0]) // 战斗机发射管
-                    && item[0] != 89 // 植入体
-            }
-
-            // 获取所有可能的 flag（ESI 格式无 cnts，仅从 items 获取）
-            let allFlags = Set(nonFittingItems.map { $0[0] }).sorted()
-
-            ForEach(allFlags, id: \.self) { flag in
-                let flagItems = nonFittingItems.filter { $0[0] == flag }
-
-                if !flagItems.isEmpty {
-                    Section(
-                        header: Text(getFlagName(flag))
-                            .fontWeight(.semibold)
-                            .font(.system(size: 18))
-                            .foregroundColor(.primary)
-                            .textCase(.none)
-                    ) {
-                        // 显示直接在该舱室的物品（默认按堆叠总价降序）
-                        ForEach(
-                            sortedNonFittingFlagItemsByStackedValue(
-                                flagItems,
-                                unitPriceByType: kmMarketUnitPriceByType
-                            ),
-                            id: \.self
-                        ) { item in
-                            let typeId = item[1]
-                            if item[2] > 0 { // 掉落数量
-                                ItemRow(
-                                    typeId: typeId, quantity: item[2], isDropped: true,
-                                    itemInfoCache: itemInfoCache,
-                                    resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
-                                )
-                            }
-                            if item[3] > 0 { // 摧毁数量
-                                ItemRow(
-                                    typeId: typeId, quantity: item[3], isDropped: false,
-                                    itemInfoCache: itemInfoCache,
-                                    resolvedUnitPrice: kmMarketUnitPriceByType[typeId]
-                                )
-                            }
-                        }
-                    }.listRowInsets(
-                        EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                }
-            }
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
         }
     }
 
@@ -1138,23 +978,26 @@ struct BRKillMailDetailView: View {
     private func collectKillMailPriceTypeIds(_ detail: KillMailDetailData) -> [Int] {
         var typeIds = Set<Int>()
         typeIds.insert(detail.esi.victim.ship_type_id)
-        for item in detail.convertedItemsForFitting where item.count >= 2 {
-            typeIds.insert(item[1])
+        for typeId in KillMailDetailData.allVictimItemTypeIds(from: detail.esi.victim.items) {
+            typeIds.insert(typeId)
         }
         return Array(typeIds)
     }
 
+    /// EIV 全表一次拉取后批量写入状态，避免按 type 逐条更新触发多次重排/重绘。
+    /// 展示前 `kmMarketUnitPriceByType` 为空，排序等价于单价 0；写入后货舱区仅再排序一次。
     private func applyKillMailMarketPrices(typeIds: [Int], session: Int) async {
         guard !typeIds.isEmpty else { return }
         let marketPrices = await MarketPriceUtil.getMarketPrices(typeIds: typeIds)
-        Logger.debug("战报详情: 市场价格批量获取完成，写入 \(marketPrices.count)/\(typeIds.count) 条")
-        for typeId in typeIds.sorted() {
-            let unit = marketPrices[typeId]?.averagePrice ?? 0
-            await MainActor.run {
-                guard session == kmMarketPriceSession else { return }
-                kmMarketUnitPriceByType[typeId] = unit
-            }
-            await Task.yield()
+        var unitByType: [Int: Double] = [:]
+        unitByType.reserveCapacity(typeIds.count)
+        for typeId in typeIds {
+            unitByType[typeId] = marketPrices[typeId]?.averagePrice ?? 0
+        }
+        Logger.debug("战报详情: 市场价格批量获取完成，一次性写入 \(unitByType.count)/\(typeIds.count) 条")
+        await MainActor.run {
+            guard session == kmMarketPriceSession else { return }
+            kmMarketUnitPriceByType = unitByType
         }
     }
 
@@ -1262,8 +1105,8 @@ struct BRKillMailDetailView: View {
     private func loadAllItemInfo(from detail: KillMailDetailData) {
         var typeIds = Set<Int>()
         typeIds.insert(detail.esi.victim.ship_type_id)
-        for item in detail.convertedItemsForFitting where item.count >= 4 {
-            typeIds.insert(item[1])
+        for typeId in KillMailDetailData.allVictimItemTypeIds(from: detail.esi.victim.items) {
+            typeIds.insert(typeId)
         }
 
         // 一次性查询所有物品信息
@@ -1298,6 +1141,10 @@ struct ItemRow: View {
     let itemInfoCache: [Int: (name: String, iconFileName: String, categoryID: Int)]
     /// 已解析的单价；`nil` 表示价格仍在加载，显示占位指示器
     let resolvedUnitPrice: Double?
+    /// 嵌套深度（0=顶层，>0 为容器内容物，用于左侧缩进）
+    var depth: Int = 0
+
+    private var nestedIndent: CGFloat { CGFloat(depth) * 16 }
 
     var body: some View {
         if let itemInfo = itemInfoCache[typeId] {
@@ -1307,7 +1154,10 @@ struct ItemRow: View {
                     databaseManager: DatabaseManager.shared
                 )
             }) {
-                HStack {
+                HStack(spacing: 8) {
+                    if nestedIndent > 0 {
+                        Color.clear.frame(width: nestedIndent, height: 1)
+                    }
                     Image(uiImage: IconManager.shared.loadUIImage(for: itemInfo.iconFileName))
                         .resizable()
                         .frame(width: 32, height: 32)
@@ -1330,7 +1180,10 @@ struct ItemRow: View {
                 isDropped ? Color.green.opacity(0.2) : nil
             )
         } else {
-            HStack {
+            HStack(spacing: 8) {
+                if nestedIndent > 0 {
+                    Color.clear.frame(width: nestedIndent, height: 1)
+                }
                 Image("not_found")
                     .resizable()
                     .frame(width: 32, height: 32)

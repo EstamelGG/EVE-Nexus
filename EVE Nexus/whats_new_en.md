@@ -428,3 +428,7 @@ Fixes & Improvements:
 
 1. Entropic Disintegrator: Added "Preheat Mode" to calculate fully spooled DPS.
 2. Show Command Center levels in Planetary Industry views.
+
+# v1.12.7 May 25, 2026
+
+1. Fixed an issue where items inside containers (e.g., plastic wrap) were not displayed in the KB.

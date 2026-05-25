@@ -36,6 +36,8 @@ struct ESIItem: Codable {
     let quantity_dropped: Int?
     let quantity_destroyed: Int?
     let singleton: Int
+    /// 容器内嵌套物品（如货柜中的内容）
+    let items: [ESIItem]?
 }
 
 // MARK: - 战斗统计相关结构体
@@ -58,6 +60,8 @@ class ZKillMailsAPI {
 
     private static let esiKillmailCacheDirectoryName = "ESIKillmails"
     private static let esiKillmailBaseURLString = "https://esi.evetech.net/killmails"
+    /// 本地 ESI 详情缓存有效期（秒）；过期后重新请求 ESI
+    static let esiKillmailCacheTTL: TimeInterval = 7 * 24 * 60 * 60
 
     private func getESIKillmailCacheDirectory() throws -> URL {
         let fileManager = FileManager.default
@@ -77,13 +81,27 @@ class ZKillMailsAPI {
         return cacheDirectory.appendingPathComponent("\(killmailId).json")
     }
 
-    /// 从缓存读取 ESI Killmail 详情（若存在且可解码则返回，否则返回 nil）
+    /// 从缓存读取 ESI Killmail 详情（存在、未过期且可解码则返回，否则返回 nil）
     private func loadESIKillmailFromCache(killmailId: Int) -> ESIKillMail? {
         guard let cacheFileURL = try? getESIKillmailCacheFileURL(killmailId: killmailId),
-              FileManager.default.fileExists(atPath: cacheFileURL.path),
-              let data = try? Data(contentsOf: cacheFileURL),
+              FileManager.default.fileExists(atPath: cacheFileURL.path)
+        else {
+            return nil
+        }
+
+        if let attrs = try? FileManager.default.attributesOfItem(atPath: cacheFileURL.path),
+           let modified = attrs[.modificationDate] as? Date,
+           Date().timeIntervalSince(modified) >= Self.esiKillmailCacheTTL
+        {
+            try? FileManager.default.removeItem(at: cacheFileURL)
+            Logger.debug("ESI 详情缓存已过期并删除 - killmail_id: \(killmailId)")
+            return nil
+        }
+
+        guard let data = try? Data(contentsOf: cacheFileURL),
               let esiDetail = try? JSONDecoder().decode(ESIKillMail.self, from: data)
         else {
+            try? FileManager.default.removeItem(at: cacheFileURL)
             return nil
         }
         return esiDetail
@@ -102,7 +120,7 @@ class ZKillMailsAPI {
     /// 获取单个 ESI Killmail 详情（优先读缓存，未命中则请求 ESI 并写入缓存）
     func fetchESIDetail(killmailId: Int, hash: String) async throws -> ESIKillMail {
         if let cached = loadESIKillmailFromCache(killmailId: killmailId) {
-            Logger.debug("从缓存读取 ESI 详情 - killmail_id: \(killmailId)")
+            Logger.debug("从缓存读取 ESI 详情 - killmail_id: \(killmailId), hash: \(hash), url: \("\(Self.esiKillmailBaseURLString)/\(killmailId)/\(hash)/?datasource=tranquility")")
             return cached
         }
 
@@ -111,7 +129,7 @@ class ZKillMailsAPI {
             throw NetworkError.invalidURL
         }
 
-        Logger.debug("从 ESI 获取详情 - killmail_id: \(killmailId)")
+        Logger.debug("从 ESI 获取详情 - killmail_id: \(killmailId), url: \(url)")
         let data = try await NetworkManager.shared.fetchData(from: url)
 
         let esiDetail = try JSONDecoder().decode(ESIKillMail.self, from: data)

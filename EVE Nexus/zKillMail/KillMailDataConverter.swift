@@ -185,11 +185,9 @@ class KillMailDataConverter {
         shipTypeIds.insert(esiDetail.victim.ship_type_id)
         solarSystemIds.insert(esiDetail.solar_system_id)
 
-        // 物品信息（仅 type_id，不参与 universe_names 批量查询）
-        if let items = esiDetail.victim.items {
-            for item in items {
-                shipTypeIds.insert(item.item_type_id)
-            }
+        // 物品信息（含嵌套容器内容）
+        for typeId in KillMailDetailData.allVictimItemTypeIds(from: esiDetail.victim.items) {
+            shipTypeIds.insert(typeId)
         }
 
         // 参与者名称不在此预取，避免打开详情即查库；进入参与者页时再批量解析（见 KillMailAttackersView）
