@@ -58,6 +58,8 @@ This is an unofficial project with no affiliation to Fenris Creations and compli
 如 Fenris Creations 或相关权利方对本应用有异议，请联系开发者进行调整或下架。  
 If Fenris Creations or other rights holders have concerns, please contact the developer for review or removal.
 
+© 2014 CCP hf. All rights reserved. "EVE", "EVE Online", "CCP", and all related logos and images are trademarks or registered trademarks of CCP hf.
+
 ---
 
 ## 隐私与数据安全声明 / Privacy and Data Security Statement
