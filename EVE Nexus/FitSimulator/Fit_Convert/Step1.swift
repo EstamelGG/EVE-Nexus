@@ -24,7 +24,7 @@ class Step1 {
         Logger.info("收集到\(itemIds.count)个物品和\(skillIds.count)个技能")
 
         // 记录植入体和增效剂的数量
-        Logger.info("包含\(input.implants.count)个植入体和增效剂")
+        Logger.info("包含\(input.implants.count)个植入体和增效剂，\(input.environmentEffects.count)个环境效果")
 
         // 2. 收集属性和效果
         let (attributes, attributesByName, effects) = collectAttributesAndEffects(
@@ -117,6 +117,15 @@ class Step1 {
             typeInfo[implantId] = (name: implant.name, groupId: implant.groupID)
         }
 
+        // 添加所有环境效果的ID和属性
+        for effect in input.environmentEffects {
+            let effectId = effect.typeId
+            itemIds.insert(effectId)
+            initialAttributes[effectId] = effect.attributes
+            initialAttributesByName[effectId] = effect.attributesByName
+            typeInfo[effectId] = (name: effect.name, groupId: 0)
+        }
+
         // 获取所有技能ID
         let skillIds = Array(input.characterSkills.keys)
 
@@ -131,7 +140,7 @@ class Step1 {
             initialAttributesByName[skillId]?["skillLevel"] = Double(level)
         }
 
-        // 目前暂不包含货仓和环境效果
+        // 目前暂不包含货仓
 
         return (Array(itemIds), skillIds, initialAttributes, initialAttributesByName, typeInfo)
     }

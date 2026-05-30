@@ -379,7 +379,47 @@ class Step3 {
             }
         }
 
-        // 6. 处理所有技能的修饰器
+        // 6. 处理所有环境效果的修饰器
+        for effect in updatedInput.environmentEffects {
+            if let environmentModifiers = allModifiers[effect.typeId] {
+                for modifier in environmentModifiers {
+                    switch modifier.modifierType {
+                    case .itemModifier:
+                        applyItemModifier(
+                            input: &updatedInput,
+                            modifier: modifier,
+                            sourceInstanceId: effect.instanceId
+                        )
+
+                    case .locationModifier:
+                        applyLocationModifier(
+                            input: &updatedInput,
+                            modifier: modifier,
+                            sourceInstanceId: effect.instanceId
+                        )
+
+                    case let .locationGroupModifier(groupId):
+                        applyLocationGroupModifier(
+                            input: &updatedInput,
+                            modifier: modifier,
+                            groupId: groupId,
+                            sourceInstanceId: effect.instanceId
+                        )
+
+                    case let .locationRequiredSkillModifier(skillTypeId),
+                         let .ownerRequiredSkillModifier(skillTypeId):
+                        applyRequiredSkillModifier(
+                            input: &updatedInput,
+                            modifier: modifier,
+                            skillTypeId: skillTypeId,
+                            sourceInstanceId: effect.instanceId
+                        )
+                    }
+                }
+            }
+        }
+
+        // 7. 处理所有技能的修饰器
         for (_, skill) in updatedInput.skills.enumerated() {
             if let skillModifiers = allModifiers[skill.typeId] {
                 for modifier in skillModifiers {

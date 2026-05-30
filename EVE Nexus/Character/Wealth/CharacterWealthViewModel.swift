@@ -7,7 +7,7 @@ enum WealthType: String, CaseIterable {
     case assets = "Assets" // 资产
     case implants = "Implants" // 植入体
     case orders = "Orders" // 市场订单
-    case contracts = "Contracts" // 物品交换合同（我发起、未决）
+    case contracts = "Contracts" // 物品交换合同（我发起、未决，按合同售价计价）
 
     var sortOrder: Int {
         switch self {
@@ -85,6 +85,50 @@ struct ValuedItem {
     }
 }
 
+/// 财富详情中的高价值合同（按合同售价排序）
+struct ValuedContract: Identifiable {
+    let contract: ContractInfo
+    let itemsSummary: String
+    let titleSubtitle: String
+
+    var id: Int { contract.contract_id }
+    var price: Double { contract.price }
+
+    static func formatTitleSubtitle(for contract: ContractInfo) -> String {
+        let prefix = NSLocalizedString("Contract_Title", comment: "") + ": "
+        if contract.title.isEmpty {
+            return prefix + "[\(NSLocalizedString("Contract_No_Title", comment: ""))]"
+        }
+        return prefix + contract.title
+    }
+
+    static func formatItemsSummary(
+        items: [CharacterContractsAPI.ContractItemInfo],
+        nameMap: [Int: String]
+    ) -> String {
+        let included = items.filter(\.is_included).sorted { $0.record_id < $1.record_id }
+        guard !included.isEmpty else {
+            return NSLocalizedString("Wealth_Contract_No_Items", comment: "")
+        }
+
+        let totalQuantity = included.reduce(0) { $0 + $1.quantity }
+        let names = included.prefix(2).map { item in
+            nameMap[item.type_id] ?? NSLocalizedString("Unknown_Item", comment: "")
+        }
+
+        if names.count == 1 {
+            return String(
+                format: NSLocalizedString("Wealth_Contract_Items_One", comment: ""),
+                names[0], totalQuantity
+            )
+        }
+        return String(
+            format: NSLocalizedString("Wealth_Contract_Items_Two", comment: ""),
+            names[0], names[1], totalQuantity
+        )
+    }
+}
+
 @MainActor
 class CharacterWealthViewModel: ObservableObject {
     @Published var isLoading = false
@@ -96,18 +140,19 @@ class CharacterWealthViewModel: ObservableObject {
     @Published var valuedAssets: [ValuedItem] = []
     @Published var valuedImplants: [ValuedItem] = []
     @Published var valuedOrders: [ValuedItem] = []
-    @Published var valuedContracts: [ValuedItem] = []
+    @Published var valuedContracts: [ValuedContract] = []
     @Published var isLoadingDetails = false
 
     // 资产加载进度状态
     @Published var assetsLoadingProgress: AssetLoadingProgress?
 
-    private let characterId: Int
+    let characterId: Int
     private var marketPrices: [Int: Double] = [:]
-    private let databaseManager = DatabaseManager()
+    let databaseManager: DatabaseManager
 
-    init(characterId: Int) {
+    init(characterId: Int, databaseManager: DatabaseManager = DatabaseManager()) {
         self.characterId = characterId
+        self.databaseManager = databaseManager
     }
 
     // 获取多个物品的信息
@@ -341,36 +386,6 @@ class CharacterWealthViewModel: ObservableObject {
         }
     }
 
-    private func mergeIncludedContractItems(
-        contracts: [ContractInfo], forceRefresh: Bool
-    ) async throws -> [Int: Int] {
-        guard !contracts.isEmpty else { return [:] }
-        let charId = characterId
-        let refresh = forceRefresh
-        return try await withThrowingTaskGroup(of: [Int: Int].self) { group in
-            for contract in contracts {
-                let cid = contract.contract_id
-                group.addTask {
-                    let items = try await CharacterContractsAPI.shared.fetchContractItems(
-                        characterId: charId, contractId: cid, forceRefresh: refresh
-                    )
-                    var map: [Int: Int] = [:]
-                    for item in items where item.is_included {
-                        map[item.type_id, default: 0] += item.quantity
-                    }
-                    return map
-                }
-            }
-            var merged: [Int: Int] = [:]
-            for try await map in group {
-                for (k, v) in map {
-                    merged[k, default: 0] += v
-                }
-            }
-            return merged
-        }
-    }
-
     private func calculateContractsValue(forceRefresh: Bool) async throws -> (
         value: Double, count: Int
     ) {
@@ -378,17 +393,7 @@ class CharacterWealthViewModel: ObservableObject {
             characterId: characterId, forceRefresh: forceRefresh
         )
         let relevant = relevantOutstandingItemExchangeContracts(contracts)
-        guard !relevant.isEmpty else { return (0, 0) }
-
-        let merged = try await mergeIncludedContractItems(
-            contracts: relevant, forceRefresh: forceRefresh
-        )
-        var totalValue = 0.0
-        for (typeId, qty) in merged {
-            if let price = marketPrices[typeId] {
-                totalValue += price * Double(qty)
-            }
-        }
+        let totalValue = relevant.reduce(0) { $0 + $1.price }
         return (totalValue, relevant.count)
     }
 
@@ -528,25 +533,67 @@ class CharacterWealthViewModel: ObservableObject {
             let contracts = try await CharacterContractsAPI.shared.fetchContracts(
                 characterId: characterId, forceRefresh: false
             )
-            let relevant = relevantOutstandingItemExchangeContracts(contracts)
-            guard !relevant.isEmpty else {
+            let topContracts = Array(
+                relevantOutstandingItemExchangeContracts(contracts)
+                    .sorted { $0.price > $1.price }
+                    .prefix(20)
+            )
+            guard !topContracts.isEmpty else {
                 valuedContracts = []
                 return
             }
-            let merged = try await mergeIncludedContractItems(
-                contracts: relevant, forceRefresh: false
-            )
-            valuedContracts = merged.compactMap { typeId, qty in
-                guard let price = marketPrices[typeId] else { return nil }
-                return ValuedItem(typeId: typeId, quantity: qty, value: price, orderId: 0)
+
+            let charId = characterId
+            var itemsByContractId: [Int: [CharacterContractsAPI.ContractItemInfo]] = [:]
+            try await withThrowingTaskGroup(
+                of: (Int, [CharacterContractsAPI.ContractItemInfo]).self
+            ) { group in
+                for contract in topContracts {
+                    let contractId = contract.contract_id
+                    group.addTask {
+                        let items = try await CharacterContractsAPI.shared.fetchContractItems(
+                            characterId: charId, contractId: contractId, forceRefresh: false
+                        )
+                        return (contractId, items)
+                    }
+                }
+                for try await (contractId, items) in group {
+                    itemsByContractId[contractId] = items
+                }
             }
-            .sorted { $0.totalValue > $1.totalValue }
-            .prefix(20)
-            .map { $0 }
+
+            let includedTypeIds = Set(
+                itemsByContractId.values.flatMap { items in
+                    items.filter(\.is_included).map(\.type_id)
+                }
+            )
+            let nameMap = buildItemNameMap(typeIds: Array(includedTypeIds))
+
+            valuedContracts = topContracts.map { contract in
+                let items = itemsByContractId[contract.contract_id] ?? []
+                return ValuedContract(
+                    contract: contract,
+                    itemsSummary: ValuedContract.formatItemsSummary(items: items, nameMap: nameMap),
+                    titleSubtitle: ValuedContract.formatTitleSubtitle(for: contract)
+                )
+            }
         } catch {
-            Logger.error("加载合同物品详情失败: \(error)")
+            Logger.error("加载合同详情失败: \(error)")
             self.error = error
         }
+    }
+
+    private func buildItemNameMap(typeIds: [Int]) -> [Int: String] {
+        guard !typeIds.isEmpty else { return [:] }
+        var map: [Int: String] = [:]
+        for row in getItemsInfo(typeIds: typeIds) {
+            if let typeId = row["type_id"] as? Int,
+               let name = row["name"] as? String
+            {
+                map[typeId] = name
+            }
+        }
+        return map
     }
 
     // 获取无市场价格的物品

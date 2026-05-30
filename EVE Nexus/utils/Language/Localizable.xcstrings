@@ -10684,6 +10684,337 @@
         }
       }
     },
+    "Environment_Abyssal_Item_Name_Format" : {
+      "comment" : "%@ - %@",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ - %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ - %@"
+          }
+        }
+      }
+    },
+    "Environment_Abyssal_Level_Advanced" : {
+      "comment" : "高级",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Advanced"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高级"
+          }
+        }
+      }
+    },
+    "Environment_Abyssal_Level_Basic" : {
+      "comment" : "初级",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Basic"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "初级"
+          }
+        }
+      }
+    },
+    "Environment_Abyssal_Level_Medium" : {
+      "comment" : "中级",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Medium"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中级"
+          }
+        }
+      }
+    },
+    "Environment_Abyssal_Type_CausticToxin" : {
+      "comment" : "异种粒子",
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exotic Particle"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "异种粒子"
+          }
+        }
+      }
+    },
+    "Environment_Abyssal_Type_Darkness" : {
+      "comment" : "暗物质场",
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Darkness"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暗物质场"
+          }
+        }
+      }
+    },
+    "Environment_Abyssal_Type_ElectricStorm" : {
+      "comment" : "电子风暴",
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Electrical"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "电子风暴"
+          }
+        }
+      }
+    },
+    "Environment_Abyssal_Type_Infernal" : {
+      "comment" : "等离子火焰风暴",
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Plasma Firestorm"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等离子火焰风暴"
+          }
+        }
+      }
+    },
+    "Environment_Abyssal_Type_XenonGas" : {
+      "comment" : "伽玛射线余波",
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gamma-Ray"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "伽玛射线余波"
+          }
+        }
+      }
+    },
+    "Environment_Category_Abyssal" : {
+      "comment" : "深渊",
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abyssal"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深渊"
+          }
+        }
+      }
+    },
+    "Environment_Category_Other" : {
+      "comment" : "其他",
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其他"
+          }
+        }
+      }
+    },
+    "Environment_Category_Wormhole" : {
+      "comment" : "虫洞",
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wormhole"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "虫洞"
+          }
+        }
+      }
+    },
+    "Environment_Clear_Selection" : {
+      "comment" : "清空选项",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear Selection"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清空选项"
+          }
+        }
+      }
+    },
+    "Environment_Current_Selection" : {
+      "comment" : "当前选择",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current Selection"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前选择"
+          }
+        }
+      }
+    },
+    "Environment_None" : {
+      "comment" : "无",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无"
+          }
+        }
+      }
+    },
+    "Environment_Select_Category" : {
+      "comment" : "选择类别",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select Category"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择类别"
+          }
+        }
+      }
+    },
+    "Environment_Settings_Title" : {
+      "comment" : "环境设置",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Environment Settings"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "环境设置"
+          }
+        }
+      }
+    },
+    "Environment_Wormhole_Class_Section" : {
+      "comment" : "%d级虫洞",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Class %d Wormhole"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d级虫洞"
+          }
+        }
+      }
+    },
+    "Environment_Wormhole_Other_Section" : {
+      "comment" : "其他",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其他"
+          }
+        }
+      }
+    },
     "Error" : {
       "localizations" : {
         "en" : {
@@ -13071,6 +13402,23 @@
         }
       }
     },
+    "Fitting_Environment_Mode" : {
+      "comment" : "天文环境",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Celestial Environment"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "天文环境"
+          }
+        }
+      }
+    },
     "Fitting_Export_Alert_Title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -14817,6 +15165,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无人机设置"
+          }
+        }
+      }
+    },
+    "Fitting_Setting_Environment" : {
+      "comment" : "环境设置",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Environment Settings"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "环境设置"
           }
         }
       }
@@ -24475,6 +24840,7 @@
       }
     },
     "Main_EVE_Mail_Spam" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -44271,6 +44637,9 @@
         }
       }
     },
+    "Unknown_Item" : {
+
+    },
     "Unknown_Location" : {
       "comment" : "未知位置",
       "localizations" : {
@@ -44817,6 +45186,57 @@
         }
       }
     },
+    "Wealth_Contract_Items_One" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, %2$d items total"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@等%2$d个物品"
+          }
+        }
+      }
+    },
+    "Wealth_Contract_Items_Two" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@, %2$@, %3$d items total"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@、%2$@等%3$d个物品"
+          }
+        }
+      }
+    },
+    "Wealth_Contract_No_Items" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No items"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无物品"
+          }
+        }
+      }
+    },
     "Wealth_Contracts" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -44847,6 +45267,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%d 份未决合同"
+          }
+        }
+      }
+    },
+    "Wealth_Contracts_Top" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Highest Price Contracts (Top 20)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "售价最高的合同 (Top 20)"
           }
         }
       }

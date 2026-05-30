@@ -36,6 +36,7 @@ class Step4 {
         var fighters: [Int: [Int: Double]] = [:]
         var implants: [Int: [Int: Double]] = [:]
         var skills: [Int: [Int: Double]] = [:]
+        var environments: [Int: [Int: Double]] = [:]
 
         /// 获取物品属性的缓存值
         func getValue(itemType: ItemType, itemIndex: Int, attributeId: Int) -> Double? {
@@ -57,7 +58,7 @@ class Step4 {
             case .skill:
                 return skills[itemIndex]?[attributeId]
             case .environment:
-                return nil // 暂不处理环境效果
+                return environments[itemIndex]?[attributeId]
             }
         }
 
@@ -99,7 +100,10 @@ class Step4 {
                 }
                 skills[itemIndex]?[attributeId] = value
             case .environment:
-                break // 暂不处理环境效果
+                if environments[itemIndex] == nil {
+                    environments[itemIndex] = [:]
+                }
+                environments[itemIndex]?[attributeId] = value
             }
         }
     }
@@ -566,7 +570,7 @@ class Step4 {
         case .skill:
             return input.skills[itemIndex].instanceId
         case .environment:
-            return UUID() // 环境效果暂时返回新的UUID
+            return input.environmentEffects[itemIndex].instanceId
         }
     }
 
@@ -1030,6 +1034,29 @@ class Step4 {
                     }
                 }
                 // 如果没有找到属性，使用默认值
+                return attributeDefaultValueCache[sourceAttributeId] ?? 0.0
+            }
+        }
+
+        // 在环境效果中查找
+        for (index, environment) in input.environmentEffects.enumerated() {
+            if environment.instanceId == sourceInstanceId {
+                if let value = cache.getValue(
+                    itemType: .environment, itemIndex: index, attributeId: sourceAttributeId
+                ) {
+                    return value
+                }
+
+                if let baseValue = environment.attributes[sourceAttributeId] {
+                    cache.setValue(
+                        itemType: .environment,
+                        itemIndex: index,
+                        attributeId: sourceAttributeId,
+                        value: baseValue
+                    )
+                    return baseValue
+                }
+
                 return attributeDefaultValueCache[sourceAttributeId] ?? 0.0
             }
         }

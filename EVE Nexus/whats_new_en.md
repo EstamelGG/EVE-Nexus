@@ -432,3 +432,9 @@ Fixes & Improvements:
 # v1.12.7 May 25, 2026
 
 1. Fixed an issue where items inside containers (e.g., plastic wrap) were not displayed in the KB.
+
+# v1.12.8 June 22, 2026
+
+1. Fixed contract valuation logic for item-exchange contracts in the Wealth feature.
+2. Fitting simulation: Added environment settings for wormhole, abyssal, and other astronomical effects; selections persist in fitting configs.
+3. Updated SDE database.

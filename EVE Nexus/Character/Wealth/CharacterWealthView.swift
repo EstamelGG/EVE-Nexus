@@ -174,7 +174,7 @@ struct CharacterWealthView: View {
         case .orders:
             return viewModel.valuedOrders
         case .contracts:
-            return viewModel.valuedContracts
+            return []
         case .wallet:
             return []
         }

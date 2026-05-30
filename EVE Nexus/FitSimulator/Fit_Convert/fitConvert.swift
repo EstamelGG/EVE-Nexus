@@ -38,6 +38,70 @@ class FitConvert {
         return requiredSkills
     }
 
+    /// 从数据库加载单个环境效果
+    static func loadEnvironmentEffect(
+        typeId: Int,
+        databaseManager: DatabaseManager
+    ) -> SimEnvironmentEffect? {
+        let attrQuery = """
+            SELECT ta.attribute_id, ta.value, da.name, t.name as type_name, t.icon_filename
+            FROM typeAttributes ta
+            JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id
+            JOIN types t ON ta.type_id = t.type_id
+            WHERE ta.type_id = ?
+        """
+
+        var attributes: [Int: Double] = [:]
+        var attributesByName: [String: Double] = [:]
+        var name = "Unknown Environment"
+        var iconFileName: String?
+
+        if case let .success(rows) = databaseManager.executeQuery(attrQuery, parameters: [typeId]) {
+            for row in rows {
+                if let attrId = row["attribute_id"] as? Int,
+                   let value = row["value"] as? Double,
+                   let attrName = row["name"] as? String
+                {
+                    attributes[attrId] = value
+                    attributesByName[attrName] = value
+                }
+
+                if let typeName = row["type_name"] as? String {
+                    name = typeName
+                }
+                if let icon = row["icon_filename"] as? String {
+                    iconFileName = icon
+                }
+            }
+        } else {
+            return nil
+        }
+
+        let effectQuery = """
+            SELECT effect_id
+            FROM typeEffects
+            WHERE type_id = ?
+        """
+
+        var effects: [Int] = []
+        if case let .success(rows) = databaseManager.executeQuery(effectQuery, parameters: [typeId]) {
+            for row in rows {
+                if let effectId = row["effect_id"] as? Int {
+                    effects.append(effectId)
+                }
+            }
+        }
+
+        return SimEnvironmentEffect(
+            typeId: typeId,
+            name: name,
+            attributes: attributes,
+            attributesByName: attributesByName,
+            effects: effects,
+            iconFileName: iconFileName
+        )
+    }
+
     /// 处理舰载机配置，根据飞船可用的发射筒配置舰载机
     static func processFighters(
         shipTypeId: Int, fighterBayItems: [FittingItem], databaseManager: DatabaseManager
@@ -905,7 +969,19 @@ class FitConvert {
 
         // 5. 植入体、环境效果
         var implants: [SimImplant] = []
-        let environmentEffects: [SimEnvironmentEffect] = []
+        var environmentEffects: [SimEnvironmentEffect] = []
+
+        if let environmentTypeId = localFitting.environment_type_id,
+           let environmentEffect = loadEnvironmentEffect(
+               typeId: environmentTypeId,
+               databaseManager: databaseManager
+           )
+        {
+            environmentEffects = [environmentEffect]
+            if AppConfiguration.Fitting.showDebug {
+                Logger.info("加载环境效果: \(environmentEffect.name), typeId: \(environmentTypeId)")
+            }
+        }
 
         // 处理植入体数据
         if let implantTypeIds = localFitting.implants, !implantTypeIds.isEmpty {
@@ -1230,7 +1306,7 @@ class FitConvert {
             fighters: fighters,
             cargo: cargo,
             implants: implants, // 保存植入体typeId列表
-            environment_type_id: nil // 暂不支持环境类型
+            environment_type_id: input.environmentEffects.first?.typeId
         )
     }
 

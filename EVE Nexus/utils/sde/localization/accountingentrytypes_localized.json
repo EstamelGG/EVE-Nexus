@@ -7003,34 +7003,6 @@
       ]
     }
   },
-  "cosmetic_market_skin_transaction": {
-    "entryTypeName": {
-      "en": [
-        "Paragon Hub SKIN transaction"
-      ],
-      "de": [
-        "Paragon-Hub-SKIN-Transaktion"
-      ],
-      "es": [
-        "Transacción de SKIN en el Centro de Paragon"
-      ],
-      "fr": [
-        "Transaction de SKIN du centre Paragon"
-      ],
-      "ja": [
-        "パラゴンハブでのSKIN取り引き"
-      ],
-      "ko": [
-        "파라곤 허브 SKIN 거래"
-      ],
-      "ru": [
-        "Операция с окраской в штабе «Парагона»"
-      ],
-      "zh": [
-        "派瑞根中心涂装交易"
-      ]
-    }
-  },
   "skyhook_claim_fee": {
     "entryTypeName": {
       "en": [
@@ -7514,6 +7486,34 @@
       ],
       "zh": [
         "补偿伊甸币市场订单费用"
+      ]
+    }
+  },
+  "cosmetic_market_skin_transaction": {
+    "entryTypeName": {
+      "en": [
+        "Paragon Hub SKIN transaction"
+      ],
+      "de": [
+        "Paragon-Hub-SKIN-Transaktion"
+      ],
+      "es": [
+        "Transacción de SKIN en el Centro de Paragon"
+      ],
+      "fr": [
+        "Transaction de SKIN du centre Paragon"
+      ],
+      "ja": [
+        "パラゴンハブでのSKIN取り引き"
+      ],
+      "ko": [
+        "파라곤 허브 SKIN 거래"
+      ],
+      "ru": [
+        "Операция с окраской в штабе «Парагона»"
+      ],
+      "zh": [
+        "派瑞根中心涂装交易"
       ]
     }
   }

@@ -1,34 +1,34 @@
 {
-  "icon_version": 16,
-  "icon_sha256": "fb0f51a0ff9a5b1f81d0419adbb65a7882b6b6e0826e1d3270673c3a53214122",
-  "sde_sha256": "c461b3133a50c2305dfb3f41bd166aeeac5c2bac39708daf3dc30dc8bd139bf7",
-  "build_number": 3326071,
+  "icon_version": 25,
+  "icon_sha256": "afaec46bcb0d07517171850ef27dd5c939411e36a7b925b53bde225375780283",
+  "sde_sha256": "448abd569115c896aa34a7207c2d0cc1628da829a8ee551b48369b86f3f60bc6",
+  "build_number": 3405148,
   "patch_number": 0,
-  "release_date": "2026-04-30T11:41:42Z",
+  "release_date": "2026-06-23T11:07:09Z",
   "extra_db": {
     "de": {
       "file": "sde_db_de.zip",
-      "sha256": "bd97f52882d1cba7f1adbf659428244c23747915ca434bbd090d0bb03af741d1"
+      "sha256": "4de7e46d9c441fdaabcb20ddf1ae9ba59546c1d465b8d351372b4c30655c7966"
     },
     "es": {
       "file": "sde_db_es.zip",
-      "sha256": "0bb75f344e459924208413c6f8d75f762501f8979a7e116da2024e6c9a1e5273"
+      "sha256": "90a97a5c4d101ff7c952d161052c3e340968c441ac1e9b263af5548d3323652e"
     },
     "fr": {
       "file": "sde_db_fr.zip",
-      "sha256": "1598e0a579c2a0c62ca31bf4a40a0bd037e56688f702e44e0ff388241a78b911"
+      "sha256": "cd4e1ace4b9064b311d22a58b1a99795b0fe672cbb2068949101309916bfefce"
     },
     "ja": {
       "file": "sde_db_ja.zip",
-      "sha256": "18a38f8850a3b28425ff940795a0968ea1e1ddd85589c7b437f49f702693c128"
+      "sha256": "de11063c99cc80b2f0eafa7a232709dda07a01c8eceb778662a08d72d2ed77fd"
     },
     "ko": {
       "file": "sde_db_ko.zip",
-      "sha256": "7634282ef486dfda4f11167f2781b93ce0716b637ae7848a7f0d20e229540e55"
+      "sha256": "47f80f5a441c3c0afb69de5eecc3aea1e935b16407c69f4fc0f7ec8b0c914bea"
     },
     "ru": {
       "file": "sde_db_ru.zip",
-      "sha256": "bdac65c710bc5c4cbfcc44adbca036a11f92193d9a77760710d3d34ab2a09b80"
+      "sha256": "8431d63699cec7c61409c4dae987870b0ca44d3acbf464f5dc3314cab3026fbc"
     }
   }
 }

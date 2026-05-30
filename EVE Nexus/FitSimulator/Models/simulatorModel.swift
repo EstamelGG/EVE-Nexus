@@ -315,6 +315,7 @@ struct SimImplant {
 
 /// 环境效果（如空间站、星系、信号场等带来的加成）
 struct SimEnvironmentEffect {
+    let instanceId: UUID = .init() // 实例唯一标识符
     let typeId: Int // 环境效果类型ID
     let name: String // 环境效果名称
     let attributes: [Int: Double] // 属性ID:值

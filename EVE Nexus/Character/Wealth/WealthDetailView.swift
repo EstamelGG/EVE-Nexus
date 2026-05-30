@@ -35,7 +35,7 @@ struct WealthDetailView: View {
         case .orders:
             return viewModel.valuedOrders
         case .contracts:
-            return viewModel.valuedContracts
+            return []
         case .wallet:
             return []
         }
@@ -79,9 +79,11 @@ struct WealthDetailView: View {
             break
         }
 
-        // 加载物品信息
-        let typeIds = valuedItems.map { $0.typeId }
-        itemInfos = viewModel.getItemsInfo(typeIds: typeIds)
+        // 加载物品信息（合同详情按合同展示，无需物品信息）
+        if wealthType != .contracts {
+            let typeIds = valuedItems.map { $0.typeId }
+            itemInfos = viewModel.getItemsInfo(typeIds: typeIds)
+        }
 
         // 只在资产类型时加载无市场价格的物品
         if wealthType == .assets {
@@ -100,123 +102,22 @@ struct WealthDetailView: View {
                     Text(NSLocalizedString("Wealth_Detail_Loading", comment: ""))
                     Spacer()
                 }
+            } else if wealthType == .contracts {
+                contractsSection
             } else {
-                // 有市场估价的物品
-                if !valuedItems.isEmpty {
-                    Section(header: Text(NSLocalizedString("Wealth_Detail_HasPrice", comment: ""))) {
-                        ForEach(
-                            valuedItems.sorted(by: {
-                                // 首先按总价值降序排列
-                                if $0.totalValue != $1.totalValue {
-                                    return $0.totalValue > $1.totalValue
-                                }
-                                // 如果价值相同，按typeId升序排列作为兜底
-                                return $0.typeId < $1.typeId
-                            }),
-                            id: \.identifier
-                        ) { item in
-                            if let itemInfo = getItemInfo(typeId: item.typeId) {
-                                NavigationLink {
-                                    MarketItemDetailView(
-                                        databaseManager: DatabaseManager(), itemID: item.typeId
-                                    )
-                                } label: {
-                                    HStack {
-                                        // 物品图标
-                                        IconManager.shared.loadImage(for: itemInfo.iconFileName)
-                                            .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .cornerRadius(6)
+                itemsSection
+            }
 
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(itemInfo.name)
-                                            Text(
-                                                "\(item.quantity) × \(FormatUtil.formatISK(item.value))"
-                                            )
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        }
+            if wealthType == .assets && !itemsWithoutPrice.isEmpty {
+                noPriceItemsSection
+            }
 
-                                        Spacer()
-
-                                        // 总价值
-                                        Text(FormatUtil.formatISK(item.totalValue))
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }.contextMenu {
-                                        Button {
-                                            UIPasteboard.general.string = itemInfo.name
-                                        } label: {
-                                            Label(
-                                                NSLocalizedString(
-                                                    "Misc_Copy_Item_Name", comment: ""
-                                                ),
-                                                systemImage: "doc.on.doc"
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                }
-
-                // 只在资产类型时显示无市场价格的物品
-                if wealthType == .assets && !itemsWithoutPrice.isEmpty {
-                    Section(header: Text(NSLocalizedString("Wealth_Detail_NoPrice", comment: ""))) {
-                        ForEach(
-                            itemsWithoutPrice.sorted(by: {
-                                // 首先按数量降序排列
-                                if $0.quantity != $1.quantity {
-                                    return $0.quantity > $1.quantity
-                                }
-                                // 如果数量相同，按typeId升序排列作为兜底
-                                return $0.typeId < $1.typeId
-                            })
-                        ) { item in
-                            NavigationLink {
-                                MarketItemDetailView(
-                                    databaseManager: DatabaseManager(), itemID: item.typeId
-                                )
-                            } label: {
-                                HStack {
-                                    // 物品图标
-                                    IconManager.shared.loadImage(for: item.iconFileName)
-                                        .resizable()
-                                        .frame(width: 32, height: 32)
-                                        .cornerRadius(6)
-
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(item.name)
-                                        Text("\(item.quantity)")
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }.contextMenu {
-                                    Button {
-                                        UIPasteboard.general.string = item.name
-                                    } label: {
-                                        Label(
-                                            NSLocalizedString("Misc_Copy_Item_Name", comment: ""),
-                                            systemImage: "doc.on.doc"
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                }
-
-                // 如果两个列表都为空
-                if valuedItems.isEmpty && (wealthType != .assets || itemsWithoutPrice.isEmpty) {
-                    HStack {
-                        Spacer()
-                        Text(NSLocalizedString("Misc_No_Data", comment: ""))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
+            if shouldShowEmptyState {
+                HStack {
+                    Spacer()
+                    Text(NSLocalizedString("Misc_No_Data", comment: ""))
+                        .foregroundColor(.secondary)
+                    Spacer()
                 }
             }
         }
@@ -229,5 +130,171 @@ struct WealthDetailView: View {
         .refreshable {
             await loadData()
         }
+    }
+
+    private var shouldShowEmptyState: Bool {
+        if isLoading { return false }
+        switch wealthType {
+        case .contracts:
+            return viewModel.valuedContracts.isEmpty
+        case .assets:
+            return valuedItems.isEmpty && itemsWithoutPrice.isEmpty
+        default:
+            return valuedItems.isEmpty
+        }
+    }
+
+    @ViewBuilder
+    private var contractsSection: some View {
+        if !viewModel.valuedContracts.isEmpty {
+            Section(header: Text(NSLocalizedString("Wealth_Contracts_Top", comment: ""))) {
+                ForEach(viewModel.valuedContracts) { valuedContract in
+                    NavigationLink {
+                        ContractDetailView(
+                            characterId: viewModel.characterId,
+                            contract: valuedContract.contract,
+                            databaseManager: viewModel.databaseManager,
+                            contractType: PersonalContractsViewModel.ContractType.personal
+                        )
+                    } label: {
+                        HStack {
+                            Image("contractitemexchange")
+                                .resizable()
+                                .frame(width: 32, height: 32)
+                                .cornerRadius(6)
+
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(valuedContract.itemsSummary)
+                                    .lineLimit(1)
+                                Text(valuedContract.titleSubtitle)
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .lineLimit(1)
+                            }
+
+                            Spacer()
+
+                            Text(FormatUtil.formatISK(valuedContract.price))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .contextMenu {
+                            Button {
+                                UIPasteboard.general.string = valuedContract.titleSubtitle
+                            } label: {
+                                Label(
+                                    NSLocalizedString("Contract_Title", comment: ""),
+                                    systemImage: "doc.on.doc"
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+        }
+    }
+
+    @ViewBuilder
+    private var itemsSection: some View {
+        if !valuedItems.isEmpty {
+            Section(header: Text(NSLocalizedString("Wealth_Detail_HasPrice", comment: ""))) {
+                ForEach(
+                    valuedItems.sorted(by: {
+                        if $0.totalValue != $1.totalValue {
+                            return $0.totalValue > $1.totalValue
+                        }
+                        return $0.typeId < $1.typeId
+                    }),
+                    id: \.identifier
+                ) { item in
+                    if let itemInfo = getItemInfo(typeId: item.typeId) {
+                        NavigationLink {
+                            MarketItemDetailView(
+                                databaseManager: DatabaseManager(), itemID: item.typeId
+                            )
+                        } label: {
+                            HStack {
+                                IconManager.shared.loadImage(for: itemInfo.iconFileName)
+                                    .resizable()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(itemInfo.name)
+                                    Text(
+                                        "\(item.quantity) × \(FormatUtil.formatISK(item.value))"
+                                    )
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                }
+
+                                Spacer()
+
+                                Text(FormatUtil.formatISK(item.totalValue))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }.contextMenu {
+                                Button {
+                                    UIPasteboard.general.string = itemInfo.name
+                                } label: {
+                                    Label(
+                                        NSLocalizedString(
+                                            "Misc_Copy_Item_Name", comment: ""
+                                        ),
+                                        systemImage: "doc.on.doc"
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+        }
+    }
+
+    @ViewBuilder
+    private var noPriceItemsSection: some View {
+        Section(header: Text(NSLocalizedString("Wealth_Detail_NoPrice", comment: ""))) {
+            ForEach(
+                itemsWithoutPrice.sorted(by: {
+                    if $0.quantity != $1.quantity {
+                        return $0.quantity > $1.quantity
+                    }
+                    return $0.typeId < $1.typeId
+                })
+            ) { item in
+                NavigationLink {
+                    MarketItemDetailView(
+                        databaseManager: DatabaseManager(), itemID: item.typeId
+                    )
+                } label: {
+                    HStack {
+                        IconManager.shared.loadImage(for: item.iconFileName)
+                            .resizable()
+                            .frame(width: 32, height: 32)
+                            .cornerRadius(6)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.name)
+                            Text("\(item.quantity)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }.contextMenu {
+                        Button {
+                            UIPasteboard.general.string = item.name
+                        } label: {
+                            Label(
+                                NSLocalizedString("Misc_Copy_Item_Name", comment: ""),
+                                systemImage: "doc.on.doc"
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
     }
 }

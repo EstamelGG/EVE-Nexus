@@ -44,6 +44,11 @@ struct FittingSettingsView: View {
     @State private var showAddToSkillPlanSuccessAlert = false
     @State private var savedSkillPlanName = ""
 
+    // 环境效果待提交状态（在关闭设置页时统一提交）
+    @State private var pendingEnvironmentTypeId: Int?
+    @State private var pendingEnvironmentItem: DatabaseListItem?
+    @State private var hasInitializedEnvironment = false
+
     init(
         databaseManager: DatabaseManager, shipTypeID: Int, fittingName: String,
         fittingData: [String: Any], onNameChanged: @escaping ([String: Any]) -> Void,
@@ -67,6 +72,100 @@ struct FittingSettingsView: View {
         case "character": return selectedCharacterId != nil
         default: return false
         }
+    }
+
+    private var environmentModeText: String {
+        if let item = pendingEnvironmentItem {
+            return item.name
+        }
+        if let effect = viewModel.simulationInput.environmentEffects.first {
+            return effect.name
+        }
+        return NSLocalizedString("Environment_None", comment: "无")
+    }
+
+    private func loadPendingEnvironmentFromViewModel() {
+        guard let effect = viewModel.simulationInput.environmentEffects.first else {
+            pendingEnvironmentTypeId = nil
+            pendingEnvironmentItem = nil
+            return
+        }
+
+        let enName = fetchEnvironmentEnglishName(typeId: effect.typeId) ?? effect.name
+        let category = EnvironmentEffectNaming.category(for: effect.typeId) ?? .other
+        let displayName = EnvironmentEffectNaming.displayName(
+            typeId: effect.typeId,
+            enName: enName,
+            fallbackName: effect.name,
+            category: category
+        )
+
+        pendingEnvironmentTypeId = effect.typeId
+        pendingEnvironmentItem = DatabaseListItem(
+            id: effect.typeId,
+            name: displayName,
+            enName: enName,
+            iconFileName: effect.iconFileName ?? "not_found",
+            published: true,
+            categoryID: 0,
+            groupID: nil,
+            groupName: nil,
+            pgNeed: nil,
+            cpuNeed: nil,
+            rigCost: nil,
+            emDamage: nil,
+            themDamage: nil,
+            kinDamage: nil,
+            expDamage: nil,
+            highSlot: nil,
+            midSlot: nil,
+            lowSlot: nil,
+            rigSlot: nil,
+            gunSlot: nil,
+            missSlot: nil,
+            metaGroupID: nil,
+            marketGroupID: nil,
+            navigationDestination: AnyView(EmptyView())
+        )
+    }
+
+    private func fetchEnvironmentEnglishName(typeId: Int) -> String? {
+        let query = "SELECT en_name, name FROM types WHERE type_id = ?"
+        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]),
+           let row = rows.first
+        {
+            return (row["en_name"] as? String) ?? (row["name"] as? String)
+        }
+        return nil
+    }
+
+    private func commitPendingEnvironmentSelection() {
+        let previousTypeId = viewModel.simulationInput.environmentEffects.first?.typeId
+        let newTypeId = pendingEnvironmentTypeId
+
+        guard previousTypeId != newTypeId else {
+            return
+        }
+
+        if let typeId = newTypeId {
+            guard let effect = FitConvert.loadEnvironmentEffect(
+                typeId: typeId,
+                databaseManager: databaseManager
+            ) else {
+                Logger.warning("无法加载环境效果: typeId=\(typeId)")
+                return
+            }
+
+            viewModel.simulationInput.environmentEffects = [effect]
+            Logger.info("环境效果已更新: \(effect.name)")
+        } else {
+            viewModel.simulationInput.environmentEffects = []
+            Logger.info("已清空环境效果")
+        }
+
+        viewModel.calculateAttributes()
+        viewModel.hasUnsavedChanges = true
+        viewModel.saveConfiguration()
     }
 
     private var skillModeText: String {
@@ -310,6 +409,29 @@ struct FittingSettingsView: View {
                 }
             }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
 
+            Section(header: Text(NSLocalizedString("Fitting_Setting_Environment", comment: "环境设置"))) {
+                NavigationLink {
+                    EnvironmentSettingsView(
+                        databaseManager: databaseManager,
+                        viewModel: viewModel,
+                        selectedTypeId: $pendingEnvironmentTypeId,
+                        pendingSelectionItem: $pendingEnvironmentItem,
+                        onCommit: commitPendingEnvironmentSelection
+                    )
+                } label: {
+                    HStack {
+                        Image("location")
+                            .resizable()
+                            .frame(width: 32, height: 32)
+                            .clipShape(Circle())
+                        Text(NSLocalizedString("Fitting_Environment_Mode", comment: "天文环境"))
+                        Spacer()
+                        Text(environmentModeText)
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+
             // 缺失技能（仅在使用角色技能时显示）
             if isUsingCharacterSkills {
                 missingSkillsSection
@@ -504,6 +626,14 @@ struct FittingSettingsView: View {
             if let item = items.first {
                 shipItem = item
             }
+
+            if !hasInitializedEnvironment {
+                hasInitializedEnvironment = true
+                loadPendingEnvironmentFromViewModel()
+            }
+        }
+        .onDisappear {
+            commitPendingEnvironmentSelection()
         }
     }
 
