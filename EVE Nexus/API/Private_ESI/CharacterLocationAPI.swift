@@ -1,6 +1,6 @@
 import Foundation
 
-// 角色位置信息模型
+/// 角色位置信息模型
 struct CharacterLocation: Codable {
     let solar_system_id: Int
     let structure_id: Int?
@@ -34,12 +34,12 @@ struct CharacterLocation: Codable {
     }
 }
 
-// 角色在线状态模型
+/// 角色在线状态模型
 struct CharacterOnlineStatus: Codable {
     let online: Bool
 }
 
-// 当前飞船信息模型
+/// 当前飞船信息模型
 struct CharacterShipInfo: Codable {
     let ship_item_id: Int64 // 飞船的item_id，用于查询装备
     let ship_name: String // 飞船名称
@@ -49,19 +49,19 @@ struct CharacterShipInfo: Codable {
 class CharacterLocationAPI {
     static let shared = CharacterLocationAPI()
 
-    // 缓存结构
+    /// 缓存结构
     private struct LocationCacheEntry: Codable {
         let value: CharacterLocation
         let timestamp: Date
     }
 
-    // 在线状态缓存结构
+    /// 在线状态缓存结构
     private struct OnlineStatusCacheEntry: Codable {
         let value: CharacterOnlineStatus
         let timestamp: Date
     }
 
-    // 添加并发队列用于同步访问
+    /// 添加并发队列用于同步访问
     private let cacheQueue = DispatchQueue(
         label: "com.eve-nexus.location-cache", attributes: .concurrent
     )
@@ -78,7 +78,7 @@ class CharacterLocationAPI {
 
     private init() {}
 
-    // 安全地获取位置缓存
+    /// 安全地获取位置缓存
     private func getLocationMemoryCache(characterId: Int) -> LocationCacheEntry? {
         var result: LocationCacheEntry?
         cacheQueue.sync {
@@ -87,20 +87,20 @@ class CharacterLocationAPI {
         return result
     }
 
-    // 安全地设置位置缓存
+    /// 安全地设置位置缓存
     private func setLocationMemoryCache(characterId: Int, cache: LocationCacheEntry) {
         cacheQueue.async(flags: .barrier) {
             self.locationMemoryCache[characterId] = cache
         }
     }
 
-    // 检查缓存是否有效
+    /// 检查缓存是否有效
     private func isCacheValid(_ cache: LocationCacheEntry?) -> Bool {
         guard let cache = cache else { return false }
         return Date().timeIntervalSince(cache.timestamp) < cacheTimeout
     }
 
-    // 从UserDefaults获取缓存
+    /// 从UserDefaults获取缓存
     private func getDiskCache(characterId: Int) -> LocationCacheEntry? {
         let key = locationCachePrefix + String(characterId)
         Logger.debug("正在从 UserDefaults 读取键: \(key)")
@@ -112,7 +112,7 @@ class CharacterLocationAPI {
         return cache
     }
 
-    // 保存缓存到UserDefaults
+    /// 保存缓存到UserDefaults
     private func saveToDiskCache(characterId: Int, cache: LocationCacheEntry) {
         let key = locationCachePrefix + String(characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
@@ -124,7 +124,7 @@ class CharacterLocationAPI {
         }
     }
 
-    // 获取角色位置信息
+    /// 获取角色位置信息
     func fetchCharacterLocation(characterId: Int, forceRefresh: Bool = false) async throws
         -> CharacterLocation
     {
@@ -180,7 +180,7 @@ class CharacterLocationAPI {
         }
     }
 
-    // 获取角色在线状态
+    /// 获取角色在线状态
     func fetchCharacterOnlineStatus(characterId: Int, forceRefresh: Bool = false) async throws
         -> CharacterOnlineStatus
     {
@@ -238,13 +238,13 @@ class CharacterLocationAPI {
         }
     }
 
-    // 检查缓存是否有效（带超时参数）
+    /// 检查缓存是否有效（带超时参数）
     private func isCacheValid(_ cache: OnlineStatusCacheEntry?, timeout: TimeInterval) -> Bool {
         guard let cache = cache else { return false }
         return Date().timeIntervalSince(cache.timestamp) < timeout
     }
 
-    // 安全地获取在线状态缓存
+    /// 安全地获取在线状态缓存
     private func getOnlineStatusMemoryCache(characterId: Int) -> OnlineStatusCacheEntry? {
         var result: OnlineStatusCacheEntry?
         cacheQueue.sync {
@@ -253,14 +253,14 @@ class CharacterLocationAPI {
         return result
     }
 
-    // 安全地设置在线状态缓存
+    /// 安全地设置在线状态缓存
     private func setOnlineStatusMemoryCache(characterId: Int, cache: OnlineStatusCacheEntry) {
         cacheQueue.async(flags: .barrier) {
             self.onlineStatusMemoryCache[characterId] = cache
         }
     }
 
-    // 从UserDefaults获取在线状态缓存
+    /// 从UserDefaults获取在线状态缓存
     private func getOnlineStatusDiskCache(characterId: Int) -> OnlineStatusCacheEntry? {
         let key = onlineStatusCachePrefix + String(characterId)
         Logger.debug("正在从 UserDefaults 读取在线状态键: \(key)")
@@ -272,7 +272,7 @@ class CharacterLocationAPI {
         return cache
     }
 
-    // 保存在线状态缓存到UserDefaults
+    /// 保存在线状态缓存到UserDefaults
     private func saveOnlineStatusToDiskCache(characterId: Int, cache: OnlineStatusCacheEntry) {
         let key = onlineStatusCachePrefix + String(characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
@@ -284,7 +284,7 @@ class CharacterLocationAPI {
         }
     }
 
-    // 获取当前飞船信息
+    /// 获取当前飞船信息
     func fetchCharacterShip(characterId: Int) async throws -> CharacterShipInfo {
         let urlString = "https://esi.evetech.net/characters/\(characterId)/ship/"
         guard let url = URL(string: urlString) else {
@@ -298,8 +298,7 @@ class CharacterLocationAPI {
 
         do {
             let decoder = JSONDecoder()
-            let shipInfo = try decoder.decode(CharacterShipInfo.self, from: data)
-            return shipInfo
+            return try decoder.decode(CharacterShipInfo.self, from: data)
         } catch {
             Logger.error("解析角色飞船信息失败: \(error)")
             throw NetworkError.decodingError(error)

@@ -18,7 +18,7 @@ final class URLSessionAutomatedIntegration {
         session = URLSession(configuration: .default, delegate: URLSessionProxyDelegate(logger: logger, delegate: delegate), delegateQueue: nil)
     }
 
-    /// Loads data with the given request.
+    // Loads data with the given request.
     func loadData(with request: URLRequest, didReceiveData: @escaping (Data, URLResponse) -> Void, completion: @escaping (Error?) -> Void) -> URLSessionDataTask {
         let task = delegate.loadData(with: request, session: session, didReceiveData: didReceiveData, completion: completion)
         logger.logTaskCreated(task)
@@ -34,7 +34,7 @@ private final class SessionDelegate: NSObject, URLSessionDataDelegate {
         self.logger = logger
     }
 
-    /// Loads data with the given request.
+    // Loads data with the given request.
     func loadData(with request: URLRequest,
                   session: URLSession,
                   didReceiveData: @escaping (Data, URLResponse) -> Void,

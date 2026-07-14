@@ -102,7 +102,7 @@ private struct EnvironmentCategoryRow: View {
                 .frame(width: 32, height: 32)
                 .cornerRadius(6)
 
-            Text(NSLocalizedString(category.titleKey, comment: ""))
+            Text(category.title)
                 .foregroundColor(.primary)
         }
     }
@@ -152,14 +152,13 @@ struct EnvironmentEffectListView: View {
                 .listStyle(.insetGrouped)
             }
         }
-        .navigationTitle(NSLocalizedString(category.titleKey, comment: ""))
+        .navigationTitle(category.title)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
             loadItems()
         }
     }
 
-    @ViewBuilder
     private func environmentSelectionRow(for item: EnvironmentEffectItem) -> some View {
         EnvironmentEffectSelectionRow(
             item: item.asDatabaseListItem(),

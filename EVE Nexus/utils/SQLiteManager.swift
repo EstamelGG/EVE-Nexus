@@ -1,7 +1,7 @@
 import Foundation
 import SQLite3
 
-// SQL查询结果类型
+/// SQL查询结果类型
 enum SQLiteResult {
     case success([[String: Any]]) // 查询成功，返回结果数组
     case error(String) // 查询失败，返回错误信息
@@ -13,7 +13,7 @@ class SQLiteManager {
     private var db: OpaquePointer?
     private let dbAccessQueue = DispatchQueue(label: "com.eve.nexus.sqlite.access", attributes: .concurrent)
 
-    // 查询缓存（NSCache 本身是线程安全的）
+    /// 查询缓存（NSCache 本身是线程安全的）
     private let queryCache: NSCache<NSString, NSArray> = {
         let cache = NSCache<NSString, NSArray>()
         cache.countLimit = 2000 // 设置最大缓存条数
@@ -26,7 +26,7 @@ class SQLiteManager {
 
     private init() {}
 
-    // 打开数据库连接
+    /// 打开数据库连接
     func openDatabase(withName name: String) -> Bool {
         // 使用 barrier 确保打开数据库时没有其他读写操作
         return dbAccessQueue.sync(flags: .barrier) {
@@ -55,6 +55,11 @@ class SQLiteManager {
 
             if result == SQLITE_OK {
                 Logger.info("数据库连接成功: \(finalDatabasePath)")
+                let language = UserDefaults.standard.string(forKey: "selectedDatabaseLanguage")
+                if !SDELocalization.apply(to: db!, languageCode: language) {
+                    Logger.error("应用 SDE 本地化视图失败")
+                    return false
+                }
                 return true
             } else {
                 let errorMessage = String(cString: sqlite3_errmsg(db))
@@ -66,13 +71,13 @@ class SQLiteManager {
         }
     }
 
-    // 清除缓存
+    /// 清除缓存
     func clearCache() {
         queryCache.removeAllObjects()
         Logger.info("查询缓存已清空")
     }
 
-    // 添加查询日志
+    /// 添加查询日志
     private func addQueryLog(query: String, parameters: [Any]) {
         logsQueue.async {
             self.queryLogs.append((query: query, parameters: parameters, timestamp: Date()))
@@ -83,7 +88,7 @@ class SQLiteManager {
         }
     }
 
-    // 执行查询并返回结果
+    /// 执行查询并返回结果
     func executeQuery(_ query: String, parameters: [Any] = [], useCache: Bool = true)
         -> SQLiteResult
     {
@@ -233,7 +238,7 @@ class SQLiteManager {
         }
     }
 
-    // 生成缓存键
+    /// 生成缓存键
     private func generateCacheKey(query: String, parameters: [Any]) -> String {
         // 将参数转换为字符串
         let paramStrings = parameters.map { param -> String in

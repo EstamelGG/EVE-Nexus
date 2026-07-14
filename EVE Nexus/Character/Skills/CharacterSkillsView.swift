@@ -28,11 +28,12 @@ struct CharacterSkillsView: View {
     @State private var optimalAttributes: OptimalAttributeAllocation?
     @State private var attributeComparisons:
         [(name: String, icon: String, current: Int, optimal: Int, diff: Int)] = []
-    @State private var isDataReady = false // 新增：用于控制整体内容的显示
+    @State private var isDataReady = false
     @State private var hasInitialized = false // 追踪是否已执行初始化
     @State private var currentLoadTask: Task<Void, Never>? // 追踪当前加载任务
     @State private var skillListUpdateTrigger: Int = 0 // 用于触发技能列表更新
     @State private var cachedCharacterTotalSP: Int = 0 // 缓存的角色总技能点数
+    @State private var detectedBoosterBonus: Int = 0 // 加速器属性加成（加载时算一次）
 
     private func updateAttributeComparisons() {
         guard let attrs = characterAttributes,
@@ -142,7 +143,7 @@ struct CharacterSkillsView: View {
         return false
     }
 
-    // 获取技能的当前等级（队列中最低等级-1）
+    /// 获取技能的当前等级（队列中最低等级-1）
     private func getCurrentLevel(for skillId: Int) -> Int {
         let minLevel =
             activeSkills
@@ -152,7 +153,7 @@ struct CharacterSkillsView: View {
         return minLevel - 1
     }
 
-    // 动态判断技能是否正在训练
+    /// 动态判断技能是否正在训练
     private func isSkillCurrentlyTraining(_ item: SkillQueueItem) -> Bool {
         let now = Date()
         guard let startDate = item.start_date,
@@ -163,7 +164,7 @@ struct CharacterSkillsView: View {
         return now >= startDate && now < finishDate
     }
 
-    // 计算活跃技能列表的总剩余时间
+    /// 计算活跃技能列表的总剩余时间
     private func calculateTotalRemainingTime(for skills: [SkillQueueItem]) -> TimeInterval? {
         guard let lastSkill = skills.last,
               let finishDate = lastSkill.finish_date,
@@ -174,7 +175,7 @@ struct CharacterSkillsView: View {
         return finishDate.timeIntervalSinceNow
     }
 
-    // 触发技能列表更新
+    /// 触发技能列表更新
     private func triggerSkillListUpdate() {
         // 使用延迟避免频繁触发
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
@@ -182,72 +183,9 @@ struct CharacterSkillsView: View {
         }
     }
 
-    // 动态计算当前剩余技能点需求
-    private var currentRequiredSP: Int {
-        var totalRequiredSP = 0
-        let now = Date()
-
-        for item in activeSkills {
-            guard let endSP = item.level_end_sp,
-                  let startSP = item.training_start_sp
-            else {
-                continue
-            }
-
-            if isSkillCurrentlyTraining(item) {
-                // 对于正在训练的技能，计算实时剩余技能点
-                if let startDate = item.start_date,
-                   let rate = trainingRates[item.skill_id]
-                {
-                    let trainedTime = now.timeIntervalSince(startDate)
-                    let trainedHours = trainedTime / 3600.0
-                    let trainedSP = Int(Double(rate) * trainedHours)
-                    let currentSP = startSP + trainedSP
-                    let remainingSP = max(0, endSP - currentSP)
-                    totalRequiredSP += remainingSP
-                } else {
-                    // 如果没有训练速度数据，使用时间比例
-                    if let finishDate = item.finish_date,
-                       let startDate = item.start_date
-                    {
-                        let totalTrainingTime = finishDate.timeIntervalSince(startDate)
-                        let trainedTime = now.timeIntervalSince(startDate)
-                        let timeProgress = min(1.0, trainedTime / totalTrainingTime)
-
-                        let totalSP = endSP - startSP
-                        let trainedSP = Int(Double(totalSP) * timeProgress)
-                        let remainingSP = max(0, totalSP - trainedSP)
-                        totalRequiredSP += remainingSP
-                    } else {
-                        totalRequiredSP += endSP - startSP
-                    }
-                }
-            } else {
-                // 对于未开始训练的技能，计算全部所需点数
-                totalRequiredSP += endSP - startSP
-            }
-        }
-
-        return totalRequiredSP
-    }
-
-    // 动态计算注入器需求
-    private var currentInjectorCalculation: InjectorCalculation? {
-        guard !activeSkills.isEmpty else { return nil }
-
-        // 使用动态计算的剩余技能点
-        let requiredSP = currentRequiredSP
-
-        // 使用缓存的角色总技能点数
-        return SkillInjectorCalculator.calculate(
-            requiredSkillPoints: requiredSP,
-            characterTotalSP: cachedCharacterTotalSP
-        )
-    }
-
-    // 计算注入器总价值（使用动态计算）
+    /// 计算注入器总价值
     private var totalInjectorCost: Double? {
-        guard let calculation = currentInjectorCalculation else {
+        guard let calculation = injectorCalculation else {
             return nil
         }
 
@@ -299,7 +237,6 @@ struct CharacterSkillsView: View {
         }
     }
 
-    @ViewBuilder
     private var navigationSection: some View {
         Section {
             NavigationLink {
@@ -376,13 +313,14 @@ struct CharacterSkillsView: View {
 
     @ViewBuilder
     private var injectorSection: some View {
-        if !skillQueue.isEmpty, !isLoadingInjectors, let calculation = currentInjectorCalculation,
+        if !skillQueue.isEmpty, !isLoadingInjectors, let calculation = injectorCalculation,
            calculation.largeInjectorCount + calculation.smallInjectorCount > 0
         {
             Section {
                 // 大型注入器
                 if let largeInfo = getInjectorInfo(
-                    typeId: SkillInjectorCalculator.largeInjectorTypeId),
+                    typeId: SkillInjectorCalculator.largeInjectorTypeId
+                ),
                     calculation.largeInjectorCount > 0
                 {
                     injectorItemView(
@@ -393,7 +331,8 @@ struct CharacterSkillsView: View {
 
                 // 小型注入器
                 if let smallInfo = getInjectorInfo(
-                    typeId: SkillInjectorCalculator.smallInjectorTypeId),
+                    typeId: SkillInjectorCalculator.smallInjectorTypeId
+                ),
                     calculation.smallInjectorCount > 0
                 {
                     injectorItemView(
@@ -428,7 +367,7 @@ struct CharacterSkillsView: View {
                                     format: NSLocalizedString(
                                         "Main_Skills_Optimal_Attributes_Time_Saved", comment: ""
                                     ),
-                                    formatTimeInterval(optimal.savedTime)
+                                    FormatUtil.formatCompactDuration(optimal.savedTime, rounding: .ceil)
                                 )
                             )
                             .font(.caption)
@@ -444,13 +383,7 @@ struct CharacterSkillsView: View {
                         }
 
                         // 只在检测到加速器时显示注释信息
-                        if let attrs = characterAttributes,
-                           let implants = implantBonuses,
-                           SkillTrainingCalculator.detectBoosterBonus(
-                               currentAttributes: attrs,
-                               implantBonuses: implants
-                           ) > 0
-                        {
+                        if detectedBoosterBonus > 0 {
                             Text(
                                 NSLocalizedString(
                                     "Main_Skills_Optimal_Attributes_Note", comment: ""
@@ -462,7 +395,7 @@ struct CharacterSkillsView: View {
                     }
                 }
             } header: {
-                Text(NSLocalizedString("Main_Skills_Optimal_Attributes", comment: ""))
+                OptimalAttributesSectionHeader()
             }
         }
     }
@@ -476,24 +409,26 @@ struct CharacterSkillsView: View {
                 String(
                     format: NSLocalizedString("Main_Skills_Queue_Count_Paused", comment: ""),
                     activeSkills.count
-                ))
+                )
+            )
         } else if let totalTime = calculateTotalRemainingTime(for: activeSkills) {
             Text(
                 String(
                     format: NSLocalizedString("Main_Skills_Queue_Count_Time", comment: ""),
                     activeSkills.count,
-                    formatTimeInterval(totalTime)
-                ))
+                    FormatUtil.formatCompactDuration(totalTime, rounding: .ceil)
+                )
+            )
         } else {
             Text(
                 String(
                     format: NSLocalizedString("Main_Skills_Queue_Count", comment: ""),
                     activeSkills.count
-                ))
+                )
+            )
         }
     }
 
-    @ViewBuilder
     private func skillQueueItemView(_ item: SkillQueueItem) -> some View {
         HStack(spacing: 8) {
             if let icon = skillIcon {
@@ -544,7 +479,6 @@ struct CharacterSkillsView: View {
         }
     }
 
-    @ViewBuilder
     private func skillProgressView(item: SkillQueueItem, progress: ProgressInfo) -> some View {
         VStack(spacing: 2) {
             if isSkillCurrentlyTraining(item) {
@@ -559,15 +493,15 @@ struct CharacterSkillsView: View {
                                     format: NSLocalizedString(
                                         "Main_Skills_Points_Progress", comment: ""
                                     ),
-                                    formatNumber(Int(realtimeProgress.current)),
-                                    formatNumber(realtimeProgress.total)
+                                    FormatUtil.formatInteger(Int(realtimeProgress.current)),
+                                    FormatUtil.formatInteger(realtimeProgress.total)
                                 )
                             )
                             .font(.caption)
                             .foregroundColor(.secondary)
 
                             if let rate = trainingRates[item.skill_id] {
-                                Text("(\(formatNumber(rate))/h)")
+                                Text("(\(FormatUtil.formatInteger(rate))/h)")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -583,7 +517,7 @@ struct CharacterSkillsView: View {
                                             format: NSLocalizedString(
                                                 "Main_Skills_Time_Required", comment: ""
                                             ),
-                                            formatTimeInterval(remainingTime)
+                                            FormatUtil.formatCompactDuration(remainingTime, rounding: .ceil)
                                         )
                                     )
                                     .font(.caption)
@@ -615,15 +549,15 @@ struct CharacterSkillsView: View {
                     Text(
                         String(
                             format: NSLocalizedString("Main_Skills_Points_Progress", comment: ""),
-                            formatNumber(Int(progress.current)),
-                            formatNumber(progress.total)
+                            FormatUtil.formatInteger(Int(progress.current)),
+                            FormatUtil.formatInteger(progress.total)
                         )
                     )
                     .font(.caption)
                     .foregroundColor(.secondary)
 
                     if let rate = trainingRates[item.skill_id] {
-                        Text("(\(formatNumber(rate))/h)")
+                        Text("(\(FormatUtil.formatInteger(rate))/h)")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -636,7 +570,6 @@ struct CharacterSkillsView: View {
         }
     }
 
-    // 新增：计算实时进度的函数
     private func calculateRealtimeProgress(_ item: SkillQueueItem, at currentTime: Date)
         -> ProgressInfo
     {
@@ -697,7 +630,7 @@ struct CharacterSkillsView: View {
                 Text(
                     String(
                         format: NSLocalizedString("Main_Skills_Time_Required", comment: ""),
-                        formatTimeInterval(remainingTime)
+                        FormatUtil.formatCompactDuration(remainingTime, rounding: .ceil)
                     )
                 )
                 .font(.caption)
@@ -711,7 +644,7 @@ struct CharacterSkillsView: View {
             Text(
                 String(
                     format: NSLocalizedString("Main_Skills_Time_Required", comment: ""),
-                    formatTimeInterval(trainingTime)
+                    FormatUtil.formatCompactDuration(trainingTime, rounding: .ceil)
                 )
             )
             .font(.caption)
@@ -726,7 +659,7 @@ struct CharacterSkillsView: View {
                 Text(
                     String(
                         format: NSLocalizedString("Main_Skills_Time_Required", comment: ""),
-                        formatTimeInterval(trainingTime)
+                        FormatUtil.formatCompactDuration(trainingTime, rounding: .ceil)
                     )
                 )
                 .font(.caption)
@@ -735,7 +668,6 @@ struct CharacterSkillsView: View {
         }
     }
 
-    @ViewBuilder
     private func injectorItemView(info: InjectorInfo, count: Int, typeId: Int) -> some View {
         NavigationLink {
             ShowItemInfo(
@@ -777,33 +709,29 @@ struct CharacterSkillsView: View {
         }
     }
 
-    @ViewBuilder
-    private func dynamicInjectorSummaryView(calculation _: InjectorCalculation) -> some View {
-        // 使用 TimelineView 实现实时更新，每秒更新一次
-        TimelineView(.periodic(from: Date(), by: 1.0)) { _ in
-            let currentSP = currentRequiredSP
-            VStack(alignment: .leading, spacing: 4) {
+    private func dynamicInjectorSummaryView(calculation: InjectorCalculation) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(
+                String(
+                    format: NSLocalizedString("Main_Skills_Total_Required_SP", comment: ""),
+                    FormatUtil.format(Double(calculation.totalSkillPoints))
+                )
+            )
+            if let totalCost = totalInjectorCost {
                 Text(
                     String(
-                        format: NSLocalizedString("Main_Skills_Total_Required_SP", comment: ""),
-                        FormatUtil.format(Double(currentSP))
-                    ))
-                if let totalCost = totalInjectorCost {
-                    Text(
-                        String(
-                            format: NSLocalizedString(
-                                "Main_Skills_Total_Injector_Cost", comment: ""
-                            ),
-                            FormatUtil.formatISK(totalCost)
-                        ))
-                }
+                        format: NSLocalizedString(
+                            "Main_Skills_Total_Injector_Cost", comment: ""
+                        ),
+                        FormatUtil.formatISK(totalCost)
+                    )
+                )
             }
-            .font(.caption)
-            .foregroundColor(.secondary)
         }
+        .font(.caption)
+        .foregroundColor(.secondary)
     }
 
-    @ViewBuilder
     private func attributeComparisonItemView(
         _ attr: (name: String, icon: String, current: Int, optimal: Int, diff: Int)
     ) -> some View {
@@ -832,41 +760,45 @@ struct CharacterSkillsView: View {
     }
 
     private func loadSkillQueue(forceRefresh: Bool = false) async {
-        isLoading = true
-        isDataReady = false // 开始加载时重置数据准备状态
+        // 仅在没有已有数据时显示加载状态；刷新时保留现有数据，避免列表闪烁
+        let hasExistingData = !skillQueue.isEmpty
+        if !hasExistingData {
+            isLoading = true
+            isDataReady = false
+        }
 
         do {
-            // 声明变量来存储任务组的结果
             var loadedAttributes: CharacterAttributes?
             var loadedImplants: ImplantAttributes?
             var loadedQueue: [SkillQueueItem] = []
+            var loadedSkills: CharacterSkillsResponse?
 
-            // 使用任务组来管理并发加载
             try await withThrowingTaskGroup(of: Void.self) { group in
-                // 加载属性
                 group.addTask {
                     loadedAttributes = try await CharacterSkillsAPI.shared.fetchAttributes(
-                        characterId: characterId)
-                }
-
-                // 加载植入体信息
-                group.addTask {
-                    loadedImplants = await SkillTrainingCalculator.getImplantBonuses(
-                        characterId: characterId)
-                }
-
-                // 加载技能队列
-                group.addTask {
-                    loadedQueue = try await CharacterSkillsAPI.shared.fetchSkillQueue(
-                        characterId: characterId, forceRefresh: forceRefresh
+                        characterId: characterId
                     )
                 }
 
-                // 等待所有任务完成
+                group.addTask {
+                    loadedImplants = await SkillTrainingCalculator.getImplantBonuses(
+                        characterId: characterId
+                    )
+                }
+
+                // 技能快照 + 队列一次读盘/拉取，避免注入器计算再次读 bundle
+                group.addTask {
+                    let pair = try await CharacterSkillsAPI.shared.fetchCharacterSkillsAndQueue(
+                        characterId: characterId,
+                        forceRefresh: forceRefresh
+                    )
+                    loadedSkills = pair.skills
+                    loadedQueue = pair.queue
+                }
+
                 try await group.waitForAll()
             }
 
-            // 确保所有必要的数据都已加载
             guard let attributes = loadedAttributes,
                   let implants = loadedImplants
             else {
@@ -876,100 +808,95 @@ struct CharacterSkillsView: View {
                 )
             }
 
-            // 收集所有技能ID
             let skillIds = loadedQueue.map { $0.skill_id }
-
-            // 批量加载技能名称
-            let nameQuery = """
-                SELECT type_id, name
-                FROM types
-                WHERE type_id IN (\(skillIds.sorted().map { String($0) }.joined(separator: ",")))
-            """
-
-            var names: [Int: String] = [:]
-            if case let .success(rows) = databaseManager.executeQuery(nameQuery) {
-                for row in rows {
-                    if let typeId = row["type_id"] as? Int,
-                       let name = row["name"] as? String
-                    {
-                        names[typeId] = name
-                    }
-                }
-            }
-
-            // 预加载所有技能属性到缓存
-            SkillTrainingCalculator.preloadSkillAttributes(
-                skillIds: skillIds, databaseManager: databaseManager
+            let skillAttrsMap = SkillTrainingCalculator.loadSkillAttributes(
+                skillIds: skillIds,
+                databaseManager: databaseManager
             )
 
-            // 计算训练速度
+            var names: [Int: String] = [:]
+            for skillId in skillIds {
+                if let name = ItemInfoMap.typeName(for: skillId) {
+                    names[skillId] = name
+                }
+            }
+
             var rates: [Int: Int] = [:]
             for skillId in skillIds {
-                if let (primary, secondary) = SkillTrainingCalculator.getSkillAttributes(
-                    skillId: skillId, databaseManager: databaseManager
-                ),
-                    let rate = SkillTrainingCalculator.calculateTrainingRate(
-                        primaryAttrId: primary,
-                        secondaryAttrId: secondary,
-                        attributes: attributes
-                    )
-                {
-                    rates[skillId] = rate
-                }
+                guard let attrs = skillAttrsMap[skillId],
+                      let rate = SkillTrainingCalculator.calculateTrainingRate(
+                          primaryAttrId: attrs.primary,
+                          secondaryAttrId: attrs.secondary,
+                          attributes: attributes
+                      )
+                else { continue }
+                rates[skillId] = rate
             }
 
-            // 计算最优属性分配
-            var optimal: OptimalAttributeAllocation?
-            let queueInfo = loadedQueue.compactMap {
-                item -> (skillId: Int, remainingSP: Int, startDate: Date?, finishDate: Date?)? in
-                guard let levelEndSp = item.level_end_sp,
-                      let trainingStartSp = item.training_start_sp
-                else {
-                    return nil
-                }
-                return (
-                    skillId: item.skill_id,
-                    remainingSP: levelEndSp - trainingStartSp,
-                    startDate: item.start_date,
-                    finishDate: item.finish_date
-                )
-            }
-
-            optimal = await SkillTrainingCalculator.calculateOptimalAttributes(
-                skillQueue: queueInfo,
-                databaseManager: databaseManager,
+            let booster = SkillTrainingCalculator.detectBoosterBonus(
                 currentAttributes: attributes,
-                characterId: characterId
-            ).map { result in
-                OptimalAttributeAllocation(
-                    charisma: result.charisma,
-                    intelligence: result.intelligence,
-                    memory: result.memory,
-                    perception: result.perception,
-                    willpower: result.willpower,
-                    totalTrainingTime: result.totalTrainingTime,
-                    currentTrainingTime: result.currentTrainingTime
-                )
-            }
+                implantBonuses: implants
+            )
 
-            // 一次性更新所有状态
+            let totalSPFromSkills = loadedSkills.map { $0.total_sp + $0.unallocated_sp }
+
+            // 基础数据就绪后立即显示列表（不等待耗时的最优属性计算和注入器价格）
             await MainActor.run {
                 self.characterAttributes = attributes
                 self.implantBonuses = implants
+                self.detectedBoosterBonus = booster
                 self.skillQueue = loadedQueue
                 self.skillNames = names
                 self.trainingRates = rates
-                self.optimalAttributes = optimal
-                updateAttributeComparisons()
-
-                // 所有数据都准备好后，更新状态
                 self.isLoading = false
                 self.isDataReady = true
             }
 
-            // 异步加载注入器数据
+            // 最优属性分配使用回溯算法枚举所有分配组合，可能较耗时，放到独立任务不阻塞列表
             Task {
-                await calculateInjectors()
+                let queueInfo = loadedQueue.compactMap {
+                    item -> (skillId: Int, remainingSP: Int, startDate: Date?, finishDate: Date?)? in
+                    guard let levelEndSp = item.level_end_sp,
+                          let trainingStartSp = item.training_start_sp
+                    else {
+                        return nil
+                    }
+                    return (
+                        skillId: item.skill_id,
+                        remainingSP: levelEndSp - trainingStartSp,
+                        startDate: item.start_date,
+                        finishDate: item.finish_date
+                    )
+                }
+
+                let optimal = await SkillTrainingCalculator.calculateOptimalAttributes(
+                    skillQueue: queueInfo,
+                    databaseManager: databaseManager,
+                    currentAttributes: attributes,
+                    characterId: characterId,
+                    implantBonuses: implants,
+                    skillAttributes: skillAttrsMap,
+                    boosterBonus: booster
+                ).map { result in
+                    OptimalAttributeAllocation(
+                        charisma: result.charisma,
+                        intelligence: result.intelligence,
+                        memory: result.memory,
+                        perception: result.perception,
+                        willpower: result.willpower,
+                        totalTrainingTime: result.totalTrainingTime,
+                        currentTrainingTime: result.currentTrainingTime
+                    )
+                }
+
+                await MainActor.run {
+                    self.optimalAttributes = optimal
+                    updateAttributeComparisons()
+                }
+            }
+
+            Task {
+                await calculateInjectors(characterTotalSP: totalSPFromSkills)
             }
 
         } catch {
@@ -986,16 +913,13 @@ struct CharacterSkillsView: View {
 
         await MainActor.run {
             isRefreshing = true
-            isDataReady = false // 刷新时重置数据准备状态
         }
 
         await loadSkillQueue(forceRefresh: true)
 
-        // 确保在主线程上设置状态
         if !Task.isCancelled {
             await MainActor.run {
                 isRefreshing = false
-                isDataReady = true
             }
         }
 
@@ -1006,7 +930,8 @@ struct CharacterSkillsView: View {
     }
 
     /// 计算注入器需求并加载价格
-    private func calculateInjectors() async {
+    /// - Parameter characterTotalSP: 已有总技能点时传入，避免再读技能快照
+    private func calculateInjectors(characterTotalSP: Int? = nil) async {
         isLoadingInjectors = true
         defer { isLoadingInjectors = false }
 
@@ -1029,39 +954,29 @@ struct CharacterSkillsView: View {
                         let trainedSP = Int(Double(totalSP) * progress)
                         let remainingSP = totalSP - trainedSP
                         totalRequiredSP += remainingSP
-                        Logger.debug(
-                            "正在训练的技能 \(item.skill_id) - 总需求: \(totalSP), 已训练: \(trainedSP), 剩余: \(remainingSP)"
-                        )
                     }
                 } else {
-                    // 对于未开始训练的技能，计算全部所需点数
                     let requiredSP = endSP - startSP
                     totalRequiredSP += requiredSP
-                    Logger.debug("未训练的技能 \(item.skill_id) - 需要: \(requiredSP)")
                 }
             }
         }
-        Logger.debug("队列总需求技能点: \(totalRequiredSP)")
 
-        // 获取角色总技能点数
-        let characterTotalSP = await getCharacterTotalSP()
-
-        // 缓存角色总技能点数供动态计算使用
-        await MainActor.run {
-            cachedCharacterTotalSP = characterTotalSP
+        let resolvedTotalSP = if let characterTotalSP {
+            characterTotalSP
+        } else {
+            await getCharacterTotalSP()
         }
 
-        // 计算注入器需求
+        await MainActor.run {
+            cachedCharacterTotalSP = resolvedTotalSP
+        }
+
         injectorCalculation = SkillInjectorCalculator.calculate(
             requiredSkillPoints: totalRequiredSP,
-            characterTotalSP: characterTotalSP
+            characterTotalSP: resolvedTotalSP
         )
-        if let calc = injectorCalculation {
-            Logger.debug(
-                "计算结果 - 大型注入器: \(calc.largeInjectorCount), 小型注入器: \(calc.smallInjectorCount)")
-        }
 
-        // 获取注入器价格
         await loadInjectorPrices()
     }
 
@@ -1098,19 +1013,10 @@ struct CharacterSkillsView: View {
     }
 
     private func getInjectorInfo(typeId: Int) -> InjectorInfo? {
-        let query = """
-            SELECT name, icon_filename
-            FROM types
-            WHERE type_id = ?
-        """
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]),
-           let row = rows.first,
-           let name = row["name"] as? String,
-           let iconFilename = row["icon_filename"] as? String
-        {
-            return InjectorInfo(name: name, iconFilename: iconFilename)
+        guard let info = ItemInfoMap.typeInfo(for: typeId), !info.name.isEmpty else {
+            return nil
         }
-        return nil
+        return InjectorInfo(name: info.name, iconFilename: info.iconFilename)
     }
 
     private struct ProgressInfo {
@@ -1163,85 +1069,6 @@ struct CharacterSkillsView: View {
             total: levelEndSp,
             percentage: levelCurrentSP / Double(levelTotalSP) // 计算该等级的实际进度
         )
-    }
-
-    private func formatTimeInterval(_ interval: TimeInterval) -> String {
-        // 转换为秒，保留精度
-        let totalSeconds = Int(ceil(interval))
-        let days = totalSeconds / (24 * 60 * 60)
-        let remainingSeconds = totalSeconds % (24 * 60 * 60)
-        let hours = remainingSeconds / (60 * 60)
-        let remainingAfterHours = remainingSeconds % (60 * 60)
-        let minutes = remainingAfterHours / 60
-        let seconds = remainingAfterHours % 60
-
-        if days > 0 {
-            // 显示天 + 下一个非零单位（第二个单位向上取整）
-            if hours > 0 || minutes > 0 || seconds > 0 {
-                // 如果有剩余的分钟或秒，小时数向上取整
-                let adjustedHours = (minutes > 0 || seconds > 0) ? hours + 1 : hours
-                if adjustedHours > 0 {
-                    return String(
-                        format: NSLocalizedString("Time_Days_Hours", comment: ""),
-                        days, adjustedHours
-                    )
-                }
-            }
-            if minutes > 0 || seconds > 0 {
-                // 如果有剩余的秒，分钟数向上取整
-                let adjustedMinutes = seconds > 0 ? minutes + 1 : minutes
-                if adjustedMinutes > 0 {
-                    return String(
-                        format: NSLocalizedString("Time_Days_Minutes", comment: ""),
-                        days, adjustedMinutes
-                    )
-                }
-            }
-            if seconds > 0 {
-                return String(
-                    format: NSLocalizedString("Time_Days_Seconds", comment: ""),
-                    days, seconds
-                )
-            }
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Days", comment: ""), days)
-        } else if hours > 0 {
-            // 显示小时 + 下一个非零单位（第二个单位向上取整）
-            if minutes > 0 || seconds > 0 {
-                // 如果有剩余的秒，分钟数向上取整
-                let adjustedMinutes = seconds > 0 ? minutes + 1 : minutes
-                if adjustedMinutes > 0 {
-                    return String(
-                        format: NSLocalizedString("Time_Hours_Minutes", comment: ""),
-                        hours, adjustedMinutes
-                    )
-                }
-            }
-            if seconds > 0 {
-                return String(
-                    format: NSLocalizedString("Time_Hours_Seconds", comment: ""),
-                    hours, seconds
-                )
-            }
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Hours", comment: ""), hours)
-        } else if minutes > 0 {
-            // 显示分钟 + 秒
-            if seconds > 0 {
-                return String(
-                    format: NSLocalizedString("Time_Minutes_Seconds", comment: ""),
-                    minutes, seconds
-                )
-            }
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Minutes", comment: ""), minutes)
-        }
-        // 只有秒
-        return String.localizedStringWithFormat(NSLocalizedString("Time_Seconds", comment: ""), seconds)
-    }
-
-    private func formatNumber(_ number: Int) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.groupingSeparator = ","
-        return formatter.string(from: NSNumber(value: number)) ?? String(number)
     }
 
     private struct OptimalAttributeAllocation {

@@ -1,7 +1,7 @@
 import Foundation
 
 enum AppConfiguration {
-    // 应用版本信息
+    /// 应用版本信息
     enum Version {
         static var fullVersion: String {
             Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
@@ -9,10 +9,10 @@ enum AppConfiguration {
         }
     }
 
-    // SDE CloudKit 配置
+    /// SDE CloudKit 配置
     enum SDE {
         static var minimumAppVersion: String {
-            Bundle.main.object(forInfoDictionaryKey: "SDEMinimumAppVersion") as? String ?? "1.8.1"
+            Bundle.main.object(forInfoDictionaryKey: "SDEMinimumAppVersion") as? String ?? "1.13"
         }
 
         static var recordType: String {
@@ -20,14 +20,14 @@ enum AppConfiguration {
         }
     }
 
-    // 装配模拟器调试配置
+    /// 装配模拟器调试配置
     enum Fitting {
         static var showDebug: Bool {
             Bundle.main.object(forInfoDictionaryKey: "showFittingDebug") as? Bool ?? false
         }
     }
 
-    // 数据库版本信息
+    /// 数据库版本信息
     enum Database {
         struct VersionInfo {
             let buildNumber: Int
@@ -85,7 +85,7 @@ enum AppConfiguration {
             return nil
         }
 
-        // 处理可能是Int、Double或String的数值字段
+        /// 处理可能是Int、Double或String的数值字段
         private static func getIntValue(from value: Any?) -> Int {
             if let intValue = value as? Int {
                 return intValue

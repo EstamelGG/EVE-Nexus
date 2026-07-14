@@ -1,10 +1,9 @@
-//
+
 //  MiningVolumeCharts.swift
 //  EVE Nexus
-//
+
 //  Created on 2025/01/XX.
 //  挖矿体积图表视图组件，用于显示按星系、人物、矿石类型分组的挖矿体积数据
-//
 
 import Charts
 import SwiftUI
@@ -42,7 +41,7 @@ struct MiningSystemVolumeChartView: View {
     let sortType: MiningChartSortType
     let marketPrices: [Int: MarketPriceData]
 
-    // 计算各星系的数据（体积/数量/估价）
+    /// 计算各星系的数据（体积/数量/估价）
     private var systemData: [(systemId: Int, systemName: String, security: Double?, value: Double)] {
         var dataBySystem: [Int: (volume: Double, quantity: Int64, price: Double)] = [:]
 
@@ -148,7 +147,7 @@ struct MiningSystemVolumeChartView: View {
         }
     }
 
-    // 格式化显示值
+    /// 格式化显示值
     private func formatValue(_ value: Double) -> String {
         switch sortType {
         case .volume:
@@ -172,12 +171,12 @@ struct MiningCharacterVolumeChartView: View {
 
     @State private var characterPortraits: [Int: UIImage] = [:] // 角色头像缓存
 
-    // 获取所有角色信息
+    /// 获取所有角色信息
     private var allCharacters: [(id: Int, name: String)] {
         CharacterSkillsUtils.getAllCharacters()
     }
 
-    // 计算各人物的数据（体积/数量/估价）
+    /// 计算各人物的数据（体积/数量/估价）
     private var characterData: [(characterId: Int, characterName: String, value: Double)] {
         var dataByCharacter: [Int: (volume: Double, quantity: Int64, price: Double)] = [:]
 
@@ -298,7 +297,7 @@ struct MiningCharacterVolumeChartView: View {
         }
     }
 
-    // 格式化显示值
+    /// 格式化显示值
     private func formatValue(_ value: Double) -> String {
         switch sortType {
         case .volume:
@@ -310,7 +309,7 @@ struct MiningCharacterVolumeChartView: View {
         }
     }
 
-    // 加载角色头像
+    /// 加载角色头像
     private func loadCharacterPortraits(characterIds: [Int]) async {
         for characterId in characterIds {
             // 在主线程上检查是否已经加载过
@@ -350,7 +349,7 @@ struct MiningOreTypeVolumeChartView: View {
     @State private var itemIcons: [Int: Image] = [:] // 矿石图标缓存
     @State private var itemColors: [Int: Color] = [:] // 矿石颜色缓存（优先使用数据库颜色，否则从图标中心点采样）
 
-    // 计算各矿石类型的数据（体积/数量/估价）
+    /// 计算各矿石类型的数据（体积/数量/估价）
     private var oreTypeData: [(typeId: Int, name: String, iconFileName: String, value: Double)] {
         entries.map { entry in
             let volume = itemVolumes[entry.id] ?? 0.0
@@ -485,7 +484,7 @@ struct MiningOreTypeVolumeChartView: View {
         }
     }
 
-    // 格式化显示值
+    /// 格式化显示值
     private func formatValue(_ value: Double) -> String {
         switch sortType {
         case .volume:

@@ -1,7 +1,7 @@
 import Foundation
 
-// 战斗记录数据转换器
-// 以 ESI 为核心，补充名称/星系/价值，输出强类型（无 evetools 格式）
+/// 战斗记录数据转换器
+/// 以 ESI 为核心，补充名称/星系/价值，输出强类型（无 evetools 格式）
 class KillMailDataConverter {
     static let shared = KillMailDataConverter()
     private let databaseManager = DatabaseManager.shared
@@ -9,7 +9,7 @@ class KillMailDataConverter {
 
     private init() {}
 
-    // 获取列表数据（以 ESI 为核心，输出强类型）
+    /// 获取列表数据（以 ESI 为核心，输出强类型）
     func fetchKillMailListEntities(zkbEntries: [ZKBKillMailEntry]) async throws -> [KillMailListEntity] {
         Logger.debug("开始转换 \(zkbEntries.count) 个 killmail 数据")
 
@@ -64,8 +64,7 @@ class KillMailDataConverter {
                 guard let info = systemInfoMap[esi.solar_system_id] else { return nil }
                 return KillMailSystemSummary(
                     systemId: info.systemId,
-                    systemName: info.systemName,
-                    regionName: info.regionName,
+                    regionId: info.regionId,
                     security: info.security
                 )
             }()
@@ -83,7 +82,7 @@ class KillMailDataConverter {
         return result
     }
 
-    // 并发获取 ESI 详情（最多10个并发）
+    /// 并发获取 ESI 详情（最多10个并发）
     private func fetchESIDetailsConcurrently(
         zkbEntries: [ZKBKillMailEntry]
     ) async throws -> [Int: ESIKillMail] {
@@ -138,7 +137,7 @@ class KillMailDataConverter {
         return results
     }
 
-    // 将 ISO 8601 字符串转换为 Unix 时间戳
+    /// 将 ISO 8601 字符串转换为 Unix 时间戳
     private func convertISO8601ToTimestamp(_ iso8601String: String) -> Int? {
         let isoFormatter = ISO8601DateFormatter()
         isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -159,7 +158,7 @@ class KillMailDataConverter {
         return nil
     }
 
-    // 获取单个 killmail 的完整详情（以 ESI 为核心，输出强类型）
+    /// 获取单个 killmail 的完整详情（以 ESI 为核心，输出强类型）
     /// - Parameter zkb: 若从列表进入可传入，用于价值展示；否则详情页需单独请求 zkillboard
     func fetchKillMailDetail(killmailId: Int, hash: String, zkb: ZKBInfo? = nil) async throws -> KillMailDetailData {
         Logger.debug("开始获取 killmail 详情 - killmail_id: \(killmailId)")
@@ -212,8 +211,7 @@ class KillMailDataConverter {
             guard let info = systemInfoMap[esiDetail.solar_system_id] else { return nil }
             return KillMailSystemSummary(
                 systemId: info.systemId,
-                systemName: info.systemName,
-                regionName: info.regionName,
+                regionId: info.regionId,
                 security: info.security
             )
         }()

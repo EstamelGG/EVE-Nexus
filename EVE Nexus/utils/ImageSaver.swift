@@ -2,9 +2,9 @@ import Photos
 import SwiftUI
 import UIKit
 
-// 简化的图片保存工具
+/// 简化的图片保存工具
 class ImageSaver {
-    // 简单的保存图片方法
+    /// 简单的保存图片方法
     static func saveImage(_ image: UIImage, completion: @escaping (Bool) -> Void) {
         PHPhotoLibrary.shared().performChanges({
             PHAssetChangeRequest.creationRequestForAsset(from: image)

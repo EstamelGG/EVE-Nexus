@@ -5,11 +5,14 @@ struct CorporationLoyaltyInfo: Identifiable {
     let id: Int
     let corporationId: Int
     let loyaltyPoints: Int
-    let corporationName: String
     let enName: String
     let zhName: String
     let iconFileName: String
     let militiaFaction: Int?
+
+    var corporationName: String {
+        SDEMemoryStore.npcCorporation(for: corporationId)?.name ?? "Corp \(corporationId)"
+    }
 
     var isMilitia: Bool {
         if let militia = militiaFaction, militia > 0 {
@@ -51,22 +54,21 @@ class CharacterLoyaltyPointsViewModel: ObservableObject {
             let points = try await CharacterLoyaltyPointsAPI.shared.fetchLoyaltyPoints(
                 characterId: characterId, forceRefresh: forceRefresh
             )
-            var corporationInfo: [CorporationLoyaltyInfo] = []
 
-            for point in points {
-                if let corpInfo = try await getCorporationInfo(corporationId: point.corporation_id) {
-                    corporationInfo.append(
-                        CorporationLoyaltyInfo(
-                            id: point.corporation_id,
-                            corporationId: point.corporation_id,
-                            loyaltyPoints: point.loyalty_points,
-                            corporationName: corpInfo.name,
-                            enName: corpInfo.enName,
-                            zhName: corpInfo.zhName,
-                            iconFileName: corpInfo.iconFileName,
-                            militiaFaction: corpInfo.militiaFaction
-                        ))
-                }
+            let corporationIds = points.map(\.corporation_id)
+            let corpInfoMap = getCorporationInfos(corporationIds: corporationIds)
+
+            let corporationInfo = points.compactMap { point -> CorporationLoyaltyInfo? in
+                guard let corpInfo = corpInfoMap[point.corporation_id] else { return nil }
+                return CorporationLoyaltyInfo(
+                    id: point.corporation_id,
+                    corporationId: point.corporation_id,
+                    loyaltyPoints: point.loyalty_points,
+                    enName: corpInfo.enName,
+                    zhName: corpInfo.zhName,
+                    iconFileName: corpInfo.iconFileName,
+                    militiaFaction: corpInfo.militiaFaction
+                )
             }
 
             loyaltyPoints = corporationInfo.sorted(by: { $0.corporationId < $1.corporationId })
@@ -78,23 +80,18 @@ class CharacterLoyaltyPointsViewModel: ObservableObject {
         }
     }
 
-    private func getCorporationInfo(corporationId: Int) async throws -> (
-        name: String, enName: String, zhName: String, iconFileName: String, militiaFaction: Int?
-    )? {
-        let query = """
-            SELECT name, en_name, zh_name, icon_filename, militia_faction FROM npcCorporations WHERE corporation_id = \(corporationId)
-        """
-
-        guard case let .success(rows) = SQLiteManager.shared.executeQuery(query),
-              let result = rows.first,
-              let name = result["name"] as? String,
-              let enName = result["en_name"] as? String,
-              let zhName = result["zh_name"] as? String,
-              let iconFileName = result["icon_filename"] as? String
-        else {
-            return nil
+    private func getCorporationInfos(corporationIds: [Int]) -> [Int: (
+        enName: String, zhName: String, iconFileName: String, militiaFaction: Int?
+    )] {
+        var result: [Int: (
+            enName: String, zhName: String, iconFileName: String, militiaFaction: Int?
+        )] = [:]
+        for id in corporationIds {
+            guard let corp = SDEMemoryStore.npcCorporation(for: id) else { continue }
+            result[id] = (
+                corp.enName, corp.zhName, corp.iconFilename, corp.militiaFaction
+            )
         }
-        let militiaFaction = result["militia_faction"] as? Int
-        return (name, enName, zhName, iconFileName, militiaFaction)
+        return result
     }
 }

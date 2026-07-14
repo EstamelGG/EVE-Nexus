@@ -80,7 +80,7 @@ enum TextUtilities {
         return html.data(using: NSUTF8StringEncoding) ?? data
     }
 
-    /// Renders the given attributed string as PDF
+    // Renders the given attributed string as PDF
 #if os(iOS) || os(visionOS)
     static func pdf(from string: NSAttributedString) throws -> Data {
         let string = NSMutableAttributedString(attributedString: string)

@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 导入必要的类型
+/// 导入必要的类型
 typealias ContractItemInfo = CharacterContractsAPI.ContractItemInfo
 
 @MainActor
@@ -34,7 +34,7 @@ final class ContractDetailViewModel: ObservableObject {
         databaseManager: databaseManager, characterId: Int64(characterId)
     )
 
-    // 添加物品信息缓存
+    /// 添加物品信息缓存
     private var itemDetailsCache: [Int: (name: String, description: String, iconFileName: String)] =
         [:]
 
@@ -57,23 +57,13 @@ final class ContractDetailViewModel: ObservableObject {
         }
     }
 
-    // 添加排序后的物品列表计算属性
+    /// 添加排序后的物品列表计算属性
     var sortedIncludedItems: [ContractItemInfo] {
-        return
-            items
-                .filter { $0.is_included }
-                .sorted { item1, item2 in
-                    item1.record_id < item2.record_id
-                }
+        items.filter(\.is_included).sorted { $0.record_id < $1.record_id }
     }
 
     var sortedRequiredItems: [ContractItemInfo] {
-        return
-            items
-                .filter { !$0.is_included }
-                .sorted { item1, item2 in
-                    item1.record_id < item2.record_id
-                }
+        items.filter { !$0.is_included }.sorted { $0.record_id < $1.record_id }
     }
 
     init(
@@ -86,11 +76,11 @@ final class ContractDetailViewModel: ObservableObject {
         self.contractType = contractType
     }
 
-    // 批量加载物品详细信息
+    /// 批量加载物品详细信息
     private func loadItemDetails(for items: [ContractItemInfo]) {
         let typeIds = Set(items.map { $0.type_id })
         let query = """
-            SELECT type_id, name, description, icon_filename
+            SELECT type_id, name, desc_id, icon_filename
             FROM types
             WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
         """
@@ -101,14 +91,14 @@ final class ContractDetailViewModel: ObservableObject {
                 if let typeId = (row["type_id"] as? Int64).map(Int.init)
                     ?? (row["type_id"] as? Int),
                     let name = row["name"] as? String,
-                    let description = row["description"] as? String,
                     let iconFileName = row["icon_filename"] as? String
                 {
+                    let description = ItemTextStore.shared.text(for: row["desc_id"] as? String)
                     itemDetailsCache[typeId] = (
                         name: name,
                         description: description,
                         iconFileName: iconFileName.isEmpty
-                            ? DatabaseConfig.defaultItemIcon : iconFileName
+                            ? IconManager.defaultItemIcon : iconFileName
                     )
                 }
             }
@@ -128,7 +118,7 @@ final class ContractDetailViewModel: ObservableObject {
         return (
             name: "Unknown Item",
             description: "",
-            iconFileName: DatabaseConfig.defaultItemIcon
+            iconFileName: IconManager.defaultItemIcon
         )
     }
 
@@ -199,7 +189,8 @@ final class ContractDetailViewModel: ObservableObject {
 
         // 添加人物和军团ID
         Logger.debug(
-            "开始加载合同相关方信息 - 发起人ID: \(contract.issuer_id), 军团ID: \(contract.issuer_corporation_id)")
+            "开始加载合同相关方信息 - 发起人ID: \(contract.issuer_id), 军团ID: \(contract.issuer_corporation_id)"
+        )
 
         // 添加发起人ID
         ids.insert(contract.issuer_id)
@@ -221,7 +212,8 @@ final class ContractDetailViewModel: ObservableObject {
         // 更新位置信息并获取建筑图标
         if let startInfo = locationInfos[contract.start_location_id] {
             let (typeId, iconFileName) = await getLocationTypeAndIcon(
-                locationId: contract.start_location_id)
+                locationId: contract.start_location_id
+            )
             startLocationInfo = LocationInfo(
                 stationName: startInfo.stationName,
                 solarSystemName: startInfo.solarSystemName,
@@ -234,7 +226,8 @@ final class ContractDetailViewModel: ObservableObject {
 
         if let endInfo = locationInfos[contract.end_location_id] {
             let (typeId, iconFileName) = await getLocationTypeAndIcon(
-                locationId: contract.end_location_id)
+                locationId: contract.end_location_id
+            )
             endLocationInfo = LocationInfo(
                 stationName: endInfo.stationName,
                 solarSystemName: endInfo.solarSystemName,
@@ -248,7 +241,8 @@ final class ContractDetailViewModel: ObservableObject {
         do {
             Logger.debug("开始获取名称信息，IDs: \(ids)")
             let namesWithCategories = try await UniverseAPI.shared.getNamesWithFallback(
-                ids: Array(ids))
+                ids: Array(ids)
+            )
 
             // 更新名称和类型
             if let issuerInfo = namesWithCategories[contract.issuer_id] {
@@ -294,7 +288,7 @@ final class ContractDetailViewModel: ObservableObject {
         }
     }
 
-    // 获取位置类型ID和图标文件名
+    /// 获取位置类型ID和图标文件名
     private func getLocationTypeAndIcon(locationId: Int64) async -> (
         typeId: Int?, iconFileName: String?
     ) {
@@ -321,11 +315,12 @@ final class ContractDetailViewModel: ObservableObject {
                     iconFileName = iconFile
                 } else {
                     // 如果空间站没有图标，使用通用空间站图标
-                    iconFileName = DatabaseConfig.defaultItemIcon
+                    iconFileName = IconManager.defaultItemIcon
                 }
 
                 Logger.debug(
-                    "空间站信息 - ID: \(locationId), TypeID: \(typeId), Icon: \(iconFileName ?? "none")")
+                    "空间站信息 - ID: \(locationId), TypeID: \(typeId), Icon: \(iconFileName ?? "none")"
+                )
                 return (typeId: typeId, iconFileName: iconFileName)
             } else {
                 Logger.warning("未找到空间站信息 - ID: \(locationId)")
@@ -362,20 +357,12 @@ final class ContractDetailViewModel: ObservableObject {
         return (typeId: nil, iconFileName: nil)
     }
 
-    // 从数据库获取类型图标
+    /// 从缓存获取类型图标
     private func getTypeIcon(typeId: Int) -> String? {
-        let query = "SELECT icon_filename FROM types WHERE type_id = ?"
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]),
-           let row = rows.first,
-           let iconFilename = row["icon_filename"] as? String,
-           !iconFilename.isEmpty
-        {
-            return iconFilename
-        }
-        return DatabaseConfig.defaultItemIcon
+        ItemInfoMap.iconFilename(for: typeId)
     }
 
-    // 异步加载头像
+    /// 异步加载头像
     private func loadPortraits() async {
         // 并发加载所有头像
         async let issuerPortraitTask = loadPortrait(
@@ -409,7 +396,7 @@ final class ContractDetailViewModel: ObservableObject {
         }
     }
 
-    // 根据类型加载头像
+    /// 根据类型加载头像
     private func loadPortrait(id: Int, category: String) async -> UIImage? {
         switch category {
         case "character":
@@ -440,7 +427,7 @@ struct ContractDetailView: View {
     @State private var currentCharacter: EVECharacterInfo?
     @State private var detailSheetItem: ContractDetailSheetItem?
 
-    // 添加日期格式化器作为实例属性
+    /// 添加日期格式化器作为实例属性
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
@@ -460,10 +447,11 @@ struct ContractDetailView: View {
                 contract: contract,
                 databaseManager: databaseManager,
                 contractType: contractType
-            ))
+            )
+        )
     }
 
-    // 根据状态返回对应的颜色
+    /// 根据状态返回对应的颜色
     private func getStatusColor(_ status: String) -> Color {
         switch status {
         case "deleted", "cancelled":
@@ -479,7 +467,7 @@ struct ContractDetailView: View {
         }
     }
 
-    // 根据类型返回默认图标
+    /// 根据类型返回默认图标
     private func getDefaultIcon(for category: String) -> Image {
         switch category {
         case "character":
@@ -490,6 +478,98 @@ struct ContractDetailView: View {
             return Image(systemName: "shield")
         default:
             return Image(systemName: "questionmark.circle")
+        }
+    }
+
+    /// 位置信息行：标题 + 地点信息 + 图标
+    private func locationRow(title: String, info: ContractDetailViewModel.LocationInfo) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                LocationInfoView(
+                    stationName: info.stationName,
+                    solarSystemName: info.solarSystemName,
+                    security: info.security
+                )
+            }
+            Spacer()
+            if let iconFileName = info.iconFileName {
+                IconManager.shared.loadImage(for: iconFileName)
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .cornerRadius(3)
+            } else {
+                Image(systemName: "building.2")
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .foregroundColor(.secondary)
+            }
+        }
+    }
+
+    /// 合同相关方信息行：标题 + 名称 + 头像 + 上下文菜单
+    private func partyRow(
+        title: String,
+        name: String,
+        corpName: String = "",
+        category: String,
+        portrait: UIImage?,
+        id: Int?
+    ) -> some View {
+        HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                HStack(spacing: 4) {
+                    Text(
+                        name.isEmpty
+                            ? NSLocalizedString("Unknown", comment: "")
+                            : name
+                    )
+                    if !corpName.isEmpty {
+                        Text("[\(corpName)]")
+                    }
+                }
+                .font(.caption)
+                .foregroundColor(.secondary)
+            }
+            Spacer()
+            if let portrait = portrait {
+                Image(uiImage: portrait)
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
+            } else {
+                getDefaultIcon(for: category)
+                    .resizable()
+                    .frame(width: 32, height: 32)
+                    .foregroundColor(.secondary)
+            }
+        }
+        .contextMenu {
+            Button {
+                UIPasteboard.general.string = name
+            } label: {
+                Label(
+                    NSLocalizedString("Misc_Copy_Name", comment: ""),
+                    systemImage: "doc.on.doc"
+                )
+            }
+
+            if !name.isEmpty && !category.isEmpty && id != nil && currentCharacter != nil {
+                Button {
+                    if let id = id {
+                        detailSheetItem = ContractDetailSheetItem(
+                            id: id,
+                            category: category
+                        )
+                    }
+                } label: {
+                    Label(
+                        NSLocalizedString("Misc_Show_Detail", comment: ""),
+                        systemImage: "info.circle"
+                    )
+                }
+            }
         }
     }
 
@@ -519,225 +599,49 @@ struct ContractDetailView: View {
                         if let startInfo = viewModel.startLocationInfo {
                             if contract.start_location_id == contract.end_location_id {
                                 // 如果起点和终点相同，显示单个地点
-                                HStack(spacing: 12) {
-                                    // 左侧：标题和文本
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(NSLocalizedString("Contract_Location", comment: ""))
-
-                                        LocationInfoView(
-                                            stationName: startInfo.stationName,
-                                            solarSystemName: startInfo.solarSystemName,
-                                            security: startInfo.security
-                                        )
-                                    }
-
-                                    Spacer()
-
-                                    // 右侧：图标
-                                    if let iconFileName = startInfo.iconFileName {
-                                        IconManager.shared.loadImage(for: iconFileName)
-                                            .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .cornerRadius(3)
-                                    } else {
-                                        // 默认位置图标
-                                        Image(systemName: "building.2")
-                                            .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
+                                locationRow(
+                                    title: NSLocalizedString("Contract_Location", comment: ""),
+                                    info: startInfo
+                                )
                             } else {
                                 // 显示起点
-                                HStack(spacing: 12) {
-                                    // 左侧：标题和文本
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(
-                                            NSLocalizedString(
-                                                "Contract_Start_Location", comment: ""
-                                            ))
-
-                                        LocationInfoView(
-                                            stationName: startInfo.stationName,
-                                            solarSystemName: startInfo.solarSystemName,
-                                            security: startInfo.security
-                                        )
-                                    }
-
-                                    Spacer()
-
-                                    // 右侧：图标
-                                    if let iconFileName = startInfo.iconFileName {
-                                        IconManager.shared.loadImage(for: iconFileName)
-                                            .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .cornerRadius(3)
-                                    } else {
-                                        // 默认位置图标
-                                        Image(systemName: "building.2")
-                                            .resizable()
-                                            .frame(width: 32, height: 32)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
+                                locationRow(
+                                    title: NSLocalizedString("Contract_Start_Location", comment: ""),
+                                    info: startInfo
+                                )
 
                                 // 显示终点（如果存在）
                                 if let endInfo = viewModel.endLocationInfo {
-                                    HStack(spacing: 12) {
-                                        // 左侧：标题和文本
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(
-                                                NSLocalizedString(
-                                                    "Contract_End_Location", comment: ""
-                                                ))
-
-                                            LocationInfoView(
-                                                stationName: endInfo.stationName,
-                                                solarSystemName: endInfo.solarSystemName,
-                                                security: endInfo.security
-                                            )
-                                        }
-
-                                        Spacer()
-
-                                        // 右侧：图标
-                                        if let iconFileName = endInfo.iconFileName {
-                                            IconManager.shared.loadImage(for: iconFileName)
-                                                .resizable()
-                                                .frame(width: 32, height: 32)
-                                                .cornerRadius(3)
-                                        } else {
-                                            // 默认位置图标
-                                            Image(systemName: "building.2")
-                                                .resizable()
-                                                .frame(width: 32, height: 32)
-                                                .foregroundColor(.secondary)
-                                        }
-                                    }
+                                    locationRow(
+                                        title: NSLocalizedString("Contract_End_Location", comment: ""),
+                                        info: endInfo
+                                    )
                                 }
                             }
                         }
 
                         // 合同发起人
-                        HStack(spacing: 12) {
-                            // 左侧：标题和文本
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(NSLocalizedString("Contract_Issuer", comment: ""))
-
-                                HStack(spacing: 4) {
-                                    Text(
-                                        viewModel.issuerName.isEmpty
-                                            ? NSLocalizedString("Unknown", comment: "")
-                                            : viewModel.issuerName)
-                                    if !viewModel.issuerCorpName.isEmpty {
-                                        Text("[\(viewModel.issuerCorpName)]")
-                                    }
-                                }
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            }
-
-                            Spacer()
-
-                            // 右侧：头像
-                            if let portrait = viewModel.issuerPortrait {
-                                Image(uiImage: portrait)
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                    .clipShape(RoundedRectangle(cornerRadius: 3))
-                            } else {
-                                // 默认头像
-                                getDefaultIcon(for: viewModel.issuerCategory)
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        .contextMenu {
-                            Button {
-                                UIPasteboard.general.string = viewModel.issuerName
-                            } label: {
-                                Label(
-                                    NSLocalizedString("Misc_Copy_Name", comment: ""),
-                                    systemImage: "doc.on.doc"
-                                )
-                            }
-
-                            if !viewModel.issuerName.isEmpty && !viewModel.issuerCategory.isEmpty
-                                && currentCharacter != nil
-                            {
-                                Button {
-                                    detailSheetItem = ContractDetailSheetItem(
-                                        id: contract.issuer_id,
-                                        category: viewModel.issuerCategory
-                                    )
-                                } label: {
-                                    Label(
-                                        NSLocalizedString("Misc_Show_Detail", comment: ""),
-                                        systemImage: "info.circle"
-                                    )
-                                }
-                            }
-                        }
+                        partyRow(
+                            title: NSLocalizedString("Contract_Issuer", comment: ""),
+                            name: viewModel.issuerName,
+                            corpName: viewModel.issuerCorpName,
+                            category: viewModel.issuerCategory,
+                            portrait: viewModel.issuerPortrait,
+                            id: contract.issuer_id
+                        )
 
                         // 合同对象（如果存在）
                         if let assigneeId = contract.assignee_id,
                            assigneeId > 0,
                            !viewModel.assigneeName.isEmpty
                         {
-                            HStack(spacing: 12) {
-                                // 左侧：标题和文本
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(NSLocalizedString("Contract_Assignee", comment: ""))
-
-                                    Text(viewModel.assigneeName)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-
-                                Spacer()
-
-                                // 右侧：头像
-                                if let portrait = viewModel.assigneePortrait {
-                                    Image(uiImage: portrait)
-                                        .resizable()
-                                        .frame(width: 32, height: 32)
-                                        .clipShape(RoundedRectangle(cornerRadius: 3))
-                                } else {
-                                    // 默认头像
-                                    getDefaultIcon(for: viewModel.assigneeCategory)
-                                        .resizable()
-                                        .frame(width: 32, height: 32)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            .contextMenu {
-                                Button {
-                                    UIPasteboard.general.string = viewModel.assigneeName
-                                } label: {
-                                    Label(
-                                        NSLocalizedString("Misc_Copy_Name", comment: ""),
-                                        systemImage: "doc.on.doc"
-                                    )
-                                }
-
-                                if !viewModel.assigneeName.isEmpty
-                                    && !viewModel.assigneeCategory.isEmpty,
-                                    let assigneeId = contract.assignee_id, currentCharacter != nil
-                                {
-                                    Button {
-                                        detailSheetItem = ContractDetailSheetItem(
-                                            id: assigneeId,
-                                            category: viewModel.assigneeCategory
-                                        )
-                                    } label: {
-                                        Label(
-                                            NSLocalizedString("Misc_Show_Detail", comment: ""),
-                                            systemImage: "info.circle"
-                                        )
-                                    }
-                                }
-                            }
+                            partyRow(
+                                title: NSLocalizedString("Contract_Assignee", comment: ""),
+                                name: viewModel.assigneeName,
+                                category: viewModel.assigneeCategory,
+                                portrait: viewModel.assigneePortrait,
+                                id: assigneeId
+                            )
                         }
 
                         // 如果接收人存在且与对象不同，显示接收人
@@ -746,59 +650,13 @@ struct ContractDetailView: View {
                            !viewModel.acceptorName.isEmpty
                            && viewModel.acceptorName != viewModel.assigneeName
                         {
-                            HStack(spacing: 12) {
-                                // 左侧：标题和文本
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(NSLocalizedString("Contract_Acceptor", comment: ""))
-
-                                    Text(viewModel.acceptorName)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-
-                                Spacer()
-
-                                // 右侧：头像
-                                if let portrait = viewModel.acceptorPortrait {
-                                    Image(uiImage: portrait)
-                                        .resizable()
-                                        .frame(width: 32, height: 32)
-                                        .clipShape(RoundedRectangle(cornerRadius: 3))
-                                } else {
-                                    // 默认头像
-                                    getDefaultIcon(for: viewModel.acceptorCategory)
-                                        .resizable()
-                                        .frame(width: 32, height: 32)
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                            .contextMenu {
-                                Button {
-                                    UIPasteboard.general.string = viewModel.acceptorName
-                                } label: {
-                                    Label(
-                                        NSLocalizedString("Misc_Copy_Name", comment: ""),
-                                        systemImage: "doc.on.doc"
-                                    )
-                                }
-
-                                if !viewModel.acceptorName.isEmpty
-                                    && !viewModel.acceptorCategory.isEmpty,
-                                    let acceptorId = contract.acceptor_id, currentCharacter != nil
-                                {
-                                    Button {
-                                        detailSheetItem = ContractDetailSheetItem(
-                                            id: acceptorId,
-                                            category: viewModel.acceptorCategory
-                                        )
-                                    } label: {
-                                        Label(
-                                            NSLocalizedString("Misc_Show_Detail", comment: ""),
-                                            systemImage: "info.circle"
-                                        )
-                                    }
-                                }
-                            }
+                            partyRow(
+                                title: NSLocalizedString("Contract_Acceptor", comment: ""),
+                                name: viewModel.acceptorName,
+                                category: viewModel.acceptorCategory,
+                                portrait: viewModel.acceptorPortrait,
+                                id: acceptorId
+                            )
                         }
 
                         // 合同价格（如果有）
@@ -814,7 +672,8 @@ struct ContractDetailView: View {
                         }
 
                         // 合同报酬（如果有）
-                        if contract.reward > 0 {
+                        // 快递合同始终显示报酬（即使为0），其他类型仅在 > 0 时显示
+                        if contract.type == "courier" || contract.reward > 0 {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Reward", comment: ""))
                                 Text(
@@ -826,7 +685,8 @@ struct ContractDetailView: View {
                         }
 
                         // 保证金（如果有）
-                        if contract.collateral ?? 0 > 0 {
+                        // 快递合同始终显示保证金（即使为0），其他类型仅在 > 0 时显示
+                        if contract.type == "courier" || (contract.collateral ?? 0) > 0 {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(NSLocalizedString("Contract_Collateral", comment: ""))
                                 Text(
@@ -902,7 +762,8 @@ struct ContractDetailView: View {
                                     Text(
                                         NSLocalizedString(
                                             "Contract_Date_Completed", comment: "完成日期"
-                                        ))
+                                        )
+                                    )
                                     Text("\(dateFormatter.string(from: dateCompleted))")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
@@ -1060,14 +921,12 @@ struct ContractItemRow: View {
                     .frame(width: 32, height: 32)
                     .cornerRadius(4)
                 // 物品名称
-                Text("\(itemDetails.name)")
+                Text(itemDetails.name)
                     .font(.body)
                 Spacer()
-                // 物品数量和包含状态
-                HStack {
-                    Text("\(item.quantity) \(NSLocalizedString("Misc_number_item_x", comment: ""))")
-                        .foregroundColor(.secondary)
-                }
+                // 物品数量
+                Text("\(item.quantity) \(NSLocalizedString("Misc_number_item_x", comment: ""))")
+                    .foregroundColor(.secondary)
             }
             .padding(.vertical, 2)
         }

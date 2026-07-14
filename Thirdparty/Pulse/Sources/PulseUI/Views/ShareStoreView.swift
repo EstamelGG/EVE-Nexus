@@ -11,7 +11,7 @@ import Combine
 
 @available(iOS 16, macOS 13, watchOS 9, visionOS 1, *)
 package struct ShareStoreView: View {
-    /// Preselected sessions.
+    // Preselected sessions.
     var sessions: Set<UUID> = []
     var onDismiss: () -> Void
 

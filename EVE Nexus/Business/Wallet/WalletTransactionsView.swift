@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 交易记录条目模型
+/// 交易记录条目模型
 struct WalletTransactionEntry: Codable, Identifiable {
     let client_id: Int
     let date: String
@@ -13,10 +13,12 @@ struct WalletTransactionEntry: Codable, Identifiable {
     let type_id: Int
     let unit_price: Double
 
-    var id: Int64 { transaction_id }
+    var id: Int64 {
+        transaction_id
+    }
 }
 
-// 合并后的交易记录条目
+/// 合并后的交易记录条目
 struct MergedTransactionEntry: Identifiable {
     let id = UUID()
     let type_id: Int
@@ -47,7 +49,7 @@ struct MergedTransactionEntry: Identifiable {
     }
 }
 
-// 按日期分组的交易记录
+/// 按日期分组的交易记录
 struct WalletTransactionGroup: Identifiable {
     let id = UUID()
     let date: Date
@@ -55,12 +57,26 @@ struct WalletTransactionGroup: Identifiable {
     var mergedEntries: [MergedTransactionEntry] = []
 }
 
-// 交易记录物品信息模型
+/// 交易记录物品信息模型
 struct TransactionItemInfo {
-    let name: String
-    let enName: String
-    let zhName: String
+    let names: LocalizedText
     let iconFileName: String
+
+    var name: String {
+        names.resolved()
+    }
+
+    func matches(_ query: String) -> Bool {
+        names.matchesSearch(query)
+    }
+
+    static let unknown = TransactionItemInfo(
+        names: LocalizedText(
+            de: "Unknown Item", en: "Unknown Item", es: "Unknown Item", fr: "Unknown Item",
+            ja: "Unknown Item", ko: "Unknown Item", ru: "Unknown Item", zh: "未知物品"
+        ),
+        iconFileName: IconManager.defaultItemIcon
+    )
 }
 
 @MainActor
@@ -115,52 +131,22 @@ final class WalletTransactionsViewModel: ObservableObject {
 
         // 如果缓存中没有，返回默认值（这种情况应该很少发生，因为我们已经预加载了所有物品信息）
         Logger.warning("物品信息未在缓存中找到: \(typeId)")
-        return TransactionItemInfo(
-            name: "Unknown Item",
-            enName: "Unknown Item",
-            zhName: "未知物品",
-            iconFileName: DatabaseConfig.defaultItemIcon
-        )
+        return .unknown
     }
 
-    // 一次性加载所有物品信息
+    /// 一次性加载所有物品信息
     private func loadAllItemInfo(from entries: [WalletTransactionEntry]) {
         let typeIds = Set(entries.map { $0.type_id })
         if typeIds.isEmpty { return }
 
-        let placeholders = Array(repeating: "?", count: typeIds.count).joined(separator: ",")
-        let query =
-            "SELECT type_id, name, en_name, zh_name, icon_filename FROM types WHERE type_id IN (\(placeholders))"
-
-        let result = databaseManager.executeQuery(query, parameters: typeIds.map { $0 as Any })
-
-        if case let .success(rows) = result {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let enName = row["en_name"] as? String,
-                   let zhName = row["zh_name"] as? String,
-                   let iconFileName = row["icon_filename"] as? String
-                {
-                    itemInfoCache[typeId] = TransactionItemInfo(
-                        name: name,
-                        enName: enName,
-                        zhName: zhName,
-                        iconFileName: iconFileName
-                    )
-                }
-            }
-        }
-
-        // 为未找到的物品设置默认值
         for typeId in typeIds {
-            if itemInfoCache[typeId] == nil {
+            if let info = ItemInfoMap.typeInfo(for: typeId), !info.name.isEmpty {
                 itemInfoCache[typeId] = TransactionItemInfo(
-                    name: "Unknown Item",
-                    enName: "Unknown Item",
-                    zhName: "未知物品",
-                    iconFileName: DatabaseConfig.defaultItemIcon
+                    names: info.names,
+                    iconFileName: info.iconFilename
                 )
+            } else {
+                itemInfoCache[typeId] = .unknown
             }
         }
     }
@@ -183,7 +169,7 @@ final class WalletTransactionsViewModel: ObservableObject {
         return locationInfoCache[locationId]?.stationName
     }
 
-    // 合并相似交易记录
+    /// 合并相似交易记录
     private func mergeSimilarTransactions(_ entries: [WalletTransactionEntry])
         -> [MergedTransactionEntry]
     {
@@ -313,7 +299,7 @@ final class WalletTransactionsViewModel: ObservableObject {
         await loadingTask?.value
     }
 
-    // 添加过滤后的交易记录计算属性
+    /// 添加过滤后的交易记录计算属性
     var filteredTransactionGroups: [WalletTransactionGroup] {
         if searchText.isEmpty {
             return transactionGroups
@@ -322,9 +308,7 @@ final class WalletTransactionsViewModel: ObservableObject {
         return transactionGroups.map { group in
             if mergeSimilarTransactions {
                 let filteredMergedEntries = group.mergedEntries.filter { entry in
-                    let itemInfo = getItemInfo(for: entry.type_id)
-                    return itemInfo.enName.localizedCaseInsensitiveContains(searchText)
-                        || itemInfo.zhName.localizedCaseInsensitiveContains(searchText)
+                    getItemInfo(for: entry.type_id).matches(searchText)
                 }
                 return WalletTransactionGroup(
                     date: group.date,
@@ -333,9 +317,7 @@ final class WalletTransactionsViewModel: ObservableObject {
                 )
             } else {
                 let filteredEntries = group.entries.filter { entry in
-                    let itemInfo = getItemInfo(for: entry.type_id)
-                    return itemInfo.enName.localizedCaseInsensitiveContains(searchText)
-                        || itemInfo.zhName.localizedCaseInsensitiveContains(searchText)
+                    getItemInfo(for: entry.type_id).matches(searchText)
                 }
                 return WalletTransactionGroup(
                     date: group.date,
@@ -347,7 +329,7 @@ final class WalletTransactionsViewModel: ObservableObject {
     }
 }
 
-// 设置视图
+/// 设置视图
 struct WalletTransactionSettingsView: View {
     @ObservedObject var viewModel: WalletTransactionsViewModel
     @Environment(\.dismiss) private var dismiss
@@ -384,7 +366,7 @@ struct WalletTransactionSettingsView: View {
     }
 }
 
-// 特定日期的交易记录详情视图
+/// 特定日期的交易记录详情视图
 struct WalletTransactionDayDetailView: View {
     let group: WalletTransactionGroup
     let viewModel: WalletTransactionsViewModel
@@ -419,7 +401,8 @@ struct WalletTransactionsView: View {
         _viewModel = StateObject(
             wrappedValue: WalletTransactionsViewModel(
                 characterId: characterId, databaseManager: databaseManager
-            ))
+            )
+        )
     }
 
     var body: some View {
@@ -432,7 +415,7 @@ struct WalletTransactionsView: View {
         .navigationTitle(NSLocalizedString("Main_Market_Transactions", comment: ""))
         .searchable(
             text: $viewModel.searchText,
-            placement: .navigationBarDrawer(displayMode: .always),
+            // placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text(NSLocalizedString("Main_Database_Search_Item", comment: ""))
         )
         .navigationBarTitleDisplayMode(.inline)
@@ -448,7 +431,7 @@ struct WalletTransactionsView: View {
     }
 }
 
-// 交易记录列表视图
+/// 交易记录列表视图
 private struct TransactionListView: View {
     @ObservedObject var viewModel: WalletTransactionsViewModel
     let currentCharacter: EVECharacterInfo?
@@ -518,7 +501,8 @@ private struct TransactionListView: View {
                                     )
                                     .font(.caption)
                                     .foregroundColor(
-                                        netProfit > 0 ? .green : netProfit < 0 ? .red : .secondary)
+                                        netProfit > 0 ? .green : netProfit < 0 ? .red : .secondary
+                                    )
                                 } else {
                                     let sellIncome = group.entries.filter { !$0.is_buy }.reduce(0.0)
                                         { $0 + ($1.unit_price * Double($1.quantity)) }
@@ -531,7 +515,8 @@ private struct TransactionListView: View {
                                     )
                                     .font(.caption)
                                     .foregroundColor(
-                                        netProfit > 0 ? .green : netProfit < 0 ? .red : .secondary)
+                                        netProfit > 0 ? .green : netProfit < 0 ? .red : .secondary
+                                    )
                                 }
                             }
                             .padding(.vertical, 4)
@@ -557,7 +542,7 @@ private struct TransactionListView: View {
     }
 }
 
-// 合并交易记录行视图
+/// 合并交易记录行视图
 struct MergedTransactionEntryRow: View {
     let entry: MergedTransactionEntry
     let viewModel: WalletTransactionsViewModel
@@ -568,7 +553,7 @@ struct MergedTransactionEntryRow: View {
 
     // 使用FormatUtil进行日期处理，无需自定义格式化器
 
-    // 导航到详情页面的辅助方法
+    /// 导航到详情页面的辅助方法
     @ViewBuilder
     private func navigationDestination(for clientId: Int, isPersonal: Bool) -> some View {
         if let character = currentCharacter {
@@ -577,8 +562,6 @@ struct MergedTransactionEntryRow: View {
             } else {
                 CorporationDetailView(corporationId: clientId, character: character)
             }
-        } else {
-            EmptyView()
         }
     }
 
@@ -711,7 +694,7 @@ struct MergedTransactionEntryRow: View {
     }
 }
 
-// 交易对象列表 Sheet
+/// 交易对象列表 Sheet
 struct TransactionClientListSheet: View {
     let entry: MergedTransactionEntry
     let currentCharacter: EVECharacterInfo?
@@ -719,7 +702,7 @@ struct TransactionClientListSheet: View {
     @State private var clientInfos: [(clientId: Int, isPersonal: Bool, name: String, category: String, portrait: UIImage?)] = []
     @State private var isLoading = true
 
-    // 导航到详情页面的辅助方法
+    /// 导航到详情页面的辅助方法
     @ViewBuilder
     private func navigationDestination(for clientId: Int, isPersonal: Bool) -> some View {
         if let character = currentCharacter {
@@ -728,12 +711,10 @@ struct TransactionClientListSheet: View {
             } else {
                 CorporationDetailView(corporationId: clientId, character: character)
             }
-        } else {
-            EmptyView()
         }
     }
 
-    // 根据类型返回默认图标
+    /// 根据类型返回默认图标
     private func getDefaultIcon(for category: String) -> Image {
         switch category {
         case "character":
@@ -817,7 +798,7 @@ struct TransactionClientListSheet: View {
         }
     }
 
-    // 获取占位行数量
+    /// 获取占位行数量
     private func getPlaceholderCount() -> Int {
         var seen = Set<String>()
         for entry in entry.originalEntries {
@@ -884,7 +865,7 @@ struct TransactionClientListSheet: View {
         }
     }
 
-    // 根据类型加载头像
+    /// 根据类型加载头像
     private func loadPortrait(id: Int, category: String) async -> UIImage? {
         switch category {
         case "character":
@@ -906,7 +887,7 @@ struct WalletTransactionEntryRow: View {
 
     // 使用FormatUtil进行日期处理，无需自定义格式化器
 
-    // 导航到详情页面的辅助方法
+    /// 导航到详情页面的辅助方法
     @ViewBuilder
     private func navigationDestination(for clientId: Int, isPersonal: Bool) -> some View {
         if let character = currentCharacter {
@@ -915,8 +896,6 @@ struct WalletTransactionEntryRow: View {
             } else {
                 CorporationDetailView(corporationId: clientId, character: character)
             }
-        } else {
-            EmptyView()
         }
     }
 

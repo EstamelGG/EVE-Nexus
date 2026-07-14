@@ -4,10 +4,10 @@ class CorpIndustryAPI {
     static let shared = CorpIndustryAPI()
     private let databaseManager = CharacterDatabaseManager.shared
 
-    // 缓存过期时间（1小时）
+    /// 缓存过期时间（1小时）
     private let cacheExpirationInterval: TimeInterval = 3600
 
-    // 军团工业项目信息模型
+    /// 军团工业项目信息模型
     struct CorpIndustryJob: Codable, Identifiable, Hashable {
         let activity_id: Int
         let blueprint_id: Int64
@@ -32,9 +32,11 @@ class CorpIndustryAPI {
         let status: String
         let successful_runs: Int?
 
-        var id: Int { job_id }
+        var id: Int {
+            job_id
+        }
 
-        // 实现 Hashable
+        /// 实现 Hashable
         func hash(into hasher: inout Hasher) {
             hasher.combine(job_id)
         }
@@ -55,7 +57,8 @@ class CorpIndustryAPI {
         // 1. 获取角色的军团ID
         guard
             let corporationId = try await databaseManager.getCharacterCorporationId(
-                characterId: characterId)
+                characterId: characterId
+            )
         else {
             throw NetworkError.authenticationError("无法获取军团ID")
         }
@@ -213,7 +216,8 @@ class CorpIndustryAPI {
             )
         } catch {
             Logger.error(
-                "保存军团工业项目信息缓存失败 - 军团ID: \(corporationId), 路径: \(cacheFile.path), 错误: \(error)")
+                "保存军团工业项目信息缓存失败 - 军团ID: \(corporationId), 路径: \(cacheFile.path), 错误: \(error)"
+            )
             try? FileManager.default.removeItem(at: cacheFile)
         }
     }

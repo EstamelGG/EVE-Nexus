@@ -116,8 +116,7 @@ actor InsurancePricesAPI {
 
         do {
             let decoder = JSONDecoder()
-            let insurancePrices = try decoder.decode([InsurancePriceItem].self, from: data)
-            return insurancePrices
+            return try decoder.decode([InsurancePriceItem].self, from: data)
         } catch {
             Logger.error("解析保险价格数据失败: \(error)")
             throw NetworkError.decodingError(error)
@@ -149,8 +148,7 @@ actor InsurancePricesAPI {
         do {
             let data = try Data(contentsOf: cacheFile)
             let decoder = JSONDecoder()
-            let insurancePrices = try decoder.decode([InsurancePriceItem].self, from: data)
-            return insurancePrices
+            return try decoder.decode([InsurancePriceItem].self, from: data)
         } catch {
             Logger.error("读取保险价格缓存文件失败: \(error)")
             return nil

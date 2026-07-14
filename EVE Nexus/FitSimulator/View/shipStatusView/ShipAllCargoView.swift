@@ -3,11 +3,7 @@ import SwiftUI
 struct ShipAllCargoView: View {
     @ObservedObject var viewModel: FittingEditorViewModel
 
-    init(viewModel: FittingEditorViewModel) {
-        self.viewModel = viewModel
-    }
-
-    // 货仓属性数据模型
+    /// 货仓属性数据模型
     private struct CargoAttribute: Identifiable {
         let id: Int // attribute_id
         let name: String // 属性名称（如 "capacity"）
@@ -16,7 +12,7 @@ struct ShipAllCargoView: View {
         let unitName: String?
     }
 
-    // 获取货仓属性列表
+    /// 获取货仓属性列表
     private var cargoAttributes: [CargoAttribute] {
         guard let ship = viewModel.simulationOutput?.ship else {
             return []
@@ -121,7 +117,7 @@ struct ShipAllCargoView: View {
         }
     }
 
-    // 格式化属性值
+    /// 格式化属性值
     private func formatAttributeValue(_ value: Double, unitName: String?) -> String {
         // 创建 NumberFormatter 用于添加千位分隔符
         let formatter = NumberFormatter()

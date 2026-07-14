@@ -3,7 +3,7 @@
 // Copyright (c) 2020-2024 Alexander Grebenyuk (github.com/kean).
 
 extension LoggerStore {
-    /// A semantic version.
+    // A semantic version.
     public struct Version: Comparable, LosslessStringConvertible, Codable, Sendable {
         public let major: Int
         public let minor: Int

@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-// 定义资产类型枚举
+/// 定义资产类型枚举
 enum WealthType: String, CaseIterable {
     case wallet = "Wallet" // 钱包余额
     case assets = "Assets" // 资产
@@ -35,7 +35,7 @@ enum WealthType: String, CaseIterable {
     }
 }
 
-// 定义资产项结构
+/// 定义资产项结构
 struct WealthItem: Identifiable, Equatable {
     let id: UUID
     let type: WealthType
@@ -59,7 +59,7 @@ struct WealthItem: Identifiable, Equatable {
     }
 }
 
-// 定义高价值物品结构
+/// 定义高价值物品结构
 struct ValuedItem {
     let typeId: Int
     let quantity: Int
@@ -75,7 +75,7 @@ struct ValuedItem {
         self.orderId = orderId
     }
 
-    // 返回用于标识的ID
+    /// 返回用于标识的ID
     var identifier: AnyHashable {
         if orderId != 0 {
             return AnyHashable(orderId) // 对于订单，使用orderId
@@ -91,8 +91,13 @@ struct ValuedContract: Identifiable {
     let itemsSummary: String
     let titleSubtitle: String
 
-    var id: Int { contract.contract_id }
-    var price: Double { contract.price }
+    var id: Int {
+        contract.contract_id
+    }
+
+    var price: Double {
+        contract.price
+    }
 
     static func formatTitleSubtitle(for contract: ContractInfo) -> String {
         let prefix = NSLocalizedString("Contract_Title", comment: "") + ": "
@@ -143,7 +148,7 @@ class CharacterWealthViewModel: ObservableObject {
     @Published var valuedContracts: [ValuedContract] = []
     @Published var isLoadingDetails = false
 
-    // 资产加载进度状态
+    /// 资产加载进度状态
     @Published var assetsLoadingProgress: AssetLoadingProgress?
 
     let characterId: Int
@@ -155,7 +160,7 @@ class CharacterWealthViewModel: ObservableObject {
         self.databaseManager = databaseManager
     }
 
-    // 获取多个物品的信息
+    /// 获取多个物品的信息
     func getItemsInfo(typeIds: [Int]) -> [[String: Any]] {
         if typeIds.isEmpty { return [] }
 
@@ -174,7 +179,7 @@ class CharacterWealthViewModel: ObservableObject {
         }
     }
 
-    // 加载所有财富数据
+    /// 加载所有财富数据
     func loadWealthData(forceRefresh: Bool = false, onTypeLoaded: @escaping (WealthType) -> Void)
         async
     {
@@ -185,12 +190,14 @@ class CharacterWealthViewModel: ObservableObject {
         do {
             // 1. 首先获取市场价格数据
             let prices = try await MarketPricesAPI.shared.fetchMarketPrices(
-                forceRefresh: forceRefresh)
+                forceRefresh: forceRefresh
+            )
             marketPrices = Dictionary(
                 uniqueKeysWithValues: prices.compactMap { price in
                     guard let averagePrice = price.average_price else { return nil }
                     return (price.type_id, averagePrice)
-                })
+                }
+            )
 
             // 2. 获取钱包余额（最快，所以先加载）
             let walletBalance = try await CharacterWalletAPI.shared.getWalletBalance(
@@ -260,7 +267,7 @@ class CharacterWealthViewModel: ObservableObject {
         totalWealth = wealthItems.reduce(0) { $0 + $1.value }
     }
 
-    // 计算资产价值
+    /// 计算资产价值
     private func calculateAssetsValue(forceRefresh: Bool) async throws -> (
         value: Double, count: Int
     ) {
@@ -268,7 +275,7 @@ class CharacterWealthViewModel: ObservableObject {
         var totalCount = 0
 
         // 获取资产树JSON，传入进度回调
-        if let jsonString = try await CharacterAssetsJsonAPI.shared.generateAssetTreeJson(
+        if let wrapper = try await CharacterAssetsJsonAPI.shared.generateAssetTree(
             characterId: characterId,
             forceRefresh: forceRefresh,
             progressCallback: { progress in
@@ -276,12 +283,10 @@ class CharacterWealthViewModel: ObservableObject {
                     self.assetsLoadingProgress = progress
                 }
             }
-        ), let jsonData = jsonString.data(using: .utf8) {
-            // 解析JSON
-            let wrapper = try JSONDecoder().decode(AssetTreeWrapper.self, from: jsonData)
+        ) {
             let locations = wrapper.assetsTree
 
-            // 递归计算所有资产价值
+            /// 递归计算所有资产价值
             func calculateNodeValue(_ node: AssetTreeNode, isTopLevel: Bool = false) {
                 // 如果不是顶层节点且不是蓝图复制品，则计算价值
                 if !isTopLevel, let price = marketPrices[node.type_id],
@@ -313,7 +318,7 @@ class CharacterWealthViewModel: ObservableObject {
         return (totalValue, totalCount)
     }
 
-    // 计算植入体价值
+    /// 计算植入体价值
     private func calculateImplantsValue(forceRefresh: Bool) async throws -> (
         value: Double, count: Int
     ) {
@@ -348,7 +353,7 @@ class CharacterWealthViewModel: ObservableObject {
         return (totalValue, implantIds.count)
     }
 
-    // 计算订单价值
+    /// 计算订单价值
     private func calculateOrdersValue(forceRefresh: Bool) async throws -> (
         value: Double, count: Int
     ) {
@@ -397,17 +402,16 @@ class CharacterWealthViewModel: ObservableObject {
         return (totalValue, relevant.count)
     }
 
-    // 加载资产详情
+    /// 加载资产详情
     func loadAssetDetails() async {
         isLoadingDetails = true
         defer { isLoadingDetails = false }
 
         do {
-            if let jsonString = try await CharacterAssetsJsonAPI.shared.generateAssetTreeJson(
+            if let wrapper = try await CharacterAssetsJsonAPI.shared.generateAssetTree(
                 characterId: characterId,
                 forceRefresh: false
-            ), let jsonData = jsonString.data(using: .utf8) {
-                let wrapper = try JSONDecoder().decode(AssetTreeWrapper.self, from: jsonData)
+            ) {
                 let locations = wrapper.assetsTree
 
                 // 创建一个字典来统计每种物品的数量和总价值
@@ -454,7 +458,7 @@ class CharacterWealthViewModel: ObservableObject {
         }
     }
 
-    // 加载植入体详情
+    /// 加载植入体详情
     func loadImplantDetails() async {
         isLoadingDetails = true
         defer { isLoadingDetails = false }
@@ -494,7 +498,7 @@ class CharacterWealthViewModel: ObservableObject {
         }
     }
 
-    // 加载订单详情
+    /// 加载订单详情
     func loadOrderDetails() async {
         isLoadingDetails = true
         defer { isLoadingDetails = false }
@@ -596,17 +600,16 @@ class CharacterWealthViewModel: ObservableObject {
         return map
     }
 
-    // 获取无市场价格的物品
+    /// 获取无市场价格的物品
     func getItemsWithoutPrice() async -> [WealthDetailView.NoMarketPriceItem] {
         var itemsWithoutPrice: [WealthDetailView.NoMarketPriceItem] = []
 
         do {
             // 获取资产树JSON
-            if let jsonString = try await CharacterAssetsJsonAPI.shared.generateAssetTreeJson(
+            if let wrapper = try await CharacterAssetsJsonAPI.shared.generateAssetTree(
                 characterId: characterId,
                 forceRefresh: false
-            ), let jsonData = jsonString.data(using: .utf8) {
-                let wrapper = try JSONDecoder().decode(AssetTreeWrapper.self, from: jsonData)
+            ) {
                 let locations = wrapper.assetsTree
 
                 // 创建一个字典来统计每种物品的数量

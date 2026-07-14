@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-// 槽位类型定义
+/// 槽位类型定义
 enum SlotType {
     case high
     case medium
@@ -10,14 +10,14 @@ enum SlotType {
     case subsystem
 }
 
-// 槽位信息结构
+/// 槽位信息结构
 struct SlotInfo {
     let id: Int
     let name: String
     let type: SlotType
 }
 
-// 槽位配置结构
+/// 槽位配置结构
 struct ShipSlotConfig {
     var highSlots: Int = 0
     var mediumSlots: Int = 0
@@ -30,10 +30,10 @@ struct BRKillMailFittingView: View {
     let detailData: KillMailDetailData
     let databaseManager = DatabaseManager.shared
 
-    // 添加状态变量存储实际槽位配置
+    /// 添加状态变量存储实际槽位配置
     @State private var actualSlotConfig = ShipSlotConfig()
 
-    // 槽位定义
+    /// 槽位定义
     private let highSlots: [SlotInfo] = [
         SlotInfo(id: 27, name: "HiSlot0", type: .high),
         SlotInfo(id: 28, name: "HiSlot1", type: .high),
@@ -85,11 +85,11 @@ struct BRKillMailFittingView: View {
     @State private var equipmentIcons: [Int: Image] = [:]
     /// 每个 flag 槽位上首个弹药（categoryID == 8）的图标，绘制在槽位内侧（靠近船体）
     @State private var chargeIcons: [Int: Image] = [:]
-    /// 该 flag 上存在 quantity_dropped > 0 的物品时，扇形铺浅绿底（与列表掉落行一致）
+    // 该 flag 上存在 quantity_dropped > 0 的物品时，扇形铺浅绿底（与列表掉落行一致）
     @State private var droppedSlotIds: Set<Int> = []
     @State private var isLoading = true
 
-    // 从EVE官方API加载飞船图片
+    /// 从EVE官方API加载飞船图片
     private func loadShipImage(typeId: Int) async {
         do {
             let image = try await ItemRenderAPI.shared.fetchItemRender(typeId: typeId, size: 512)
@@ -102,7 +102,7 @@ struct BRKillMailFittingView: View {
         }
     }
 
-    // 从数据库批量获取图标文件名和类别信息
+    /// 从数据库批量获取图标文件名和类别信息
     private func getIconFileNames(typeIds: [Int]) -> [Int: (String, Int)] {
         guard !typeIds.isEmpty else {
             // Logger.debug("装配图标: 没有需要获取的图标")
@@ -125,11 +125,11 @@ struct BRKillMailFittingView: View {
         if case let .success(rows) = databaseManager.executeQuery(query, parameters: uniqueTypeIds) {
             for row in rows {
                 if let typeId = row["type_id"] as? Int,
-                   let iconFileName = row["icon_filename"] as? String,
                    let categoryId = row["categoryID"] as? Int
                 {
+                    let iconFileName = row["icon_filename"] as? String ?? ""
                     let finalIconName =
-                        iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
+                        iconFileName.isEmpty ? IconManager.defaultItemIcon : iconFileName
                     iconFileNames[typeId] = (finalIconName, categoryId)
                     // Logger.debug("装配图标: 物品ID \(typeId) 的图标文件名为 \(finalIconName), 类别ID: \(categoryId)")
                 }
@@ -140,7 +140,7 @@ struct BRKillMailFittingView: View {
         return iconFileNames
     }
 
-    // 加载 killmail 数据
+    /// 加载 killmail 数据
     private func loadKillMailData() async {
         let shipId = detailData.esi.victim.ship_type_id
         await loadShipImage(typeId: shipId)
@@ -194,13 +194,13 @@ struct BRKillMailFittingView: View {
         }
     }
 
-    // 计算每个槽位的位置
+    /// 计算每个槽位的位置
     private func calculateSlotPosition(
         center: CGPoint,
         radius: CGFloat,
         startAngle: Double,
         slotIndex: Int,
-        maxSlots: Int, // 改为使用最大槽位数
+        maxSlots: Int,
         totalAngle: Double
     ) -> CGPoint {
         let slotWidth = totalAngle / Double(maxSlots)
@@ -213,7 +213,7 @@ struct BRKillMailFittingView: View {
         )
     }
 
-    // 获取船只基础槽位配置
+    /// 获取船只基础槽位配置
     private func getShipBaseSlotConfig(typeId: Int) async -> ShipSlotConfig {
         var config = ShipSlotConfig()
 
@@ -251,7 +251,7 @@ struct BRKillMailFittingView: View {
         return config
     }
 
-    // 计算实际装配的非弹药装备数量
+    /// 计算实际装配的非弹药装备数量
     private func calculateActualFittedSlots(
         items: [[Int]], typeInfos: [Int: (String, Int)], slotRange: Range<Int>
     ) -> Int {
@@ -273,7 +273,7 @@ struct BRKillMailFittingView: View {
         return fittedSlots.count
     }
 
-    // 初始化实际槽位配置
+    /// 初始化实际槽位配置
     private func initializeSlotConfig(shipId: Int, items: [[Int]], typeInfos: [Int: (String, Int)])
         async
     {
@@ -291,7 +291,8 @@ struct BRKillMailFittingView: View {
                 太空舱槽位配置:
                 高槽: \(actualSlotConfig.highSlots)
                 中槽: \(actualSlotConfig.mediumSlots)
-                """)
+                """
+            )
             return
         }
 
@@ -331,7 +332,8 @@ struct BRKillMailFittingView: View {
             低槽: \(actualSlotConfig.lowSlots) (基础:\(baseConfig.lowSlots), 实装:\(actualLowSlots))
             改装: \(actualSlotConfig.rigSlots) (基础:\(baseConfig.rigSlots), 实装:\(actualRigSlots))
             子系统: \(actualSlotConfig.subsystemSlots) (基础:\(baseConfig.subsystemSlots), 实装:\(actualSubsystemSlots))
-            """)
+            """
+        )
     }
 
     var body: some View {
@@ -619,7 +621,8 @@ struct BRKillMailFittingView: View {
                                     slotIndex: index,
                                     maxSlots: 8,
                                     totalAngle: 104
-                                ))
+                                )
+                            )
                     }
                     if let icon = equipmentIcons[slotId] {
                         icon
@@ -634,7 +637,8 @@ struct BRKillMailFittingView: View {
                                     slotIndex: index,
                                     maxSlots: 8,
                                     totalAngle: 104
-                                ))
+                                )
+                            )
                     } else {
                         let position = calculateSlotPosition(
                             center: center,
@@ -671,7 +675,8 @@ struct BRKillMailFittingView: View {
                                     slotIndex: index,
                                     maxSlots: 8,
                                     totalAngle: 104
-                                ))
+                                )
+                            )
                     }
                     if let icon = equipmentIcons[slotId] {
                         icon
@@ -686,7 +691,8 @@ struct BRKillMailFittingView: View {
                                     slotIndex: index,
                                     maxSlots: 8,
                                     totalAngle: 104
-                                ))
+                                )
+                            )
                     } else {
                         let position = calculateSlotPosition(
                             center: center,
@@ -723,7 +729,8 @@ struct BRKillMailFittingView: View {
                                     slotIndex: index,
                                     maxSlots: 8,
                                     totalAngle: 104
-                                ))
+                                )
+                            )
                     }
                     if let icon = equipmentIcons[slotId] {
                         icon
@@ -738,7 +745,8 @@ struct BRKillMailFittingView: View {
                                     slotIndex: index,
                                     maxSlots: 8,
                                     totalAngle: 104
-                                ))
+                                )
+                            )
                     } else {
                         let position = calculateSlotPosition(
                             center: center,
@@ -774,7 +782,8 @@ struct BRKillMailFittingView: View {
                                     slotIndex: index,
                                     maxSlots: 3,
                                     totalAngle: 76
-                                ))
+                                )
+                            )
                     } else {
                         let position = calculateSlotPosition(
                             center: center,
@@ -810,7 +819,8 @@ struct BRKillMailFittingView: View {
                                     slotIndex: index,
                                     maxSlots: 4,
                                     totalAngle: 96
-                                ))
+                                )
+                            )
                     }
                 }
 
@@ -873,7 +883,7 @@ private struct SingleSlotWedge: Shape {
     }
 }
 
-// 区域分隔线
+/// 区域分隔线
 struct SectionDivider: Shape {
     let center: CGPoint
     let radius: CGFloat
@@ -905,7 +915,7 @@ struct SectionDivider: Shape {
     }
 }
 
-// 槽位区域形状
+/// 槽位区域形状
 struct SlotSection: Shape {
     let center: CGPoint
     let innerRadius: CGFloat

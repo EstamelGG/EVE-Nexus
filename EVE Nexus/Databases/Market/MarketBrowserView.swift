@@ -1,75 +1,49 @@
 import SwiftUI
 
-private struct AttributeQuickComparePresentation: Identifiable {
-    let id: Int
-    var marketGroupID: Int { id }
-}
+/// 用于 .sheet(item:) 的 marketGroupID 包装
+private struct QuickCompareID: Identifiable { let id: Int }
 
-private enum MarketSearchPreciseSection {
-    /// 置顶「精准匹配」ForEach/Section id（不与真实 group id / 占位 id 重叠）
-    static let groupID = -9_887_642
-}
+// 「精准匹配」置顶 section 的哨兵 ID（不与真实 group id 重叠）
 
-// 基础市场视图
+/// 结果数超过该阈值时使用目录模式（逐级下钻），否则平铺
+private let searchDirectoryModeThreshold = 50
+
+/// 基础市场视图
 struct MarketBaseView<Content: View>: View {
     @ObservedObject var databaseManager: DatabaseManager
     let title: String
-    let content: () -> Content // 常规内容视图
-    let searchQuery: (String) -> String // SQL查询语句生成器
-    let searchParameters: (String) -> [Any] // SQL参数生成器
-    /// 在市场树加载时由上层一次性计算（`AttributeCompareMarketPolicy.eligibleMarketGroupIDs`）
-    let attributeCompareEligibleMarketGroupIDs: Set<Int>
+    let content: () -> Content
+    let searchQuery: (String) -> String
+    let searchParameters: (String) -> [Any]
+    /// 提供市场目录树时，搜索结果按剪枝目录树展示（仅保留含命中物品的分支）；否则扁平分组
+    var searchTree: MarketTree? = nil
+    /// 目录树展示的根节点（nil = 从 roots 开始）
+    var searchTreeRootID: Int? = nil
 
     @State private var items: [DatabaseListItem] = []
-    @State private var metaGroupNames: [Int: String] = [:] // 添加科技等级名称字典
     @State private var searchText = ""
     @State private var isSearchActive = false
     @State private var isLoading = false
     @State private var isShowingSearchResults = false
-    @StateObject private var searchController = SearchController()
+    @State private var quickCompareID: QuickCompareID?
 
-    /// 长按物品行「快速比对」时呈现，与 `AttributeQuickCompareSheet` 对应
-    @State private var attributeQuickComparePresentation: AttributeQuickComparePresentation?
-
-    var groupedSearchResults: [(id: Int, name: String, items: [DatabaseListItem])] {
-        guard !items.isEmpty else { return [] }
-
-        if isShowingSearchResults {
-            let query = trimmedSearchQuery()
-            let exactItems = items.filter { isExactDatabaseNameMatch(item: $0, query: query) }
-            if !exactItems.isEmpty {
-                let exactIDs = Set(exactItems.map(\.id))
-                let remainder = items.filter { !exactIDs.contains($0.id) }
-                let pin: (id: Int, name: String, items: [DatabaseListItem]) = (
-                    MarketSearchPreciseSection.groupID,
-                    NSLocalizedString("Main_Database_precise_match_section", comment: "精准匹配"),
-                    Self.sortItemsForMarketSearchSection(exactItems)
-                )
-                return [pin] + groupMarketSearchItems(remainder)
+    /// 命中物品按 marketGroup 聚合 + 子树命中数沿祖先累积（目录模式用）
+    private var searchDirectoryModel: (itemsByGroup: [Int: [DatabaseListItem]], matchCount: [Int: Int]) {
+        let itemsByGroup = Dictionary(grouping: items) { $0.marketGroupID ?? 0 }
+        var matchCount: [Int: Int] = [:]
+        if let tree = searchTree {
+            for (groupID, groupItems) in itemsByGroup {
+                var current: Int? = groupID
+                while let groupID = current {
+                    matchCount[groupID, default: 0] += groupItems.count
+                    current = tree.group(byID: groupID)?.parentGroupID
+                }
             }
         }
-
-        return groupMarketSearchItems(items)
+        return (itemsByGroup, matchCount)
     }
 
-    private func trimmedSearchQuery() -> String {
-        searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
-    private func isExactDatabaseNameMatch(item: DatabaseListItem, query: String) -> Bool {
-        guard !query.isEmpty else { return false }
-        let cn = item.name.trimmingCharacters(in: .whitespacesAndNewlines)
-        if cn == query { return true }
-        if let raw = item.enName {
-            let en = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !en.isEmpty else { return false }
-            if en.caseInsensitiveCompare(query) == .orderedSame { return true }
-        }
-        return false
-    }
-
-    /// 与市场搜索其它分组内排序一致：先 meta 等级，再名称
-    private static func sortItemsForMarketSearchSection(_ list: [DatabaseListItem]) -> [DatabaseListItem] {
+    static func sortItemsForMarketSearchSection(_ list: [DatabaseListItem]) -> [DatabaseListItem] {
         list.sorted { item1, item2 in
             if item1.metaGroupID != item2.metaGroupID {
                 return (item1.metaGroupID ?? -1) < (item2.metaGroupID ?? -1)
@@ -78,122 +52,90 @@ struct MarketBaseView<Content: View>: View {
         }
     }
 
-    private func groupMarketSearchItems(_ items: [DatabaseListItem]) -> [(
-        id: Int, name: String, items: [DatabaseListItem]
-    )] {
+    private func groupMarketSearchItems(_ items: [DatabaseListItem]) -> [SearchResultSection<DatabaseListItem>] {
         guard !items.isEmpty else { return [] }
 
-        // 按categoryID和groupID组织数据
-        var groupedByCategory: [Int: [(groupID: Int, name: String, items: [DatabaseListItem])]] =
-            [:]
-
-        // 首先按categoryID和groupID分组
+        var groupedByCategory: [Int: [(groupID: Int, name: String, items: [DatabaseListItem])]] = [:]
         for item in items {
             let categoryID = item.categoryID ?? 0
             let groupID = item.groupID ?? 0
             let groupName = item.groupName ?? "Unknown Group"
-
-            if groupedByCategory[categoryID] == nil {
-                groupedByCategory[categoryID] = []
-            }
-
-            // 在当前分类中查找或创建groupID组
-            if let index = groupedByCategory[categoryID]?.firstIndex(where: {
-                $0.groupID == groupID
-            }) {
+            if let index = groupedByCategory[categoryID]?.firstIndex(where: { $0.groupID == groupID }) {
                 groupedByCategory[categoryID]?[index].items.append(item)
             } else {
-                groupedByCategory[categoryID]?.append(
-                    (groupID: groupID, name: groupName, items: [item]))
+                groupedByCategory[categoryID, default: []].append(
+                    (groupID: groupID, name: groupName, items: [item])
+                )
             }
         }
 
-        // 定义分类优先级顺序
-        let categoryPriority = [6, 7, 32, 8, 4, 16, 18, 87, 20, 22, 9, 5]
-
-        // 按优先级顺序排序分类
         let sortedCategories = groupedByCategory.keys.sorted { cat1, cat2 in
-            let index1 = categoryPriority.firstIndex(of: cat1) ?? Int.max
-            let index2 = categoryPriority.firstIndex(of: cat2) ?? Int.max
-            if index1 == index2 {
-                return cat1 < cat2 // 如果都不在优先级列表中，按ID升序
-            }
-            return index1 < index2 // 按优先级排序
+            let index1 = MarketManager.categoryPriority.firstIndex(of: cat1) ?? Int.max
+            let index2 = MarketManager.categoryPriority.firstIndex(of: cat2) ?? Int.max
+            return index1 == index2 ? cat1 < cat2 : index1 < index2
         }
 
-        // 构建最终结果
-        var result: [(id: Int, name: String, items: [DatabaseListItem])] = []
-
+        var result: [SearchResultSection<DatabaseListItem>] = []
         for categoryID in sortedCategories {
-            if let categoryGroups = groupedByCategory[categoryID] {
-                // 在每个分类内部，按groupID排序
-                let sortedGroups = categoryGroups.sorted { $0.groupID < $1.groupID }
-
-                for group in sortedGroups {
-                    // 对组内物品进行排序
-                    let sortedItems = Self.sortItemsForMarketSearchSection(group.items)
-
-                    result.append((id: group.groupID, name: group.name, items: sortedItems))
-                }
+            for group in (groupedByCategory[categoryID] ?? []).sorted(by: { $0.groupID < $1.groupID }) {
+                result.append(
+                    SearchResultSection(
+                        identity: .group(group.groupID), name: group.name,
+                        items: Self.sortItemsForMarketSearchSection(group.items)
+                    )
+                )
             }
         }
-
         return result.filter { !$0.items.isEmpty }
     }
 
     var body: some View {
         List {
             if isShowingSearchResults {
-                // 搜索结果视图，按市场组分类显示
-                ForEach(groupedSearchResults, id: \.id) { group in
-                    Section(
-                        header: Text(group.name)
-                            .fontWeight(.semibold)
-                            .font(.system(size: 18))
-                            .foregroundColor(.primary)
-                            .textCase(.none)
-                    ) {
-                        ForEach(group.items) { item in
-                            NavigationLink {
-                                MarketItemDetailView(
-                                    databaseManager: databaseManager,
-                                    itemID: item.id
-                                )
-                            } label: {
-                                DatabaseListItemView(
-                                    item: item,
-                                    showDetails: true,
-                                    attributeCompareEligibleMarketGroupIDs:
-                                    attributeCompareEligibleMarketGroupIDs,
-                                    onAttributeQuickCompare: attributeCompareEligibleMarketGroupIDs.isEmpty
-                                        ? nil : presentSearchResultQuickCompare
-                                )
+                if let tree = searchTree, items.count > searchDirectoryModeThreshold {
+                    // 目录模式：与原浏览一致的分组行 + 命中数，逐级下钻
+                    let model = searchDirectoryModel
+                    MarketSearchDirectoryRows(
+                        tree: tree, rootGroupID: searchTreeRootID,
+                        itemsByGroup: model.itemsByGroup, matchCount: model.matchCount,
+                        databaseManager: databaseManager
+                    )
+                } else {
+                    // 平铺模式：按分组分 section
+                    ForEach(groupMarketSearchItems(items), id: \.id) { group in
+                        Section(
+                            header: Text(group.name)
+                                .fontWeight(.semibold)
+                                .font(.system(size: 18))
+                                .foregroundColor(.primary)
+                                .textCase(.none)
+                        ) {
+                            ForEach(group.items) { item in
+                                searchResultItemRow(item)
                             }
                         }
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
-                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             } else {
-                content() // 显示常规内容
+                content()
             }
         }
         .searchable(
             text: $searchText,
             isPresented: $isSearchActive,
-            placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
         )
+        .onSubmit(of: .search) {
+            if !searchText.isEmpty {
+                performSearch(with: searchText)
+            }
+        }
         .onChange(of: searchText) { _, newValue in
             if newValue.isEmpty {
                 isShowingSearchResults = false
                 isLoading = false
                 items = []
-            } else {
-                isLoading = true
-                items = []
-                if newValue.count >= 1 {
-                    searchController.processSearchInput(newValue)
-                }
             }
         }
         .overlay {
@@ -210,69 +152,158 @@ struct MarketBaseView<Content: View>: View {
                     }
             } else if items.isEmpty && !searchText.isEmpty {
                 ContentUnavailableView {
-                    Label(
-                        NSLocalizedString("Misc_Not_Found", comment: ""),
-                        systemImage: "magnifyingglass"
-                    )
+                    Label(NSLocalizedString("Misc_Not_Found", comment: ""), systemImage: "magnifyingglass")
                 }
             } else if searchText.isEmpty && isSearchActive {
                 Color.black.opacity(0.2)
                     .ignoresSafeArea()
-                    .onTapGesture {
-                        isSearchActive = false
-                    }
+                    .onTapGesture { isSearchActive = false }
             }
         }
         .navigationTitle(title)
-        .sheet(item: $attributeQuickComparePresentation) { presentation in
-            AttributeQuickCompareSheet(
-                databaseManager: databaseManager,
-                marketGroupID: presentation.marketGroupID
-            )
+        .sheet(item: $quickCompareID) { id in
+            AttributeQuickCompareSheet(databaseManager: databaseManager, marketGroupID: id.id)
         }
-        .onAppear {
-            setupSearch()
-            // 加载科技等级名称
-            let metaGroupIDs = Set(items.compactMap { $0.metaGroupID })
-            metaGroupNames = databaseManager.loadMetaGroupNames(for: Array(metaGroupIDs))
-        }
-    }
-
-    private func presentSearchResultQuickCompare(marketGroupID: Int) {
-        attributeQuickComparePresentation = AttributeQuickComparePresentation(id: marketGroupID)
-    }
-
-    private func setupSearch() {
-        searchController.debouncedSearchPublisher
-            .receive(on: DispatchQueue.main)
-            .sink { query in
-                guard !searchText.isEmpty else { return }
-                performSearch(with: query)
-            }
-            .store(in: &searchController.cancellables)
     }
 
     private func performSearch(with text: String) {
         isLoading = true
-
-        let whereClause = searchQuery(text)
-        let parameters = searchParameters(text)
-
+        // 无数量上限：结果按剪枝目录树承载索引；精确匹配由 SQL 排序优先返回
         items = databaseManager.loadMarketItems(
-            whereClause: whereClause, parameters: parameters, limit: 100
+            whereClause: searchQuery(text), parameters: searchParameters(text),
+            eligibleMarketGroupIDs: AttributeCompareMarketPolicy.eligibleMarketGroupIDs,
+            exactMatchText: text
         )
         isShowingSearchResults = true
-
         isLoading = false
+    }
+
+    private func searchResultItemRow(_ item: DatabaseListItem) -> some View {
+        MarketSearchItemRow(item: item, databaseManager: databaseManager) { marketGroupID in
+            quickCompareID = QuickCompareID(id: marketGroupID)
+        }
     }
 }
 
-// 重构后的MarketBrowserView
+/// 搜索结果物品行：详情跳转 + 属性快速对比入口
+private struct MarketSearchItemRow: View {
+    let item: DatabaseListItem
+    let databaseManager: DatabaseManager
+    let onQuickCompare: (Int) -> Void
+
+    var body: some View {
+        NavigationLink {
+            MarketItemDetailView(databaseManager: databaseManager, itemID: item.id)
+        } label: {
+            DatabaseListItemView(
+                item: item,
+                showDetails: true,
+                onAttributeQuickCompare: onQuickCompare
+            )
+        }
+    }
+}
+
+/// 目录模式的行集合：当前层级中含命中的子组（带命中数），叶子组导向命中物品列表
+private struct MarketSearchDirectoryRows: View {
+    let tree: MarketTree
+    /// 当前层级根节点（nil = 从 roots 开始）
+    let rootGroupID: Int?
+    let itemsByGroup: [Int: [DatabaseListItem]]
+    let matchCount: [Int: Int]
+    let databaseManager: DatabaseManager
+
+    private var visibleGroups: [MarketGroup] {
+        let candidates = rootGroupID.map { tree.children(of: $0) } ?? tree.roots
+        return candidates.filter { (matchCount[$0.id] ?? 0) > 0 }
+    }
+
+    var body: some View {
+        // 当前层根节点的直属命中物品（如有）
+        if let rootGroupID, let directItems = itemsByGroup[rootGroupID], !directItems.isEmpty {
+            ForEach(
+                MarketBaseView<EmptyView>.sortItemsForMarketSearchSection(directItems)
+            ) { item in
+                MarketSearchItemRow(item: item, databaseManager: databaseManager) { _ in }
+            }
+        }
+
+        ForEach(visibleGroups) { group in
+            NavigationLink {
+                if tree.isLeaf(group) {
+                    MarketSearchItemsView(
+                        title: group.name,
+                        items: itemsByGroup[group.id] ?? [],
+                        databaseManager: databaseManager
+                    )
+                } else {
+                    MarketSearchDirectoryView(
+                        group: group, tree: tree,
+                        itemsByGroup: itemsByGroup, matchCount: matchCount,
+                        databaseManager: databaseManager
+                    )
+                }
+            } label: {
+                HStack {
+                    MarketGroupLabel(group: group)
+                    Text("\(matchCount[group.id] ?? 0)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+}
+
+/// 目录模式下钻页：某一市场分组内的剪枝目录，与原浏览 UI 一致
+private struct MarketSearchDirectoryView: View {
+    let group: MarketGroup
+    let tree: MarketTree
+    let itemsByGroup: [Int: [DatabaseListItem]]
+    let matchCount: [Int: Int]
+    let databaseManager: DatabaseManager
+
+    var body: some View {
+        List {
+            MarketSearchDirectoryRows(
+                tree: tree, rootGroupID: group.id,
+                itemsByGroup: itemsByGroup, matchCount: matchCount,
+                databaseManager: databaseManager
+            )
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+        }
+        .navigationTitle(group.name)
+    }
+}
+
+/// 目录模式叶子页：某一市场分组的全部命中物品
+private struct MarketSearchItemsView: View {
+    let title: String
+    let items: [DatabaseListItem]
+    let databaseManager: DatabaseManager
+    @State private var quickCompareID: QuickCompareID?
+
+    var body: some View {
+        List {
+            ForEach(MarketBaseView<EmptyView>.sortItemsForMarketSearchSection(items)) { item in
+                MarketSearchItemRow(item: item, databaseManager: databaseManager) { marketGroupID in
+                    quickCompareID = QuickCompareID(id: marketGroupID)
+                }
+            }
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+        }
+        .navigationTitle(title)
+        .sheet(item: $quickCompareID) { id in
+            AttributeQuickCompareSheet(databaseManager: databaseManager, marketGroupID: id.id)
+        }
+    }
+}
+
+/// 重构后的MarketBrowserView
 struct MarketBrowserView: View {
     @ObservedObject var databaseManager: DatabaseManager
-    @State private var marketGroups: [MarketGroup] = []
-    /// 属性快速比对允许的市场组（与市场树同时建立）
-    @State private var attributeCompareEligibleMarketGroupIDs: Set<Int> = []
+    /// 一次性构建的目录树索引：所有子节点查找/叶子判断/子树 ID 枚举均通过它 O(1) 完成
+    @State private var marketTree: MarketTree = .init([])
     @State private var path = NavigationPath()
 
     var body: some View {
@@ -281,29 +312,28 @@ struct MarketBrowserView: View {
                 databaseManager: databaseManager,
                 title: NSLocalizedString("Main_Market", comment: ""),
                 content: {
-                    ForEach(MarketManager.shared.getRootGroups(marketGroups)) { group in
+                    ForEach(marketTree.roots) { group in
                         MarketGroupRow(
-                            group: group, allGroups: marketGroups, databaseManager: databaseManager,
+                            group: group, tree: marketTree, databaseManager: databaseManager,
                             path: $path
                         )
                     }
                     .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 },
                 searchQuery: { _ in
-                    "t.marketGroupID IS NOT NULL AND (t.name LIKE ? OR t.en_name LIKE ? OR t.type_id = ?)"
+                    "t.marketGroupID IS NOT NULL AND (\(LocalizedText.typeLangNameLikeSQL) OR t.type_id = ?)"
                 },
                 searchParameters: { text in
-                    ["%\(text)%", "%\(text)%", "\(text)"]
+                    LocalizedText.typeLangNameLikeParams(text) + ["\(text)"]
                 },
-                attributeCompareEligibleMarketGroupIDs: attributeCompareEligibleMarketGroupIDs
+                searchTree: marketTree
             )
             .navigationDestination(for: MarketGroup.self) { group in
                 MarketGroupView(
                     databaseManager: databaseManager,
                     group: group,
-                    allGroups: marketGroups,
-                    path: $path,
-                    attributeCompareEligibleMarketGroupIDs: attributeCompareEligibleMarketGroupIDs
+                    tree: marketTree,
+                    path: $path
                 )
             }
             .navigationDestination(for: MarketItemDestination.self) { destination in
@@ -311,58 +341,58 @@ struct MarketBrowserView: View {
                     databaseManager: databaseManager,
                     marketGroupID: destination.marketGroupID,
                     title: destination.title,
-                    attributeCompareEligibleMarketGroupIDs: attributeCompareEligibleMarketGroupIDs,
                     path: $path
                 )
             }
             .onAppear {
-                marketGroups = MarketManager.shared.loadMarketGroups(
-                    databaseManager: databaseManager)
-                attributeCompareEligibleMarketGroupIDs = AttributeCompareMarketPolicy
-                    .eligibleMarketGroupIDs(marketGroups: marketGroups)
+                // 一次性加载所有市场组并构建索引树；后续导航不再触碰 SQL
+                // 属性对比资格集合由 AttributeCompareMarketPolicy.eligibleMarketGroupIDs 懒加载，
+                // 首次访问时从同一份 SDE 展开并缓存，此处无需再维护
+                marketTree = MarketManager.shared.buildTree(
+                    from: MarketManager.shared.loadMarketGroups(databaseManager: databaseManager)
+                )
             }
         }
     }
 }
 
-// 为物品列表创建目的地类型
+/// 为物品列表创建目的地类型
 struct MarketItemDestination: Hashable {
     let marketGroupID: Int
     let title: String
 }
 
-// 重构后的MarketGroupView
+/// 重构后的MarketGroupView
 struct MarketGroupView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let group: MarketGroup
-    let allGroups: [MarketGroup]
+    let tree: MarketTree
     @Binding var path: NavigationPath
-    let attributeCompareEligibleMarketGroupIDs: Set<Int>
 
     var body: some View {
         MarketBaseView(
             databaseManager: databaseManager,
             title: group.name,
             content: {
-                ForEach(MarketManager.shared.getSubGroups(allGroups, for: group.id)) { subGroup in
+                ForEach(tree.children(of: group.id)) { subGroup in
                     MarketGroupRow(
-                        group: subGroup, allGroups: allGroups, databaseManager: databaseManager,
+                        group: subGroup, tree: tree, databaseManager: databaseManager,
                         path: $path
                     )
                 }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             },
             searchQuery: { _ in
-                let groupIDs = MarketManager.shared.getAllSubGroupIDsFromID(
-                    allGroups, startingFrom: group.id
-                )
+                // 通过索引树一次性枚举当前节点所有子孙组 ID，限定搜索范围到子树
+                let groupIDs = tree.allSubGroupIDs(from: group.id)
                 let groupIDsString = groupIDs.sorted().map { String($0) }.joined(separator: ",")
                 return
-                    "t.marketGroupID IN (\(groupIDsString)) AND (t.name LIKE ? OR t.en_name LIKE ?)"
+                    "t.marketGroupID IN (\(groupIDsString)) AND \(LocalizedText.typeLangNameLikeSQL)"
             },
             searchParameters: { text in
-                ["%\(text)%", "%\(text)%"]
+                LocalizedText.typeLangNameLikeParams(text)
             },
-            attributeCompareEligibleMarketGroupIDs: attributeCompareEligibleMarketGroupIDs
+            searchTree: tree,
+            searchTreeRootID: group.id
         )
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -377,16 +407,15 @@ struct MarketGroupView: View {
     }
 }
 
-// 重构后的MarketItemListView
+/// 重构后的MarketItemListView
 struct MarketItemListView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let marketGroupID: Int
     let title: String
-    let attributeCompareEligibleMarketGroupIDs: Set<Int>
     @State private var items: [DatabaseListItem] = []
     @State private var metaGroupNames: [Int: String] = [:]
     @Binding var path: NavigationPath
-    @State private var leafQuickComparePresentation: AttributeQuickComparePresentation?
+    @State private var leafQuickCompareID: QuickCompareID?
 
     var groupedItems: [(id: Int, name: String, items: [DatabaseListItem])] {
         let publishedItems = items.filter { $0.published }
@@ -397,51 +426,28 @@ struct MarketItemListView: View {
         // 按科技等级分组
         var techLevelGroups: [Int?: [DatabaseListItem]] = [:]
         for item in publishedItems {
-            let techLevel = item.metaGroupID
-            if techLevelGroups[techLevel] == nil {
-                techLevelGroups[techLevel] = []
-            }
-            techLevelGroups[techLevel]?.append(item)
+            techLevelGroups[item.metaGroupID, default: []].append(item)
         }
 
         // 添加已发布物品组
         for (techLevel, items) in techLevelGroups.sorted(by: { ($0.key ?? -1) < ($1.key ?? -1) }) {
             if let techLevel = techLevel {
-                let name =
-                    metaGroupNames[techLevel]
-                        ?? NSLocalizedString("Main_Database_base", comment: "基础物品")
-                // 对每个科技等级组内的物品按名称排序
-                let sortedItems = items.sorted { item1, item2 in
-                    item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
-                }
+                let name = metaGroupNames[techLevel] ?? NSLocalizedString("Main_Database_base", comment: "基础物品")
+                let sortedItems = items.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
                 result.append((id: techLevel, name: name, items: sortedItems))
             }
         }
 
         // 添加未分组的物品
         if let ungroupedItems = techLevelGroups[nil], !ungroupedItems.isEmpty {
-            // 对未分组物品按名称排序
-            let sortedItems = ungroupedItems.sorted { item1, item2 in
-                item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
-            }
-            result.append(
-                (
-                    id: -2, name: NSLocalizedString("Main_Database_ungrouped", comment: "未分组"),
-                    items: sortedItems
-                ))
+            let sortedItems = ungroupedItems.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            result.append((id: -2, name: NSLocalizedString("Main_Database_ungrouped", comment: "未分组"), items: sortedItems))
         }
 
         // 添加未发布物品组
         if !unpublishedItems.isEmpty {
-            // 对未发布物品按名称排序
-            let sortedItems = unpublishedItems.sorted { item1, item2 in
-                item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
-            }
-            result.append(
-                (
-                    id: -1, name: NSLocalizedString("Main_Database_unpublished", comment: "未发布"),
-                    items: sortedItems
-                ))
+            let sortedItems = unpublishedItems.sorted { $0.name.localizedCaseInsensitiveCompare($1.name) == .orderedAscending }
+            result.append((id: -1, name: NSLocalizedString("Main_Database_unpublished", comment: "未发布"), items: sortedItems))
         }
 
         return result
@@ -462,61 +468,39 @@ struct MarketItemListView: View {
                     ) {
                         ForEach(group.items) { item in
                             NavigationLink {
-                                MarketItemDetailView(
-                                    databaseManager: databaseManager,
-                                    itemID: item.id
-                                )
+                                MarketItemDetailView(databaseManager: databaseManager, itemID: item.id)
                             } label: {
                                 DatabaseListItemView(
                                     item: item,
                                     showDetails: true,
-                                    attributeCompareEligibleMarketGroupIDs:
-                                    attributeCompareEligibleMarketGroupIDs,
-                                    onAttributeQuickCompare: attributeCompareEligibleMarketGroupIDs.isEmpty
-                                        ? nil : presentLeafItemQuickCompare
+                                    onAttributeQuickCompare: { leafQuickCompareID = QuickCompareID(id: $0) }
                                 )
                             }
                         }
                     }
                 }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             },
-            searchQuery: { _ in
-                "t.marketGroupID = ? AND (t.name LIKE ? OR t.en_name LIKE ?)"
-            },
-            searchParameters: { text in
-                [marketGroupID, "%\(text)%", "%\(text)%"]
-            },
-            attributeCompareEligibleMarketGroupIDs: attributeCompareEligibleMarketGroupIDs
+            searchQuery: { _ in "t.marketGroupID = ? AND \(LocalizedText.typeLangNameLikeSQL)" },
+            searchParameters: { text in [marketGroupID] + LocalizedText.typeLangNameLikeParams(text) }
         )
-        .sheet(item: $leafQuickComparePresentation) { presentation in
-            AttributeQuickCompareSheet(
-                databaseManager: databaseManager,
-                marketGroupID: presentation.marketGroupID
-            )
+        .sheet(item: $leafQuickCompareID) { id in
+            AttributeQuickCompareSheet(databaseManager: databaseManager, marketGroupID: id.id)
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: {
-                    // 清空导航路径，返回到根视图
-                    path.removeLast(path.count)
-                }) {
+                Button(action: { path.removeLast(path.count) }) {
                     Image(systemName: "house")
                 }
             }
         }
-        .onAppear {
-            loadItems()
-        }
-    }
-
-    private func presentLeafItemQuickCompare(marketGroupID: Int) {
-        leafQuickComparePresentation = AttributeQuickComparePresentation(id: marketGroupID)
+        .onAppear { loadItems() }
     }
 
     private func loadItems() {
         items = databaseManager.loadMarketItems(
             whereClause: "t.marketGroupID = ?",
-            parameters: [marketGroupID]
+            parameters: [marketGroupID],
+            eligibleMarketGroupIDs: AttributeCompareMarketPolicy.eligibleMarketGroupIDs
         )
 
         // 加载科技等级名称
@@ -527,12 +511,12 @@ struct MarketItemListView: View {
 
 struct MarketGroupRow: View {
     let group: MarketGroup
-    let allGroups: [MarketGroup]
+    let tree: MarketTree
     let databaseManager: DatabaseManager
     @Binding var path: NavigationPath
 
     var body: some View {
-        if MarketManager.shared.isLeafGroup(group, in: allGroups) {
+        if tree.isLeaf(group) {
             // 最后一级目录，显示物品列表
             NavigationLink(value: MarketItemDestination(marketGroupID: group.id, title: group.name)) {
                 MarketGroupLabel(group: group)

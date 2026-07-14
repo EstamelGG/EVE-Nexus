@@ -1,6 +1,6 @@
 import Foundation
 
-// 军团建筑物信息模型
+/// 军团建筑物信息模型
 public struct StructureInfo: Codable {
     public let structure_id: Int64
     public let type_id: Int
@@ -16,13 +16,13 @@ public struct StructureInfo: Codable {
     public let services: [StructureService]?
 }
 
-// 建筑物服务信息
+/// 建筑物服务信息
 public struct StructureService: Codable {
     public let name: String
     public let state: String
 }
 
-// 缓存数据结构
+/// 缓存数据结构
 private struct StructureCacheData: Codable {
     let data: [StructureInfo]
     let timestamp: Date
@@ -52,7 +52,8 @@ public class CorpStructureAPI {
         // 1. 获取角色的军团ID
         guard
             let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(
-                characterId: characterId)
+                characterId: characterId
+            )
         else {
             throw NetworkError.authenticationError("无法获取军团ID")
         }

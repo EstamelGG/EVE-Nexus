@@ -1,6 +1,6 @@
 import SwiftUI
 
-// T3D模式选择器视图
+/// T3D模式选择器视图
 struct T3DModeSelectorView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var modeInfos: [ModeInfo] = []
@@ -10,10 +10,10 @@ struct T3DModeSelectorView: View {
     // 添加选择槽位的信息和回调
     let slotFlag: FittingFlag
     let onModuleSelected: ((Int) -> Void)?
-    // 添加飞船ID
+    /// 添加飞船ID
     let shipTypeID: Int
 
-    // 初始化方法
+    /// 初始化方法
     init(
         databaseManager: DatabaseManager,
         slotFlag: FittingFlag,
@@ -86,7 +86,7 @@ struct T3DModeSelectorView: View {
         }
     }
 
-    // 加载模式选项（支持所有模式切换飞船）
+    /// 加载模式选项（支持所有模式切换飞船）
     private func loadModeOptions() {
         Logger.info("加载模式选项，飞船ID: \(shipTypeID)")
 
@@ -109,7 +109,7 @@ struct T3DModeSelectorView: View {
     }
 }
 
-// T3D模式信息结构体
+/// T3D模式信息结构体
 private struct ModeInfo: Identifiable {
     let id: UUID = .init()
     let typeId: Int

@@ -4,7 +4,7 @@ import PulseUI
 import SwiftUI
 
 struct LogsBrowserView: View {
-    // 使用 Logger 的 store 来显示日志
+    /// 使用 Logger 的 store 来显示日志
     private var loggerStore: LoggerStore {
         Logger.shared.loggerStore
     }

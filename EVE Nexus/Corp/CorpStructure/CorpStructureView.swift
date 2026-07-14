@@ -515,7 +515,7 @@ class CorpStructureViewModel: ObservableObject {
         }
     }
 
-    // 获取燃料不足的建筑，按照燃料耗尽时间升序排序
+    /// 获取燃料不足的建筑，按照燃料耗尽时间升序排序
     func updateLowFuelStructures(within days: Int = 7) {
         let monitorDays = days <= 0 ? 7 : days
         currentMonitorDays = monitorDays
@@ -628,71 +628,30 @@ class CorpStructureViewModel: ObservableObject {
     }
 
     private func loadTypeIcons(typeIds: [Int]) async {
-        let query =
-            "SELECT type_id, icon_filename FROM types WHERE type_id IN (\(typeIds.sorted().map(String.init).joined(separator: ",")))"
-        let result = DatabaseManager.shared.executeQuery(query)
-        if case let .success(rows) = result {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let iconFilename = row["icon_filename"] as? String
-                {
-                    typeIcons[typeId] = iconFilename
-                }
-            }
+        for typeId in typeIds {
+            typeIcons[typeId] = ItemInfoMap.iconFilename(for: typeId)
         }
     }
 
     private func loadLocationInfo(systemIds: [Int]) async {
-        // 1. 获取星系名称
-        let systemQuery = """
-            SELECT solarSystemID, solarSystemName
-            FROM solarsystems
-            WHERE solarSystemID IN (\(Array(systemIds).map { String($0) }.joined(separator: ",")))
-        """
-        let systemResult = DatabaseManager.shared.executeQuery(systemQuery)
-        if case let .success(rows) = systemResult {
-            for row in rows {
-                if let systemId = row["solarSystemID"] as? Int,
-                   let systemNameLocal = row["solarSystemName"] as? String
-                {
-                    let systemName = systemNameLocal
-                    systemNames[systemId] = systemName
-                }
-            }
-        }
-
-        // 2. 获取星域信息
         let universeQuery = """
-            SELECT DISTINCT u.solarsystem_id, u.region_id, 
-                   r.regionName
-            FROM universe u
-            JOIN regions r ON r.regionID = u.region_id
-            WHERE u.solarsystem_id IN (\(Array(systemIds).sorted().map { String($0) }.joined(separator: ",")))
+            SELECT DISTINCT solarsystem_id, region_id, system_security
+            FROM universe
+            WHERE solarsystem_id IN (\(systemIds.sorted().map(String.init).joined(separator: ",")))
         """
         let universeResult = DatabaseManager.shared.executeQuery(universeQuery)
         if case let .success(rows) = universeResult {
             for row in rows {
-                if let systemId = row["solarsystem_id"] as? Int,
-                   let regionNameLocal = row["regionName"] as? String
+                guard let systemId = row["solarsystem_id"] as? Int else { continue }
+                if let systemName = SDEMemoryStore.solarSystemName(for: systemId) {
+                    systemNames[systemId] = systemName
+                }
+                if let regionId = row["region_id"] as? Int,
+                   let regionName = SDEMemoryStore.regionName(for: regionId)
                 {
-                    let regionName = regionNameLocal
                     regionNames[systemId] = regionName
                 }
-            }
-        }
-
-        // 3. 获取星系安等
-        let systemSecQuery = """
-            SELECT solarsystem_id, system_security
-            FROM universe 
-            WHERE solarsystem_id IN (\(systemIds.sorted().map(String.init).joined(separator: ",")))
-        """
-        let systemSecResult = DatabaseManager.shared.executeQuery(systemSecQuery)
-        if case let .success(rows) = systemSecResult {
-            for row in rows {
-                if let systemId = row["solarsystem_id"] as? Int,
-                   let systemSecurity = row["system_security"] as? Double
-                {
+                if let systemSecurity = row["system_security"] as? Double {
                     regionSecs[systemId] = systemSecurity
                 }
             }

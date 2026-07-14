@@ -5,7 +5,7 @@
 import Foundation
 import SwiftUI
 
-/// Manages text attributes.
+// Manages text attributes.
 package final class TextHelper {
     private var cachedAttributes: [AttributesKey: [NSAttributedString.Key: Any]] = [:]
     private var cachedFonts: [TextStyle: UXFont] = [:]
@@ -135,20 +135,17 @@ package struct TextStyle: Hashable {
 }
 
 package enum TextRole {
-    /// Large title.
+    // Large title.
     case title
-    /// Section headline (small).
-    ///
-    /// Font size: iOS 12, macOS 10, tvOS 21, watchOS 11
+    // Section headline (small).
+    //     // Font size: iOS 12, macOS 10, tvOS 21, watchOS 11
     case subheadline
-    /// Regular-sized body.
-    ///
-    /// Font size: iOS 17, macOS 13, tvOS 29, watchOS 16.
+    // Regular-sized body.
+    //     // Font size: iOS 17, macOS 13, tvOS 29, watchOS 16.
     case body
-    /// Smaller body for console and other views where information has to be
-    /// condensed.
-    ///
-    /// Font size: iOS 16, macOS 12, tvOS 26, watchOS 14.
+    // Smaller body for console and other views where information has to be
+    // condensed.
+    //     // Font size: iOS 16, macOS 12, tvOS 26, watchOS 14.
     case body2
 }
 

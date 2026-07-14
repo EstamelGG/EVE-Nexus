@@ -215,7 +215,8 @@ struct ShipFittingPriceView: View {
             updated.items.append(QuickbarItem(typeID: typeId, quantity: Int64(quantity)))
         }
         let trimmedForTypeLimit = MarketQuickbarDestinationPicker.trimToMaxDistinctTypesRemovingFromEnd(
-            &updated.items)
+            &updated.items
+        )
         MarketQuickbarManager.shared.saveQuickbar(updated)
         savedWatchlistName = name
         addWatchlistSuccessMessageBody = String(
@@ -235,7 +236,7 @@ struct ShipFittingPriceView: View {
         showAddToWatchlistSuccessAlert = true
     }
 
-    // 加载价格数据
+    /// 加载价格数据
     private func loadPriceData(forceRefresh: Bool = false) async {
         await MainActor.run {
             isLoadingPrices = true
@@ -249,7 +250,8 @@ struct ShipFittingPriceView: View {
         }
 
         let (categories, total, hasUnpriced) = await calculateFittingPrice(
-            forceRefresh: forceRefresh)
+            forceRefresh: forceRefresh
+        )
         await MainActor.run {
             self.priceCategories = categories
             self.totalPrice = total
@@ -257,7 +259,7 @@ struct ShipFittingPriceView: View {
         }
     }
 
-    // 计算配装价格
+    /// 计算配装价格
     private func calculateFittingPrice(forceRefresh: Bool = false) async -> (
         [PriceCategory], Double, Bool
     ) {
@@ -357,7 +359,8 @@ struct ShipFittingPriceView: View {
                 totalPrice: shipPrice,
                 items: shipItems,
                 hasUnpricedItems: shipHasUnpriced
-            ))
+            )
+        )
         totalPrice += shipPrice
 
         // 2. 装备和弹药分类
@@ -444,7 +447,8 @@ struct ShipFittingPriceView: View {
                     totalPrice: moduleAndChargePrice,
                     items: moduleItems,
                     hasUnpricedItems: moduleAndChargeHasUnpriced
-                ))
+                )
+            )
             totalPrice += moduleAndChargePrice
         }
 
@@ -534,7 +538,8 @@ struct ShipFittingPriceView: View {
                     totalPrice: droneAndFighterPrice,
                     items: droneAndFighterItems,
                     hasUnpricedItems: droneAndFighterHasUnpriced
-                ))
+                )
+            )
             totalPrice += droneAndFighterPrice
         }
 
@@ -585,7 +590,8 @@ struct ShipFittingPriceView: View {
                     totalPrice: cargoPrice,
                     items: cargoItems,
                     hasUnpricedItems: cargoHasUnpriced
-                ))
+                )
+            )
             totalPrice += cargoPrice
         }
 
@@ -637,7 +643,8 @@ struct ShipFittingPriceView: View {
                     totalPrice: implantPrice,
                     items: implantItems,
                     hasUnpricedItems: implantHasUnpriced
-                ))
+                )
+            )
             totalPrice += implantPrice
         }
 
@@ -648,7 +655,7 @@ struct ShipFittingPriceView: View {
     }
 }
 
-// 价格物品行视图
+/// 价格物品行视图
 struct PriceItemRowView: View {
     let item: PriceItem
 
@@ -692,7 +699,7 @@ struct PriceItemRowView: View {
     }
 }
 
-// 价格分类模型
+/// 价格分类模型
 struct PriceCategory {
     let name: String
     let icon: String
@@ -701,7 +708,7 @@ struct PriceCategory {
     let hasUnpricedItems: Bool
 }
 
-// 价格物品模型
+/// 价格物品模型
 struct PriceItem {
     let typeId: Int
     let name: String

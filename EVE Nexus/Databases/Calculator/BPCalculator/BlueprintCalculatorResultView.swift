@@ -39,7 +39,7 @@ struct BlueprintCalculatorResultView: View {
         self.originalCharacterId = originalCharacterId
     }
 
-    @State private var selectedRegionID: Int = 10_000_002 // 默认 The Forge
+    @State private var selectedRegionID: Int = MarketManager.theForgeRegionID // 默认 The Forge
     @State private var selectedRegionName: String = ""
     @State private var showRegionPicker = false
     @State private var saveSelection = false // 不保存默认市场位置
@@ -53,7 +53,7 @@ struct BlueprintCalculatorResultView: View {
     @State private var considerOrderQuantity = true // 是否考虑订单数量，默认选中
 
     // 产品市场设置
-    @State private var productSelectedRegionID: Int = 10_000_002 // 默认 The Forge
+    @State private var productSelectedRegionID: Int = MarketManager.theForgeRegionID // 默认 The Forge
     @State private var productSelectedRegionName: String = ""
     @State private var showProductRegionPicker = false
     @State private var productOrderType: OrderType = .sell
@@ -69,10 +69,10 @@ struct BlueprintCalculatorResultView: View {
     @State private var showNewBlueprintCalculator = false
     @State private var newBlueprintInitParams: BlueprintCalculatorInitParams? = nil
 
-    // 复制相关
+    /// 复制相关
     @State private var showingCopyAlert = false
 
-    // 订单类型枚举
+    /// 订单类型枚举
     private enum OrderType: String, CaseIterable {
         case buy = "Main_Market_Order_Buy"
         case sell = "Main_Market_Order_Sell"
@@ -140,7 +140,7 @@ struct BlueprintCalculatorResultView: View {
                 HStack {
                     Text(NSLocalizedString("Blueprint_Calculator_Production_Time", comment: "加工时间"))
                     Spacer()
-                    Text(formatTime(calculationResult.timeRequirement.finalTime))
+                    Text(FormatUtil.formatIndustrialDuration(calculationResult.timeRequirement.finalTime))
                         .foregroundColor(.secondary)
                 }
 
@@ -161,10 +161,7 @@ struct BlueprintCalculatorResultView: View {
                     let profitInfo = calculateProfit()
                     if let profit = profitInfo.profit, let profitMargin = profitInfo.profitMargin {
                         Text(
-                            String(
-                                format: "%@(%.1f%%)", FormatUtil.formatISK(profit),
-                                profitMargin * 100
-                            )
+                            "\(FormatUtil.formatISK(profit))(\(FormatUtil.formatPercent(profitMargin, fractionDigits: 1)))"
                         )
                         .foregroundColor(getProfitColor(profit: profit, profitMargin: profitMargin))
                     } else {
@@ -266,7 +263,8 @@ struct BlueprintCalculatorResultView: View {
                         Text(
                             NSLocalizedString(
                                 "Blueprint_Calculator_Product_Market", comment: "产品市场"
-                            ))
+                            )
+                        )
                         Spacer()
                         Button {
                             showProductRegionPicker = true
@@ -601,23 +599,6 @@ struct BlueprintCalculatorResultView: View {
 
     // MARK: - 私有方法
 
-    private func formatTime(_ seconds: TimeInterval) -> String {
-        let totalSeconds = Int(seconds)
-        let days = totalSeconds / 86400
-        let hours = (totalSeconds % 86400) / 3600
-        let minutes = (totalSeconds % 3600) / 60
-        let remainingSeconds = totalSeconds % 60
-
-        if days > 0 {
-            return String(
-                format: NSLocalizedString("Time_Format_Days", comment: "%d天 %02d:%02d:%02d"), days,
-                hours, minutes, remainingSeconds
-            )
-        } else {
-            return String(format: "%02d:%02d:%02d", hours, minutes, remainingSeconds)
-        }
-    }
-
     private func updateRegionName() {
         if StructureMarketManager.isStructureId(selectedRegionID) {
             // 是建筑ID，查找建筑名称
@@ -639,47 +620,26 @@ struct BlueprintCalculatorResultView: View {
     }
 
     private func loadRegions() {
-        let query = """
-            SELECT r.regionID, r.regionName
-            FROM regions r
-            WHERE r.regionID < 11000000
-            ORDER BY r.regionName
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            for row in rows {
-                if let regionId = row["regionID"] as? Int,
-                   let regionName = row["regionName"] as? String
-                {
-                    regions.append((id: regionId, name: regionName))
-                }
-            }
+        regions = SDEMemoryStore.regionNames.compactMap { id, text in
+            guard id < 11_000_000 else { return nil }
+            let name = text.resolved()
+            guard !name.isEmpty else { return nil }
+            return (id: id, name: name)
         }
+        .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
     private func loadItemVolumes() {
-        var allTypeIDs: [String] = []
-
-        // 添加材料ID
-        allTypeIDs.append(contentsOf: calculationResult.materials.map { String($0.typeId) })
-
-        // 添加产品ID
+        var allTypeIDs: [Int] = calculationResult.materials.map(\.typeId)
         if let product = calculationResult.product {
-            allTypeIDs.append(String(product.typeId))
+            allTypeIDs.append(product.typeId)
         }
 
         guard !allTypeIDs.isEmpty else { return }
 
-        let typeIDsString = allTypeIDs.joined(separator: ",")
-        let query = "SELECT type_id, volume FROM types WHERE type_id IN (\(typeIDsString))"
-
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            for row in rows {
-                if let typeID = row["type_id"] as? Int,
-                   let volume = row["volume"] as? Double
-                {
-                    itemVolumes[typeID] = volume
-                }
+        for typeID in allTypeIDs {
+            if let volume = ItemInfoMap.typeInfo(for: typeID)?.volume {
+                itemVolumes[typeID] = volume
             }
         }
     }
@@ -847,7 +807,8 @@ struct BlueprintCalculatorResultView: View {
 
         if remainingQuantity > 0, availableQuantity > 0 {
             Logger.debug(
-                "物品 \(material.typeName): 部分满足需求，可用数量 \(availableQuantity)，总价 \(totalPrice)")
+                "物品 \(material.typeName): 部分满足需求，可用数量 \(availableQuantity)，总价 \(totalPrice)"
+            )
             return (totalPrice / Double(availableQuantity), true)
         } else if remainingQuantity > 0 {
             Logger.debug("物品 \(material.typeName): 完全无法满足需求")
@@ -859,7 +820,6 @@ struct BlueprintCalculatorResultView: View {
         return (finalPrice, false)
     }
 
-    @ViewBuilder
     private func materialRow(_ material: BlueprintCalcUtil.MaterialRequirement) -> some View {
         NavigationLink {
             MarketItemDetailView(
@@ -962,7 +922,8 @@ struct BlueprintCalculatorResultView: View {
                                             "Blueprint_Calculator_View_Blueprint", comment: "查看"
                                         ),
                                         blueprintInfo.name
-                                    ))
+                                    )
+                                )
                             }
                         }
                     }
@@ -984,7 +945,8 @@ struct BlueprintCalculatorResultView: View {
         if StructureMarketManager.isStructureId(productSelectedRegionID) {
             // 是建筑ID，查找建筑名称
             if let structureId = StructureMarketManager.getStructureId(
-                from: productSelectedRegionID),
+                from: productSelectedRegionID
+            ),
                 let structure = getStructureById(structureId)
             {
                 productSelectedRegionName = structure.structureName

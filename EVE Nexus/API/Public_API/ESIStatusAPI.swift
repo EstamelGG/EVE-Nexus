@@ -18,7 +18,7 @@ struct ESIStatus: Codable {
     let route: String
     let status: String
 
-    // 从 path 自动构建标签用于分组（只取第一个路径组件）
+    /// 从 path 自动构建标签用于分组（只取第一个路径组件）
     var tags: [String] {
         let components = route.split(separator: "/").map { String($0) }
         if components.isEmpty {
@@ -30,12 +30,12 @@ struct ESIStatus: Codable {
         return [firstComponent.capitalized]
     }
 
-    // 兼容旧代码，返回 route 作为 endpoint
+    /// 兼容旧代码，返回 route 作为 endpoint
     var endpoint: String {
         return route
     }
 
-    // 唯一标识符，结合route和method
+    /// 唯一标识符，结合route和method
     var uniqueID: String {
         return "\(method)_\(route)"
     }
@@ -56,7 +56,7 @@ struct ESIStatus: Codable {
         return status == "Recovering"
     }
 
-    // 获取状态对应的颜色
+    /// 获取状态对应的颜色
     var statusColor: Color {
         switch status {
         case "OK":

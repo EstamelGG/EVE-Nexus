@@ -19,7 +19,7 @@ struct PIAllInOneSystemFinderMainView: View {
     private let singlePlanetAnalyzer = SinglePlanetProductAnalyzer()
     private let systemCalculator = AllInOneSystemCalculator()
 
-    // 判断是否可以开始计算
+    /// 判断是否可以开始计算
     private var isCalculationEnabled: Bool {
         // 如果正在计算中，按钮不可用
         if isCalculating {
@@ -44,7 +44,8 @@ struct PIAllInOneSystemFinderMainView: View {
             List {
                 Section(
                     header: Text(
-                        NSLocalizedString("Main_Planetary_Filter_Conditions", comment: "筛选条件"))
+                        NSLocalizedString("Main_Planetary_Filter_Conditions", comment: "筛选条件")
+                    )
                 ) {
                     // 选择行星产品
                     Button {
@@ -193,7 +194,8 @@ struct PIAllInOneSystemFinderMainView: View {
                         header: Text(
                             NSLocalizedString(
                                 "AllInOne_SystemFinder_Selected_Products", comment: "已选择的产品"
-                            ))
+                            )
+                        )
                     ) {
                         ForEach(selectedProducts) { product in
                             SelectedProductRow(
@@ -293,7 +295,8 @@ struct PIAllInOneSystemFinderMainView: View {
                         let systemsInRegion = Set(
                             rows.compactMap { row in
                                 row["solarsystem_id"] as? Int
-                            })
+                            }
+                        )
                         filteredSystems = systemsInRegion
                     }
                 }
@@ -301,14 +304,16 @@ struct PIAllInOneSystemFinderMainView: View {
                 // 如果选择了主权，进一步筛选该主权下的星系
                 if let sovereigntyId = selectedSovereigntyID {
                     let sovereigntyData = try await SovereigntyDataAPI.shared.fetchSovereigntyData(
-                        forceRefresh: false)
+                        forceRefresh: false
+                    )
                     let systemsUnderSovereignty = Set(
                         sovereigntyData.compactMap { data -> Int? in
                             if data.allianceId == sovereigntyId || data.factionId == sovereigntyId {
                                 return data.systemId
                             }
                             return nil
-                        })
+                        }
+                    )
 
                     if filteredSystems.isEmpty {
                         filteredSystems = systemsUnderSovereignty
@@ -353,7 +358,7 @@ struct PIAllInOneSystemFinderMainView: View {
     }
 }
 
-// 已选择产品行
+/// 已选择产品行
 struct SelectedProductRow: View {
     let product: SelectedProduct
     let onRemove: () -> Void
@@ -418,7 +423,7 @@ struct SelectedProductRow: View {
     }
 }
 
-// 产品选择器视图
+/// 产品选择器视图
 struct AllInOneProductSelectorView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @Binding var selectedProducts: [SelectedProduct]
@@ -430,7 +435,7 @@ struct AllInOneProductSelectorView: View {
     @State private var isSearchActive = false
     @Environment(\.dismiss) private var dismiss
 
-    // 过滤后的产品
+    /// 过滤后的产品
     private var filteredProducts: [AllInOneSinglePlanetProductResult] {
         if searchText.isEmpty {
             return allSinglePlanetProducts
@@ -441,7 +446,7 @@ struct AllInOneProductSelectorView: View {
         }
     }
 
-    // 按产品等级分组
+    /// 按产品等级分组
     private var groupedProducts: [Int: [AllInOneSinglePlanetProductResult]] {
         Dictionary(grouping: filteredProducts) { $0.productLevel }
     }
@@ -489,7 +494,7 @@ struct AllInOneProductSelectorView: View {
         .searchable(
             text: $searchText,
             isPresented: $isSearchActive,
-            placement: .navigationBarDrawer(displayMode: .always),
+            // placement: .navigationBarDrawer(displayMode: .always),
             prompt: NSLocalizedString("Main_Database_Search", comment: "搜索")
         )
         .toolbar {
@@ -532,7 +537,7 @@ struct AllInOneProductSelectorView: View {
     }
 }
 
-// 产品选择行
+/// 产品选择行
 struct ProductSelectorRow: View {
     let product: AllInOneSinglePlanetProductResult
     let isSelected: Bool

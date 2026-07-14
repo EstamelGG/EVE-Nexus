@@ -57,7 +57,8 @@ class CharacterMarketAPI {
         }
 
         Logger.debug(
-            "获取市场订单缓存数据 from: \(cacheFile) - 角色ID: \(characterId), 订单数量: \(cache.orders.count)")
+            "获取市场订单缓存数据 from: \(cacheFile) - 角色ID: \(characterId), 订单数量: \(cache.orders.count)"
+        )
         return (jsonString, cache)
     }
 

@@ -1,8 +1,11 @@
 import SwiftUI
 
-// 用于货舱物品设置的状态类，包装 Int 使其符合 Identifiable
+/// 用于货舱物品设置的状态类，包装 Int 使其符合 Identifiable
 class CargoItemState: ObservableObject, Identifiable {
-    var id: Int { itemTypeId ?? 0 }
+    var id: Int {
+        itemTypeId ?? 0
+    }
+
     @Published var itemTypeId: Int?
 }
 
@@ -104,7 +107,7 @@ struct ShipFittingCargoView: View {
         }
     }
 
-    // 添加货舱物品
+    /// 添加货舱物品
     private func addCargoItem(_ item: DatabaseListItem) {
         viewModel.addCargoItem(
             typeId: item.id,
@@ -115,7 +118,7 @@ struct ShipFittingCargoView: View {
     }
 }
 
-// 包装视图，用于访问环境值
+/// 包装视图，用于访问环境值
 struct MarketItemSelectorWrapper: View {
     @Environment(\.dismiss) private var dismiss
     let viewModel: FittingEditorViewModel
@@ -156,7 +159,7 @@ struct CargoItemSettingsView: View {
     var onDelete: () -> Void
     var onUpdateQuantity: (Int) -> Void
 
-    // 环境变量
+    /// 环境变量
     @Environment(\.dismiss) var dismiss
 
     // 状态变量
@@ -165,7 +168,7 @@ struct CargoItemSettingsView: View {
     @State private var itemDetails: DatabaseListItem? = nil
     @State private var isLoading = true
 
-    // 计算填满货舱的最大数量
+    /// 计算填满货舱的最大数量
     private var maxQuantity: Int {
         // 计算当前货舱已使用的体积（不包括当前物品）
         var usedVolume = 0.0
@@ -194,7 +197,7 @@ struct CargoItemSettingsView: View {
         return max(1, maxPossible)
     }
 
-    // 初始化方法
+    /// 初始化方法
     init(
         cargoItem: SimCargoItem,
         viewModel: FittingEditorViewModel,
@@ -349,7 +352,7 @@ struct CargoItemSettingsView: View {
         .presentationDragIndicator(.visible) // 显示拖动指示器
     }
 
-    // 加载物品详细信息
+    /// 加载物品详细信息
     private func loadItemDetails() {
         isLoading = true
 
@@ -367,11 +370,11 @@ struct CargoItemSettingsView: View {
     }
 }
 
-// 货舱属性条视图
+/// 货舱属性条视图
 struct CargoAttributesView: View {
     @ObservedObject var viewModel: FittingEditorViewModel
 
-    // 计算货舱容量
+    /// 计算货舱容量
     private var cargoCapacity: (current: Double, total: Double) {
         // 从计算后的属性中获取总货舱容量
         let totalCapacity: Double

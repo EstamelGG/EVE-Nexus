@@ -1,38 +1,40 @@
-//
+
 //  SolarSystem.swift
 //  EVE Panel
-//
+
 //  Created by GG Estamel on 2024/12/16.
-//
 
 import Foundation
 import SwiftUI
 
-// 位置信息数据结构
+/// 位置信息数据结构（名称从 SDEMemoryStore 动态解析，跟随语言切换）
 public final class SolarSystemInfo: Codable {
     let systemId: Int
-    let systemName: String
     let security: Double
     let constellationId: Int
-    let constellationName: String
     let regionId: Int
-    let regionName: String
 
-    init(
-        systemId: Int, systemName: String, security: Double, constellationId: Int,
-        constellationName: String, regionId: Int, regionName: String
-    ) {
+    var systemName: String {
+        SDEMemoryStore.solarSystemName(for: systemId) ?? "System \(systemId)"
+    }
+
+    var constellationName: String {
+        SDEMemoryStore.constellationName(for: constellationId) ?? "Constellation \(constellationId)"
+    }
+
+    var regionName: String {
+        SDEMemoryStore.regionName(for: regionId) ?? "Region \(regionId)"
+    }
+
+    init(systemId: Int, security: Double, constellationId: Int, regionId: Int) {
         self.systemId = systemId
-        self.systemName = systemName
         self.security = security
         self.constellationId = constellationId
-        self.constellationName = constellationName
         self.regionId = regionId
-        self.regionName = regionName
     }
 }
 
-// 计算显示用的安全等级
+/// 计算显示用的安全等级
 func calculateDisplaySecurity(_ trueSec: Double) -> Double {
     if trueSec > 0.0 && trueSec < 0.05 {
         return 0.1 // 0.0到0.05之间向上取整到0.1
@@ -40,13 +42,13 @@ func calculateDisplaySecurity(_ trueSec: Double) -> Double {
     return round(trueSec * 10) / 10 // 其他情况四舍五入到小数点后一位
 }
 
-// 格式化安全等级显示
+/// 格式化安全等级显示
 func formatSystemSecurity(_ trueSec: Double) -> String {
     let displaySec = calculateDisplaySecurity(trueSec)
     return String(format: "%.1f", displaySec)
 }
 
-// 获取安全等级对应的颜色
+/// 获取安全等级对应的颜色
 func getSecurityColor(_ trueSec: Double) -> Color {
     let displaySec = calculateDisplaySecurity(trueSec)
     switch displaySec {
@@ -71,19 +73,14 @@ func getSecurityColor(_ trueSec: Double) -> Color {
     }
 }
 
-// 获取星系位置信息
+/// 获取星系位置信息
 func getSolarSystemInfo(solarSystemId: Int, databaseManager: DatabaseManager) async
     -> SolarSystemInfo?
 {
-    // 执行查询
     let universeQuery = """
-        SELECT u.region_id, u.constellation_id, u.system_security,
-               s.solarSystemName, c.constellationName, r.regionName
-        FROM universe u
-        JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
-        JOIN constellations c ON c.constellationID = u.constellation_id
-        JOIN regions r ON r.regionID = u.region_id
-        WHERE u.solarsystem_id = ?
+        SELECT region_id, constellation_id, system_security
+        FROM universe
+        WHERE solarsystem_id = ?
     """
 
     guard
@@ -92,61 +89,37 @@ func getSolarSystemInfo(solarSystemId: Int, databaseManager: DatabaseManager) as
         ),
         let row = rows.first,
         let security = row["system_security"] as? Double,
-        let systemNameLocal = row["solarSystemName"] as? String,
         let constellationId = row["constellation_id"] as? Int,
-        let constellationNameLocal = row["constellationName"] as? String,
-        let regionId = row["region_id"] as? Int,
-        let regionNameLocal = row["regionName"] as? String
+        let regionId = row["region_id"] as? Int
     else {
         return nil
     }
 
-    let systemName = systemNameLocal
-    let constellationName = constellationNameLocal
-    let regionName = regionNameLocal
-
-    let solarSystemInfo = SolarSystemInfo(
+    return SolarSystemInfo(
         systemId: solarSystemId,
-        systemName: systemName,
         security: security,
         constellationId: constellationId,
-        constellationName: constellationName,
-        regionId: regionId,
-        regionName: regionName
+        regionId: regionId
     )
-
-    return solarSystemInfo
 }
 
-// 批量获取星系位置信息
+/// 批量获取星系位置信息
 func getBatchSolarSystemInfo(solarSystemIds: [Int], databaseManager: DatabaseManager) async
     -> [Int: SolarSystemInfo]
 {
-    // 如果传入的数组为空，直接返回空字典
     if solarSystemIds.isEmpty {
         return [:]
     }
 
-    // 去重并排序
     let uniqueSortedIds = Array(Set(solarSystemIds)).sorted()
-
-    // 构建IN查询的参数字符串
     let placeholders = String(repeating: "?,", count: uniqueSortedIds.count).dropLast()
 
-    // 执行批量查询
     let universeQuery = """
-        SELECT u.solarsystem_id, u.region_id, u.constellation_id, u.system_security,
-               s.solarSystemName,
-               c.constellationName,
-               r.regionName
-        FROM universe u
-        JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
-        JOIN constellations c ON c.constellationID = u.constellation_id
-        JOIN regions r ON r.regionID = u.region_id
-        WHERE u.solarsystem_id IN (\(placeholders))
+        SELECT solarsystem_id, region_id, constellation_id, system_security
+        FROM universe
+        WHERE solarsystem_id IN (\(placeholders))
     """
 
-    // 将ID数组转换为Any类型数组，以便传递给executeQuery
     let parameters = uniqueSortedIds.map { $0 as Any }
 
     guard
@@ -157,144 +130,63 @@ func getBatchSolarSystemInfo(solarSystemIds: [Int], databaseManager: DatabaseMan
         return [:]
     }
 
-    // 创建结果字典
     var result: [Int: SolarSystemInfo] = [:]
 
-    // 处理每一行结果
     for row in rows {
         guard
             let systemId = row["solarsystem_id"] as? Int,
             let security = row["system_security"] as? Double,
-            let systemNameLocal = row["solarSystemName"] as? String,
             let constellationId = row["constellation_id"] as? Int,
-            let constellationNameLocal = row["constellationName"] as? String,
-            let regionId = row["region_id"] as? Int,
-            let regionNameLocal = row["regionName"] as? String
+            let regionId = row["region_id"] as? Int
         else {
             continue
         }
 
-        let systemName = systemNameLocal
-        let constellationName = constellationNameLocal
-        let regionName = regionNameLocal
-
-        let solarSystemInfo = SolarSystemInfo(
+        result[systemId] = SolarSystemInfo(
             systemId: systemId,
-            systemName: systemName,
             security: security,
             constellationId: constellationId,
-            constellationName: constellationName,
-            regionId: regionId,
-            regionName: regionName
+            regionId: regionId
         )
-
-        result[systemId] = solarSystemInfo
     }
 
     return result
 }
 
-// 星系名称结构
-public struct SolarSystemNames {
-    let systemId: Int
-    let name: String
-    let nameEn: String
-    let nameZh: String
-}
-
-// 批量获取星系中英文名称
-func getBatchSolarSystemNames(solarSystemIds: [Int], databaseManager: DatabaseManager) async
-    -> [Int: SolarSystemNames]
-{
-    // 如果传入的数组为空，直接返回空字典
-    if solarSystemIds.isEmpty {
-        return [:]
-    }
-
-    // 去重并排序
-    let uniqueSortedIds = Array(Set(solarSystemIds)).sorted()
-
-    // 构建IN查询的参数字符串
-    let placeholders = String(repeating: "?,", count: uniqueSortedIds.count).dropLast()
-
-    // 执行批量查询，获取中英文名称
-    let namesQuery = """
-        SELECT solarSystemID, solarSystemName, solarSystemName_en, solarSystemName_zh
-        FROM solarsystems
-        WHERE solarSystemID IN (\(placeholders))
-    """
-
-    // 将ID数组转换为Any类型数组，以便传递给executeQuery
-    let parameters = uniqueSortedIds.map { $0 as Any }
-
-    guard
-        case let .success(rows) = databaseManager.executeQuery(
-            namesQuery, parameters: parameters
-        )
-    else {
-        return [:]
-    }
-
-    // 创建结果字典
-    var result: [Int: SolarSystemNames] = [:]
-
-    // 处理每一行结果
-    for row in rows {
-        guard
-            let systemId = row["solarSystemID"] as? Int,
-            let name = row["solarSystemName"] as? String,
-            let nameEn = row["solarSystemName_en"] as? String,
-            let nameZh = row["solarSystemName_zh"] as? String
-        else {
-            continue
-        }
-
-        let systemNames = SolarSystemNames(
-            systemId: systemId,
-            name: name,
-            nameEn: nameEn,
-            nameZh: nameZh
-        )
-
-        result[systemId] = systemNames
-    }
-
-    return result
-}
-
-// 简化的星系信息结构，用于快速查询
+/// 简化的星系信息结构，用于快速查询（名称从 SDEMemoryStore 动态解析）
 public struct SimpleSystemInfo {
-    let name: String?
+    let systemId: Int
     let security: Double?
+
+    var name: String? {
+        SDEMemoryStore.solarSystemName(for: systemId)
+    }
 }
 
-// 获取简化的星系信息（同步版本）
+/// 获取简化的星系信息（同步版本）
 func getSystemInfo(systemId: Int, databaseManager: DatabaseManager) -> SimpleSystemInfo {
-    // 使用与 getSolarSystemInfo 相同的查询逻辑，但简化为同步版本
     let query = """
-        SELECT s.solarSystemName, u.system_security
-        FROM solarsystems s
-        LEFT JOIN universe u ON u.solarsystem_id = s.solarSystemID
-        WHERE s.solarSystemID = ?
+        SELECT system_security
+        FROM universe
+        WHERE solarsystem_id = ?
     """
     if case let .success(rows) = databaseManager.executeQuery(query, parameters: [systemId]),
        let row = rows.first
     {
-        let systemName = row["solarSystemName"] as? String
         let security = row["system_security"] as? Double
-        return SimpleSystemInfo(name: systemName, security: security)
+        return SimpleSystemInfo(systemId: systemId, security: security)
     }
-    return SimpleSystemInfo(name: nil, security: nil)
+    return SimpleSystemInfo(systemId: systemId, security: nil)
 }
 
-// 星系安全类别枚举
+/// 星系安全类别枚举
 public enum SecurityClass {
     case highSec // 高安
     case lowSec // 低安
     case nullSecOrWH // 0.0或虫洞
 }
 
-// 根据安全等级判断星系安全类别
+/// 根据安全等级判断星系安全类别
 func getSecurityClass(trueSec: Double) -> SecurityClass {
     let displaySec = calculateDisplaySecurity(trueSec)
 

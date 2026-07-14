@@ -438,3 +438,22 @@ Fixes & Improvements:
 1. Fixed contract valuation logic for item-exchange contracts in the Wealth feature.
 2. Fitting simulation: Added environment settings for wormhole, abyssal, and other astronomical effects; selections persist in fitting configs.
 3. Updated SDE database.
+
+# v1.12.9 July 15, 2026
+
+1. Assets UI improvements: full location names, container details, and refined search results
+2. Assets: multi-character aggregation with owner labels on location rows
+
+# v1.13 July 18, 2026
+
+1. SDE now uses a single multi-language database; switching languages no longer requires downloading extra language packs
+2. More reliable online updates for SDE and icons
+3. ESI rate-limit monitor in Settings, with alerts when approaching limits
+4. Fixed blueprint BPO/BPC recognition in killmails
+5. Character sheet shows current attribute levels
+6. Skill plans show optimal attribute allocation
+7. Redesigned assets feature with multi-character aggregation
+8. Redesigned star map
+9. Redesigned incursions page
+10. New notification manager: view all pending notifications in one place, with automatic skill queue expiration reminders
+11. Performance optimizations

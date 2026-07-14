@@ -1,9 +1,8 @@
-//
+
 //  FW.swift
-//  EVE Nexus
-//
+//  EVE Tritanium
+
 //  Created by GG on 2025/5/7.
-//
 
 import Foundation
 
@@ -23,7 +22,7 @@ struct FWWar: Codable {
     let faction_id: Int
 }
 
-// 叛乱相关数据模型
+/// 叛乱相关数据模型
 struct InsurgencySystem: Codable {
     let id: Int
     let name: String
@@ -62,7 +61,7 @@ struct InsurgencyCampaign: Codable {
     let insurgencies: [Insurgency]
 }
 
-// 星系邻居数据模型
+/// 星系邻居数据模型
 typealias SystemNeighbours = [String: [Int]]
 
 // MARK: - 错误类型
@@ -135,12 +134,12 @@ class FWAPI {
         }
     }
 
-    // 获取所有星系邻居数据
+    /// 获取所有星系邻居数据
     func getSystemNeighbours() -> SystemNeighbours {
         return systemNeighbours
     }
 
-    // 缓存相关结构体
+    /// 缓存相关结构体
     struct CachedData<T: Codable>: Codable {
         let data: T
         let timestamp: Date
@@ -160,7 +159,8 @@ class FWAPI {
         }
 
         let remainingTime = Int(
-            (cached.timestamp.addingTimeInterval(cacheDuration).timeIntervalSince(Date())) / 60)
+            (cached.timestamp.addingTimeInterval(cacheDuration).timeIntervalSince(Date())) / 60
+        )
         Logger.info("使用缓存的FW \(type)数据，剩余时间: \(remainingTime)分钟")
         return cached.data
     }
@@ -178,7 +178,7 @@ class FWAPI {
         }
     }
 
-    // 叛乱数据缓存相关方法
+    /// 叛乱数据缓存相关方法
     private func getInsurgencyCachePath() -> URL? {
         let fileManager = FileManager.default
         guard
@@ -218,7 +218,9 @@ class FWAPI {
             if cached.timestamp.addingTimeInterval(insurgencyCacheDuration) > Date() {
                 let remainingTime = Int(
                     (cached.timestamp.addingTimeInterval(insurgencyCacheDuration).timeIntervalSince(
-                        Date())) / 60)
+                        Date()
+                    )) / 60
+                )
                 Logger.info("使用缓存的叛乱数据，剩余时间: \(remainingTime)分钟")
                 return cached.data
             }

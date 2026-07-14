@@ -1,6 +1,6 @@
 import Foundation
 
-// 日历事件数据模型
+/// 日历事件数据模型
 struct CalendarEvent: Codable, Identifiable {
     let event_date: String
     let event_id: Int
@@ -8,9 +8,11 @@ struct CalendarEvent: Codable, Identifiable {
     let importance: Int
     let title: String
 
-    var id: Int { event_id }
+    var id: Int {
+        event_id
+    }
 
-    // 将字符串日期转换为Date对象
+    /// 将字符串日期转换为Date对象
     var date: Date? {
         let formatter = ISO8601DateFormatter()
         return formatter.date(from: event_date)
@@ -22,7 +24,7 @@ class CharacterCalendarAPI {
     private let databaseManager = CharacterDatabaseManager.shared
     private init() {}
 
-    // 保存日历数据到数据库（仅作为缓存，网络失败时使用）
+    /// 保存日历数据到数据库（仅作为缓存，网络失败时使用）
     private func saveCalendarToDatabase(characterId: Int, events: [CalendarEvent]) -> Bool {
         do {
             let encoder = JSONEncoder()
@@ -58,7 +60,7 @@ class CharacterCalendarAPI {
         }
     }
 
-    // 从数据库加载日历缓存（仅在网络失败时使用）
+    /// 从数据库加载日历缓存（仅在网络失败时使用）
     private func loadCalendarFromDatabase(characterId: Int) -> [CalendarEvent]? {
         let query = """
             SELECT calendar_data FROM calendar_cache 
@@ -84,7 +86,7 @@ class CharacterCalendarAPI {
         return nil
     }
 
-    // 获取角色日历事件 (支持分页)
+    /// 获取角色日历事件 (支持分页)
     func fetchCharacterCalendar(characterId: Int, fromEventId: Int? = nil) async throws
         -> [CalendarEvent]
     {

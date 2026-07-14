@@ -10,7 +10,7 @@ class WalletJournalAPI {
 
     // MARK: - UserDefaults 管理
 
-    // 获取/设置上次更新时间
+    /// 获取/设置上次更新时间
     private func getJournalLastUpdateTime(characterId: Int) -> Date? {
         let key = journalLastUpdatePrefix + String(characterId)
         if let timestamp = UserDefaults.standard.object(forKey: key) as? Date {
@@ -27,7 +27,7 @@ class WalletJournalAPI {
 
     // MARK: - 数据库操作
 
-    // 从数据库获取某角色的所有钱包流水数据
+    /// 从数据库获取某角色的所有钱包流水数据
     private func getWalletJournalFromDatabase(characterId: Int) -> [[String: Any]]? {
         let query = """
             SELECT id, character_id, amount, balance, date, description, first_party_id,
@@ -90,7 +90,7 @@ class WalletJournalAPI {
         return nil
     }
 
-    // 获取某角色的最大流水ID
+    /// 获取某角色的最大流水ID
     private func getMaxJournalId(characterId: Int) -> Int64? {
         let query = """
             SELECT MAX(id) as max_id FROM char_wallet_journal
@@ -110,7 +110,7 @@ class WalletJournalAPI {
         return nil
     }
 
-    // 批量插入钱包流水到数据库（增量更新）
+    /// 批量插入钱包流水到数据库（增量更新）
     private func saveWalletJournalToDatabase(characterId: Int, entries: [[String: Any]]) -> Bool {
         Logger.info("开始保存钱包流水到数据库（增量更新） - 角色ID: \(characterId), 记录数量: \(entries.count)")
 
@@ -218,7 +218,7 @@ class WalletJournalAPI {
 
     // MARK: - 缓存检查
 
-    // 检查钱包流水缓存是否过期（基于数据库和UserDefaults）
+    /// 检查钱包流水缓存是否过期（基于数据库和UserDefaults）
     private func isJournalCacheExpired(characterId: Int) -> Bool {
         // 检查UserDefaults中的最后更新时间
         if let lastUpdate = getJournalLastUpdateTime(characterId: characterId) {
@@ -245,7 +245,7 @@ class WalletJournalAPI {
 
     // MARK: - 网络请求
 
-    // 从服务器获取钱包流水
+    /// 从服务器获取钱包流水
     private func fetchJournalFromServer(characterId: Int) async throws -> [[String: Any]] {
         let baseUrlString =
             "https://esi.evetech.net/characters/\(characterId)/wallet/journal/?datasource=tranquility"
@@ -276,7 +276,7 @@ class WalletJournalAPI {
 
     // MARK: - 公开接口
 
-    // 获取钱包流水
+    /// 获取钱包流水
     func getWalletJournal(characterId: Int, forceRefresh: Bool = false) async throws -> String? {
         Logger.info("开始获取钱包流水 - 角色ID: \(characterId), 强制刷新: \(forceRefresh)")
 
@@ -322,7 +322,7 @@ class WalletJournalAPI {
         return nil
     }
 
-    // 使缓存失效
+    /// 使缓存失效
     func invalidateCache(characterId: Int) {
         let journalLastUpdateKey = journalLastUpdatePrefix + String(characterId)
         UserDefaults.standard.removeObject(forKey: journalLastUpdateKey)

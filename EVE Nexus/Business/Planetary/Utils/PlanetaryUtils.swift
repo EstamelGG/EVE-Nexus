@@ -1,8 +1,8 @@
 import Foundation
 
-// 定义行星相关工具类
+/// 定义行星相关工具类
 enum PlanetaryUtils {
-    // 行星类型ID到数据库列名的映射
+    /// 行星类型ID到数据库列名的映射
     static let planetTypeToColumn: [Int: String] = [
         11: "temperate", // 温和
         12: "ice", // 冰体
@@ -14,7 +14,7 @@ enum PlanetaryUtils {
         2063: "plasma", // 等离子
     ]
 
-    // 数据库列名到行星类型ID的映射
+    /// 数据库列名到行星类型ID的映射
     static let columnToPlanetType: [String: Int] = {
         var result: [String: Int] = [:]
         for (key, value) in planetTypeToColumn {
@@ -23,7 +23,7 @@ enum PlanetaryUtils {
         return result
     }()
 
-    // 根据marketGroupId确定资源等级
+    /// 根据marketGroupId确定资源等级
     static func determineResourceLevel(marketGroupId: Int) -> Int {
         switch marketGroupId {
         case 1333: // P0资源

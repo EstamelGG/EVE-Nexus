@@ -41,7 +41,7 @@ class AssetJsonRefreshTask: BaseProcessingTask {
 
         do {
             // 强制刷新资产JSON
-            _ = try await CharacterAssetsJsonAPI.shared.generateAssetTreeJson(
+            _ = try await CharacterAssetsJsonAPI.shared.generateAssetTree(
                 characterId: currentCharacterId,
                 forceRefresh: true
             )

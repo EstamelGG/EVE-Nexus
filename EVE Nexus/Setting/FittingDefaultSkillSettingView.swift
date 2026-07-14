@@ -72,7 +72,6 @@ struct FittingDefaultSkillSettingView: View {
         .navigationTitle(NSLocalizedString("Fitting_Setting_Default_Character", comment: "默认角色"))
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            // 若之前为「指定角色」模式，重置为当前人物（已移除指定角色选项）
             if skillsModePreference == "character" {
                 skillsModePreference = "current_char"
                 selectedSkillCharacterId = 0

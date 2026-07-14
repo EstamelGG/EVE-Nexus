@@ -2,6 +2,15 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>com.evenexus.datarefresh</string>
+		<string>com.evenexus.assetjsonrefresh</string>
+		<string>com.evenexus.contractrefresh</string>
+		<string>com.evenexus.structureordersrefresh</string>
+		<string>com.evenexus.industryrefresh</string>
+		<string>com.evenexus.walletrefresh</string>
+	</array>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -15,10 +24,12 @@
 			</array>
 		</dict>
 	</array>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>SDEMinimumAppVersion</key>
+	<string>1.13</string>
+	<key>SDERecordType</key>
+	<string>SDE_v3</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -34,28 +45,13 @@
 			</array>
 		</dict>
 	</dict>
-	<key>UILaunchScreen</key>
-	<dict/>
-	<key>BGTaskSchedulerPermittedIdentifiers</key>
-	<array>
-		<string>com.evenexus.datarefresh</string>
-		<string>com.evenexus.assetjsonrefresh</string>
-		<string>com.evenexus.contractrefresh</string>
-		<string>com.evenexus.structureordersrefresh</string>
-		<string>com.evenexus.industryrefresh</string>
-		<string>com.evenexus.walletrefresh</string>
-	</array>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>fetch</string>
 		<string>processing</string>
 	</array>
-	<key>NSPhotoLibraryAddUsageDescription</key>
-	<string>This app needs access to photo library to save item render images</string>
-	<key>SDEMinimumAppVersion</key>
-	<string>1.12</string>
-	<key>SDERecordType</key>
-	<string>SDE_Records</string>
+	<key>UILaunchScreen</key>
+	<dict/>
 	<key>showFittingDebug</key>
 	<false/>
 </dict>

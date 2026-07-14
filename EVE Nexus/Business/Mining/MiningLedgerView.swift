@@ -2,7 +2,7 @@ import Charts
 import SwiftUI
 import UIKit
 
-// 进度更新 Actor（用于线程安全地更新进度）
+/// 进度更新 Actor（用于线程安全地更新进度）
 actor MiningProgressActor {
     private var current: Int = 0
     private let total: Int
@@ -19,14 +19,14 @@ actor MiningProgressActor {
     }
 }
 
-// 按月份分组的挖矿记录
+/// 按月份分组的挖矿记录
 struct MiningMonthGroup: Identifiable {
     let id = UUID()
     let yearMonth: Date
     var entries: [MiningItemSummary]
 }
 
-// 每种矿石的汇总信息
+/// 每种矿石的汇总信息
 struct MiningItemSummary: Identifiable {
     let id: Int // type_id
     let name: String
@@ -34,13 +34,13 @@ struct MiningItemSummary: Identifiable {
     var totalQuantity: Int
 }
 
-// 扩展挖矿记录以包含角色归属信息
+/// 扩展挖矿记录以包含角色归属信息
 struct MiningLedgerEntryWithOwner {
     let entry: CharacterMiningAPI.MiningLedgerEntry
     let ownerId: Int // 该挖矿记录归属的角色ID
 }
 
-// 按日期汇总的挖矿数据
+/// 按日期汇总的挖矿数据
 struct DailyMiningSummary: Identifiable {
     let id = UUID()
     let date: Date
@@ -59,7 +59,7 @@ final class MiningLedgerViewModel: ObservableObject {
     @Published var loadingProgress: (current: Int, total: Int)? = nil // 加载进度 (已加载/总数)
     private var initialLoadDone = false
 
-    // 多人物聚合相关
+    /// 多人物聚合相关
     @Published var multiCharacterMode = false {
         didSet {
             UserDefaults.standard.set(multiCharacterMode, forKey: "multiCharacterMode_mining")
@@ -136,7 +136,7 @@ final class MiningLedgerViewModel: ObservableObject {
         loadingTask?.cancel()
     }
 
-    // 批量获取物品信息的方法
+    /// 批量获取物品信息的方法
     func preloadItemInfo(for typeIds: Set<Int>) {
         guard !typeIds.isEmpty else { return }
 
@@ -150,38 +150,14 @@ final class MiningLedgerViewModel: ObservableObject {
 
         Logger.debug("开始批量加载\(idsToLoad.count)个物品信息")
 
-        // 构建IN查询的参数
-        let placeholders = Array(repeating: "?", count: idsToLoad.count).joined(separator: ",")
-        let query =
-            "SELECT type_id, name, icon_filename, volume FROM types WHERE type_id IN (\(placeholders))"
-
-        // 将Set转换为数组以便作为参数传递
-        let parameters = idsToLoad.map { $0 as Any }
-
-        let result = databaseManager.executeQuery(query, parameters: parameters)
-
-        if case let .success(rows) = result {
-            for row in rows {
-                guard let typeId = row["type_id"] as? Int,
-                      let name = row["name"] as? String,
-                      let iconFileName = row["icon_filename"] as? String
-                else {
-                    continue
-                }
-
-                let info = (name: name, iconFileName: iconFileName)
-                itemInfoCache[typeId] = info
-
-                // 加载体积信息
-                if let volume = (row["volume"] as? Double) ?? (row["volume"] as? Int).map(Double.init) {
-                    itemVolumeCache[typeId] = volume
-                }
-            }
-
-            Logger.success("成功加载了\(rows.count)个物品信息")
-        } else {
-            Logger.error("批量加载物品信息失败")
+        var loadedCount = 0
+        for typeId in idsToLoad {
+            guard let info = ItemInfoMap.typeInfo(for: typeId), !info.name.isEmpty else { continue }
+            itemInfoCache[typeId] = (name: info.name, iconFileName: info.iconFilename)
+            itemVolumeCache[typeId] = info.volume
+            loadedCount += 1
         }
+        Logger.success("成功加载了\(loadedCount)个物品信息")
 
         // 检查是否有未找到的物品ID，为它们设置默认值
         for typeId in idsToLoad {
@@ -190,7 +166,7 @@ final class MiningLedgerViewModel: ObservableObject {
                     format: NSLocalizedString("Mining_Unknown_Ore", comment: ""), typeId
                 )
                 itemInfoCache[typeId] = (
-                    name: unknownName, iconFileName: DatabaseConfig.defaultItemIcon
+                    name: unknownName, iconFileName: IconManager.defaultItemIcon
                 )
             }
         }
@@ -263,7 +239,7 @@ final class MiningLedgerViewModel: ObservableObject {
                                     format: NSLocalizedString("Mining_Unknown_Ore", comment: ""),
                                     typeId
                                 ),
-                                iconFileName: DatabaseConfig.defaultItemIcon
+                                iconFileName: IconManager.defaultItemIcon
                             )
                         return MiningItemSummary(
                             id: typeId,
@@ -303,7 +279,7 @@ final class MiningLedgerViewModel: ObservableObject {
         await loadingTask?.value
     }
 
-    // 封装获取数据逻辑，处理多人物模式
+    /// 封装获取数据逻辑，处理多人物模式
     private func fetchMiningData(forceRefresh: Bool = false) async throws -> [MiningLedgerEntryWithOwner] {
         var allEntries: [MiningLedgerEntryWithOwner] = []
 
@@ -389,7 +365,7 @@ final class MiningLedgerViewModel: ObservableObject {
         return allEntries
     }
 
-    // 按日期聚合挖矿数据
+    /// 按日期聚合挖矿数据
     func aggregateDailyData() -> [DailyMiningSummary] {
         guard !entriesWithOwner.isEmpty else { return [] }
 
@@ -434,7 +410,7 @@ final class MiningLedgerViewModel: ObservableObject {
                             format: NSLocalizedString("Mining_Unknown_Ore", comment: ""),
                             typeId
                         ),
-                        iconFileName: DatabaseConfig.defaultItemIcon
+                        iconFileName: IconManager.defaultItemIcon
                     )
                 return MiningItemSummary(
                     id: typeId,
@@ -499,7 +475,7 @@ struct MiningLedgerView: View {
         }
     }
 
-    // 判断日期是否在近7天内
+    /// 判断日期是否在近7天内
     private func isDateInLast7Days(_ date: Date) -> Bool {
         let now = Date()
         // 获取今天的开始时间（去掉时分秒）
@@ -610,7 +586,8 @@ struct MiningSettingsSheet: View {
                             Text(
                                 NSLocalizedString(
                                     "Mining_Settings_Multi_Character", comment: "多人物聚合"
-                                ))
+                                )
+                            )
                             Text(
                                 NSLocalizedString(
                                     "Mining_Settings_Multi_Character_Description",
@@ -625,67 +602,10 @@ struct MiningSettingsSheet: View {
 
                 // 只有在多人物模式开启时才显示角色选择
                 if viewModel.multiCharacterMode {
-                    Section(
-                        header: Text(
-                            NSLocalizedString(
-                                "Mining_Settings_Select_Characters", comment: "选择角色"
-                            ))
-                    ) {
-                        ForEach(viewModel.availableCharacters, id: \.id) { character in
-                            Button(action: {
-                                if viewModel.selectedCharacterIds.contains(character.id) {
-                                    viewModel.selectedCharacterIds.remove(character.id)
-                                } else {
-                                    viewModel.selectedCharacterIds.insert(character.id)
-                                }
-                            }) {
-                                HStack {
-                                    // 角色头像
-                                    CharacterPortraitView(characterId: character.id)
-                                        .padding(.trailing, 8)
-
-                                    Text(character.name)
-                                        .foregroundColor(.primary)
-
-                                    Spacer()
-
-                                    if viewModel.selectedCharacterIds.contains(character.id) {
-                                        Image(systemName: "checkmark")
-                                            .foregroundColor(.blue)
-                                    }
-                                }
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                        }
-
-                        // 全选/全不选按钮
-                        Button(action: {
-                            if viewModel.selectedCharacterIds.count
-                                == viewModel.availableCharacters.count
-                            {
-                                viewModel.selectedCharacterIds = []
-                            } else {
-                                viewModel.selectedCharacterIds = Set(
-                                    viewModel.availableCharacters.map { $0.id })
-                            }
-                        }) {
-                            HStack {
-                                Text(NSLocalizedString("Mining_Filter_Select_All", comment: "全选"))
-                                Spacer()
-                                if viewModel.selectedCharacterIds.count
-                                    == viewModel.availableCharacters.count
-                                {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.blue)
-                                } else {
-                                    Image(systemName: "circle")
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
+                    MultiCharacterSelectionSection(
+                        availableCharacters: viewModel.availableCharacters,
+                        selectedCharacterIds: $viewModel.selectedCharacterIds
+                    )
                 }
             }
             .navigationTitle(NSLocalizedString("Mining_Settings_Title", comment: "设置"))
@@ -701,7 +621,7 @@ struct MiningSettingsSheet: View {
     }
 }
 
-// 每日汇总行视图
+/// 每日汇总行视图
 struct DailyMiningSummaryRow: View {
     let summary: DailyMiningSummary
 
@@ -753,7 +673,7 @@ struct DailyMiningSummaryRow: View {
     }
 }
 
-// 排序方式枚举
+/// 排序方式枚举
 enum MiningChartSortType: String, CaseIterable {
     case volume = "Volume"
     case quantity = "Quantity"
@@ -771,7 +691,7 @@ enum MiningChartSortType: String, CaseIterable {
     }
 }
 
-// 每日详情视图
+/// 每日详情视图
 struct DailyMiningDetailView: View {
     let summary: DailyMiningSummary
     let databaseManager: DatabaseManager
@@ -936,43 +856,35 @@ struct DailyMiningDetailView: View {
         }
     }
 
-    // 计算图表高度（基于固定的类别间距）
-    // 每个类别占用固定空间（包括柱子和间距），确保视觉体验一致
+    /// 计算图表高度（基于固定的类别间距）
+    /// 每个类别占用固定空间（包括柱子和间距），确保视觉体验一致
     private func calculateChartHeight(dataCount: Int) -> CGFloat {
         let categorySpacing: CGFloat = 40 // 每个类别占用的固定空间（包括柱子和间距）
         // 严格按数据数量计算，确保每个柱子的宽度和间距都固定
         return CGFloat(dataCount) * categorySpacing
     }
 
-    // 获取星系数量
+    /// 获取星系数量
     private func getSystemCount() -> Int {
         let systemIds = Set(summary.rawEntries.map { $0.entry.solar_system_id })
         return systemIds.count
     }
 
-    // 加载矿石体积信息
+    /// 加载矿石体积信息
     private func loadItemVolumes() async {
         let typeIds = summary.entries.map { $0.id }
         guard !typeIds.isEmpty else { return }
 
-        let placeholders = Array(repeating: "?", count: typeIds.count).joined(separator: ",")
-        let query = "SELECT type_id, volume FROM types WHERE type_id IN (\(placeholders))"
-        let parameters = typeIds.map { $0 as Any }
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: parameters) {
-            var volumes: [Int: Double] = [:]
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let volume = (row["volume"] as? Double) ?? (row["volume"] as? Int).map(Double.init)
-                {
-                    volumes[typeId] = volume
-                }
+        var volumes: [Int: Double] = [:]
+        for typeId in typeIds {
+            if let volume = ItemInfoMap.typeInfo(for: typeId)?.volume {
+                volumes[typeId] = volume
             }
-            itemVolumes = volumes
         }
+        itemVolumes = volumes
     }
 
-    // 加载星系名称和安全等级
+    /// 加载星系名称和安全等级
     private func loadSolarSystemNames() async {
         let systemIds = Set(summary.rawEntries.map { $0.entry.solar_system_id })
         guard !systemIds.isEmpty else { return }
@@ -980,28 +892,29 @@ struct DailyMiningDetailView: View {
         let systemIdsArray = Array(systemIds)
         let placeholders = Array(repeating: "?", count: systemIdsArray.count).joined(separator: ",")
         let query = """
-            SELECT s.solarSystemID, s.solarSystemName, u.system_security
-            FROM solarsystems s
-            JOIN universe u ON u.solarsystem_id = s.solarSystemID
-            WHERE s.solarSystemID IN (\(placeholders))
+            SELECT solarsystem_id, system_security
+            FROM universe
+            WHERE solarsystem_id IN (\(placeholders))
         """
         let parameters = systemIdsArray.map { $0 as Any }
 
         var names: [Int: String] = [:]
         var securities: [Int: Double] = [:]
 
+        for systemId in systemIds {
+            if let systemName = SDEMemoryStore.solarSystemName(for: systemId) {
+                names[systemId] = systemName
+            }
+        }
+
         if case let .success(rows) = databaseManager.executeQuery(query, parameters: parameters) {
             for row in rows {
-                if let systemId = (row["solarSystemID"] as? Int64).map(Int.init)
-                    ?? (row["solarSystemID"] as? Int),
-                    let systemName = row["solarSystemName"] as? String
+                if let systemId = (row["solarsystem_id"] as? Int64).map(Int.init)
+                    ?? (row["solarsystem_id"] as? Int),
+                    let security = (row["system_security"] as? Double)
+                    ?? (row["system_security"] as? Int).map(Double.init)
                 {
-                    names[systemId] = systemName
-
-                    // 加载安全等级
-                    if let security = (row["system_security"] as? Double) ?? (row["system_security"] as? Int).map(Double.init) {
-                        securities[systemId] = security
-                    }
+                    securities[systemId] = security
                 }
             }
         }
@@ -1010,7 +923,7 @@ struct DailyMiningDetailView: View {
         solarSystemSecurities = securities
     }
 
-    // 矿石列表 Header（带复制按钮）
+    /// 矿石列表 Header（带复制按钮）
     private var oreListHeader: some View {
         HStack {
             Text(NSLocalizedString("Mining_Detail_Ore_List", comment: "矿石明细"))
@@ -1042,7 +955,7 @@ struct DailyMiningDetailView: View {
         }
     }
 
-    // 复制矿石列表
+    /// 复制矿石列表
     private func copyOreList(useEnglish: Bool) {
         var textLines: [String] = []
 
@@ -1063,20 +976,15 @@ struct DailyMiningDetailView: View {
         UIPasteboard.general.string = text
     }
 
-    // 获取英文名称
+    /// 获取英文名称
     private func getEnglishName(for typeId: Int) -> String? {
-        let query = "SELECT en_name FROM types WHERE type_id = ?"
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]) {
-            if let row = rows.first,
-               let enName = row["en_name"] as? String
-            {
-                return enName
-            }
+        guard let enName = ItemInfoMap.typeInfo(for: typeId)?.enName, !enName.isEmpty else {
+            return nil
         }
-        return nil
+        return enName
     }
 
-    // 估价 Footer
+    /// 估价 Footer
     private var estimatePriceFooter: some View {
         HStack {
             Text(NSLocalizedString("Mining_Detail_Estimate_Price", comment: "估价"))
@@ -1102,58 +1010,35 @@ struct DailyMiningDetailView: View {
         .padding(.vertical, 4)
     }
 
-    // 加载矿石颜色（从数据库 ore_colors 表）
+    /// 加载矿石颜色（从 SDEMemoryStore.oreColors）
     private func loadOreColors() async {
         let typeIds = summary.entries.map { $0.id }
         guard !typeIds.isEmpty else {
-            // 如果没有矿石条目，直接标记为已加载
             await MainActor.run {
                 oreColorsLoaded = true
             }
             return
         }
 
-        let placeholders = Array(repeating: "?", count: typeIds.count).joined(separator: ",")
-        let query = "SELECT type_id, hex_color FROM ore_colors WHERE type_id IN (\(placeholders))"
-        let parameters = typeIds.map { $0 as Any }
-
         var colors: [Int: Color] = [:]
-
         Logger.debug("开始查询矿石颜色，typeIds: \(typeIds)")
 
-        let queryResult = databaseManager.executeQuery(query, parameters: parameters)
-
-        switch queryResult {
-        case let .success(rows):
-            Logger.debug("查询到 \(rows.count) 条颜色记录")
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let hexColor = row["hex_color"] as? String
-                {
-                    Logger.debug("找到颜色: typeId=\(typeId), hexColor=\(hexColor)")
-                    // 使用 Color(hex:) 扩展来创建颜色
-                    // 注意：Color(hex:) 扩展在 PlanetaryFacilityColors.swift 中定义
-                    let color = Color(hex: hexColor)
-                    colors[typeId] = color
-                    Logger.debug("成功转换颜色: typeId=\(typeId)")
-                } else {
-                    Logger.warning("颜色数据格式错误: typeId=\(row["type_id"] ?? "nil"), hexColor=\(row["hex_color"] ?? "nil")")
-                }
+        for typeId in typeIds {
+            if let hexColor = SDEMemoryStore.oreColor(for: typeId) {
+                Logger.debug("找到颜色: typeId=\(typeId), hexColor=\(hexColor)")
+                colors[typeId] = Color(hex: hexColor)
             }
-        case let .error(error):
-            Logger.error("查询矿石颜色失败: \(error)")
-            // 即使查询失败，也继续显示图表（使用图标提取的颜色作为兜底）
         }
 
         Logger.debug("最终加载了 \(colors.count) 个矿石颜色")
 
         await MainActor.run {
             oreColors = colors
-            oreColorsLoaded = true // 标记颜色已加载完成（即使查询失败也要标记，以便图表可以显示）
+            oreColorsLoaded = true
         }
     }
 
-    // 加载市场价格
+    /// 加载市场价格
     private func loadMarketPrices() async {
         let typeIds = summary.entries.map { $0.id }
         guard !typeIds.isEmpty else { return }
@@ -1164,7 +1049,7 @@ struct DailyMiningDetailView: View {
         }
     }
 
-    // 计算总估价
+    /// 计算总估价
     private func calculateTotalEstimatePrice() -> Double {
         var total: Double = 0
 
@@ -1179,14 +1064,14 @@ struct DailyMiningDetailView: View {
     }
 }
 
-// 每日详情页面的矿石行视图（显示数量和体积）
+/// 每日详情页面的矿石行视图（显示数量和体积）
 struct DailyMiningItemRow: View {
     let entry: MiningItemSummary
     let databaseManager: DatabaseManager
     let volume: Double? // 单位体积（m³）
     @State private var itemIcon: Image?
 
-    // 计算总体积
+    /// 计算总体积
     private var totalVolume: Double? {
         guard let volume = volume else { return nil }
         return Double(entry.totalQuantity) * volume

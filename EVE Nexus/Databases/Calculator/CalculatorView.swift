@@ -32,6 +32,19 @@ struct CalculatorView: View {
                     }
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+
+                NavigationLink(destination: MutationCalculatorView(databaseManager: databaseManager)) {
+                    HStack {
+                        Image("attributes")
+                            .resizable()
+                            .frame(width: 36, height: 36)
+                            .cornerRadius(6)
+
+                        Text(NSLocalizedString("Calculator_Mutation", comment: ""))
+                            .font(.body)
+                    }
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
 
             // 行星开发计算器

@@ -241,7 +241,7 @@ extension RemoteLogger {
         return (packet, header.compressedPacketLength)
     }
 
-    /// |code|contentSize|body?|
+    // |code|contentSize|body?|
     struct PacketHeader {
         let code: UInt8
         let contentSize: UInt32

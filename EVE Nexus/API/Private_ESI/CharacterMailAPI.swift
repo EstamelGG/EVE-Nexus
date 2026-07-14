@@ -15,20 +15,7 @@ struct EVEMail: Codable {
     let timestamp: String
 }
 
-// 邮件标签响应模型
-struct MailLabelsResponse: Codable {
-    let labels: [MailLabel]
-    let total_unread_count: Int
-}
-
-struct MailLabel: Codable {
-    let color: String
-    let label_id: Int
-    let name: String
-    let unread_count: Int?
-}
-
-// 邮件内容响应模型
+/// 邮件内容响应模型
 struct EVEMailContent: Codable {
     let body: String
     let from: Int
@@ -38,13 +25,13 @@ struct EVEMailContent: Codable {
     let timestamp: String
 }
 
-// 邮件订阅列表响应模型
+/// 邮件订阅列表响应模型
 struct EVEMailList: Codable {
     let mailing_list_id: Int
     let name: String
 }
 
-// 邮件内容缓存包装类
+/// 邮件内容缓存包装类
 final class CachedMailContent {
     let content: EVEMailContent
 
@@ -59,12 +46,7 @@ class CharacterMailAPI {
     private let networkManager = NetworkManager.shared
     private let databaseManager = CharacterDatabaseManager.shared
 
-    // 缓存邮件标签数据
-    private var cachedLabels: [Int: MailLabelsResponse] = [:]
-    private var labelsCacheTime: [Int: Date] = [:]
-    private let cacheValidDuration: TimeInterval = 300 // 5分钟缓存有效期
-
-    // 邮件内容缓存
+    /// 邮件内容缓存
     private let mailContentCache = NSCache<NSNumber, CachedMailContent>()
 
     private init() {
@@ -82,7 +64,8 @@ class CharacterMailAPI {
         async throws -> [EVEMail]
     {
         Logger.info(
-            "开始从网络获取邮件 - 角色ID: \(characterId), 标签ID: \(labelId ?? 0), 最后邮件ID: \(lastMailId ?? 0)")
+            "开始从网络获取邮件 - 角色ID: \(characterId), 标签ID: \(labelId ?? 0), 最后邮件ID: \(lastMailId ?? 0)"
+        )
 
         // 构建请求URL
         var urlString =
@@ -121,83 +104,6 @@ class CharacterMailAPI {
         return mails
     }
 
-    /// 获取邮件标签和未读数
-    /// - Parameters:
-    ///   - characterId: 角色ID
-    ///   - forceRefresh: 是否强制刷新，忽略缓存
-    /// - Returns: 邮件标签响应数据
-    func fetchMailLabels(characterId: Int, forceRefresh: Bool = false) async throws
-        -> MailLabelsResponse
-    {
-        // 检查缓存是否有效
-        if !forceRefresh,
-           let cachedResponse = cachedLabels[characterId],
-           let cacheTime = labelsCacheTime[characterId],
-           Date().timeIntervalSince(cacheTime) < cacheValidDuration
-        {
-            Logger.debug("使用缓存的邮件标签数据")
-            return cachedResponse
-        }
-
-        do {
-            // 构建请求URL
-            let urlString =
-                "https://esi.evetech.net/characters/\(characterId)/mail/labels/?datasource=tranquility"
-            guard let url = URL(string: urlString) else {
-                throw NetworkError.invalidURL
-            }
-
-            // 发送请求获取数据
-            let data = try await networkManager.fetchDataWithToken(
-                from: url, characterId: characterId
-            )
-
-            // 解析响应数据
-            let response = try JSONDecoder().decode(MailLabelsResponse.self, from: data)
-
-            // 更新缓存
-            cachedLabels[characterId] = response
-            labelsCacheTime[characterId] = Date()
-
-            Logger.success("成功获取邮件标签数据")
-            return response
-        } catch {
-            Logger.error("获取邮件标签失败: \(error)")
-            throw error
-        }
-    }
-
-    /// 获取指定标签的未读邮件数
-    /// - Parameters:
-    ///   - characterId: 角色ID
-    ///   - labelId: 标签ID
-    ///   - forceRefresh: 是否强制刷新，忽略缓存
-    /// - Returns: 未读邮件数，如果为0则返回nil
-    func getUnreadCount(characterId: Int, labelId: Int, forceRefresh: Bool = false) async throws
-        -> Int?
-    {
-        let response = try await fetchMailLabels(
-            characterId: characterId, forceRefresh: forceRefresh
-        )
-
-        if let label = response.labels.first(where: { $0.label_id == labelId }) {
-            return label.unread_count == 0 ? nil : label.unread_count
-        }
-        return nil
-    }
-
-    /// 获取总未读邮件数
-    /// - Parameters:
-    ///   - characterId: 角色ID
-    ///   - forceRefresh: 是否强制刷新，忽略缓存
-    /// - Returns: 总未读邮件数，如果为0则返回nil
-    func getTotalUnreadCount(characterId: Int, forceRefresh: Bool = false) async throws -> Int? {
-        let response = try await fetchMailLabels(
-            characterId: characterId, forceRefresh: forceRefresh
-        )
-        return response.total_unread_count == 0 ? nil : response.total_unread_count
-    }
-
     /// 将邮件保存到数据库
     /// - Parameters:
     ///   - mails: 邮件数组
@@ -221,7 +127,8 @@ class CharacterMailAPI {
             existingMailIds = Set(
                 rows.compactMap {
                     ($0["mail_id"] as? Int64).map(Int.init) ?? ($0["mail_id"] as? Int)
-                })
+                }
+            )
             Logger.info("找到 \(existingMailIds.count) 封已存在的邮件")
 
         case let .error(error):

@@ -2,7 +2,7 @@ import Foundation
 
 /// 技能计划辅助类 - 处理技能添加的共享逻辑
 class SkillPlanHelper {
-    // 添加技能及其所有前置依赖
+    /// 添加技能及其所有前置依赖
     static func collectSkillsToAdd(
         skillId: Int,
         skillName: String,
@@ -64,7 +64,39 @@ class SkillPlanHelper {
         return skillsToAdd
     }
 
-    // 获取前置技能（按依赖深度排序）
+    /// 用修正后的队列重建计划技能列表，尽量保留已有名称与完成状态
+    static func rebuildSkills(
+        corrected: [(skillId: Int, level: Int)],
+        existing: [PlannedSkill]
+    ) -> [PlannedSkill] {
+        let lookup = Dictionary(
+            existing.map { ("\($0.skillID)_\($0.targetLevel)", $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+
+        return corrected.map { skill in
+            let key = "\(skill.skillId)_\(skill.level)"
+            if let existingSkill = lookup[key] {
+                return existingSkill
+            }
+            let skillName = SkillTreeManager.shared.getSkillName(for: skill.skillId)
+                ?? "Unknown Skill (\(skill.skillId))"
+            return PlannedSkill(
+                id: UUID(),
+                skillID: skill.skillId,
+                skillName: skillName,
+                currentLevel: skill.level - 1,
+                targetLevel: skill.level,
+                trainingTime: 0,
+                requiredSP: 0,
+                prerequisites: [],
+                currentSkillPoints: nil,
+                isCompleted: false
+            )
+        }
+    }
+
+    /// 获取前置技能（按依赖深度排序）
     private static func getAllPrerequisites(
         skillId: Int,
         requiredLevel _: Int,
@@ -103,7 +135,7 @@ class SkillPlanHelper {
         }
     }
 
-    // 计算技能的依赖深度（递归）
+    /// 计算技能的依赖深度（递归）
     private static func calculateSkillDepth(skillId: Int, databaseManager: DatabaseManager) -> Int {
         let directReqs = SkillTreeManager.shared.getDeduplicatedSkillRequirements(
             for: skillId, databaseManager: databaseManager
@@ -121,60 +153,41 @@ class SkillPlanHelper {
         return 1 + maxPrereqDepth
     }
 
-    // 获取技能名称
-    private static func getSkillName(skillId: Int, databaseManager: DatabaseManager) -> String {
-        let query = "SELECT name FROM types WHERE type_id = ?"
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [skillId]),
-           let row = rows.first,
-           let name = row["name"] as? String
-        {
+    /// 获取技能名称
+    private static func getSkillName(skillId: Int, databaseManager _: DatabaseManager) -> String {
+        if let name = SkillTreeManager.shared.getSkillName(for: skillId) {
             return name
         }
-        return "Unknown Skill (\(skillId))"
+        return ItemInfoMap.typeName(for: skillId) ?? "Unknown Skill (\(skillId))"
     }
 }
 
 // MARK: - 技能队列修正工具类
 
-/// 技能队列修正工具类：补齐前置依赖、等级依赖并去重
+/// 技能队列修正工具类：补齐前置依赖、等级依赖并去重（使用内存技能树，无 SQL）
 class SkillQueueCorrector {
-    private let databaseManager: DatabaseManager
-
-    init(databaseManager: DatabaseManager) {
-        self.databaseManager = databaseManager
-    }
+    private var depthCache: [Int: Int] = [:]
 
     /// 修正技能队列：补齐前置依赖、等级依赖并去重
     /// - Parameter inputSkills: 输入的技能ID+目标等级列表（按用户输入顺序）
     /// - Returns: 修正后的完整技能队列（包含所有前置依赖，按正确顺序排列，无重复）
     func correctSkillQueue(inputSkills: [(skillId: Int, level: Int)]) -> [(skillId: Int, level: Int)] {
+        depthCache.removeAll()
         var result: [(skillId: Int, level: Int)] = []
-        var addedSkills: Set<String> = [] // 用于去重，格式："skillId_level"
+        var addedSkills: Set<String> = []
 
         Logger.debug("[队列修正] 开始修正技能队列，输入 \(inputSkills.count) 个技能")
 
-        for (_, inputSkill) in inputSkills.enumerated() {
-            // Logger.debug("[队列修正] 处理第 \(index + 1) 个技能: ID \(inputSkill.skillId) 等级 \(inputSkill.level)")
-
-            // 获取这个技能及其所有前置依赖（包括等级依赖），按正确顺序排列
+        for inputSkill in inputSkills {
             let skillsToAdd = getSkillsWithPrerequisites(skillId: inputSkill.skillId, targetLevel: inputSkill.level)
 
-            var newCount = 0
-            var skipCount = 0
-
-            // 按顺序添加，跳过已存在的
             for skill in skillsToAdd {
                 let key = "\(skill.skillId)_\(skill.level)"
                 if !addedSkills.contains(key) {
                     result.append(skill)
                     addedSkills.insert(key)
-                    newCount += 1
-                } else {
-                    skipCount += 1
                 }
             }
-
-            // Logger.debug("[队列修正]   添加 \(newCount) 个技能等级，跳过 \(skipCount) 个重复")
         }
 
         Logger.debug("[队列修正] 修正完成，输出 \(result.count) 个技能等级")
@@ -183,71 +196,46 @@ class SkillQueueCorrector {
 
     // MARK: - Private Methods
 
-    /// 获取技能及其所有前置依赖（包括等级依赖），按正确顺序排列
     private func getSkillsWithPrerequisites(skillId: Int, targetLevel: Int) -> [(skillId: Int, level: Int)] {
         var allSkills: [(skillId: Int, level: Int)] = []
+        allSkills.append(contentsOf: getAllPrerequisitesForSkill(skillId: skillId))
 
-        // 1. 获取所有前置技能依赖
-        let prerequisites = getAllPrerequisitesForSkill(skillId: skillId)
-        allSkills.append(contentsOf: prerequisites)
-
-        // 2. 获取目标技能的依赖深度
-        let targetSkillDepth = calculateSkillDepth(skillId: skillId)
-
-        // 3. 添加目标技能的所有等级（从1到targetLevel）
+        let targetSkillDepth = skillDepth(for: skillId)
         for level in 1 ... targetLevel {
             allSkills.append((skillId: skillId, level: level))
         }
 
-        // 4. 重新排序：确保按深度和等级正确排列
         allSkills.sort { first, second in
-            let depth1 = (first.skillId == skillId) ? targetSkillDepth : calculateSkillDepth(skillId: first.skillId)
-            let depth2 = (second.skillId == skillId) ? targetSkillDepth : calculateSkillDepth(skillId: second.skillId)
+            let depth1 = first.skillId == skillId ? targetSkillDepth : skillDepth(for: first.skillId)
+            let depth2 = second.skillId == skillId ? targetSkillDepth : skillDepth(for: second.skillId)
 
             if depth1 != depth2 {
-                return depth1 < depth2 // 深度小的优先（最底层的前置优先）
+                return depth1 < depth2
             } else if first.skillId == second.skillId {
-                return first.level < second.level // 同一技能，等级从低到高
+                return first.level < second.level
             } else {
-                return first.skillId < second.skillId // 同深度，按 ID 排序
+                return first.skillId < second.skillId
             }
         }
 
         return allSkills
     }
 
-    /// 获取技能的所有前置要求（递归，包括所有等级）
     private func getAllPrerequisitesForSkill(skillId: Int) -> [(skillId: Int, level: Int)] {
-        let requirements = SkillTreeManager.shared.getDeduplicatedSkillRequirements(
-            for: skillId,
-            databaseManager: databaseManager
-        )
+        let skillLevels = SkillTreeManager.shared.prerequisiteMaxLevels(for: skillId)
 
-        var skillLevels: [Int: Int] = [:] // [skillId: maxLevel]
-
-        // 收集每个技能需要的最高等级
-        for requirement in requirements {
-            let currentMax = skillLevels[requirement.skillID] ?? 0
-            skillLevels[requirement.skillID] = max(currentMax, requirement.level)
-        }
-
-        // 计算每个技能的依赖深度
         var skillDepths: [Int: Int] = [:]
-        for (prereqSkillId, _) in skillLevels {
-            let depth = calculateSkillDepth(skillId: prereqSkillId)
-            skillDepths[prereqSkillId] = depth
+        for prereqSkillId in skillLevels.keys {
+            skillDepths[prereqSkillId] = skillDepth(for: prereqSkillId)
         }
 
         var allPrerequisites: [(skillId: Int, level: Int)] = []
-
-        // 将每个技能展开成从1到最高等级的所有等级
         for (prereqSkillId, maxLevel) in skillLevels {
             for level in 1 ... maxLevel {
                 allPrerequisites.append((skillId: prereqSkillId, level: level))
             }
         }
 
-        // 按深度排序（深度小的先=最底层的前置优先）
         return allPrerequisites.sorted { first, second in
             let depth1 = skillDepths[first.skillId] ?? 0
             let depth2 = skillDepths[second.skillId] ?? 0
@@ -262,20 +250,19 @@ class SkillQueueCorrector {
         }
     }
 
-    /// 计算技能的依赖深度（递归）
-    private func calculateSkillDepth(skillId: Int) -> Int {
-        let directReqs = SkillTreeManager.shared.getDeduplicatedSkillRequirements(
-            for: skillId, databaseManager: databaseManager
-        )
+    private func skillDepth(for skillId: Int) -> Int {
+        if let cached = depthCache[skillId] {
+            return cached
+        }
 
-        if directReqs.isEmpty {
+        let directReqs = SkillTreeManager.shared.directSkillRequirements(for: skillId)
+        guard !directReqs.isEmpty else {
+            depthCache[skillId] = 0
             return 0
         }
 
-        let maxPrereqDepth = directReqs.map { req in
-            calculateSkillDepth(skillId: req.skillID)
-        }.max() ?? 0
-
-        return 1 + maxPrereqDepth
+        let depth = 1 + (directReqs.map { skillDepth(for: $0.skillID) }.max() ?? 0)
+        depthCache[skillId] = depth
+        return depth
     }
 }

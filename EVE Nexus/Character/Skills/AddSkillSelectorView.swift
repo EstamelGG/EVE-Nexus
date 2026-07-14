@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 添加技能选择器视图
+/// 添加技能选择器视图
 struct AddSkillSelectorView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let onBatchSkillsSelected: ([(skillId: Int, skillName: String, level: Int)]) -> Void // 批量添加回调
@@ -16,7 +16,7 @@ struct AddSkillSelectorView: View {
     @State private var skillLevels: [Int: Int] = [:] // [skillId: level] 用于搜索结果的等级管理
     @State private var addedSkills: Set<Int> = [] // 已添加的技能ID集合
 
-    // 搜索结果：同时匹配 name、zh_name 和 en_name
+    /// 搜索结果
     private var filteredSkills: [SkillInfo] {
         if searchText.isEmpty {
             return []
@@ -106,7 +106,7 @@ struct AddSkillSelectorView: View {
             .navigationBarTitleDisplayMode(.inline)
             .searchable(
                 text: $searchText,
-                placement: .navigationBarDrawer(displayMode: .always),
+                // placement: .navigationBarDrawer(displayMode: .always),
                 prompt: NSLocalizedString("Main_Search_Placeholder", comment: "")
             )
             .toolbar {
@@ -125,13 +125,9 @@ struct AddSkillSelectorView: View {
     private func loadSkillGroups() {
         isLoading = true
 
-        // 使用与SkillCategoryView相同的查询方式
         let skillsQuery = """
             SELECT 
                 t.type_id,
-                t.name,
-                t.zh_name,
-                t.en_name,
                 t.groupID,
                 t.group_name
             FROM types t
@@ -147,24 +143,17 @@ struct AddSkillSelectorView: View {
 
             for row in skillRows {
                 guard let typeId = row["type_id"] as? Int,
-                      let name = row["name"] as? String,
                       let groupId = row["groupID"] as? Int,
-                      let groupName = row["group_name"] as? String
+                      let groupName = row["group_name"] as? String,
+                      let type = SDEMemoryStore.type(for: typeId)
                 else {
                     continue
                 }
 
-                // 获取中文名和英文名
-                let zhName = row["zh_name"] as? String
-                let enName = row["en_name"] as? String
-
-                // 收集所有技能用于搜索
                 tempAllSkills.append(SkillInfo(
                     id: typeId,
-                    name: name,
-                    zhName: zhName,
-                    enName: enName,
-                    timeMultiplier: 1.0 // 暂时使用默认值，后续如需显示再查询
+                    names: type.names,
+                    timeMultiplier: 1.0
                 ))
 
                 // 分组统计
@@ -208,7 +197,7 @@ struct AddSkillSelectorView: View {
         }
     }
 
-    // 添加技能到计划
+    /// 添加技能到计划
     private func addSkillToPlan(skillId: Int, skillName: String, level: Int) {
         let skillsToAdd = SkillPlanHelper.collectSkillsToAdd(
             skillId: skillId,
@@ -226,7 +215,7 @@ struct AddSkillSelectorView: View {
         }
     }
 
-    // 移除技能的某些等级（降级时使用）
+    /// 移除技能的某些等级（降级时使用）
     private func removeSkillLevels(skillId: Int, fromLevel: Int, toLevel: Int) {
         guard fromLevel <= toLevel else { return }
 
@@ -246,13 +235,13 @@ struct AddSkillSelectorView: View {
         onSkillLevelsRemoved(skillId, fromLevel, toLevel)
     }
 
-    // 检查技能等级是否有后置依赖
+    /// 检查技能等级是否有后置依赖
     private func hasPostDependencies(skillId: Int, level: Int) -> Bool {
         let key = "\(skillId)_\(level)"
         return !(skillDependencies[key]?.isEmpty ?? true)
     }
 
-    // 获取技能可以降级到的最低等级
+    /// 获取技能可以降级到的最低等级
     private func getMinimumLevel(for skillId: Int) -> Int {
         let currentLevel = skillLevels[skillId] ?? 0
 
@@ -272,14 +261,14 @@ struct AddSkillSelectorView: View {
     }
 }
 
-// 技能组信息模型
+/// 技能组信息模型
 struct SkillGroupInfo: Identifiable {
     let id: Int
     let name: String
     let skillCount: Int
 }
 
-// 技能组行视图
+/// 技能组行视图
 struct SkillGroupRowView: View {
     let group: SkillGroupInfo
     @Environment(\.colorScheme) private var colorScheme
@@ -304,7 +293,7 @@ struct SkillGroupRowView: View {
     }
 }
 
-// 技能组技能列表视图
+/// 技能组技能列表视图
 struct SkillGroupSkillsView: View {
     let group: SkillGroupInfo
     @ObservedObject var databaseManager: DatabaseManager
@@ -379,9 +368,8 @@ struct SkillGroupSkillsView: View {
         isLoading = true
 
         let query = """
-            SELECT t.type_id, t.name, t.zh_name, t.en_name, ta.value as time_multiplier
+            SELECT t.type_id
             FROM types t
-            LEFT JOIN typeAttributes ta ON t.type_id = ta.type_id AND ta.attribute_id = 275
             WHERE t.published = 1 AND t.categoryID = 16 AND t.groupID = ?
             ORDER BY t.name
         """
@@ -389,20 +377,16 @@ struct SkillGroupSkillsView: View {
         if case let .success(rows) = databaseManager.executeQuery(query, parameters: [group.id]) {
             skills = rows.compactMap { row in
                 guard let typeId = row["type_id"] as? Int,
-                      let name = row["name"] as? String
+                      let type = SDEMemoryStore.type(for: typeId)
                 else {
                     return nil
                 }
 
-                let zhName = row["zh_name"] as? String
-                let enName = row["en_name"] as? String
-                let timeMultiplier = row["time_multiplier"] as? Double ?? 1.0
+                let timeMultiplier = SkillTreeManager.shared.trainingTimeMultiplier(for: typeId) ?? 1.0
 
                 return SkillInfo(
                     id: typeId,
-                    name: name,
-                    zhName: zhName,
-                    enName: enName,
+                    names: type.names,
                     timeMultiplier: timeMultiplier
                 )
             }
@@ -421,7 +405,7 @@ struct SkillGroupSkillsView: View {
         isLoading = false
     }
 
-    // 添加技能到计划
+    /// 添加技能到计划
     private func addSkillToPlan(skillId: Int, skillName: String, level: Int) {
         let skillsToAdd = SkillPlanHelper.collectSkillsToAdd(
             skillId: skillId,
@@ -439,7 +423,7 @@ struct SkillGroupSkillsView: View {
         }
     }
 
-    // 移除技能的某些等级（降级时使用）
+    /// 移除技能的某些等级（降级时使用）
     private func removeSkillLevels(skillId: Int, fromLevel: Int, toLevel: Int) {
         guard fromLevel <= toLevel else { return }
 
@@ -459,13 +443,13 @@ struct SkillGroupSkillsView: View {
         onSkillLevelsRemoved(skillId, fromLevel, toLevel)
     }
 
-    // 检查技能等级是否有后置依赖
+    /// 检查技能等级是否有后置依赖
     private func hasPostDependencies(skillId: Int, level: Int) -> Bool {
         let key = "\(skillId)_\(level)"
         return !(skillDependencies[key]?.isEmpty ?? true)
     }
 
-    // 获取技能可以降级到的最低等级
+    /// 获取技能可以降级到的最低等级
     private func getMinimumLevel(for skillId: Int) -> Int {
         let currentLevel = skillLevels[skillId] ?? 0
 
@@ -485,38 +469,22 @@ struct SkillGroupSkillsView: View {
     }
 }
 
-// 技能信息模型
+/// 技能信息模型
 struct SkillInfo: Identifiable {
     let id: Int
-    let name: String
-    let zhName: String?
-    let enName: String?
+    let names: LocalizedText
     let timeMultiplier: Double
 
-    // 搜索匹配函数：同时匹配中文名和英文名
+    var name: String {
+        names.resolved()
+    }
+
     func matches(searchText: String) -> Bool {
-        let lowercasedSearch = searchText.lowercased()
-
-        // 匹配显示名称
-        if name.lowercased().contains(lowercasedSearch) {
-            return true
-        }
-
-        // 匹配中文名
-        if let zhName = zhName, zhName.lowercased().contains(lowercasedSearch) {
-            return true
-        }
-
-        // 匹配英文名
-        if let enName = enName, enName.lowercased().contains(lowercasedSearch) {
-            return true
-        }
-
-        return false
+        names.matchesSearch(searchText)
     }
 }
 
-// 技能等级选择器
+/// 技能等级选择器
 struct SkillLevelSelector: View {
     let skillId: Int
     let currentLevel: Int

@@ -10,7 +10,6 @@ class PlanetaryConverter {
     ///   - planetName: 行星名称
     ///   - planetType: 行星类型
     ///   - systemId: 恒星系ID
-    ///   - systemName: 恒星系名称
     ///   - upgradeLevel: 升级等级
     ///   - lastUpdate: 最后更新时间（可选，默认为当前时间）
     /// - Returns: 殖民地模型
@@ -21,7 +20,6 @@ class PlanetaryConverter {
         planetName _: String,
         planetType _: String,
         systemId: Int,
-        systemName: String,
         upgradeLevel: Int,
         lastUpdate: String = Date().ISO8601Format()
     ) -> Colony {
@@ -34,10 +32,7 @@ class PlanetaryConverter {
         let updateDate = dateFormatter.date(from: lastUpdate) ?? Date()
 
         // 创建恒星系
-        let system = SolarSystem(
-            id: systemId,
-            name: systemName
-        )
+        let system = SolarSystem(id: systemId)
 
         // 转换设施
         let pins = convertPins(detail.pins, upgradeLevel: upgradeLevel, updateDate: updateDate)
@@ -73,13 +68,7 @@ class PlanetaryConverter {
     /// - Parameter typeId: 类型ID
     /// - Returns: 组ID
     private static func getGroupId(for typeId: Int) -> Int {
-        let query = "SELECT groupID FROM types WHERE type_id = ?"
-        let result = DatabaseManager.shared.executeQuery(query, parameters: [typeId])
-
-        if case let .success(rows) = result, let row = rows.first {
-            return row["groupID"] as? Int ?? 0
-        }
-        return 0
+        ItemInfoMap.typeInfo(for: typeId)?.groupID ?? 0
     }
 
     /// 转换设施列表
@@ -166,7 +155,8 @@ class PlanetaryConverter {
                     heads.append(
                         PlanetaryExtractorHead(
                             latitude: Double(head.latitude), longitude: Double(head.longitude)
-                        ))
+                        )
+                    )
                 }
 
                 // 使用updateDate（模拟初始时间）而不是Date()（系统当前时间）
@@ -369,16 +359,11 @@ class PlanetaryConverter {
     /// - Parameter typeId: 类型ID
     /// - Returns: 类型名称和体积
     private static func getTypeInfo(_ typeId: Int) -> (name: String, volume: Double) {
-        let query = "SELECT name, volume FROM types WHERE type_id = ?"
-        let result = DatabaseManager.shared.executeQuery(query, parameters: [typeId])
-
-        if case let .success(rows) = result, let row = rows.first {
-            let name = row["name"] as? String ?? NSLocalizedString("Unknown", comment: "")
-            let volume = row["volume"] as? Double ?? 1.0
-            return (name: name, volume: volume)
+        guard let info = ItemInfoMap.typeInfo(for: typeId) else {
+            return (name: NSLocalizedString("Unknown", comment: ""), volume: 1.0)
         }
-
-        return (name: NSLocalizedString("Unknown", comment: ""), volume: 1.0)
+        let name = info.name.isEmpty ? NSLocalizedString("Unknown", comment: "") : info.name
+        return (name: name, volume: info.volume)
     }
 
     /// 获取配方

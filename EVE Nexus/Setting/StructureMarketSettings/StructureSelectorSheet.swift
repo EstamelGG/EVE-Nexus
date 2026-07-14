@@ -15,11 +15,11 @@ struct StructureSelectorSheet: View {
     @State private var isSearchActive = false
     @State private var searchingStatus = ""
 
-    // 存储建筑ID到类型ID的映射
-    @State private var structureTypeIdMap: [Int: Int] = [:]
+    /// 能安装市场模块的建筑类型ID（跨实例共享，仅查一次数据库）
+    private static var marketCapableStructureTypes: Set<Int>? = nil
 
-    // 存储能安装市场模块的建筑类型ID
-    @State private var marketCapableStructureTypes: Set<Int> = []
+    /// 建筑排序优先级（按 typeId 升序，越小越靠前）
+    private static let priorityTypeIds: [Int] = [40340, 35834, 35833, 35827, 35832, 35825, 35836, 35826, 35835]
 
     private let minSearchLength = 3
 
@@ -140,7 +140,7 @@ struct StructureSelectorSheet: View {
             .searchable(
                 text: $searchText,
                 isPresented: $isSearchActive,
-                placement: .navigationBarDrawer(displayMode: .always),
+                // placement: .navigationBarDrawer(displayMode: .always),
                 prompt: Text(NSLocalizedString("Market_Structure_Search_Placeholder", comment: ""))
             )
             .toolbar {
@@ -163,28 +163,20 @@ struct StructureSelectorSheet: View {
     }
 
     private func handleSearchTextChange(_ text: String) {
-        // 取消之前的搜索任务
         searchTask?.cancel()
 
         guard text.count >= minSearchLength else {
             searchResults = []
             isSearching = false
             searchingStatus = ""
-            structureTypeIdMap = [:]
             return
         }
 
-        // 创建新的搜索任务
         searchTask = Task {
-            // 等待500ms防抖
             try? await Task.sleep(nanoseconds: 500_000_000)
-
             guard !Task.isCancelled else { return }
 
-            await MainActor.run {
-                isSearching = true
-            }
-
+            await MainActor.run { isSearching = true }
             await performSearch(text: text)
         }
     }
@@ -192,10 +184,9 @@ struct StructureSelectorSheet: View {
     @MainActor
     private func performSearch(text: String) async {
         do {
-            // 首先加载能安装市场模块的建筑类型
+            // 首先加载能安装市场模块的建筑类型（带缓存）
             await loadMarketCapableStructureTypes()
 
-            // 直接搜索建筑物，不使用通用的StructureSearchView
             try await searchStructuresOnly(text: text)
 
             isSearching = false
@@ -206,20 +197,23 @@ struct StructureSelectorSheet: View {
             searchResults = []
             isSearching = false
             searchingStatus = ""
-            structureTypeIdMap = [:]
         }
     }
 
-    // 加载能安装市场模块的建筑类型ID
+    /// 加载能安装市场模块的建筑类型ID（仅首次查询数据库，后续使用缓存）
     private func loadMarketCapableStructureTypes() async {
-        let marketModuleTypeId = 35892 // 市场模块的type_id
+        // 命中缓存直接返回
+        if Self.marketCapableStructureTypes != nil {
+            return
+        }
+
+        let marketModuleTypeId = 35892
 
         do {
-            // 1. 获取所有可装配相关的属性ID，参考CanFit.swift中的实现
             let attributeQuery = """
-                SELECT attribute_id, name, unitID 
-                FROM dogmaAttributes 
-                WHERE (name LIKE 'canFitShipType%' OR name LIKE 'canFitShipGroup%') 
+                SELECT attribute_id, name, unitID
+                FROM dogmaAttributes
+                WHERE (name LIKE 'canFitShipType%' OR name LIKE 'canFitShipGroup%')
                 AND unitID IN (115, 116)
             """
 
@@ -240,21 +234,16 @@ struct StructureSelectorSheet: View {
                 }
             }
 
-            Logger.info(
-                "找到 \(shipGroupAttributes.count) 个canFitShipGroup属性和 \(shipTypeAttributes.count) 个canFitShipType属性"
-            )
-
-            if shipGroupAttributes.isEmpty, shipTypeAttributes.isEmpty {
-                Logger.warning("未找到可装配属性ID")
+            guard !(shipGroupAttributes.isEmpty && shipTypeAttributes.isEmpty) else {
+                await MainActor.run { Self.marketCapableStructureTypes = [] }
                 return
             }
 
-            // 2. 查找能装配市场模块的group_id和type_id
             let allCanFitAttributes = shipGroupAttributes + shipTypeAttributes
             let placeholders = allCanFitAttributes.map { _ in "?" }.joined(separator: ",")
             let valueQuery = """
                 SELECT DISTINCT value, attribute_id
-                FROM typeAttributes 
+                FROM typeAttributes
                 WHERE attribute_id IN (\(placeholders)) AND type_id = ?
             """
 
@@ -272,29 +261,22 @@ struct StructureSelectorSheet: View {
                        let attributeId = row["attribute_id"] as? Int
                     {
                         let valueInt = Int(value)
-
                         if shipGroupAttributes.contains(attributeId) {
-                            // 这是一个group_id
                             allowedGroupIds.insert(valueInt)
                         } else if shipTypeAttributes.contains(attributeId) {
-                            // 这是一个type_id
                             allowedTypeIds.insert(valueInt)
                         }
                     }
                 }
             }
 
-            Logger.info("市场模块可装配到的group_id: \(Array(allowedGroupIds).sorted())")
-            Logger.info("市场模块可装配到的type_id: \(Array(allowedTypeIds).sorted())")
-
-            // 3. 根据允许的group_id查找所有对应的type_id
             var allCapableTypeIds: Set<Int> = allowedTypeIds
 
             if !allowedGroupIds.isEmpty {
                 let groupPlaceholders = allowedGroupIds.map { _ in "?" }.joined(separator: ",")
                 let typeFromGroupQuery = """
-                    SELECT DISTINCT type_id 
-                    FROM types 
+                    SELECT DISTINCT type_id
+                    FROM types
                     WHERE groupID IN (\(groupPlaceholders)) AND published = 1
                 """
 
@@ -310,30 +292,25 @@ struct StructureSelectorSheet: View {
             }
 
             await MainActor.run {
-                marketCapableStructureTypes = allCapableTypeIds
-                Logger.info(
-                    "找到 \(allCapableTypeIds.count) 种能安装市场模块的建筑类型: \(Array(allCapableTypeIds).sorted())"
-                )
+                Self.marketCapableStructureTypes = allCapableTypeIds
+                Logger.info("找到 \(allCapableTypeIds.count) 种能安装市场模块的建筑类型")
             }
         }
     }
 
-    // 专门搜索建筑物的方法
+    /// 专门搜索建筑物的方法
     private func searchStructuresOnly(text: String) async throws {
         searchingStatus = NSLocalizedString("Main_Search_Status_Finding_Structures", comment: "")
 
         var structureIds: [Int] = []
 
-        // 使用CharacterSearchAPI进行在线搜索，只搜索建筑物
         do {
             let data = try await CharacterSearchAPI.shared.search(
                 characterId: character.CharacterID,
-                categories: [.structure], // 只搜索建筑物
+                categories: [.structure],
                 searchText: text
             )
-
             let response = try JSONDecoder().decode(SearcherView.SearchResponse.self, from: data)
-
             if let structures = response.structure {
                 structureIds = structures
                 Logger.debug("找到 \(structures.count) 个建筑物")
@@ -344,7 +321,6 @@ struct StructureSelectorSheet: View {
         }
 
         guard !structureIds.isEmpty else {
-            Logger.debug("没有找到任何建筑物")
             searchResults = []
             searchingStatus = ""
             return
@@ -352,20 +328,12 @@ struct StructureSelectorSheet: View {
 
         var results: [SearcherView.SearchResult] = []
 
-        // 处理建筑物结果
-        searchingStatus = NSLocalizedString(
-            "Main_Search_Status_Loading_Structure_Info", comment: ""
-        )
-
-        // 计算合适的批次大小
+        searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Structure_Info", comment: "")
         let batchSize = min(max(structureIds.count / 5, 1), 10)
 
-        // 收集所有建筑物的星系ID和类型ID
         var allSystemIds: [Int] = []
-        var allTypeIds: [Int] = []
         var structureInfos: [(id: Int, name: String, typeId: Int, systemId: Int)] = []
 
-        // 使用 TaskGroup 并发获取建筑物基本信息
         try await withThrowingTaskGroup(of: (Int, String, Int, Int)?.self) { group in
             var processedCount = 0
 
@@ -373,7 +341,6 @@ struct StructureSelectorSheet: View {
                 for structureId in batch {
                     group.addTask {
                         try Task.checkCancellation()
-
                         do {
                             let info = try await UniverseStructureAPI.shared.fetchStructureInfo(
                                 structureId: Int64(structureId),
@@ -381,7 +348,6 @@ struct StructureSelectorSheet: View {
                                 forceRefresh: true,
                                 cacheTimeOut: 1
                             )
-
                             return (structureId, info.name, info.type_id, info.solar_system_id)
                         } catch {
                             Logger.error("获取建筑物信息失败 - ID: \(structureId), 错误: \(error)")
@@ -390,33 +356,22 @@ struct StructureSelectorSheet: View {
                     }
                 }
 
-                // 等待当前批次完成
                 for try await result in group {
                     if let (id, name, typeId, systemId) = result {
-                        structureInfos.append(
-                            (id: id, name: name, typeId: typeId, systemId: systemId))
+                        structureInfos.append((id: id, name: name, typeId: typeId, systemId: systemId))
                         allSystemIds.append(systemId)
-                        allTypeIds.append(typeId)
                     }
                     processedCount += 1
                     searchingStatus = String(
-                        format: NSLocalizedString(
-                            "Main_Search_Status_Loading_Structure_Progress", comment: ""
-                        ),
-                        processedCount,
-                        structureIds.count
+                        format: NSLocalizedString("Main_Search_Status_Loading_Structure_Progress", comment: ""),
+                        processedCount, structureIds.count
                     )
                 }
             }
         }
 
-        // 批量获取位置信息
         let locationInfoMap = try await loadBatchLocationInfo(systemIds: allSystemIds)
 
-        // 批量获取类型图标
-        let iconMap = try loadBatchTypeIcons(typeIds: Array(Set(allTypeIds)))
-
-        // 处理每个建筑物
         for info in structureInfos {
             try Task.checkCancellation()
 
@@ -425,78 +380,35 @@ struct StructureSelectorSheet: View {
                 continue
             }
 
-            guard let iconFilename = iconMap[info.typeId] else {
-                Logger.error("未找到建筑物类型图标: \(info.typeId)")
-                continue
-            }
-
-            // 检查建筑是否能安装市场模块
-            if !marketCapableStructureTypes.contains(info.typeId) {
+            let capableTypes = await MainActor.run { Self.marketCapableStructureTypes ?? [] }
+            if !capableTypes.contains(info.typeId) {
                 Logger.debug("建筑 \(info.name) (类型ID: \(info.typeId)) 不支持市场模块，跳过")
                 continue
             }
 
-            // 存储建筑ID到类型ID的映射
-            structureTypeIdMap[info.id] = info.typeId
-
-            let result = SearcherView.SearchResult(
-                id: info.id,
-                name: info.name,
-                type: .structure,
-                structureType: .structure,
-                locationInfo: locationInfo,
-                typeInfo: iconFilename
-            )
-
-            results.append(result)
+            results.append(SearcherView.SearchResult(
+                id: info.id, name: info.name, type: .structure,
+                structureType: .structure, locationInfo: locationInfo, typeId: info.typeId
+            ))
         }
 
-        // 按照指定的类型ID顺序排序
         results.sort { result1, result2 in
-            // 定义优先级类型ID顺序
-            let priorityTypeIds = [40340, 35834, 35833, 35827, 35832, 35825, 35836, 35826, 35835]
-
-            // 从结果中提取类型ID
-            let typeId1 = extractTypeIdFromResult(result1)
-            let typeId2 = extractTypeIdFromResult(result2)
-
-            // 获取优先级索引
-            let priority1 = priorityTypeIds.firstIndex(of: typeId1) ?? Int.max
-            let priority2 = priorityTypeIds.firstIndex(of: typeId2) ?? Int.max
-
-            // 如果两个都在优先级列表中
-            if priority1 != Int.max, priority2 != Int.max {
-                if priority1 != priority2 {
-                    return priority1 < priority2
-                }
-                // 同类型按建筑ID排序
-                return result1.id < result2.id
+            let typeId1 = result1.typeId ?? 0
+            let typeId2 = result2.typeId ?? 0
+            let priority1 = Self.priorityTypeIds.firstIndex(of: typeId1) ?? Int.max
+            let priority2 = Self.priorityTypeIds.firstIndex(of: typeId2) ?? Int.max
+            if priority1 != priority2 {
+                return priority1 < priority2
             }
-
-            // 如果只有一个在优先级列表中
-            if priority1 != Int.max {
-                return true
-            }
-            if priority2 != Int.max {
-                return false
-            }
-
-            // 两个都不在优先级列表中，按建筑ID排序
             return result1.id < result2.id
         }
 
         searchResults = results
         searchingStatus = ""
-
         Logger.debug("建筑物搜索完成，共有 \(results.count) 个结果")
     }
 
-    // 从搜索结果中提取类型ID的辅助函数
-    private func extractTypeIdFromResult(_ result: SearcherView.SearchResult) -> Int {
-        return structureTypeIdMap[result.id] ?? 0
-    }
-
-    // 批量加载位置信息
+    /// 批量加载位置信息
     private func loadBatchLocationInfo(systemIds: [Int]) async throws -> [Int: (
         security: Double, systemName: String, regionName: String
     )] {
@@ -516,37 +428,6 @@ struct StructureSelectorSheet: View {
 
         return result
     }
-
-    // 批量加载类型图标
-    private func loadBatchTypeIcons(typeIds: [Int]) throws -> [Int: String] {
-        let placeholders = String(repeating: "?,", count: typeIds.count).dropLast()
-        let sql = """
-            SELECT 
-                type_id,
-                icon_filename
-            FROM types
-            WHERE type_id IN (\(placeholders))
-        """
-
-        guard
-            case let .success(rows) = DatabaseManager.shared.executeQuery(
-                sql, parameters: typeIds.map { $0 as Any }
-            )
-        else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "未找到类型图标"])
-        }
-
-        var result: [Int: String] = [:]
-        for row in rows {
-            if let typeId = row["type_id"] as? Int,
-               let iconFilename = row["icon_filename"] as? String
-            {
-                result[typeId] = iconFilename
-            }
-        }
-
-        return result
-    }
 }
 
 // MARK: - 建筑结果行
@@ -557,23 +438,19 @@ struct StructureResultRow: View {
     let onTap: () -> Void
     let characterId: Int
 
+    private var structureIconName: String {
+        guard let typeId = result.typeId else { return IconManager.defaultItemIcon }
+        return DatabaseManager.shared.getItemIconFileName(for: typeId)
+            ?? IconManager.defaultItemIcon
+    }
+
     var body: some View {
         HStack(spacing: 12) {
-            // 建筑图标
-            if let iconFilename = result.typeInfo {
-                IconManager.shared.loadImage(for: iconFilename)
-                    .resizable()
-                    .frame(width: 40, height: 40)
-                    .cornerRadius(8)
-            } else {
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 40, height: 40)
-                    .overlay(
-                        Image(systemName: "building.2")
-                            .foregroundColor(.secondary)
-                    )
-            }
+            // 建筑图标（按 typeId 查询）
+            IconManager.shared.loadImage(for: structureIconName)
+                .resizable()
+                .frame(width: 40, height: 40)
+                .cornerRadius(8)
 
             // 建筑信息
             VStack(alignment: .leading, spacing: 4) {

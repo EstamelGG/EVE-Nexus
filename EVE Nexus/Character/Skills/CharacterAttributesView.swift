@@ -58,7 +58,8 @@ struct CharacterAttributesView: View {
                                 "Character_Attributes_Has_Booster", comment: "人物使用了加速器，每个属性+%d"
                             ),
                             boosterValue
-                        ))
+                        )
+                    )
                 }
             }
 
@@ -67,7 +68,8 @@ struct CharacterAttributesView: View {
                     if let bonusRemaps = attributes.bonus_remaps {
                         HStack {
                             Text(
-                                NSLocalizedString("Character_Attributes_Bonus_Remaps", comment: ""))
+                                NSLocalizedString("Character_Attributes_Bonus_Remaps", comment: "")
+                            )
                             Spacer()
                             Text("\(bonusRemaps)")
                                 .foregroundColor(.secondary)

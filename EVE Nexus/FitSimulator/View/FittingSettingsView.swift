@@ -16,7 +16,7 @@ struct FittingSettingsView: View {
     @AppStorage("selectedDatabaseLanguage") private var selectedDatabaseLanguage: String = "en"
     var onSkillModeChanged: (() -> Void)?
 
-    // 从 viewModel 中读取和保存技能选择状态
+    /// 从 viewModel 中读取和保存技能选择状态
     private var skillsMode: String {
         get { viewModel.currentSkillsMode }
         nonmutating set { viewModel.currentSkillsMode = newValue }
@@ -107,36 +107,14 @@ struct FittingSettingsView: View {
             enName: enName,
             iconFileName: effect.iconFileName ?? "not_found",
             published: true,
-            categoryID: 0,
-            groupID: nil,
-            groupName: nil,
-            pgNeed: nil,
-            cpuNeed: nil,
-            rigCost: nil,
-            emDamage: nil,
-            themDamage: nil,
-            kinDamage: nil,
-            expDamage: nil,
-            highSlot: nil,
-            midSlot: nil,
-            lowSlot: nil,
-            rigSlot: nil,
-            gunSlot: nil,
-            missSlot: nil,
-            metaGroupID: nil,
-            marketGroupID: nil,
-            navigationDestination: AnyView(EmptyView())
+            categoryID: 0
         )
     }
 
     private func fetchEnvironmentEnglishName(typeId: Int) -> String? {
-        let query = "SELECT en_name, name FROM types WHERE type_id = ?"
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]),
-           let row = rows.first
-        {
-            return (row["en_name"] as? String) ?? (row["name"] as? String)
-        }
-        return nil
+        guard let info = ItemInfoMap.typeInfo(for: typeId) else { return nil }
+        if !info.enName.isEmpty { return info.enName }
+        return info.name.isEmpty ? nil : info.name
     }
 
     private func commitPendingEnvironmentSelection() {
@@ -596,7 +574,8 @@ struct FittingSettingsView: View {
                     viewModel.simulationInput.name.isEmpty
                         ? NSLocalizedString("Fitting_Unnamed_Fitting", comment: "未命名配置")
                         : viewModel.simulationInput.name
-                ))
+                )
+            )
         }
         .alert(
             NSLocalizedString("Fitting_Delete_Confirm_Title", comment: "确认删除"),
@@ -616,7 +595,8 @@ struct FittingSettingsView: View {
                     format: NSLocalizedString(
                         "Fitting_Delete_Confirm_Message", comment: "确定要删除配置吗？"
                     ), fittingName
-                ))
+                )
+            )
         }
         .onAppear {
             let items = databaseManager.loadMarketItems(
@@ -660,7 +640,8 @@ struct FittingSettingsView: View {
 
                 // 将SimulationInput转换为CharacterFitting格式
                 let characterFitting = FitConvert.simulationInputToCharacterFitting(
-                    input: viewModel.simulationInput)
+                    input: viewModel.simulationInput
+                )
 
                 // 上传到EVE服务器
                 let newFittingId = try await CharacterFittingAPI.uploadCharacterFitting(
@@ -702,7 +683,8 @@ struct FittingSettingsView: View {
     private func exportToClipboard(useEnglishNames: Bool = false) {
         // 将 SimulationInput 转换为 LocalFitting
         let localFitting = FitConvert.simulationInputToLocalFitting(
-            input: viewModel.simulationInput)
+            input: viewModel.simulationInput
+        )
 
         // 使用 FitConvert 的 localFittingToEFT 方法生成 EFT 格式文本
         let clipboardText = FitConvert.localFittingToEFT(
@@ -734,7 +716,8 @@ struct FittingSettingsView: View {
                         HStack(spacing: 16) {
                             Image(
                                 uiImage: IconManager.shared.loadUIImage(
-                                    for: viewModel.shipInfo.iconFileName)
+                                    for: viewModel.shipInfo.iconFileName
+                                )
                             )
                             .resizable()
                             .frame(width: 64, height: 64)
@@ -918,7 +901,7 @@ struct FittingSettingsView: View {
 // MARK: - Footer视图
 
 struct FooterView: View {
-    // 获取应用版本信息
+    /// 获取应用版本信息
     private var appVersion: String {
         if let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String {
             return version
@@ -926,7 +909,7 @@ struct FooterView: View {
         return "1.0.0"
     }
 
-    // 格式化当前时间
+    /// 格式化当前时间
     private var currentTime: String {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium

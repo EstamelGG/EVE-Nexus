@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 搜索结果视图模型
+/// 搜索结果视图模型
 class PlanetarySearchResultViewModel: ObservableObject {
     @Published var sovereigntyData: [SovereigntyData] = []
     @Published var isLoadingSovereignty: Bool = false
@@ -11,14 +11,14 @@ class PlanetarySearchResultViewModel: ObservableObject {
     @Published var allianceNames: [Int: String] = [:]
     @Published var factionNames: [Int: String] = [:]
 
-    // 跟踪正在加载的星系
+    /// 跟踪正在加载的星系
     @Published var loadingSystemIcons: Set<Int> = []
 
     // 主权映射
     private var allianceToSystems: [Int: [Int]] = [:]
     private var factionToSystems: [Int: [Int]] = [:]
 
-    // 加载任务管理
+    /// 加载任务管理
     private var loadingTasks: [Int: Task<Void, Never>] = [:]
 
     func loadSovereigntyData(forSystemIds systemIds: [Int]) {
@@ -28,7 +28,8 @@ class PlanetarySearchResultViewModel: ObservableObject {
             do {
                 // 获取主权数据
                 let data = try await SovereigntyDataAPI.shared.fetchSovereigntyData(
-                    forceRefresh: false)
+                    forceRefresh: false
+                )
 
                 // 确保在主线程更新UI
                 sovereigntyData = data
@@ -184,17 +185,17 @@ class PlanetarySearchResultViewModel: ObservableObject {
         }
     }
 
-    // 获取星系的主权信息
+    /// 获取星系的主权信息
     func getSovereigntyForSystem(_ systemId: Int) -> SovereigntyData? {
         return sovereigntyData.first(where: { $0.systemId == systemId })
     }
 
-    // 检查星系是否正在加载图标
+    /// 检查星系是否正在加载图标
     func isLoadingIconForSystem(_ systemId: Int) -> Bool {
         return loadingSystemIcons.contains(systemId)
     }
 
-    // 获取星系的图标
+    /// 获取星系的图标
     func getIconForSystem(_ systemId: Int) -> Image? {
         if let sovereignty = getSovereigntyForSystem(systemId) {
             if let allianceId = sovereignty.allianceId {
@@ -206,7 +207,7 @@ class PlanetarySearchResultViewModel: ObservableObject {
         return nil
     }
 
-    // 获取星系的拥有者名称
+    /// 获取星系的拥有者名称
     func getOwnerNameForSystem(_ systemId: Int) -> String? {
         if let sovereignty = getSovereigntyForSystem(systemId) {
             if let allianceId = sovereignty.allianceId {
@@ -224,7 +225,7 @@ class PlanetarySearchResultViewModel: ObservableObject {
     }
 }
 
-// 搜索结果视图
+/// 搜索结果视图
 struct PlanetarySearchResultView: View {
     let results: [SystemSearchResult]
     @StateObject private var viewModel = PlanetarySearchResultViewModel()
@@ -342,7 +343,8 @@ struct PlanetarySearchResultView: View {
                                             {
                                                 Image(
                                                     uiImage: IconManager.shared.loadUIImage(
-                                                        for: iconFileName)
+                                                        for: iconFileName
+                                                    )
                                                 )
                                                 .resizable()
                                                 .scaledToFit()
@@ -366,7 +368,8 @@ struct PlanetarySearchResultView: View {
 
                                 // 分组并排序后显示
                                 let groupedResources = groupAdditionalResourcesByType(
-                                    result.additionalResources)
+                                    result.additionalResources
+                                )
                                 ForEach(groupedResources, id: \.resourceId) { group in
                                     VStack(alignment: .leading) {
                                         Text("- \(getResourceName(for: group.resourceId)):")
@@ -391,10 +394,7 @@ struct PlanetarySearchResultView: View {
                             }
 
                             Text(
-                                String(
-                                    format: NSLocalizedString("Planetary_Coverage", comment: ""),
-                                    result.coverage
-                                )
+                                "\(NSLocalizedString("Planetary_Coverage", comment: "")) \(FormatUtil.formatPercentFrom100(result.coverage))"
                             )
                             .font(.subheadline)
                             .foregroundColor(.gray)
@@ -417,7 +417,7 @@ struct PlanetarySearchResultView: View {
         }
     }
 
-    // 加载星系名称
+    /// 加载星系名称
     private func loadSystemNames(forAdditionalResources results: [SystemSearchResult]) {
         // 收集所有需要获取名称的星系ID
         var systemIds: Set<Int> = []
@@ -431,31 +431,20 @@ struct PlanetarySearchResultView: View {
             return
         }
 
-        // 查询星系名称
-        let query = """
-            SELECT solarSystemID, solarSystemName 
-            FROM solarsystems 
-            WHERE solarSystemID IN (\(systemIds.map { String($0) }.joined(separator: ",")))
-        """
-
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(query) {
-            var tempNames: [Int: String] = [:]
-            for row in rows {
-                if let systemId = row["solarSystemID"] as? Int,
-                   let name = row["solarSystemName"] as? String
-                {
-                    tempNames[systemId] = name
-                }
+        // 从内存获取星系名称
+        var tempNames: [Int: String] = [:]
+        for systemId in systemIds {
+            if let name = SDEMemoryStore.solarSystemName(for: systemId) {
+                tempNames[systemId] = name
             }
+        }
 
-            // 在主线程更新UI数据
-            DispatchQueue.main.async {
-                self.systemNames = tempNames
-            }
+        DispatchQueue.main.async {
+            self.systemNames = tempNames
         }
     }
 
-    // 加载资源信息
+    /// 加载资源信息
     private func loadResourceInfo(forResults results: [SystemSearchResult]) {
         // 收集所有需要获取信息的资源ID
         var resourceIds: Set<Int> = []
@@ -499,12 +488,12 @@ struct PlanetarySearchResultView: View {
         }
     }
 
-    // 获取资源名称的辅助函数
+    /// 获取资源名称的辅助函数
     private func getResourceName(for resourceId: Int) -> String {
         return resourceInfo[resourceId]?.name ?? "未知资源"
     }
 
-    // 将相邻星系资源按resourceId分组
+    /// 将相邻星系资源按resourceId分组
     private func groupAdditionalResourcesByType(
         _ additionalResources: [Int: (resourceId: Int, jumps: Int)]
     ) -> [(resourceId: Int, systems: [(systemId: Int, jumps: Int)])] {

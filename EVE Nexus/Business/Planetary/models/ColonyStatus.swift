@@ -139,7 +139,8 @@ func isRouted(pin: Pin, routes: [Route]) -> RoutedState {
         if let schematic = factory.schematic {
             let inputTypes = schematic.inputs.map { $0.key.id }
             let inputTypesReceived = Set(
-                routes.filter { $0.destinationPinId == pin.id }.map { $0.type.id })
+                routes.filter { $0.destinationPinId == pin.id }.map { $0.type.id }
+            )
             isInputRouted = inputTypes.allSatisfy { inputTypesReceived.contains($0) }
         } else {
             isInputRouted = true

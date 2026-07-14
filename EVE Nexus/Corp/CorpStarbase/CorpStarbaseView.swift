@@ -389,7 +389,7 @@ struct StarbaseCell: View {
     }
 }
 
-// 过滤Sheet视图
+/// 过滤Sheet视图
 struct FilterSheetView: View {
     @ObservedObject var viewModel: CorpStarbaseViewModel
     @Environment(\.dismiss) private var dismiss
@@ -532,17 +532,17 @@ class CorpStarbaseViewModel: ObservableObject {
     var regionSecs: [Int: Double] = [:] // 星系安全等级
     private let characterId: Int
 
-    // POS燃料阈值常量
+    /// POS燃料阈值常量
     private enum FuelThreshold {
         static let small: Int = 1800 // 小型
         static let medium: Int = 3600 // 中型
         static let standard: Int = 7200 // 标准
     }
 
-    // 需要检查阈值的燃料类型ID
+    /// 需要检查阈值的燃料类型ID
     static let monitoredFuelTypeIds = [4051, 4247, 4246, 4312]
 
-    // 根据type_id获取燃料阈值
+    /// 根据type_id获取燃料阈值
     func getFuelThreshold(typeId: Int) -> Int {
         guard let enName = typeEnNames[typeId] else {
             return FuelThreshold.standard
@@ -557,12 +557,12 @@ class CorpStarbaseViewModel: ObservableObject {
         }
     }
 
-    // 是否有活动的筛选条件
+    /// 是否有活动的筛选条件
     var hasActiveFilters: Bool {
         return selectedRegion != nil || selectedState != nil
     }
 
-    // 获取可用的星域列表
+    /// 获取可用的星域列表
     var availableRegions: [String] {
         var regions = Set<String>()
         for starbase in starbases {
@@ -575,7 +575,7 @@ class CorpStarbaseViewModel: ObservableObject {
         return Array(regions).sorted()
     }
 
-    // 获取可用的状态列表
+    /// 获取可用的状态列表
     var availableStates: [String] {
         var states = Set<String>()
         for starbase in starbases {
@@ -588,7 +588,7 @@ class CorpStarbaseViewModel: ObservableObject {
         return orderedStates.filter { states.contains($0) } + states.subtracting(Set(orderedStates)).sorted()
     }
 
-    // 获取状态的显示名称
+    /// 获取状态的显示名称
     func getStateDisplayName(_ state: String) -> String {
         switch state {
         case "offline":
@@ -606,7 +606,7 @@ class CorpStarbaseViewModel: ObservableObject {
         }
     }
 
-    // 获取状态对应的颜色
+    /// 获取状态对应的颜色
     func getStateColor(_ state: String) -> Color {
         switch state {
         case "offline":
@@ -622,7 +622,7 @@ class CorpStarbaseViewModel: ObservableObject {
         }
     }
 
-    // 根据筛选条件过滤后的星堡列表
+    /// 根据筛选条件过滤后的星堡列表
     var filteredStarbases: [[String: Any]] {
         var filtered = starbases
 
@@ -651,12 +651,12 @@ class CorpStarbaseViewModel: ObservableObject {
         return filtered
     }
 
-    // 筛选后的位置键
+    /// 筛选后的位置键
     var filteredLocationKeys: [String] {
         Array(filteredGroupedStarbases.keys).sorted()
     }
 
-    // 判断POS是否需要关注
+    /// 判断POS是否需要关注
     func needsAttention(_ starbase: [String: Any]) -> Bool {
         // 检查状态：offline、reinforced、unanchoring 需要关注
         if let state = starbase["state"] as? String {
@@ -676,12 +676,12 @@ class CorpStarbaseViewModel: ObservableObject {
         return false
     }
 
-    // 获取燃料不足标记（使用缓存）
+    /// 获取燃料不足标记（使用缓存）
     func hasLowFuel(starbaseId: Int) -> Bool {
         return hasLowFuelCache[starbaseId] ?? false
     }
 
-    // 星堡排序函数（按moon_id和starbase_id排序）
+    /// 星堡排序函数（按moon_id和starbase_id排序）
     private func sortStarbases(_ starbases: [[String: Any]]) -> [[String: Any]] {
         return starbases.sorted { starbase1, starbase2 in
             let moonId1 = starbase1["moon_id"] as? Int
@@ -712,12 +712,12 @@ class CorpStarbaseViewModel: ObservableObject {
         }
     }
 
-    // 需要关注的POS列表
+    /// 需要关注的POS列表
     var attentionStarbases: [[String: Any]] {
         sortStarbases(filteredStarbases.filter { needsAttention($0) })
     }
 
-    // 筛选后的分组星堡（排除需要关注的，因为它们在单独的section中）
+    /// 筛选后的分组星堡（排除需要关注的，因为它们在单独的section中）
     var filteredGroupedStarbases: [String: [[String: Any]]] {
         // 先过滤掉需要关注的POS
         let nonAttentionStarbases = filteredStarbases.filter { !needsAttention($0) }
@@ -759,7 +759,7 @@ class CorpStarbaseViewModel: ObservableObject {
         }
     }
 
-    // 获取显示名称（月球名称，如果同一moon下有多个则拼接starbase_id）
+    /// 获取显示名称（月球名称，如果同一moon下有多个则拼接starbase_id）
     func getDisplayName(for starbase: [String: Any], in allStarbases: [[String: Any]]) -> String {
         guard let moonId = starbase["moon_id"] as? Int else {
             return NSLocalizedString("Corp_Starbase_Unknown", comment: "未知")
@@ -860,7 +860,7 @@ class CorpStarbaseViewModel: ObservableObject {
         await loadStarbaseDetails(forceRefresh: forceRefresh)
     }
 
-    // 加载所有星堡的详细信息
+    /// 加载所有星堡的详细信息
     func loadStarbaseDetails(forceRefresh: Bool = false) async {
         // 获取军团ID
         guard let corporationId = try? await CharacterDatabaseManager.shared.getCharacterCorporationId(
@@ -954,76 +954,47 @@ class CorpStarbaseViewModel: ObservableObject {
         loadingDetailProgress = nil
     }
 
-    // 加载燃料物品信息（名称和图标）
+    /// 加载燃料物品信息（名称和图标）
     private func loadFuelItemInfo(typeIds: [Int]) async {
         guard !typeIds.isEmpty else { return }
 
-        let uniqueTypeIds = Set(typeIds)
-        let typeIdsString = uniqueTypeIds.sorted().map { String($0) }.joined(separator: ",")
-        let query = "SELECT type_id, name, icon_filename FROM types WHERE type_id IN (\(typeIdsString))"
-
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(query) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String
-                {
-                    fuelItemNames[typeId] = name
-                    if let iconFilename = row["icon_filename"] as? String {
-                        fuelItemIcons[typeId] = iconFilename
-                    }
-                }
-            }
+        for typeId in Set(typeIds) {
+            guard let info = ItemInfoMap.typeInfo(for: typeId), !info.name.isEmpty else { continue }
+            fuelItemNames[typeId] = info.name
+            fuelItemIcons[typeId] = info.iconFilename
         }
     }
 
     private func loadTypeIcons(typeIds: [Int]) async {
-        let query =
-            "SELECT type_id, icon_filename, en_name FROM types WHERE type_id IN (\(typeIds.sorted().map(String.init).joined(separator: ",")))"
-        let result = DatabaseManager.shared.executeQuery(query)
-        if case let .success(rows) = result {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int {
-                    if let iconFilename = row["icon_filename"] as? String {
-                        typeIcons[typeId] = iconFilename
-                    }
-                    // 获取en_name用于判断POS类型
-                    if let enName = row["en_name"] as? String {
-                        typeEnNames[typeId] = enName
-                    }
-                }
+        for typeId in typeIds {
+            guard let info = ItemInfoMap.typeInfo(for: typeId) else { continue }
+            typeIcons[typeId] = info.iconFilename
+            if !info.enName.isEmpty {
+                typeEnNames[typeId] = info.enName
             }
         }
     }
 
     private func loadLocationInfo(systemIds: [Int]) async {
-        // 一次性获取星系名称、星域信息和安全等级
         let locationQuery = """
-            SELECT DISTINCT 
-                u.solarsystem_id,
-                s.solarSystemName,
-                r.regionName,
-                u.system_security
-            FROM universe u
-            JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
-            JOIN regions r ON r.regionID = u.region_id
-            WHERE u.solarsystem_id IN (\(Array(systemIds).sorted().map { String($0) }.joined(separator: ",")))
+            SELECT DISTINCT solarsystem_id, region_id, system_security
+            FROM universe
+            WHERE solarsystem_id IN (\(Array(systemIds).sorted().map { String($0) }.joined(separator: ",")))
         """
         let locationResult = DatabaseManager.shared.executeQuery(locationQuery)
         if case let .success(rows) = locationResult {
             for row in rows {
-                if let systemId = row["solarsystem_id"] as? Int {
-                    // 获取星系名称
-                    if let systemName = row["solarSystemName"] as? String {
-                        systemNames[systemId] = systemName
-                    }
-                    // 获取星域名称
-                    if let regionName = row["regionName"] as? String {
-                        regionNames[systemId] = regionName
-                    }
-                    // 获取安全等级
-                    if let systemSecurity = row["system_security"] as? Double {
-                        regionSecs[systemId] = systemSecurity
-                    }
+                guard let systemId = row["solarsystem_id"] as? Int else { continue }
+                if let systemName = SDEMemoryStore.solarSystemName(for: systemId) {
+                    systemNames[systemId] = systemName
+                }
+                if let regionId = row["region_id"] as? Int,
+                   let regionName = SDEMemoryStore.regionName(for: regionId)
+                {
+                    regionNames[systemId] = regionName
+                }
+                if let systemSecurity = row["system_security"] as? Double {
+                    regionSecs[systemId] = systemSecurity
                 }
             }
         }
@@ -1031,28 +1002,14 @@ class CorpStarbaseViewModel: ObservableObject {
 
     private func loadMoonNames(moonIds: [Int]) async {
         guard !moonIds.isEmpty else { return }
-
-        // 对moon_id去重并排序
-        let uniqueMoonIds = Set(moonIds)
-        let moonIdsString = uniqueMoonIds.sorted().map { String($0) }.joined(separator: ",")
-        let query = "SELECT itemID, itemName FROM celestialNames WHERE itemID IN (\(moonIdsString))"
-
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(query) {
-            for row in rows {
-                if let itemId = row["itemID"] as? Int,
-                   let name = row["itemName"] as? String
-                {
-                    moonNames[itemId] = name
-                }
-            }
-        }
+        moonNames = DatabaseManager.shared.getCelestialNames(itemIDs: moonIds)
     }
 
     func getIconName(typeId: Int) -> String? {
         return typeIcons[typeId]
     }
 
-    // 获取星堡详细信息
+    /// 获取星堡详细信息
     func getStarbaseDetail(starbaseId: Int?) -> StarbaseDetailInfo? {
         guard let starbaseId = starbaseId else { return nil }
         return starbaseDetails[starbaseId]

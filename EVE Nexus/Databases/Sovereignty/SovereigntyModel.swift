@@ -25,7 +25,7 @@ class PreparedSovereignty: NSObject, Identifiable, @unchecked Sendable, Observab
         let regionId: Int
     }
 
-    // 计算距离开始还有多久
+    /// 计算距离开始还有多久
     var remainingTimeText: String {
         // 解析开始时间
         let dateFormatter = ISO8601DateFormatter()

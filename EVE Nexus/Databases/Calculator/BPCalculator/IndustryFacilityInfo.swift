@@ -1,6 +1,6 @@
 import Foundation
 
-// 建筑信息模型
+/// 建筑信息模型
 struct IndustryFacilityInfo: Identifiable, Hashable {
     let id: Int
     let typeId: Int
@@ -12,7 +12,7 @@ struct IndustryFacilityInfo: Identifiable, Hashable {
     let rigInfos: [(id: Int, name: String, iconFileName: String)]
     let systemId: Int? // 新增：星系ID
 
-    // 显示名称逻辑
+    /// 显示名称逻辑
     var displayName: String {
         if let customName = customName, !customName.isEmpty {
             return "\(customName) - \(name)"
@@ -41,7 +41,7 @@ struct IndustryFacilityInfo: Identifiable, Hashable {
         self.systemId = systemId
     }
 
-    // Hashable 实现
+    /// Hashable 实现
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
@@ -51,7 +51,7 @@ struct IndustryFacilityInfo: Identifiable, Hashable {
     }
 }
 
-// 默认建筑配置模型
+/// 默认建筑配置模型
 struct DefaultStructureConfig: Codable {
     let id: Int
     let is_default: Int

@@ -10,7 +10,7 @@ struct RefineryResultView: View {
     let remainingItems: [Int: Int64] // 剩余物品ID -> 剩余数量
 
     // 输出市场设置状态变量（精炼后产品的市场）
-    @State private var selectedRegionID: Int = 10_000_002 // 默认 The Forge
+    @State private var selectedRegionID: Int = MarketManager.theForgeRegionID // 默认 The Forge
     @State private var selectedRegionName: String = ""
     @State private var showRegionPicker = false
     @State private var saveSelection = false // 不保存默认市场位置
@@ -140,11 +140,7 @@ struct RefineryResultView: View {
                         let taxAmount = calculateTaxAmount()
                         if taxRate == 0.0 {
                             Text(
-                                String(
-                                    format: NSLocalizedString(
-                                        "Ore_Refinery_Result_Tax_Zero", comment: ""
-                                    ), taxRate
-                                )
+                                "0 ISK (\(NSLocalizedString("Ore_Refinery_Tax_Rate", comment: "")): \(FormatUtil.formatPercentFrom100(taxRate)))"
                             )
                             .foregroundColor(.secondary)
                         } else {
@@ -320,8 +316,7 @@ struct RefineryResultView: View {
         }
     }
 
-    // 精炼输出物品行
-    @ViewBuilder
+    /// 精炼输出物品行
     private func refineryOutputRow(materialID: Int, quantity: Int) -> some View {
         HStack(spacing: 12) {
             // 物品图标
@@ -379,8 +374,7 @@ struct RefineryResultView: View {
         .padding(.vertical, 4)
     }
 
-    // 剩余物品行
-    @ViewBuilder
+    /// 剩余物品行
     private func remainingItemRow(itemID: Int, quantity: Int64) -> some View {
         HStack(spacing: 12) {
             // 物品图标
@@ -438,7 +432,7 @@ struct RefineryResultView: View {
         .padding(.vertical, 4)
     }
 
-    // 加载价格和体积信息
+    /// 加载价格和体积信息
     private func loadPricesAndVolumes() {
         Logger.info("=== loadPricesAndVolumes called ===")
         Logger.info("refineryOutputs keys: \(Array(refineryOutputs.keys))")
@@ -469,7 +463,7 @@ struct RefineryResultView: View {
         }
     }
 
-    // 加载输出市场价格（精炼后产品）- 自动判断星域/建筑
+    /// 加载输出市场价格（精炼后产品）- 自动判断星域/建筑
     private func loadOutputMarketPrices() async {
         // 合并所有需要价格的物品ID
         var allTypeIds: [Int] = []
@@ -520,31 +514,31 @@ struct RefineryResultView: View {
         }
     }
 
-    // 计算订单的平均价格（使用通用工具类）
+    /// 计算订单的平均价格（使用通用工具类）
     private func calculateAveragePrice(from orders: [MarketOrder]) -> Double {
         // 对于星域市场，只考虑主贸易星系（如Jita）；建筑市场则考虑所有订单
         let systemID: Int? = StructureMarketManager.isStructureId(selectedRegionID) ? nil : 30_000_142
         return MarketOrdersUtil.calculateAveragePrice(from: orders, systemId: systemID)
     }
 
-    // 计算市场卖价（使用通用工具类）
+    /// 计算市场卖价（使用通用工具类）
     private func calculateSellPrice(from orders: [MarketOrder]) -> Double {
         let systemID: Int? = StructureMarketManager.isStructureId(selectedRegionID) ? nil : 30_000_142
         return MarketOrdersUtil.calculatePrice(from: orders, orderType: .sell, quantity: nil, systemId: systemID).price ?? 0.0
     }
 
-    // 计算市场买价（使用通用工具类）
+    /// 计算市场买价（使用通用工具类）
     private func calculateBuyPrice(from orders: [MarketOrder]) -> Double {
         let systemID: Int? = StructureMarketManager.isStructureId(selectedRegionID) ? nil : 30_000_142
         return MarketOrdersUtil.calculatePrice(from: orders, orderType: .buy, quantity: nil, systemId: systemID).price ?? 0.0
     }
 
-    // 根据建筑ID获取建筑信息
+    /// 根据建筑ID获取建筑信息
     private func getStructureById(_ structureId: Int64) -> MarketStructure? {
         return MarketStructureManager.shared.structures.first { $0.structureId == Int(structureId) }
     }
 
-    // 更新区域名称
+    /// 更新区域名称
     private func updateRegionName() {
         if StructureMarketManager.isStructureId(selectedRegionID) {
             // 是建筑ID，查找建筑名称
@@ -557,25 +551,13 @@ struct RefineryResultView: View {
             }
         } else {
             // 是星域ID，查找星域名称
-            let query = """
-                SELECT regionName
-                FROM regions
-                WHERE regionID = ?
-            """
-
-            if case let .success(rows) = databaseManager.executeQuery(
-                query, parameters: [selectedRegionID]
-            ) {
-                if let row = rows.first, let name = row["regionName"] as? String {
-                    selectedRegionName = name
-                }
-            }
+            selectedRegionName = SDEMemoryStore.regionName(for: selectedRegionID) ?? ""
         }
     }
 
     // MARK: - EIV价格加载和计算方法
 
-    // 加载EIV价格数据（使用MarketPriceUtil）
+    /// 加载EIV价格数据（使用MarketPriceUtil）
     private func loadEIVPrices() async {
         Logger.info("=== loadEIVPrices called ===")
 
@@ -611,7 +593,7 @@ struct RefineryResultView: View {
         }
     }
 
-    // 加载输出市场订单并计算买价和卖价（根据用户选择的市场）
+    /// 加载输出市场订单并计算买价和卖价（根据用户选择的市场）
     private func loadOutputBuySellPrices() async {
         Logger.info("=== loadOutputBuySellPrices called ===")
 
@@ -660,7 +642,7 @@ struct RefineryResultView: View {
         }
     }
 
-    // 加载体积信息
+    /// 加载体积信息
     private func loadVolumes() async {
         Logger.info("=== loadVolumes called ===")
 
@@ -687,41 +669,26 @@ struct RefineryResultView: View {
         }
     }
 
-    // 从数据库加载物品体积
+    /// 从内存索引加载物品体积
     private func loadItemVolumes(typeIDs: [Int]) async -> [Int: Double] {
         guard !typeIDs.isEmpty else { return [:] }
 
         Logger.info("=== loadItemVolumes called ===")
         Logger.info("typeIDs: \(typeIDs)")
 
-        let placeholders = String(repeating: "?,", count: typeIDs.count).dropLast()
-        let query = "SELECT type_id, volume FROM types WHERE type_id IN (\(placeholders))"
-
-        Logger.info("Query: \(query)")
-
         var volumes: [Int: Double] = [:]
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: typeIDs) {
-            Logger.info("Query returned \(rows.count) rows")
-            for row in rows {
-                if let typeID = row["type_id"] as? Int,
-                   let volume = row["volume"] as? Double
-                {
-                    volumes[typeID] = volume
-                    Logger.info("Found volume for \(typeID): \(volume)")
-                } else {
-                    Logger.warning("Failed to parse volume data: \(row)")
-                }
+        for typeID in typeIDs {
+            if let volume = ItemInfoMap.typeInfo(for: typeID)?.volume {
+                volumes[typeID] = volume
+                Logger.info("Found volume for \(typeID): \(volume)")
             }
-        } else {
-            Logger.error("Failed to execute volume query")
         }
 
         Logger.info("Returning \(volumes.count) volumes")
         return volumes
     }
 
-    // 计算产品市场卖价总价值（根据用户选择的市场）
+    /// 计算产品市场卖价总价值（根据用户选择的市场）
     private func calculateTotalOutputSellValue() -> Double {
         var totalValue: Double = 0
 
@@ -746,7 +713,7 @@ struct RefineryResultView: View {
         return totalValue
     }
 
-    // 计算产品市场买价总价值（根据用户选择的市场）
+    /// 计算产品市场买价总价值（根据用户选择的市场）
     private func calculateTotalOutputBuyValue() -> Double {
         var totalValue: Double = 0
 
@@ -771,7 +738,7 @@ struct RefineryResultView: View {
         return totalValue
     }
 
-    // 计算产品EIV（用于税额计算，使用adjustedPrice）
+    /// 计算产品EIV（用于税额计算，使用adjustedPrice）
     private func calculateTotalOutputEIV() -> Double {
         var totalEIV: Double = 0
 
@@ -784,7 +751,8 @@ struct RefineryResultView: View {
             if let priceData = outputEIVPrices[materialID] {
                 let adjustedPrice = priceData.adjustedPrice
                 Logger.info(
-                    "Found EIV price data for \(materialID): adjustedPrice = \(adjustedPrice)")
+                    "Found EIV price data for \(materialID): adjustedPrice = \(adjustedPrice)"
+                )
                 if adjustedPrice > 0 {
                     let itemEIV = adjustedPrice * Double(quantity)
                     totalEIV += itemEIV
@@ -801,7 +769,7 @@ struct RefineryResultView: View {
         return totalEIV
     }
 
-    // 计算税额
+    /// 计算税额
     private func calculateTaxAmount() -> Double {
         Logger.info("=== calculateTaxAmount called ===")
         Logger.info("taxRate: \(taxRate)%")
@@ -815,7 +783,7 @@ struct RefineryResultView: View {
         return taxAmount
     }
 
-    // 计算精炼输出总体积
+    /// 计算精炼输出总体积
     private func calculateTotalOutputVolume() -> Double {
         var totalVolume: Double = 0
 
@@ -840,35 +808,17 @@ struct RefineryResultView: View {
         return totalVolume
     }
 
-    // 获取物品名称
+    /// 获取物品名称
     private func getItemName(itemID: Int) -> String {
-        let query = "SELECT name FROM types WHERE type_id = ?"
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [itemID]),
-           let row = rows.first,
-           let name = row["name"] as? String
-        {
-            return name
-        }
-
-        return "Unknown Item"
+        ItemInfoMap.typeName(for: itemID) ?? "Unknown Item"
     }
 
-    // 获取物品图标文件名
+    /// 获取物品图标文件名
     private func getItemIconFileName(itemID: Int) -> String {
-        let query = "SELECT icon_filename FROM types WHERE type_id = ?"
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [itemID]),
-           let row = rows.first,
-           let iconName = row["icon_filename"] as? String
-        {
-            return iconName
-        }
-
-        return DatabaseConfig.defaultItemIcon // 使用默认图标
+        ItemInfoMap.iconFilename(for: itemID)
     }
 
-    // 复制精炼输出物品到剪贴板
+    /// 复制精炼输出物品到剪贴板
     private func copyRefineryOutputsToClipboard() {
         var exportLines: [String] = []
 

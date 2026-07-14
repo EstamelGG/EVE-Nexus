@@ -1,19 +1,19 @@
 import SwiftUI
 
-// 主权列表视图
+/// 主权列表视图
 struct SovereigntyListView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var searchText = ""
     @State private var sovereignties: [SovereigntyInfo] = []
     @State private var sovereigntyControlledSystems:
-        [Int: [(systemId: Int, name: String, nameEn: String, nameZh: String)]] = [:] // 主权势力ID -> 控制的星系信息列表
+        [Int: [(systemId: Int, name: String)]] = [:] // 主权势力ID -> 控制的星系信息列表
     @State private var isLoading = true
     @State private var isSearchActive = false
     @State private var errorMessage: String? = nil
     @State private var showError: Bool = false
     @StateObject private var iconLoader = AllianceIconLoader()
 
-    // 数据加载状态管理，避免重复加载
+    /// 数据加载状态管理，避免重复加载
     @State private var hasLoadedInitialData = false
 
     // 主权相关状态（用于星系搜索结果）
@@ -102,7 +102,7 @@ struct SovereigntyListView: View {
         .searchable(
             text: $searchText,
             isPresented: $isSearchActive,
-            placement: .navigationBarDrawer(displayMode: .always),
+            // placement: .navigationBarDrawer(displayMode: .always),
             prompt: NSLocalizedString("Sovereignty_Search_Placeholder", comment: "搜索主权势力...")
         )
         .onChange(of: searchText) { _, _ in
@@ -142,26 +142,16 @@ struct SovereigntyListView: View {
         )
     }
 
-    // 过滤后的主权列表（只匹配主权势力名称）
+    /// 过滤后的主权列表（只匹配主权势力名称）
     private var filteredSovereignties: [SovereigntyInfo] {
         if searchText.isEmpty {
             return sovereignties
         } else {
-            let filtered = sovereignties.filter { sovereignty in
-                // 只搜索主权势力名称，不包括星系名称
-                let nameMatch =
-                    sovereignty.name.localizedCaseInsensitiveContains(searchText)
-                        || sovereignty.en_name.localizedCaseInsensitiveContains(searchText)
-                        || sovereignty.zh_name.localizedCaseInsensitiveContains(searchText)
-
-                return nameMatch
-            }
-
-            return filtered
+            return sovereignties.filter { $0.matches(searchText) }
         }
     }
 
-    // 加载主权数据
+    /// 加载主权数据
     private func loadSovereigntyData() {
         isLoading = true
 
@@ -180,7 +170,7 @@ struct SovereigntyListView: View {
         }
     }
 
-    // 刷新主权数据
+    /// 刷新主权数据
     private func refreshSovereigntyData() async {
         // 重置状态
         iconLoader.cancelAllTasks()
@@ -198,11 +188,12 @@ struct SovereigntyListView: View {
         }
     }
 
-    // 内部加载方法，避免代码重复
+    /// 内部加载方法，避免代码重复
     private func loadSovereigntyDataInternal(forceRefresh: Bool) async throws {
         // 获取主权数据
         let sovereigntyData = try await SovereigntyDataAPI.shared.fetchSovereigntyData(
-            forceRefresh: forceRefresh)
+            forceRefresh: forceRefresh
+        )
 
         // 处理主权数据
         var allianceToSystems: [Int: Int] = [:] // 联盟ID -> 星系数量
@@ -225,7 +216,8 @@ struct SovereigntyListView: View {
         // 获取联盟名称
         allianceIds = Array(allianceToSystems.keys)
         let allianceNamesWithCategories = try await UniverseAPI.shared.getNamesWithFallback(
-            ids: allianceIds)
+            ids: allianceIds
+        )
 
         // 添加联盟信息（暂无图标）
         for (allianceId, systemCount) in allianceToSystems {
@@ -233,83 +225,54 @@ struct SovereigntyListView: View {
                 tempSovereignties.append(
                     SovereigntyInfo(
                         id: allianceId,
-                        name: allianceName,
-                        en_name: allianceName,
-                        zh_name: allianceName,
+                        names: LocalizedText.filled(with: allianceName),
                         icon: nil,
                         systemCount: systemCount,
                         isAlliance: true
-                    ))
+                    )
+                )
             }
         }
 
-        // 加载派系信息
-        let factionQuery = """
-            SELECT id, iconName, name, en_name, zh_name 
-            FROM factions 
-            WHERE id IN (\(factionToSystems.keys.map { String($0) }.joined(separator: ",")))
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(factionQuery) {
-            for row in rows {
-                if let factionId = row["id"] as? Int,
-                   let iconName = row["iconName"] as? String,
-                   let name = row["name"] as? String,
-                   let systemCount = factionToSystems[factionId]
-                {
-                    let icon = IconManager.shared.loadImage(for: iconName)
-                    let en_name = row["en_name"] as? String ?? name
-                    let zh_name = row["zh_name"] as? String ?? name
-
-                    tempSovereignties.append(
-                        SovereigntyInfo(
-                            id: factionId,
-                            name: name,
-                            en_name: en_name,
-                            zh_name: zh_name,
-                            icon: icon,
-                            systemCount: systemCount,
-                            isAlliance: false
-                        ))
-                }
-            }
+        // 加载派系信息（名称走内存全语种）
+        for (factionId, systemCount) in factionToSystems {
+            guard let faction = SDEMemoryStore.faction(for: factionId) else { continue }
+            let icon = IconManager.shared.loadImage(for: faction.iconName)
+            tempSovereignties.append(
+                SovereigntyInfo(
+                    id: factionId,
+                    names: faction.names,
+                    icon: icon,
+                    systemCount: systemCount,
+                    isAlliance: false
+                )
+            )
         }
 
         // 按星系数量排序
         tempSovereignties.sort { $0.systemCount > $1.systemCount }
 
         // 建立主权势力到星系信息的映射关系
-        var sovereigntyToSystems:
-            [Int: [(systemId: Int, name: String, nameEn: String, nameZh: String)]] = [:]
+        var sovereigntyToSystems: [Int: [(systemId: Int, name: String)]] = [:]
 
         // 获取所有星系ID
         let allSystemIds = sovereigntyData.map { $0.systemId }
 
-        // 批量查询星系中英文名称
+        // 批量读取星系本地化名称
         if !allSystemIds.isEmpty {
-            let systemNamesMap = await getBatchSolarSystemNames(
-                solarSystemIds: allSystemIds,
-                databaseManager: databaseManager
-            )
+            Logger.info("从内存索引匹配 \(allSystemIds.count) 个主权星系名称")
 
-            Logger.info("获取到 \(systemNamesMap.count) 个星系名称数据")
-
-            // 为每个主权势力建立其控制的星系信息列表
             for data in sovereigntyData {
-                if let systemNames = systemNamesMap[data.systemId] {
-                    let systemInfo = (
-                        systemId: data.systemId,
-                        name: systemNames.name,
-                        nameEn: systemNames.nameEn,
-                        nameZh: systemNames.nameZh
-                    )
+                guard let text = SDEMemoryStore.solarSystemNames[data.systemId] else { continue }
+                let name = text.resolved()
+                guard !name.isEmpty else { continue }
+                let systemInfo = (systemId: data.systemId, name: name)
 
-                    if let allianceId = data.allianceId {
-                        sovereigntyToSystems[allianceId, default: []].append(systemInfo)
-                    }
-                    if let factionId = data.factionId {
-                        sovereigntyToSystems[factionId, default: []].append(systemInfo)
-                    }
+                if let allianceId = data.allianceId {
+                    sovereigntyToSystems[allianceId, default: []].append(systemInfo)
+                }
+                if let factionId = data.factionId {
+                    sovereigntyToSystems[factionId, default: []].append(systemInfo)
                 }
             }
         }
@@ -330,7 +293,7 @@ struct SovereigntyListView: View {
         }
     }
 
-    // 更新星系搜索结果
+    /// 更新星系搜索结果
     private func updateSystemSearchResults() async {
         if searchText.isEmpty {
             await MainActor.run {
@@ -352,24 +315,21 @@ struct SovereigntyListView: View {
         }
     }
 
-    // 获取匹配的星系数据（用于搜索结果显示）
+    /// 获取匹配的星系数据（用于搜索结果显示）
     private func getMatchedJumpSystems() async -> [SystemInfo] {
         guard !searchText.isEmpty else {
             return []
         }
 
         // 收集所有匹配搜索文本的星系ID和基本信息
-        var matchedSystemsInfo: [(systemId: Int, name: String, nameEn: String, nameZh: String)] = []
+        var matchedSystemsInfo: [(systemId: Int, name: String)] = []
 
         // 从主权数据中查找匹配的星系
         for (_, systems) in sovereigntyControlledSystems {
             for systemInfo in systems {
-                let nameMatch =
-                    systemInfo.name.localizedCaseInsensitiveContains(searchText)
-                        || systemInfo.nameEn.localizedCaseInsensitiveContains(searchText)
-                        || systemInfo.nameZh.localizedCaseInsensitiveContains(searchText)
-
-                if nameMatch {
+                if SDEMemoryStore.solarSystemNames[systemInfo.systemId]?.matchesSearch(searchText)
+                    == true
+                {
                     matchedSystemsInfo.append(systemInfo)
                 }
             }
@@ -378,7 +338,7 @@ struct SovereigntyListView: View {
         // 去重
         let uniqueSystemIds: [Int] = Array(Set(matchedSystemsInfo.map { $0.systemId }))
         let uniqueSystemsInfo = uniqueSystemIds.compactMap {
-            systemId -> (systemId: Int, name: String, nameEn: String, nameZh: String)? in
+            systemId -> (systemId: Int, name: String)? in
             matchedSystemsInfo.first { $0.systemId == systemId }
         }
 
@@ -386,7 +346,7 @@ struct SovereigntyListView: View {
         let systemDetailsMap = await getBatchSystemDetailInfo(systemIds: uniqueSystemIds)
 
         // 构建最终的SystemInfo数组
-        let matchedSystems: [SystemInfo] = uniqueSystemsInfo.compactMap {
+        return uniqueSystemsInfo.compactMap {
             systemInfo -> SystemInfo? in
             guard let systemDetail = systemDetailsMap[systemInfo.systemId] else {
                 return nil
@@ -395,19 +355,15 @@ struct SovereigntyListView: View {
             return SystemInfo(
                 id: systemInfo.systemId,
                 name: systemInfo.name,
-                nameEN: systemInfo.nameEn,
-                nameZH: systemInfo.nameZh,
                 security: systemDetail.security,
                 region: systemDetail.region
             )
         }.sorted { (lhs: SystemInfo, rhs: SystemInfo) -> Bool in
             return lhs.name < rhs.name
         }
-
-        return matchedSystems
     }
 
-    // 批量获取星系详细信息（安全等级、星域等）
+    /// 批量获取星系详细信息（安全等级、星域等）
     private func getBatchSystemDetailInfo(systemIds: [Int]) async -> [Int: (
         security: Double, region: String
     )] {
@@ -430,12 +386,10 @@ struct SovereigntyListView: View {
         return result
     }
 
-    // 星系信息结构体
+    /// 星系信息结构体
     struct SystemInfo: Hashable {
         let id: Int
         let name: String
-        let nameEN: String
-        let nameZH: String
         let security: Double
         let region: String
 
@@ -448,8 +402,7 @@ struct SovereigntyListView: View {
         }
     }
 
-    // 主权势力行视图
-    @ViewBuilder
+    /// 主权势力行视图
     private func sovereigntyRow(_ sovereignty: SovereigntyInfo) -> some View {
         HStack {
             if let icon = iconLoader.icons[sovereignty.id] ?? sovereignty.icon {
@@ -489,8 +442,7 @@ struct SovereigntyListView: View {
         }
     }
 
-    // 星系行视图（基于 SystemInfo）
-    @ViewBuilder
+    /// 星系行视图（基于 SystemInfo）
     private func systemRowFromSystemInfo(_ system: SystemInfo) -> some View {
         HStack(spacing: 12) {
             // 主权势力图标
@@ -545,7 +497,7 @@ struct SovereigntyListView: View {
         .padding(.vertical, 2)
     }
 
-    // 获取星系的主权信息
+    /// 获取星系的主权信息
     private func getSystemSovereigntyInfo(for systemId: Int) -> (name: String, icon: Image?)? {
         // 查找该星系的主权数据
         guard let systemSovereignty = sovereigntyData.first(where: { $0.systemId == systemId })
@@ -575,8 +527,7 @@ struct SovereigntyListView: View {
         // 检查派系主权 - 复用主权势力列表的图标
         if let factionId = systemSovereignty.factionId {
             // 先尝试从主权势力列表获取派系图标
-            if let sovereignty = sovereignties.first(where: { $0.id == factionId && !$0.isAlliance }
-            ) {
+            if let sovereignty = sovereignties.first(where: { $0.id == factionId && !$0.isAlliance }) {
                 let name = sovereignty.name
                 return (name: name, icon: sovereignty.icon)
             }
@@ -595,7 +546,7 @@ struct SovereigntyListView: View {
         return nil
     }
 
-    // 加载星系主权信息
+    /// 加载星系主权信息
     private func loadSystemSovereigntyInfo(sovereigntyData: [SovereigntyData]) {
         // 提取需要加载的联盟和派系ID
         let allAllianceIds = Set(sovereigntyData.compactMap { $0.allianceId })
@@ -628,11 +579,12 @@ struct SovereigntyListView: View {
         )
     }
 
-    // 加载星系联盟信息
+    /// 加载星系联盟信息
     private func loadSystemAllianceInfo(for allianceIds: [Int]) async {
         do {
             let allianceNamesWithCategories = try await UniverseAPI.shared.getNamesWithFallback(
-                ids: allianceIds)
+                ids: allianceIds
+            )
 
             await MainActor.run {
                 for (allianceId, nameInfo) in allianceNamesWithCategories {
@@ -647,7 +599,7 @@ struct SovereigntyListView: View {
         }
     }
 
-    // 加载星系派系信息
+    /// 加载星系派系信息
     private func loadSystemFactionInfo(for factionIds: [Int]) async {
         guard !factionIds.isEmpty else { return }
 

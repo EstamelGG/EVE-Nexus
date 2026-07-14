@@ -31,7 +31,7 @@ package enum DurationFormatter {
 }
 
 extension DateFormatter {
-    /// With timezone, so that if it's shared, we know the exact time.
+    // With timezone, so that if it's shared, we know the exact time.
     package static let fullDateFormatter: DateFormatter = {
         let dateFormatter = DateFormatter()
         dateFormatter.locale = Locale(identifier: "en_US")
@@ -77,10 +77,9 @@ enum ConsoleFormatter {
         ].compactMap { $0 }.joined(separator: separator)
     }
 
-    /// Example:
-    ///
-    /// "GET · Pending"
-    /// "GET · 21.9 MB · 2.2s"
+    // Example:
+    //     // "GET · Pending"
+    // "GET · 21.9 MB · 2.2s"
     static func details(for task: NetworkTaskEntity) -> String {
         return [
             transferSize(for: task),

@@ -6,23 +6,23 @@ import SwiftUI
 import Pulse
 import Combine
 
-/// Allows you to control Pulse appearance and other settings programmatically.
+// Allows you to control Pulse appearance and other settings programmatically.
 public final class UserSettings: ObservableObject {
     public static let shared = UserSettings()
 
-    /// The console default mode.
+    // The console default mode.
     @AppStorage("com.github.kean.pulse.console.mode")
     public var mode: ConsoleMode = .network
 
-    /// The line limit for messages in the console. By default, `3`.
+    // The line limit for messages in the console. By default, `3`.
     @AppStorage("com.github.kean.pulse.consoleCellLineLimit")
     public var lineLimit: Int = 3
 
-    /// Enables link detection in the response viewier. By default, `false`.
+    // Enables link detection in the response viewier. By default, `false`.
     @AppStorage("com.github.kean.pulse.linkDetection")
     public var isLinkDetectionEnabled = false
 
-    /// The default sharing output type. By default, ``ShareStoreOutput/store``.
+    // The default sharing output type. By default, ``ShareStoreOutput/store``.
     @AppStorage("com.github.kean.pulse.sharingOutput")
     public var sharingOutput: ShareStoreOutput = .store
 
@@ -33,12 +33,12 @@ public final class UserSettings: ObservableObject {
         set { }
     }
 
-    /// If `true`, the network inspector will show the current request by default.
-    /// If `false`, show the original request.
+    // If `true`, the network inspector will show the current request by default.
+    // If `false`, show the original request.
     @AppStorage("com.github.kean.pulse.showCurrentRequest")
     public var isShowingCurrentRequest = true
 
-    /// The allowed sharing options.
+    // The allowed sharing options.
     public var allowedShareStoreOutputs: [ShareStoreOutput] {
         get { decode(rawAllowedShareStoreOutputs) ?? [] }
         set { rawAllowedShareStoreOutputs = encode(newValue) ?? "[]" }
@@ -47,11 +47,11 @@ public final class UserSettings: ObservableObject {
     @AppStorage("com.github.kean.pulse.allowedShareStoreOutputs")
     var rawAllowedShareStoreOutputs: String = "[]"
 
-    /// If enabled, the console stops showing the remote logging option.
+    // If enabled, the console stops showing the remote logging option.
     @AppStorage("com.github.kean.pulse.isRemoteLoggingAllowed")
     public var isRemoteLoggingHidden = false
 
-    /// Task cell display options.
+    // Task cell display options.
     public var listDisplayOptions: ConsoleListDisplaySettings {
         get {
             if let options = cachedDisplayOptions {

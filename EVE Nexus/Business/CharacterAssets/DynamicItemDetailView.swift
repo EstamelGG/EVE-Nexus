@@ -7,7 +7,7 @@ private struct DynamicAttributeEntry: Identifiable {
     let id: Int // attribute_id
     let name: String
     let iconFileName: String?
-    let unitName: String? // 属性单位（如 "mm", "HP", "s", "%"）
+    let unitID: Int? // 用于按数据库详情规则转换和格式化数值
     let originalValue: Double // 来源物品的原始数值
     let currentValue: Double // ESI 返回的当前实际数值
     let minMutator: Double // 突变质体的最小乘数
@@ -18,6 +18,21 @@ private struct DynamicAttributeEntry: Identifiable {
     var mutationMultiplier: Double {
         guard originalValue != 0 else { return 1.0 }
         return currentValue / originalValue
+    }
+
+    /// 转换为共享突变属性行使用的模型
+    var displayAttribute: MutationDisplayAttribute {
+        MutationDisplayAttribute(
+            id: id,
+            name: name,
+            iconFileName: iconFileName,
+            unitID: unitID,
+            originalValue: originalValue,
+            minMutator: minMutator,
+            maxMutator: maxMutator,
+            highIsGood: highIsGood,
+            multiplier: mutationMultiplier
+        )
     }
 }
 
@@ -50,6 +65,10 @@ struct DynamicItemDetailView: View {
 
     /// 解析后的突变属性列表
     @State private var mutationAttributes: [DynamicAttributeEntry] = []
+
+    /// 来源物品的完整原始属性，以及由 ESI 当前值覆盖后的属性
+    @State private var originalAttributeValues: [Int: Double] = [:]
+    @State private var currentAttributeValues: [Int: Double] = [:]
 
     // MARK: - Body
 
@@ -97,9 +116,15 @@ struct DynamicItemDetailView: View {
                     header: sectionHeader(NSLocalizedString("Main_Database_Mutation_Attribute", comment: ""))
                 ) {
                     ForEach(mutationAttributes.sorted { $0.id < $1.id }) { attr in
-                        DynamicAttributeRowView(attribute: attr)
+                        MutationAttributeDisplayRowView(
+                            attribute: .constant(attr.displayAttribute),
+                            originalAttributes: originalAttributeValues,
+                            currentAttributes: currentAttributeValues,
+                            onEdit: nil
+                        )
                     }
                 }
+                .listRowInsets(itemSectionRowInsets)
             }
 
             // 制作者（可跳转到角色详情）
@@ -232,12 +257,15 @@ struct DynamicItemDetailView: View {
             // 4. 从数据库获取突变质体信息
             mutaplasmidInfo = queryTypeInfo(typeId: result.mutator_type_id)
 
-            // 5. 构建突变属性列表
-            mutationAttributes = buildMutationAttributes(
+            // 5. 构建突变属性列表及数据库详情格式化所需的属性上下文
+            let attributeData = buildMutationAttributes(
                 apiAttributes: result.dogma_attributes,
                 sourceTypeId: result.source_type_id,
                 mutatorTypeId: result.mutator_type_id
             )
+            mutationAttributes = attributeData.entries
+            originalAttributeValues = attributeData.originalValues
+            currentAttributeValues = attributeData.currentValues
 
             isLoading = false
         } catch {
@@ -254,22 +282,22 @@ struct DynamicItemDetailView: View {
         apiAttributes: [DogmaAttributeItem],
         sourceTypeId: Int,
         mutatorTypeId: Int
-    ) -> [DynamicAttributeEntry] {
+    ) -> (
+        entries: [DynamicAttributeEntry],
+        originalValues: [Int: Double],
+        currentValues: [Int: Double]
+    ) {
+        AttributeDisplayConfig.initializeUnits(with: databaseManager.loadAttributeUnits())
+
         // 1. 从 dynamic_item_attributes 获取突变质体能影响的属性（含范围和 highIsGood）
         let mutatorAttrs = loadMutatorAttributeRanges(mutatorTypeId: mutatorTypeId)
-        guard !mutatorAttrs.isEmpty else { return [] }
+        guard !mutatorAttrs.isEmpty else { return ([], [:], [:]) }
 
-        // 受影响的 attribute_id 集合
-        let affectedAttrIds = Set(mutatorAttrs.map { $0.attributeID })
+        // 2. 从 typeAttributes 获取来源物品的完整原始属性，保留数据库详情格式化所需的上下文
+        let originalValues = loadOriginalAttributeValues(sourceTypeId: sourceTypeId)
 
-        // 2. 从 typeAttributes 获取来源物品的原始属性值
-        let originalValues = loadOriginalAttributeValues(
-            sourceTypeId: sourceTypeId,
-            attributeIds: affectedAttrIds
-        )
-
-        // 3. 将 ESI 返回的属性值转为字典
-        var currentValues: [Int: Double] = [:]
+        // 3. 以来源物品属性为基础，用 ESI 返回的当前值覆盖
+        var currentValues = originalValues
         for attr in apiAttributes {
             currentValues[attr.attribute_id] = attr.value
         }
@@ -285,7 +313,7 @@ struct DynamicItemDetailView: View {
                 id: mAttr.attributeID,
                 name: mAttr.name,
                 iconFileName: mAttr.iconFileName,
-                unitName: mAttr.unitName,
+                unitID: mAttr.unitID,
                 originalValue: original,
                 currentValue: current,
                 minMutator: mAttr.minValue,
@@ -294,17 +322,17 @@ struct DynamicItemDetailView: View {
             ))
         }
 
-        return entries
+        return (entries, originalValues, currentValues)
     }
 
     /// 从 dynamic_item_attributes 表加载突变质体的属性范围
     private func loadMutatorAttributeRanges(mutatorTypeId: Int) -> [(
-        attributeID: Int, name: String, iconFileName: String?, unitName: String?,
+        attributeID: Int, name: String, iconFileName: String?, unitID: Int?,
         minValue: Double, maxValue: Double, highIsGood: Bool
     )] {
         let query = """
             SELECT a.attribute_id, d.display_name, COALESCE(d.icon_filename, '') as icon_filename,
-                   d.unitName, a.min_value, a.max_value, d.highIsGood
+                   d.unitID, a.min_value, a.max_value, d.highIsGood
             FROM dynamic_item_attributes a
             LEFT JOIN dogmaAttributes d ON a.attribute_id = d.attribute_id
             WHERE a.type_id = ?
@@ -323,12 +351,11 @@ struct DynamicItemDetailView: View {
                   let hig = row["highIsGood"] as? Int
             else { return nil }
             let icon = row["icon_filename"] as? String
-            let unit = row["unitName"] as? String
             return (
                 attributeID: attrId,
                 name: name,
                 iconFileName: (icon?.isEmpty ?? true) ? nil : icon,
-                unitName: (unit?.isEmpty ?? true) ? nil : unit,
+                unitID: row["unitID"] as? Int,
                 minValue: minVal,
                 maxValue: maxVal,
                 highIsGood: hig == 1
@@ -336,16 +363,12 @@ struct DynamicItemDetailView: View {
         }
     }
 
-    /// 从 typeAttributes 表获取来源物品某些属性的原始数值
-    private func loadOriginalAttributeValues(
-        sourceTypeId: Int, attributeIds: Set<Int>
-    ) -> [Int: Double] {
-        guard !attributeIds.isEmpty else { return [:] }
-        let idList = attributeIds.sorted().map { String($0) }.joined(separator: ",")
+    /// 从 typeAttributes 表获取来源物品的完整原始属性
+    private func loadOriginalAttributeValues(sourceTypeId: Int) -> [Int: Double] {
         let query = """
             SELECT attribute_id, value
             FROM typeAttributes
-            WHERE type_id = ? AND attribute_id IN (\(idList))
+            WHERE type_id = ?
         """
         var result: [Int: Double] = [:]
         if case let .success(rows) = databaseManager.executeQuery(
@@ -362,94 +385,9 @@ struct DynamicItemDetailView: View {
         return result
     }
 
-    /// 从数据库查询 type_id 对应的名称和图标
+    /// 从内存索引查询 type_id 对应的名称和图标
     private func queryTypeInfo(typeId: Int) -> (name: String, iconFileName: String)? {
-        let query = "SELECT name, icon_filename FROM types WHERE type_id = ?"
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]),
-           let row = rows.first,
-           let name = row["name"] as? String,
-           let icon = row["icon_filename"] as? String
-        {
-            return (name: name, iconFileName: icon.isEmpty ? DatabaseConfig.defaultItemIcon : icon)
-        }
-        return nil
-    }
-}
-
-// MARK: - 突变属性行视图（只读展示，带进度条）
-
-private struct DynamicAttributeRowView: View {
-    let attribute: DynamicAttributeEntry
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // 第一行：图标 + 属性名 + 数值
-            HStack(spacing: 8) {
-                if let iconFileName = attribute.iconFileName, !iconFileName.isEmpty {
-                    IconManager.shared.loadImage(for: iconFileName)
-                        .resizable()
-                        .frame(width: 24, height: 24)
-                }
-
-                Text(attribute.name)
-                    .font(.body)
-                    .foregroundColor(.primary)
-
-                Spacer()
-
-                // 原始值 → 当前值（带单位）
-                HStack(spacing: 4) {
-                    Text(formatValueWithUnit(attribute.originalValue))
-                        .foregroundColor(.secondary)
-                    Image(systemName: "arrow.right")
-                        .font(.caption2)
-                        .foregroundColor(.secondary)
-                    Text(formatValueWithUnit(attribute.currentValue))
-                        .foregroundColor(valueColor)
-                }
-                .font(.body)
-            }
-
-            // 第二行：红绿进度条
-            MutationProgressBarView(
-                currentValue: attribute.mutationMultiplier,
-                minValue: attribute.minMutator,
-                maxValue: attribute.maxMutator,
-                highIsGood: attribute.highIsGood,
-                originalValueIsNegative: attribute.originalValue < 0
-            )
-        }
-        .padding(.vertical, 4)
-    }
-
-    /// 当前值的颜色
-    private var valueColor: Color {
-        let diff = attribute.currentValue - attribute.originalValue
-        if abs(diff) < 0.0001 { return .secondary }
-        let improved = attribute.highIsGood ? (diff > 0) : (diff < 0)
-        return improved ? .green : .red
-    }
-
-    /// 格式化数值并附加单位
-    private func formatValueWithUnit(_ value: Double) -> String {
-        let numberString = formatAbsoluteValue(value)
-        guard let unit = attribute.unitName, !unit.isEmpty else {
-            return numberString
-        }
-        // 百分号紧贴数字，其他单位加空格
-        return unit == "%" ? "\(numberString)\(unit)" : "\(numberString) \(unit)"
-    }
-
-    /// 格式化绝对数值（保留合理精度）
-    private func formatAbsoluteValue(_ value: Double) -> String {
-        // 对于很大的整数值（如 hitpoints）不显示小数
-        if value == value.rounded() && abs(value) >= 1 {
-            return FormatUtil.format(value)
-        }
-        let formatter = NumberFormatter()
-        formatter.minimumFractionDigits = 0
-        formatter.maximumFractionDigits = 2
-        formatter.numberStyle = .decimal
-        return formatter.string(from: NSNumber(value: value)) ?? String(format: "%.2f", value)
+        guard let info = ItemInfoMap.typeInfo(for: typeId), !info.name.isEmpty else { return nil }
+        return (name: info.name, iconFileName: info.iconFilename)
     }
 }

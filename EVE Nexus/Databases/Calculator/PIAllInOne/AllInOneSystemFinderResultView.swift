@@ -83,7 +83,7 @@ struct AllInOneSystemFinderResultView: View {
     }
 }
 
-// 单个星系结果区域
+/// 单个星系结果区域
 struct SystemResultSection: View {
     let result: AllInOneSystemResult
     let selectedProducts: [SelectedProduct]
@@ -104,7 +104,7 @@ struct SystemResultSection: View {
     }
 }
 
-// 星系头部信息行
+/// 星系头部信息行
 struct SystemHeaderRow: View {
     let result: AllInOneSystemResult
     @ObservedObject var viewModel: AllInOneSystemFinderResultViewModel
@@ -170,7 +170,7 @@ struct SystemHeaderRow: View {
     }
 }
 
-// 产品支持区域
+/// 产品支持区域
 struct ProductSupportSection: View {
     let result: AllInOneSystemResult
     let selectedProducts: [SelectedProduct]
@@ -191,7 +191,7 @@ struct ProductSupportSection: View {
     }
 }
 
-// 单个产品支持行
+/// 单个产品支持行
 struct ProductSupportRow: View {
     let product: SelectedProduct
     let supportInfo: ProductSupportInfo
@@ -243,7 +243,7 @@ struct ProductSupportRow: View {
     }
 }
 
-// 行星分布区域
+/// 行星分布区域
 struct PlanetDistributionSection: View {
     let result: AllInOneSystemResult
     let selectedProducts: [SelectedProduct]
@@ -262,7 +262,7 @@ struct PlanetDistributionSection: View {
     }
 }
 
-// 单个行星类型行
+/// 单个行星类型行
 struct PlanetTypeRow: View {
     let planetSummary: PlanetTypeSummary
     let selectedProducts: [SelectedProduct]
@@ -316,7 +316,7 @@ struct PlanetTypeRow: View {
     }
 }
 
-// 结果视图模型
+/// 结果视图模型
 @MainActor
 class AllInOneSystemFinderResultViewModel: ObservableObject {
     @Published var sovereigntyData: [SovereigntyData] = []
@@ -337,7 +337,8 @@ class AllInOneSystemFinderResultViewModel: ObservableObject {
 
             do {
                 let data = try await SovereigntyDataAPI.shared.fetchSovereigntyData(
-                    forceRefresh: false)
+                    forceRefresh: false
+                )
                 sovereigntyData = data
                 setupSovereigntyMapping(systemIds: systemIds)
                 isLoadingSovereignty = false

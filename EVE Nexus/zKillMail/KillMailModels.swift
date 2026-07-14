@@ -2,12 +2,19 @@ import Foundation
 
 // MARK: - 列表用实体（ESI + ZKB + 补充数据，无 evetools 格式）
 
-/// 星系摘要（用于列表展示）
+/// 星系摘要（用于列表展示，名称从 SDEMemoryStore 动态解析以跟随语言切换）
 struct KillMailSystemSummary: Codable {
     let systemId: Int
-    let systemName: String
-    let regionName: String
+    let regionId: Int
     let security: Double
+
+    var systemName: String {
+        SDEMemoryStore.solarSystemName(for: systemId) ?? "System \(systemId)"
+    }
+
+    var regionName: String {
+        SDEMemoryStore.regionName(for: regionId) ?? "Region \(regionId)"
+    }
 }
 
 /// 战斗记录列表项（以 ESI 为核心，补充名称与星系）
@@ -19,9 +26,13 @@ struct KillMailListEntity: Codable, Identifiable {
     let names: [Int: String] // ID -> 名称（角色/军团/联盟）
     let system: KillMailSystemSummary?
 
-    var id: Int { killmailId }
+    var id: Int {
+        killmailId
+    }
 
-    var totalValue: Double { zkb.totalValueValue }
+    var totalValue: Double {
+        zkb.totalValueValue
+    }
 
     /// 显示用主名称（角色 > 联盟 > 军团）
     var displayName: String {
@@ -37,10 +48,21 @@ struct KillMailListEntity: Codable, Identifiable {
         return NSLocalizedString("Unknown", comment: "")
     }
 
-    var characterId: Int? { victim.character_id }
-    var corporationId: Int { victim.corporation_id }
-    var allianceId: Int? { victim.alliance_id }
-    var shipTypeId: Int { victim.ship_type_id }
+    var characterId: Int? {
+        victim.character_id
+    }
+
+    var corporationId: Int {
+        victim.corporation_id
+    }
+
+    var allianceId: Int? {
+        victim.alliance_id
+    }
+
+    var shipTypeId: Int {
+        victim.ship_type_id
+    }
 }
 
 // MARK: - 详情用数据（ESI + ZKB + 补充数据）
@@ -60,7 +82,9 @@ struct KillMailDetailData {
         return Int(date.timeIntervalSince1970)
     }
 
-    var attackers: [ESIAttacker] { esi.attackers ?? [] }
+    var attackers: [ESIAttacker] {
+        esi.attackers ?? []
+    }
 
     func characterName(for id: Int) -> String {
         names[id] ?? "Character \(id)"
@@ -124,11 +148,6 @@ struct KillMailDisplayRow: Identifiable, Hashable {
     let quantityDestroyed: Int
     let singleton: Int
     let depth: Int
-
-    /// 与历史 `[[Int]]` 装配格式兼容（末尾为 depth）
-    var legacyRow: [Int] {
-        [flag, typeId, quantityDropped, quantityDestroyed, singleton, depth]
-    }
 }
 
 enum KillMailItemTreeBuilder {
@@ -198,7 +217,7 @@ enum KillMailItemTreeBuilder {
     /// 仅对同一父级下的兄弟节点排序（装配槽：先 flag，再非弹药优先）
     static func sortFittingSiblingRows(
         _ rows: [[Int]],
-        itemInfoCache: [Int: (name: String, iconFileName: String, categoryID: Int)]
+        itemInfoCache: [Int: (iconFileName: String, bpcIconFileName: String, categoryID: Int)]
     ) -> [[Int]] {
         rows.sorted { a, b in
             if a[0] != b[0] { return a[0] < b[0] }

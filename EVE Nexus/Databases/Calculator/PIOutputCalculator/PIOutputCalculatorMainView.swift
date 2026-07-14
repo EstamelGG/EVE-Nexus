@@ -379,7 +379,7 @@ struct PIOutputCalculatorView: View {
         }
     }
 
-    // 计算指定星系周围最大跳数范围内的所有星系
+    /// 计算指定星系周围最大跳数范围内的所有星系
     private func calculateSystemsInRange() {
         guard let startSystemId = selectedSolarSystemId else { return }
 
@@ -443,7 +443,8 @@ struct PIOutputCalculatorView: View {
                                     visited.insert(neighbor)
                                     result.insert(neighbor)
                                     queue.append(
-                                        (systemId: neighbor, distance: current.distance + 1))
+                                        (systemId: neighbor, distance: current.distance + 1)
+                                    )
                                 }
                             }
                         }
@@ -469,11 +470,13 @@ struct PIOutputCalculatorView: View {
                                         return data.systemId
                                     }
                                     return nil
-                                })
+                                }
+                            )
 
                             // 取交集得到同时在范围内且属于指定主权的星系
                             let filteredResult = capturedResult.intersection(
-                                systemsUnderSovereignty)
+                                systemsUnderSovereignty
+                            )
 
                             // 更新主线程UI
                             await MainActor.run {
@@ -492,7 +495,8 @@ struct PIOutputCalculatorView: View {
                                 systemsInRange = capturedResult
                                 isCalculating = false
                                 Logger.info(
-                                    "获取主权数据失败，计算完成，在\(maxJumps)跳范围内找到\(capturedResult.count)个星系")
+                                    "获取主权数据失败，计算完成，在\(maxJumps)跳范围内找到\(capturedResult.count)个星系"
+                                )
 
                                 // 加载资源信息
                                 loadResources(for: Array(capturedResult))
@@ -520,7 +524,7 @@ struct PIOutputCalculatorView: View {
         }
     }
 
-    // 加载资源信息（P0、P1、P2、P3和P4）
+    /// 加载资源信息（P0、P1、P2、P3和P4）
     private func loadResources(for systemIds: [Int]) {
         // 先加载P0资源信息
         loadPIResources(level: .p0, for: systemIds, availablePIIds: Set<Int>()) { availableP0Ids in
@@ -549,7 +553,8 @@ struct PIOutputCalculatorView: View {
                                 ) { availableP3Ids in
                                     // 合并P0、P1、P2和P3的可用资源
                                     let availableP0P1P2P3Ids = availableP0P1P2Ids.union(
-                                        availableP3Ids)
+                                        availableP3Ids
+                                    )
 
                                     // 只有在有可用P3资源的情况下才加载P4资源
                                     if !availableP3Ids.isEmpty {
@@ -594,7 +599,7 @@ struct PIOutputCalculatorView: View {
         }
     }
 
-    // 统一的资源加载方法
+    /// 统一的资源加载方法
     private func loadPIResources(
         level: PIResourceLevel, for systemIds: [Int], availablePIIds: Set<Int>,
         completion: @escaping (Set<Int>) -> Void
@@ -722,7 +727,8 @@ struct PIOutputCalculatorView: View {
                                         iconFileName: info.iconFileName,
                                         requiredP0Resources: Array(requiredInputIds),
                                         canProduce: true
-                                    ))
+                                    )
+                                )
                             case .p2:
                                 resourceInfos.append(
                                     P2ResourceInfo(
@@ -731,7 +737,8 @@ struct PIOutputCalculatorView: View {
                                         iconFileName: info.iconFileName,
                                         requiredP1Resources: Array(requiredInputIds),
                                         canProduce: true
-                                    ))
+                                    )
+                                )
                             case .p3:
                                 resourceInfos.append(
                                     P3ResourceInfo(
@@ -740,7 +747,8 @@ struct PIOutputCalculatorView: View {
                                         iconFileName: info.iconFileName,
                                         requiredP2Resources: Array(requiredInputIds),
                                         canProduce: true
-                                    ))
+                                    )
+                                )
                             case .p4:
                                 resourceInfos.append(
                                     P4ResourceInfo(
@@ -749,7 +757,8 @@ struct PIOutputCalculatorView: View {
                                         iconFileName: info.iconFileName,
                                         requiredP3Resources: Array(requiredInputIds),
                                         canProduce: true
-                                    ))
+                                    )
+                                )
                             default:
                                 break
                             }
@@ -823,7 +832,7 @@ struct PIOutputCalculatorView: View {
         }
     }
 
-    // P0资源特殊处理实现（因为P0资源需要单独查询行星类型）
+    /// P0资源特殊处理实现（因为P0资源需要单独查询行星类型）
     private func loadP0ResourcesImpl(for systemIds: [Int], completion: @escaping (Set<Int>) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async {
             // 查询星系内的行星数量
@@ -861,8 +870,8 @@ struct PIOutputCalculatorView: View {
             var resourceIconMap: [Int: String] = [:]
 
             if case let .success(resourceRows) = DatabaseManager.shared.executeQuery(
-                p0ResourceQuery)
-            {
+                p0ResourceQuery
+            ) {
                 for row in resourceRows {
                     if let typeId = row["typeid"] as? Int,
                        let iconFileName = row["icon_filename"] as? String
@@ -876,7 +885,8 @@ struct PIOutputCalculatorView: View {
             if !resourceIds.isEmpty {
                 // 获取资源可用的行星类型
                 let resourceCalculator = PlanetaryResourceCalculator(
-                    databaseManager: DatabaseManager.shared)
+                    databaseManager: DatabaseManager.shared
+                )
                 let resourcePlanets = resourceCalculator.findResourcePlanets(for: resourceIds)
 
                 // 创建资源ID到行星类型的映射
@@ -886,7 +896,8 @@ struct PIOutputCalculatorView: View {
 
                 for result in resourcePlanets {
                     resourceToPlanetTypes[result.resourceId] = Set(
-                        result.availablePlanets.map { $0.id })
+                        result.availablePlanets.map { $0.id }
+                    )
                     resourceInfo[result.resourceId] = (
                         name: result.resourceName,
                         planetTypes: result.availablePlanets.map { $0.id },
@@ -934,7 +945,8 @@ struct PIOutputCalculatorView: View {
                                 planetNames: info.planetNames,
                                 availablePlanetCount: count,
                                 iconFileName: resourceIconMap[resourceId] ?? "not_found"
-                            ))
+                            )
+                        )
                     }
                 }
 

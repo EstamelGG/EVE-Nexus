@@ -1,207 +1,49 @@
 import SwiftUI
 
-// 植入体选择器
+/// 植入体选择器
 struct ImplantSelectorView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let slotNumber: Int
     let hasExistingItem: Bool
-    @State private var implantItems: [DatabaseListItem] = []
-    @State private var searchText: String = ""
-    @State private var isLoading: Bool = true
-    @Environment(\.dismiss) private var dismiss
 
     let onSelect: (DatabaseListItem) -> Void
     let onRemove: (() -> Void)?
 
     var body: some View {
-        NavigationStack {
-            VStack {
-                if isLoading {
-                    ProgressView()
-                        .padding()
-                } else {
-                    List {
-                        if hasExistingItem {
-                            Section {
-                                Button(action: {
-                                    onRemove?()
-                                    dismiss()
-                                }) {
-                                    HStack {
-                                        Text(
-                                            NSLocalizedString(
-                                                "Remove_Current_Implant", comment: "移除现有植入体"
-                                            )
-                                        )
-                                        .foregroundColor(.red)
-                                        Spacer()
-                                    }
-                                }
-                            }
-                        }
-
-                        if filteredItems.isEmpty {
-                            Section {
-                                ContentUnavailableView {
-                                    Label(
-                                        NSLocalizedString("Misc_No_Data", comment: "无数据"),
-                                        systemImage: "exclamationmark.triangle"
-                                    )
-                                }
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .listRowBackground(Color.clear)
-                            }
-                        } else {
-                            // 按typeID排序展示
-                            ForEach(filteredItems.sorted { $0.id < $1.id }) { item in
-                                ItemRowWithInfo(item: item, databaseManager: databaseManager) {
-                                    onSelect(item)
-                                    dismiss()
-                                }
-                            }
-                        }
-                    }
-                    .searchable(
-                        text: $searchText,
-                        placement: .navigationBarDrawer(displayMode: .always),
-                        prompt: NSLocalizedString("Main_Search", comment: "搜索")
-                    )
-                }
-            }
-            .navigationTitle(
-                String(
+        FlatItemSelectorView(
+            databaseManager: databaseManager,
+            config: FlatItemSelectorConfig(
+                title: String(
                     format: NSLocalizedString("Implant_Slot_Num", comment: "植入体槽位 %d"), slotNumber
-                )
-            )
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        dismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .foregroundColor(.primary)
-                            .frame(width: 30, height: 30)
-                            .background(Color(.systemBackground))
-                            .clipShape(Circle())
-                    }
-                }
-            }
-        }
-        .onAppear {
-            loadImplantItems()
-        }
-    }
-
-    // 根据搜索文本过滤物品
-    private var filteredItems: [DatabaseListItem] {
-        if searchText.isEmpty {
-            return implantItems
-        } else {
-            return implantItems.filter { item in
-                item.name.localizedCaseInsensitiveContains(searchText)
-            }
-        }
-    }
-
-    // 加载植入体物品
-    private func loadImplantItems() {
-        isLoading = true
-
-        // 获取指定槽位的植入体信息
-        let query = """
-            SELECT t.type_id as id, t.name, t.en_name, t.published, t.icon_filename as iconFileName,
-                   t.categoryID, t.groupID, t.group_name as groupName
-            FROM types t
-            JOIN typeAttributes ta ON t.type_id = ta.type_id
-            WHERE ta.attribute_id = 331
-            AND ta.value = ?
-            AND t.published = 1
-            AND t.marketGroupID IS NOT NULL
-            ORDER BY t.name
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [slotNumber]) {
-            var items: [DatabaseListItem] = []
-
-            for row in rows {
-                if let id = row["id"] as? Int,
-                   let name = row["name"] as? String,
-                   let enName = row["en_name"] as? String,
-                   let categoryId = row["categoryID"] as? Int
-                {
-                    let iconFileName = (row["iconFileName"] as? String) ?? "not_found"
-                    let published = (row["published"] as? Int) ?? 0
-                    let groupID = row["groupID"] as? Int
-                    let groupName = row["groupName"] as? String
-
-                    let item = DatabaseListItem(
-                        id: id,
-                        name: name,
-                        enName: enName,
-                        iconFileName: iconFileName,
-                        published: published == 1,
-                        categoryID: categoryId,
-                        groupID: groupID,
-                        groupName: groupName,
-                        pgNeed: nil,
-                        cpuNeed: nil,
-                        rigCost: nil,
-                        emDamage: nil,
-                        themDamage: nil,
-                        kinDamage: nil,
-                        expDamage: nil,
-                        highSlot: nil,
-                        midSlot: nil,
-                        lowSlot: nil,
-                        rigSlot: nil,
-                        gunSlot: nil,
-                        missSlot: nil,
-                        metaGroupID: nil,
-                        marketGroupID: nil,
-                        navigationDestination: AnyView(EmptyView())
+                ),
+                logTag: "植入体",
+                loadItems: { databaseManager in
+                    // 获取指定槽位的植入体信息
+                    (
+                        FlatItemSelectorQueries.loadItems(
+                            databaseManager: databaseManager,
+                            query: """
+                                SELECT t.type_id as id, t.name, t.en_name, t.published, t.icon_filename as iconFileName,
+                                       t.categoryID, t.groupID, t.group_name as groupName
+                                FROM types t
+                                JOIN typeAttributes ta ON t.type_id = ta.type_id
+                                WHERE ta.attribute_id = 331
+                                AND ta.value = ?
+                                AND t.published = 1
+                                AND t.marketGroupID IS NOT NULL
+                                ORDER BY t.name
+                            """,
+                            parameters: [slotNumber],
+                            logTag: "植入体"
+                        ),
+                        [:]
                     )
-
-                    items.append(item)
-                }
-            }
-
-            implantItems = items
-            Logger.info("加载了 \(implantItems.count) 个植入体")
-        } else {
-            Logger.error("加载植入体信息失败")
-        }
-
-        isLoading = false
-    }
-}
-
-// 带信息按钮的物品行组件
-struct ItemRowWithInfo: View {
-    let item: DatabaseListItem
-    let databaseManager: DatabaseManager
-    let onTap: () -> Void
-    @State private var showingItemInfo = false
-
-    var body: some View {
-        HStack {
-            ItemNodeRow(item: item) {
-                onTap()
-            }
-            Spacer()
-            Button {
-                showingItemInfo = true
-            } label: {
-                Image(systemName: "info.circle")
-                    .foregroundColor(.blue)
-            }
-            .buttonStyle(BorderlessButtonStyle())
-            .sheet(isPresented: $showingItemInfo) {
-                NavigationStack {
-                    ShowItemInfo(databaseManager: databaseManager, itemID: item.id)
-                }
-                .presentationDragIndicator(.visible)
-            }
-        }
+                },
+                onSelect: { item, _ in onSelect(item) },
+                removeLabel: hasExistingItem
+                    ? NSLocalizedString("Remove_Current_Implant", comment: "移除现有植入体") : nil,
+                onRemove: onRemove
+            )
+        )
     }
 }

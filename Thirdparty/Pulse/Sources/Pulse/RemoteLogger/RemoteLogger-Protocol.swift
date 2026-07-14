@@ -185,9 +185,9 @@ extension RemoteLogger {
     package enum Path: Codable {
         case updateMocks
         case getMockedResponse(mockID: UUID)
-        /// Payload: ``LoggerStore/Event/MessageCreated``.
+        // Payload: ``LoggerStore/Event/MessageCreated``.
         case openMessageDetails
-        /// Payload: ``LoggerStore/Event/NetworkTaskCompleted``.
+        // Payload: ``LoggerStore/Event/NetworkTaskCompleted``.
         case openTaskDetails
     }
 

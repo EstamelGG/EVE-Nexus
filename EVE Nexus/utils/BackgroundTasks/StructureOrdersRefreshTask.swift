@@ -8,7 +8,7 @@ class StructureOrdersRefreshTask: BaseProcessingTask {
     static let identifier = "com.evenexus.structureordersrefresh"
     static let interval: TimeInterval = 60 * 60 // 1小时
 
-    // 用于记录上次更新的建筑ID，实现轮询更新
+    /// 用于记录上次更新的建筑ID，实现轮询更新
     private static let lastUpdatedStructureIdKey = "lastUpdatedStructureOrdersId"
 
     init() {
@@ -145,8 +145,6 @@ class StructureOrdersRefreshTask: BaseProcessingTask {
         }
 
         // 合并结果：无缓存在前，有缓存在后
-        let result = noCacheStructures.map { $0.structure } + cachedStructures.map { $0.structure }
-
-        return result
+        return noCacheStructures.map { $0.structure } + cachedStructures.map { $0.structure }
     }
 }

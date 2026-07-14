@@ -21,7 +21,7 @@ final class FactionWarViewModel: ObservableObject {
     @Published var isLoading = true
     @Published var errorMessage: String?
 
-    // 添加计算属性获取海盗势力列表
+    /// 添加计算属性获取海盗势力列表
     var pirateFactions: [FactionInfo] {
         let pirateIds = Set(insurgencyCampaigns.map { $0.pirateFactionId })
 
@@ -86,7 +86,8 @@ final class FactionWarViewModel: ObservableObject {
                 Logger.info("开始获取FW数据")
                 async let fwDataTask = FWAPI.shared.fetchFWData(forceRefresh: forceRefresh)
                 async let insurgencyTask = FWAPI.shared.fetchInsurgencyData(
-                    forceRefresh: forceRefresh)
+                    forceRefresh: forceRefresh
+                )
 
                 let (systems, wars) = try await fwDataTask
 

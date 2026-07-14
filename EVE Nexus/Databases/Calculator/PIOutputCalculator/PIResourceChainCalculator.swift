@@ -1,33 +1,33 @@
 import Foundation
 import SwiftUI
 
-// 定义行星资源链信息结构体
+/// 定义行星资源链信息结构体
 struct PIResourceChainInfo {
-    // 资源ID
+    /// 资源ID
     let resourceId: Int
-    // 资源名称
+    /// 资源名称
     let resourceName: String
-    // 资源图标
+    /// 资源图标
     let iconFileName: String
-    // 资源等级 (P0-P4)
+    /// 资源等级 (P0-P4)
     let resourceLevel: Int
-    // 生产该资源所需的上一级资源ID列表
+    /// 生产该资源所需的上一级资源ID列表
     let requiredResources: [Int]
-    // 生产该资源所需的行星类型列表
+    /// 生产该资源所需的行星类型列表
     let requiredPlanetTypes: [Int]
-    // 行星类型名称
+    /// 行星类型名称
     let planetTypeNames: [String]
-    // 是否可以在指定星系中生产
+    /// 是否可以在指定星系中生产
     var canProduce: Bool = false
-    // 生产该资源所需的行星类型在指定星系中是否存在
+    /// 生产该资源所需的行星类型在指定星系中是否存在
     var availablePlanetTypes: [Int] = []
-    // 生产该资源所需的行星类型在指定星系中是否全部存在
+    /// 生产该资源所需的行星类型在指定星系中是否全部存在
     var allRequiredPlanetTypesAvailable: Bool = false
-    // 生产该资源所需的行星类型在指定星系中是否存在部分
+    /// 生产该资源所需的行星类型在指定星系中是否存在部分
     var someRequiredPlanetTypesAvailable: Bool = false
 }
 
-// 定义行星资源链计算器
+/// 定义行星资源链计算器
 class PIResourceChainCalculator {
     private let databaseManager: DatabaseManager
     private let resourceCache: PIResourceCache
@@ -41,7 +41,7 @@ class PIResourceChainCalculator {
         self.resourceCache = resourceCache
     }
 
-    // 一次性计算完整的资源链，包括所有层级
+    /// 一次性计算完整的资源链，包括所有层级
     func calculateFullResourceChain(
         for resourceId: Int, in systemIds: [Int],
         completion: @escaping ([PIResourceChainInfo]?) -> Void
@@ -106,7 +106,7 @@ class PIResourceChainCalculator {
         completion(resourceChain)
     }
 
-    // 递归获取所有资源，包括最底层的P0资源
+    /// 递归获取所有资源，包括最底层的P0资源
     private func recursivelyGetAllResources(
         for resourceId: Int,
         resourceChain: inout [PIResourceChainInfo],
@@ -177,7 +177,7 @@ class PIResourceChainCalculator {
         }
     }
 
-    // 一次性加载所有资源的行星类型数据
+    /// 一次性加载所有资源的行星类型数据
     private func loadPlanetTypesForResources(_ resourceIds: [Int]) {
         Logger.info("开始加载资源行星类型数据，资源ID: \(resourceIds)")
         let query = """
@@ -225,42 +225,29 @@ class PIResourceChainCalculator {
         }
     }
 
-    // 从缓存中获取资源所需的行星类型
+    /// 从缓存中获取资源所需的行星类型
     private func getRequiredPlanetTypes(for resourceId: Int) -> [Int] {
-        let types = planetTypeCache[resourceId] ?? []
+        return planetTypeCache[resourceId] ?? []
         // Logger.info("获取资源 \(resourceId) 的行星类型: \(types)")
-        return types
     }
 
-    // 获取行星类型名称
+    /// 获取行星类型名称
     private func getPlanetTypeNames(for planetTypes: [Int]) -> [String] {
-        // 如果没有行星类型，直接返回空数组
         if planetTypes.isEmpty {
             return []
         }
 
         Logger.info("查询行星类型名称，类型ID: \(planetTypes)")
-        let query = """
-            SELECT type_id, name
-            FROM types
-            WHERE type_id IN (\(planetTypes.map { String($0) }.joined(separator: ",")))
-        """
-
         var planetTypeNames: [String] = []
-
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            for row in rows {
-                if let name = row["name"] as? String {
-                    planetTypeNames.append(name)
-                }
+        for typeId in planetTypes {
+            if let name = ItemInfoMap.typeName(for: typeId) {
+                planetTypeNames.append(name)
             }
         }
-
-        // Logger.info("查询到的行星类型名称: \(planetTypeNames)")
         return planetTypeNames
     }
 
-    // 检查资源在指定星系中是否可以生产
+    /// 检查资源在指定星系中是否可以生产
     private func checkResourceAvailability(
         in systemIds: [Int], resourceChain: inout [PIResourceChainInfo]
     ) {

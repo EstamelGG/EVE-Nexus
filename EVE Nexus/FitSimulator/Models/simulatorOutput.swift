@@ -19,10 +19,10 @@ struct SimulationOutput {
     var characterSkills: [Int: Int] // 角色技能（技能ID: 等级）
     var fighters: [FighterSquadOutput]? // 舰载机中队（如有）
 
-    // 技能计算结果
+    /// 技能计算结果
     var characterSkillCalculatedAttributes: [Int: [Int: Double]] = [:] // 技能ID: [属性ID: 计算后的值]
 
-    // 原始输入数据的引用
+    /// 原始输入数据的引用
     var originalInput: SimulationInput
 
     /// 从SimulationInput创建SimulationOutput

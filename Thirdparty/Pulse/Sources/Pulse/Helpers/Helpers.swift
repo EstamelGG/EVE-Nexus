@@ -52,12 +52,11 @@ extension URL {
 }
 
 extension Data {
-    /// Calculates SHA1 from the given string and returns its hex representation.
-    ///
-    /// ```swift
-    /// print("http://test.com".data(using: .utf8)!.sha1)
-    /// // prints "c6b6cafcb77f54d43cd1bd5361522a5e0c074b65"
-    /// ```
+    // Calculates SHA1 from the given string and returns its hex representation.
+    //     // ```swift
+    // print("http://test.com".data(using: .utf8)!.sha1)
+    // // prints "c6b6cafcb77f54d43cd1bd5361522a5e0c074b65"
+    // ```
     package var sha1: Data {
         Data(withUnsafeBytes { (bytes: UnsafeRawBufferPointer) -> [UInt8] in
             var hash = [UInt8](repeating: 0, count: Int(CC_SHA1_DIGEST_LENGTH))
@@ -132,7 +131,7 @@ package struct LoggerBlogDataStore {
         self.getDecompressedData = getDecompressedData
     }
 
-    /// The key for `NSManagedObjectContext` `userInfo`.
+    // The key for `NSManagedObjectContext` `userInfo`.
     package static let loggerStoreKey = "com.github.kean.pulse.associated-logger-store"
 }
 

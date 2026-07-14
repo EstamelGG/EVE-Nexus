@@ -1,87 +1,70 @@
 import Foundation
+import SwiftUI
 
-// 分类模型
-public struct Category: Identifiable {
-    public let id: Int
-    public let name: String
-    public let enName: String // 添加英文名称
-    public let published: Bool
-    public let iconID: Int
-    public let iconFileNew: String
+/// 通用的数据项模型
+struct DatabaseListItem: Identifiable {
+    let id: Int
+    let name: String
+    let enName: String?
+    let iconFileName: String
+    let published: Bool
+    let categoryID: Int?
+    let groupID: Int?
+    let groupName: String?
+    let pgNeed: Double?
+    let cpuNeed: Double?
+    let rigCost: Int?
+    let emDamage: Double?
+    let themDamage: Double?
+    let kinDamage: Double?
+    let expDamage: Double?
+    let highSlot: Int?
+    let midSlot: Int?
+    let lowSlot: Int?
+    let rigSlot: Int?
+    let gunSlot: Int?
+    let missSlot: Int?
+    let metaGroupID: Int?
+    let marketGroupID: Int?
+    /// 是否支持「属性快速比对」（加载时预填充，渲染期无需再查）
+    var attributeCompareEligible: Bool = false
+    let navigationDestination: AnyView
 
-    public init(
-        id: Int, name: String, enName: String, published: Bool, iconID: Int, iconFileNew: String
+    init(
+        id: Int,
+        name: String,
+        enName: String?,
+        iconFileName: String,
+        published: Bool,
+        categoryID: Int? = nil,
+        groupID: Int? = nil,
+        groupName: String? = nil,
+        pgNeed: Double? = nil,
+        cpuNeed: Double? = nil,
+        rigCost: Int? = nil,
+        emDamage: Double? = nil,
+        themDamage: Double? = nil,
+        kinDamage: Double? = nil,
+        expDamage: Double? = nil,
+        highSlot: Int? = nil,
+        midSlot: Int? = nil,
+        lowSlot: Int? = nil,
+        rigSlot: Int? = nil,
+        gunSlot: Int? = nil,
+        missSlot: Int? = nil,
+        metaGroupID: Int? = nil,
+        marketGroupID: Int? = nil,
+        attributeCompareEligible: Bool = false,
+        navigationDestination: AnyView = AnyView(EmptyView())
     ) {
         self.id = id
-        self.name = name
-        self.enName = enName
-        self.published = published
-        self.iconID = iconID
-        self.iconFileNew = iconFileNew
-    }
-}
-
-// 组模型
-public struct TypeGroup: Identifiable {
-    public let id: Int
-    public let name: String
-    public let enName: String // 添加英文名称
-    public let iconID: Int
-    public let categoryID: Int
-    public let published: Bool
-    public let icon_filename: String
-
-    public init(
-        id: Int, name: String, enName: String, iconID: Int, categoryID: Int, published: Bool,
-        icon_filename: String
-    ) {
-        self.id = id
-        self.name = name
-        self.enName = enName
-        self.iconID = iconID
-        self.categoryID = categoryID
-        self.published = published
-        self.icon_filename = icon_filename
-    }
-}
-
-// 物品模型
-public struct DatabaseItem: Identifiable {
-    public let id: Int
-    public let typeID: Int
-    public let name: String
-    public let enName: String // 添加英文名称
-    public let iconFileName: String
-    public let categoryID: Int
-    public let pgNeed: Double?
-    public let cpuNeed: Double?
-    public let rigCost: Int?
-    public let emDamage: Double?
-    public let themDamage: Double?
-    public let kinDamage: Double?
-    public let expDamage: Double?
-    public let highSlot: Int?
-    public let midSlot: Int?
-    public let lowSlot: Int?
-    public let rigSlot: Int?
-    public let gunSlot: Int?
-    public let missSlot: Int?
-    public let metaGroupID: Int
-    public let published: Bool
-
-    public init(
-        id: Int, typeID: Int, name: String, enName: String, iconFileName: String, categoryID: Int,
-        pgNeed: Double?,
-        cpuNeed: Double?, rigCost: Int?, emDamage: Double?, themDamage: Double?, kinDamage: Double?,
-        expDamage: Double?, highSlot: Int?, midSlot: Int?, lowSlot: Int?, rigSlot: Int?,
-        gunSlot: Int?, missSlot: Int?, metaGroupID: Int, published: Bool
-    ) {
-        self.id = id
-        self.typeID = typeID
         self.name = name
         self.enName = enName
         self.iconFileName = iconFileName
+        self.published = published
         self.categoryID = categoryID
+        self.groupID = groupID
+        self.groupName = groupName
         self.pgNeed = pgNeed
         self.cpuNeed = cpuNeed
         self.rigCost = rigCost
@@ -96,11 +79,89 @@ public struct DatabaseItem: Identifiable {
         self.gunSlot = gunSlot
         self.missSlot = missSlot
         self.metaGroupID = metaGroupID
-        self.published = published
+        self.marketGroupID = marketGroupID
+        self.attributeCompareEligible = attributeCompareEligible
+        self.navigationDestination = navigationDestination
     }
 }
 
-// Trait 相关模型
+/// 搜索/浏览列表的分组模型
+///
+/// 分组身份由 `Identity` 枚举表达：「精准匹配」等合成组拥有独立 case，
+/// 无需在分组 ID 命名空间里塞哨兵值（如 -9_887_642）。
+struct SearchResultSection<Item: Identifiable>: Identifiable {
+    enum Identity: Hashable {
+        /// 「精准匹配」置顶组（合成组，无对应真实分组 ID）
+        case exactMatch
+        /// 真实分组（市场组/元组等的 ID）
+        case group(Int)
+    }
+
+    let identity: Identity
+    let name: String
+    let items: [Item]
+
+    var id: Identity {
+        identity
+    }
+}
+
+/// 分类模型
+public struct Category: Identifiable {
+    public let id: Int
+    public let name: String
+    public let enName: String
+    public let published: Bool
+    public let iconID: Int
+    public let iconFileNew: String
+
+    public init(
+        id: Int,
+        name: String,
+        enName: String,
+        published: Bool,
+        iconID: Int,
+        iconFileNew: String
+    ) {
+        self.id = id
+        self.name = name
+        self.enName = enName
+        self.published = published
+        self.iconID = iconID
+        self.iconFileNew = iconFileNew
+    }
+}
+
+/// 组模型
+public struct TypeGroup: Identifiable {
+    public let id: Int
+    public let name: String
+    public let enName: String
+    public let iconID: Int
+    public let categoryID: Int
+    public let published: Bool
+    public let icon_filename: String
+
+    public init(
+        id: Int,
+        name: String,
+        enName: String,
+        iconID: Int,
+        categoryID: Int,
+        published: Bool,
+        icon_filename: String
+    ) {
+        self.id = id
+        self.name = name
+        self.enName = enName
+        self.iconID = iconID
+        self.categoryID = categoryID
+        self.published = published
+        self.icon_filename = icon_filename
+    }
+}
+
+/// Trait 相关模型
 public struct Trait {
     public let content: String
     public let importance: Int
@@ -127,7 +188,7 @@ public struct TraitGroup {
     }
 }
 
-// 物品详情模型
+/// 物品详情模型
 public struct ItemDetails {
     public let name: String
     public let en_name: String?
@@ -148,11 +209,20 @@ public struct ItemDetails {
     public let marketGroupID: Int?
 
     public init(
-        name: String, en_name: String, description: String, iconFileName: String, groupName: String,
+        name: String,
+        en_name: String,
+        description: String,
+        iconFileName: String,
+        groupName: String,
         categoryID: Int? = nil,
-        categoryName: String, roleBonuses: [Trait]? = [], typeBonuses: [Trait]? = [],
+        categoryName: String,
+        roleBonuses: [Trait]? = [],
+        typeBonuses: [Trait]? = [],
         miscBonuses: [Trait]? = [],
-        typeId: Int, groupID: Int?, volume: Double? = nil, repackagedVolume: Double? = nil,
+        typeId: Int,
+        groupID: Int? = nil,
+        volume: Double? = nil,
+        repackagedVolume: Double? = nil,
         capacity: Double? = nil,
         mass: Double? = nil,
         marketGroupID: Int? = nil
@@ -177,14 +247,14 @@ public struct ItemDetails {
     }
 }
 
-// 属性分类模型
+/// 属性分类模型
 struct DogmaAttributeCategory: Identifiable {
-    let id: Int // attribute_category_id
-    let name: String // name
-    let description: String // description
+    let id: Int
+    let name: String
+    let description: String
 }
 
-// 属性模型
+/// 属性模型
 struct DogmaAttribute: Identifiable {
     let id: Int
     let categoryID: Int
@@ -197,20 +267,25 @@ struct DogmaAttribute: Identifiable {
     let highIsGood: Bool
     let modifiedValue: Double?
 
-    // 修改显示名称逻辑
-    var displayTitle: String {
-        return displayName ?? name // 如果displayName为nil，则使用name
+    /// 有效的本地化显示名（空字符串视为无）
+    var localizedDisplayName: String? {
+        guard let displayName, !displayName.isEmpty else { return nil }
+        return displayName
     }
 
-    // 修改显示逻辑
+    /// 优先用本地化名，否则回退到 attribute_key
+    var displayTitle: String {
+        localizedDisplayName ?? name
+    }
+
     var shouldDisplay: Bool {
-        return true // 始终显示，因为现在总是有可用的显示名称
+        !name.isEmpty
     }
 }
 
-// 属性分组模型
+/// 属性分组模型
 struct AttributeGroup: Identifiable {
-    let id: Int // category id
-    let name: String // category name
+    let id: Int
+    let name: String
     let attributes: [DogmaAttribute]
 }

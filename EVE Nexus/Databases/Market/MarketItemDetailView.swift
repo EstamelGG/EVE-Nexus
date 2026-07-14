@@ -1,14 +1,6 @@
 import Charts
 import SwiftUI
 
-// 星域数据模型
-struct Region: Identifiable {
-    let id: Int
-    let name: String
-    let nameEn: String
-    let nameZh: String
-}
-
 struct MarketItemBasicInfoView: View {
     let itemDetails: ItemDetails
     let marketPath: [String]
@@ -104,469 +96,7 @@ struct MarketItemBasicInfoView: View {
     }
 }
 
-// 星域选择器视图
-struct MarketRegionPickerView: View {
-    @Environment(\.dismiss) private var dismiss
-    @Binding var selectedRegionID: Int
-    @Binding var selectedRegionName: String
-    @Binding var saveSelection: Bool
-    let databaseManager: DatabaseManager
-
-    @State private var isEditMode = false
-    @State private var allRegions: [Region] = []
-    @State private var pinnedRegions: [Region] = []
-    @State private var searchText = ""
-    @State private var isSearchActive = false
-    @State private var sectionedRegions: [String: [Region]] = [:]
-    @State private var sectionTitles: [String] = []
-    @State private var commonSystems: [CommonSystem] = []
-    @StateObject private var structureManager = MarketStructureManager.shared
-
-    // 常见星系映射表
-    private let commonSystemMap: [String: String] = [
-        "Jita": "30000142",
-        "Amarr": "30002187",
-        "Rens": "30002510",
-        "Hek": "30002053",
-        "Zarzakh": "30100000",
-    ]
-
-    // 常见星系数据模型
-    struct CommonSystem: Identifiable {
-        let id: String
-        let name: String
-        var regionID: Int?
-        var regionName: String?
-        var systemName: String? // 添加星系名称字段
-        var systemNameEn: String? // 添加英文星系名称
-        var systemNameZh: String? // 添加中文星系名称
-    }
-
-    private var unpinnedRegions: [Region] {
-        allRegions.filter { region in
-            !pinnedRegions.contains { $0.id == region.id }
-        }
-    }
-
-    // 加载星域数据
-    private func loadRegions() {
-        let query = """
-            SELECT r.regionID, r.regionName, r.regionName_en, r.regionName_zh
-            FROM regions r
-            WHERE r.regionID < 11000000
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            allRegions = rows.compactMap { row in
-                guard let id = row["regionID"] as? Int,
-                      let nameLocal = row["regionName"] as? String,
-                      let nameEn = row["regionName_en"] as? String,
-                      let nameZh = row["regionName_zh"] as? String
-                else {
-                    return nil
-                }
-                let name = nameLocal
-                return Region(id: id, name: name, nameEn: nameEn, nameZh: nameZh)
-            }
-
-            // 对星域名称进行排序
-            allRegions.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-
-            // 从 UserDefaults 加载置顶的星域，保持用户设置的顺序
-            let pinnedRegionIDs = UserDefaultsManager.shared.pinnedRegionIDs
-            // 按照 pinnedRegionIDs 的顺序加载星域
-            pinnedRegions = pinnedRegionIDs.compactMap { id in
-                allRegions.first { $0.id == id }
-            }
-
-            // 如果当前选中的星域存在，确保它显示在正确的位置
-            if let currentRegion = allRegions.first(where: { $0.id == selectedRegionID }) {
-                if pinnedRegionIDs.contains(currentRegion.id) {
-                    // 如果是置顶星域，确保它在置顶列表中
-                    if !pinnedRegions.contains(where: { $0.id == currentRegion.id }) {
-                        pinnedRegions.append(currentRegion)
-                    }
-                }
-            }
-
-            // 加载常见星系数据
-            loadCommonSystems()
-
-            // 更新分组数据
-            updateSections()
-        }
-    }
-
-    // 加载常见星系数据
-    private func loadCommonSystems() {
-        var systems: [CommonSystem] = []
-
-        // 从映射表创建常见星系对象
-        for (name, id) in commonSystemMap {
-            systems.append(CommonSystem(id: id, name: name))
-        }
-
-        // 获取所有星系ID
-        let systemIDs = systems.map { Int($0.id) ?? 0 }
-
-        // 使用 IN 语句一次性查询所有星系信息
-        let query = """
-            SELECT r.regionID, r.regionName, s.solarSystemName, s.solarSystemID, 
-            s.solarSystemName_en, s.solarSystemName_zh
-            FROM universe u
-            JOIN regions r ON u.region_id = r.regionID
-            JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
-            WHERE s.solarSystemID IN (\(systemIDs.map { String($0) }.joined(separator: ",")))
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            // 创建星系ID到星系信息的映射
-            let systemInfoMap = Dictionary(
-                uniqueKeysWithValues: rows.compactMap {
-                    row -> (Int, (Int, String, String, String, String))? in
-                    guard let systemID = row["solarSystemID"] as? Int,
-                          let regionID = row["regionID"] as? Int,
-                          let regionName = row["regionName"] as? String,
-                          let systemName = row["solarSystemName"] as? String,
-                          let systemNameEn = row["solarSystemName_en"] as? String,
-                          let systemNameZh = row["solarSystemName_zh"] as? String
-                    else {
-                        return nil
-                    }
-                    return (
-                        systemID, (regionID, regionName, systemName, systemNameEn, systemNameZh)
-                    )
-                })
-
-            // 更新所有星系信息
-            for i in 0 ..< systems.count {
-                if let systemID = Int(systems[i].id),
-                   let info = systemInfoMap[systemID]
-                {
-                    systems[i].regionID = info.0
-                    systems[i].regionName = info.1
-                    systems[i].systemName = info.2
-                    systems[i].systemNameEn = info.3
-                    systems[i].systemNameZh = info.4
-                }
-            }
-        }
-
-        commonSystems = systems
-    }
-
-    // 更新分组数据
-    private func updateSections() {
-        var filteredData = unpinnedRegions
-
-        // 如果有搜索文本，过滤数据
-        if !searchText.isEmpty {
-            filteredData = unpinnedRegions.filter { region in
-                // 搜索名称、英文名称和中文名称
-                let nameMatch = region.name.localizedCaseInsensitiveContains(searchText)
-                let nameEnMatch = region.nameEn.localizedCaseInsensitiveContains(searchText)
-                let nameZhMatch = region.nameZh.localizedCaseInsensitiveContains(searchText)
-
-                // 检查该星域是否有常见星系，如果有则同时搜索星系名称
-                let systemMatch = commonSystems.contains { system in
-                    system.regionID == region.id
-                        && (system.systemName?.localizedCaseInsensitiveContains(searchText) ?? false
-                            || system.systemNameEn?.localizedCaseInsensitiveContains(searchText)
-                            ?? false
-                            || system.systemNameZh?.localizedCaseInsensitiveContains(searchText)
-                            ?? false)
-                }
-
-                return nameMatch || nameEnMatch || nameZhMatch || systemMatch
-            }
-        }
-
-        // 按首字母分组
-        let grouped = Dictionary(grouping: filteredData) { region -> String in
-            // 获取首字母（包括处理中文拼音）
-            let name = region.name
-            if let firstChar = name.first {
-                let firstLetter = getFirstLetter(of: String(firstChar))
-                return firstLetter
-            }
-            return "#"
-        }
-
-        sectionedRegions = grouped
-        sectionTitles = grouped.keys.sorted()
-
-        // 对每个组内的数据进行排序
-        for (key, _) in sectionedRegions {
-            sectionedRegions[key]?.sort {
-                $0.name.localizedStandardCompare($1.name) == .orderedAscending
-            }
-        }
-    }
-
-    // 获取字符的首字母（包括中文拼音）
-    private func getFirstLetter(of char: String) -> String {
-        // 转换为大写
-        let uppercaseChar = char.uppercased()
-
-        // 判断是否为英文字母
-        if uppercaseChar >= "A" && uppercaseChar <= "Z" {
-            return uppercaseChar
-        }
-
-        // 中文字符转拼音
-        let pinyin = NSMutableString(string: char) as CFMutableString
-        CFStringTransform(pinyin, nil, kCFStringTransformToLatin, false)
-        CFStringTransform(pinyin, nil, kCFStringTransformStripDiacritics, false)
-
-        if let firstPinyinChar = String(pinyin as String).first {
-            let letter = String(firstPinyinChar).uppercased()
-            if letter >= "A" && letter <= "Z" {
-                return letter
-            }
-        }
-
-        // 其他字符
-        return "#"
-    }
-
-    private func savePinnedRegions() {
-        let pinnedIDs = pinnedRegions.map { $0.id }
-        UserDefaultsManager.shared.pinnedRegionIDs = pinnedIDs
-    }
-
-    // 获取星域对应的常见星系名称
-    private func getCommonSystemName(for regionID: Int) -> String? {
-        return commonSystems.first { $0.regionID == regionID }?.systemName
-    }
-
-    var body: some View {
-        NavigationStack {
-            List {
-                // 置顶星域 Section
-                Section(header: Text(NSLocalizedString("Main_Market_Pinned_Regions", comment: ""))) {
-                    if !pinnedRegions.isEmpty {
-                        ForEach(pinnedRegions) { region in
-                            RegionRow(
-                                region: region,
-                                isSelected: region.id == selectedRegionID,
-                                isEditMode: isEditMode,
-                                onSelect: {
-                                    selectedRegionID = region.id
-                                    selectedRegionName = region.name
-                                    if saveSelection {
-                                        let defaults = UserDefaultsManager.shared
-                                        defaults.selectedRegionID = region.id
-                                    }
-                                    if !isEditMode {
-                                        dismiss()
-                                    }
-                                },
-                                onUnpin: region.id == 10_000_002 ? nil : {
-                                    // The Forge (Jita) 不允许移除，其他星域可移除
-                                    withAnimation {
-                                        pinnedRegions.removeAll { $0.id == region.id }
-                                        savePinnedRegions()
-                                        updateSections()
-                                    }
-                                },
-                                commonSystemName: getCommonSystemName(for: region.id)
-                            )
-                        }
-                        .onMove { from, to in
-                            pinnedRegions.move(fromOffsets: from, toOffset: to)
-                            savePinnedRegions()
-                        }
-                    }
-
-                    if !isEditMode {
-                        Button(action: {
-                            withAnimation {
-                                isEditMode = true
-                            }
-                        }) {
-                            HStack {
-                                Image(systemName: "plus.circle.fill")
-                                    .foregroundColor(.blue)
-                                Text(NSLocalizedString("Main_Market_Add_Region", comment: ""))
-                                    .foregroundColor(.blue)
-                            }
-                        }
-                    }
-                }
-
-                // 市场建筑 Section（编辑模式时隐藏）
-                if !isEditMode {
-                    Section(
-                        header: Text(
-                            NSLocalizedString("Main_Setting_Market_Structure_Select", comment: ""))
-                    ) {
-                        if !structureManager.structures.isEmpty {
-                            ForEach(structureManager.structures) { structure in
-                                MarketStructureRow(
-                                    structure: structure,
-                                    isSelected: selectedRegionID == -Int(structure.structureId), // 使用负数ID标识建筑
-                                    onSelect: {
-                                        // 选择建筑时使用负数ID
-                                        selectedRegionID = -Int(structure.structureId)
-                                        selectedRegionName = structure.structureName
-                                        if saveSelection {
-                                            let defaults = UserDefaultsManager.shared
-                                            defaults.selectedRegionID = selectedRegionID
-                                        }
-                                        if !isEditMode {
-                                            dismiss()
-                                        }
-                                    }
-                                )
-                            }
-                        } else {
-                            // 没有建筑时显示设置按钮
-                            NavigationLink(destination: MarketStructureSettingsView()) {
-                                HStack {
-                                    Image(systemName: "gear")
-                                        .foregroundColor(.blue)
-                                        .font(.title2)
-
-                                    Text(
-                                        NSLocalizedString(
-                                            "Main_Market_Setup_Structure", comment: "设置建筑市场"
-                                        )
-                                    )
-                                    .foregroundColor(.primary)
-
-                                    Spacer()
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // 按首字母分组显示星域列表
-                ForEach(sectionTitles, id: \.self) { sectionTitle in
-                    if let regionsInSection = sectionedRegions[sectionTitle],
-                       !regionsInSection.isEmpty
-                    {
-                        Section(header: Text(sectionTitle)) {
-                            ForEach(regionsInSection) { region in
-                                RegionRow(
-                                    region: region,
-                                    isSelected: region.id == selectedRegionID,
-                                    isEditMode: isEditMode,
-                                    onSelect: {
-                                        selectedRegionID = region.id
-                                        selectedRegionName = region.name
-                                        if saveSelection {
-                                            let defaults = UserDefaultsManager.shared
-                                            defaults.selectedRegionID = region.id
-                                        }
-                                        if !isEditMode {
-                                            dismiss()
-                                        }
-                                    },
-                                    onPin: isEditMode
-                                        ? {
-                                            withAnimation {
-                                                pinnedRegions.append(region)
-                                                savePinnedRegions()
-                                                updateSections()
-                                            }
-                                        } : nil,
-                                    commonSystemName: getCommonSystemName(for: region.id)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-            .listStyle(.insetGrouped)
-            .searchable(
-                text: $searchText,
-                isPresented: $isSearchActive,
-                placement: .navigationBarDrawer(displayMode: .always),
-                prompt: NSLocalizedString("Region_Search_Placeholder", comment: "搜索星域...")
-            )
-            .onChange(of: searchText) { _, _ in
-                updateSections()
-            }
-            .onChange(of: isSearchActive) { _, _ in
-                // 当搜索状态改变时，也需要更新分组
-                updateSections()
-            }
-            .navigationTitle(NSLocalizedString("Main_Market_Select_Region", comment: ""))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    if isEditMode {
-                        Button(NSLocalizedString("Main_Market_Done", comment: "")) {
-                            withAnimation {
-                                isEditMode = false
-                            }
-                        }
-                    }
-                }
-            }
-            .environment(\.editMode, .constant(isEditMode ? .active : .inactive))
-        }
-        .onAppear {
-            loadRegions()
-            structureManager.loadStructures()
-        }
-    }
-}
-
-// 星域行视图
-struct RegionRow: View {
-    let region: Region
-    let isSelected: Bool
-    let isEditMode: Bool
-    let onSelect: () -> Void
-    var onPin: (() -> Void)?
-    var onUnpin: (() -> Void)?
-    var commonSystemName: String?
-
-    var body: some View {
-        HStack {
-            HStack {
-                Text(region.name)
-                    .foregroundColor(isSelected ? .blue : .primary)
-                if let systemName = commonSystemName {
-                    Text("(\(systemName))")
-                        .foregroundColor(.secondary)
-                }
-            }
-
-            Spacer()
-
-            if isEditMode {
-                if onUnpin != nil {
-                    Button(role: .destructive, action: { onUnpin?() }) {
-                        Image(systemName: "minus.circle.fill")
-                    }
-                    .buttonStyle(.borderless)
-                } else if onPin != nil {
-                    Button(action: { onPin?() }) {
-                        Image(systemName: "plus.circle.fill")
-                            .foregroundColor(.green)
-                    }
-                    .buttonStyle(.borderless)
-                }
-            } else {
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .foregroundColor(.blue)
-                }
-            }
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            if !isEditMode {
-                onSelect()
-            }
-        }
-    }
-}
-
-// 时间范围枚举
+/// 时间范围枚举
 enum PriceHistoryTimeRange: String, CaseIterable {
     case oneMonth = "1M"
     case threeMonths = "3M"
@@ -601,7 +131,9 @@ struct MarketItemDetailView: View {
         case regionPicker
         case itemInfo
 
-        var id: String { rawValue }
+        var id: String {
+            rawValue
+        }
     }
 
     @ObservedObject var databaseManager: DatabaseManager
@@ -704,7 +236,7 @@ struct MarketItemDetailView: View {
                                         .scaleEffect(0.7)
                                 }
                             } else if let price = lowestPrice {
-                                Text(formatPrice(price))
+                                Text(FormatUtil.formatMarketPrice(price))
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             } else {
@@ -850,7 +382,7 @@ struct MarketItemDetailView: View {
                 } else {
                     // 如果默认区域无效，回退到Jita
                     Logger.warning("默认选择的区域ID \(defaultRegionID) 无效，回退到Jita")
-                    selectedRegionID = 10_000_002 // The Forge (Jita)
+                    selectedRegionID = MarketManager.theForgeRegionID // The Forge (Jita)
                     selectedRegionName = getRegionName(for: selectedRegionID)
                     // 更新默认设置
                     defaults.selectedRegionID = selectedRegionID
@@ -861,7 +393,7 @@ struct MarketItemDetailView: View {
                     selectedRegionName = getRegionName(for: selectedRegionID)
                 } else {
                     Logger.warning("当前选择的区域ID \(selectedRegionID) 无效，回退到Jita")
-                    selectedRegionID = 10_000_002 // The Forge (Jita)
+                    selectedRegionID = MarketManager.theForgeRegionID // The Forge (Jita)
                     selectedRegionName = getRegionName(for: selectedRegionID)
                 }
             }
@@ -988,31 +520,7 @@ struct MarketItemDetailView: View {
         }
     }
 
-    // 格式化价格显示
-    private func formatPrice(_ price: Double) -> String {
-        let billion = 1_000_000_000.0
-        let million = 1_000_000.0
-
-        let numberFormatter = NumberFormatter()
-        numberFormatter.numberStyle = .decimal
-        numberFormatter.maximumFractionDigits = 2
-        numberFormatter.minimumFractionDigits = 2
-
-        let formattedFullPrice =
-            numberFormatter.string(from: NSNumber(value: price)) ?? String(format: "%.2f", price)
-
-        if price >= billion {
-            let value = price / billion
-            return String(format: "%.2fB (%@ ISK)", value, formattedFullPrice)
-        } else if price >= million {
-            let value = price / million
-            return String(format: "%.2fM (%@ ISK)", value, formattedFullPrice)
-        } else {
-            return "\(formattedFullPrice) ISK"
-        }
-    }
-
-    // 并发加载所有市场数据
+    /// 并发加载所有市场数据
     private func loadAllMarketData(forceRefresh: Bool = false) async {
         // 并发执行两个加载任务
         async let marketDataTask: () = loadMarketData(forceRefresh: forceRefresh)
@@ -1022,7 +530,7 @@ struct MarketItemDetailView: View {
         await _ = (marketDataTask, historyDataTask)
     }
 
-    // 根据区域ID获取区域名称的方法
+    /// 根据区域ID获取区域名称的方法
     private func getRegionName(for regionID: Int) -> String {
         // 判断是否是建筑ID
         if StructureMarketManager.isStructureId(regionID) {
@@ -1034,30 +542,16 @@ struct MarketItemDetailView: View {
             return structure.structureName
         }
 
-        // 查询数据库获取区域名称
-        let query = """
-            SELECT regionName
-            FROM regions
-            WHERE regionID = ?
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [regionID]) {
-            if let row = rows.first {
-                let nameLocal = row["regionName"] as? String ?? ""
-                return nameLocal
-            }
-        }
-
-        // 如果查询失败或未找到，返回一个默认值
-        return "Unknown Region"
+        // 区域名称走内存
+        return SDEMemoryStore.regionName(for: regionID) ?? "Unknown Region"
     }
 
-    // 根据建筑ID获取建筑信息
+    /// 根据建筑ID获取建筑信息
     private func getStructureById(_ structureId: Int64) -> MarketStructure? {
         return MarketStructureManager.shared.structures.first { $0.structureId == Int(structureId) }
     }
 
-    // 根据时间范围过滤历史数据
+    /// 根据时间范围过滤历史数据
     private func filteredHistory(for history: [MarketHistory], timeRange: PriceHistoryTimeRange) -> [MarketHistory] {
         let calendar = Calendar.current
         let dateFormatter = DateFormatter()
@@ -1085,7 +579,7 @@ struct MarketItemDetailView: View {
         }
     }
 
-    // 验证区域ID是否有效（星域或存在的建筑）
+    /// 验证区域ID是否有效（星域或存在的建筑）
     private func isValidRegionID(_ regionID: Int) -> Bool {
         // 检查是否是建筑ID（负数表示建筑）
         if StructureMarketManager.isStructureId(regionID) {
@@ -1098,15 +592,7 @@ struct MarketItemDetailView: View {
 
         // 检查是否是有效的星域ID
         if regionID > 0 && regionID < 11_000_000 {
-            // 查询数据库验证星域是否存在
-            let query = """
-                SELECT regionID
-                FROM regions
-                WHERE regionID = ?
-            """
-            if case let .success(rows) = databaseManager.executeQuery(query, parameters: [regionID]) {
-                return !rows.isEmpty
-            }
+            return SDEMemoryStore.regionNames[regionID] != nil
         }
 
         return false
@@ -1122,23 +608,11 @@ struct MarketStructureRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // 建筑图标
-            if let iconFilename = structure.iconFilename {
-                IconManager.shared.loadImage(for: iconFilename)
-                    .resizable()
-                    .frame(width: 32, height: 32)
-                    .cornerRadius(6)
-            } else {
-                // 默认建筑图标
-                RoundedRectangle(cornerRadius: 6)
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 32, height: 32)
-                    .overlay(
-                        Image(systemName: "building.2")
-                            .foregroundColor(.secondary)
-                            .font(.system(size: 16))
-                    )
-            }
+            // 建筑图标（按 typeId 查询）
+            IconManager.shared.loadImage(for: structure.iconFileName)
+                .resizable()
+                .frame(width: 32, height: 32)
+                .cornerRadius(6)
 
             // 建筑信息
             VStack(alignment: .leading, spacing: 2) {

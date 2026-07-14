@@ -4,25 +4,25 @@
 
 import Foundation
 
-/// A thin wrapper on top of `URLSession` that simplifies logging of network
-/// requests and enables other Pulse features.
+// A thin wrapper on top of `URLSession` that simplifies logging of network
+// requests and enables other Pulse features.
 public final class URLSessionProxy: URLSessionProtocol, @unchecked Sendable {
-    /// A configuration object that defines session behavior.
+    // A configuration object that defines session behavior.
     public struct Options: Sendable {
-        /// If enabled, registers ``MockingURLProtocol``.
+        // If enabled, registers ``MockingURLProtocol``.
         public var isMockingEnabled = true
 
-        /// Creates default options.
+        // Creates default options.
         public init() {}
     }
 
-    /// The underlying `URLSession`.
+    // The underlying `URLSession`.
     public let session: Foundation.URLSession
     var logger: NetworkLogger { _logger ?? .shared }
     private let _logger: NetworkLogger?
     private let options: Options
 
-    /// - parameter logger: A custom logger to use instead of ``NetworkLogger/shared``.
+    // - parameter logger: A custom logger to use instead of ``NetworkLogger/shared``.
     public convenience init(
         configuration: URLSessionConfiguration,
         logger: NetworkLogger? = nil,
@@ -31,7 +31,7 @@ public final class URLSessionProxy: URLSessionProtocol, @unchecked Sendable {
         self.init(configuration: configuration, delegate: nil, delegateQueue: nil, logger: logger, options: options)
     }
 
-    /// - parameter logger: A custom logger to use instead of ``NetworkLogger/shared``.
+    // - parameter logger: A custom logger to use instead of ``NetworkLogger/shared``.
     public init(
         configuration: URLSessionConfiguration,
         delegate: (any URLSessionDelegate)?,

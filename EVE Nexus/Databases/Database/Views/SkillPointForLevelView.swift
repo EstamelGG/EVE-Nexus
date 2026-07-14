@@ -4,6 +4,7 @@ struct SkillPointForLevelView: View {
     let skillId: Int
     let characterId: Int?
     let databaseManager: DatabaseManager
+
     @State private var characterAttributes: CharacterAttributes?
     @State private var timeMultiplier: Int = 1
     @State private var skillPrimaryAttr: Int = 0
@@ -21,93 +22,43 @@ struct SkillPointForLevelView: View {
     )
 
     private var skillPointsPerHour: Double {
-        guard skillPrimaryAttr > 0 && skillSecondaryAttr > 0 else {
-            return 0
-        }
-
+        guard skillPrimaryAttr > 0, skillSecondaryAttr > 0 else { return 0 }
         let attributes = characterAttributes ?? Self.defaultAttributes
         return Double(
             SkillTrainingCalculator.calculateTrainingRate(
                 primaryAttrId: skillPrimaryAttr,
                 secondaryAttrId: skillSecondaryAttr,
                 attributes: attributes
-            ) ?? 0)
+            ) ?? 0
+        )
     }
 
-    private func getSkillPointsForLevel(_ level: Int) -> Int {
-        let basePoints = SkillProgressCalculator.baseSkillPoints[level - 1]
-        return basePoints * timeMultiplier
-    }
-
-    private func formatTrainingTime(skillPoints: Int) -> String {
-        guard skillPointsPerHour > 0 else {
-            return NSLocalizedString("Main_Database_Not_Available", comment: "N/A")
-        }
-
-        let hours = Double(skillPoints) / skillPointsPerHour
-
-        if hours < 1 {
-            let minutes = Int(hours * 60)
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Minutes", comment: "%dm"), minutes)
-        } else if hours < 24 {
-            let intHours = Int(hours)
-            let minutes = Int((hours - Double(intHours)) * 60)
-            if minutes > 0 {
-                return String(
-                    format: NSLocalizedString("Time_Hours_Minutes", comment: "%dh %dm"), intHours,
-                    minutes
-                )
-            }
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Hours", comment: "%dh"), intHours)
-        } else {
-            let days = Int(hours / 24)
-            let remainingHours = Int(hours.truncatingRemainder(dividingBy: 24))
-            if remainingHours > 0 {
-                return String(
-                    format: NSLocalizedString("Time_Days_Hours", comment: "%dd %dh"), days,
-                    remainingHours
-                )
-            }
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Days", comment: "%dd"), days)
-        }
-    }
-
-    // 新增：从API加载角色属性
-    private func loadAttributesFromAPI(characterId: Int) async -> CharacterAttributes? {
-        do {
-            // 调用API获取角色属性
-            let attributes = try await CharacterSkillsAPI.shared.fetchAttributes(
-                characterId: characterId,
-                forceRefresh: false
-            )
-            return attributes
-        } catch {
-            Logger.error("获取角色属性失败: \(error)")
-            return nil
-        }
+    private func skillPoints(for level: Int) -> Int {
+        SkillProgressCalculator.baseSkillPoints[level - 1] * timeMultiplier
     }
 
     var body: some View {
         Section(
-            header: Text(NSLocalizedString("Main_Database_Skill_Level_Detail", comment: "")).font(
-                .headline)
+            header: Text(NSLocalizedString("Main_Database_Skill_Level_Detail", comment: ""))
+                .font(.headline)
         ) {
             ForEach(1 ... 5, id: \.self) { level in
-                let requiredSP = getSkillPointsForLevel(level)
-
+                let requiredSP = skillPoints(for: level)
                 HStack {
                     VStack(alignment: .leading) {
                         Text("\(FormatUtil.format(Double(requiredSP))) SP")
                             .font(.body)
                         Text(
-                            "\(formatTrainingTime(skillPoints: requiredSP)) (\(FormatUtil.format(skillPointsPerHour))/h)"
+                            "\(FormatUtil.formatTrainingDuration(skillPoints: requiredSP, skillPointsPerHour: skillPointsPerHour)) (\(FormatUtil.format(skillPointsPerHour))/h)"
                         )
                         .font(.caption)
                         .foregroundColor(.secondary)
                     }
                     Spacer()
                     Text(
-                        String.localizedStringWithFormat(NSLocalizedString("Misc_Level_Short", comment: "lv%d"), 0)
+                        String.localizedStringWithFormat(
+                            NSLocalizedString("Misc_Level_Short", comment: "lv%d"), 0
+                        )
                             + " → "
                             + String(
                                 format: NSLocalizedString("Misc_Level_Short", comment: "lv%d"),
@@ -121,24 +72,10 @@ struct SkillPointForLevelView: View {
             .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
         }
         .task {
-            // 获取技能倍增系数
-            let result = databaseManager.executeQuery(
-                """
-                SELECT value
-                FROM typeAttributes
-                WHERE type_id = ? AND attribute_id = 275
-                """,
-                parameters: [skillId]
-            )
-
-            if case let .success(rows) = result,
-               let row = rows.first,
-               let value = row["value"] as? Double
-            {
-                timeMultiplier = Int(value)
+            if let multiplier = SkillTreeManager.shared.trainingTimeMultiplier(for: skillId) {
+                timeMultiplier = Int(multiplier)
             }
 
-            // 获取技能主副属性
             if let attrs = SkillTrainingCalculator.getSkillAttributes(
                 skillId: skillId,
                 databaseManager: databaseManager
@@ -147,15 +84,25 @@ struct SkillPointForLevelView: View {
                 skillSecondaryAttr = attrs.secondary
             }
 
-            // 获取角色属性（从API）
-            if let characterId = characterId {
-                characterAttributes = await loadAttributesFromAPI(characterId: characterId)
-                if characterAttributes != nil {
-                    Logger.debug("从API加载角色属性成功")
-                } else {
-                    Logger.debug("API中未找到角色属性，使用默认值")
-                }
+            guard let characterId else { return }
+            characterAttributes = await loadAttributesFromAPI(characterId: characterId)
+            if characterAttributes != nil {
+                Logger.debug("从API加载角色属性成功")
+            } else {
+                Logger.debug("API中未找到角色属性，使用默认值")
             }
+        }
+    }
+
+    private func loadAttributesFromAPI(characterId: Int) async -> CharacterAttributes? {
+        do {
+            return try await CharacterSkillsAPI.shared.fetchAttributes(
+                characterId: characterId,
+                forceRefresh: false
+            )
+        } catch {
+            Logger.error("获取角色属性失败: \(error)")
+            return nil
         }
     }
 }

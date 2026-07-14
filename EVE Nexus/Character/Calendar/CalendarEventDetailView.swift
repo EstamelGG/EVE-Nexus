@@ -37,7 +37,8 @@ struct CalendarEventDetailView: View {
                                 Text(
                                     NSLocalizedString(
                                         "Calendar_Event_Duration", comment: "Duration"
-                                    ))
+                                    )
+                                )
                                 Spacer()
                                 Text(formatDuration(eventDetail.durationInMinutes))
                                     .foregroundColor(.secondary)
@@ -47,7 +48,8 @@ struct CalendarEventDetailView: View {
                                 Text(
                                     NSLocalizedString(
                                         "Calendar_Event_Response", comment: "Response"
-                                    ))
+                                    )
+                                )
                                 Spacer()
                                 Text(formatResponse(eventDetail.response))
                                     .foregroundColor(.secondary)
@@ -176,7 +178,8 @@ struct CalendarEventDetailView: View {
                         : NSLocalizedString(
                             "Calendar_Notification_Failed",
                             comment: "Failed to schedule notification, please check permissions"
-                        ))
+                        )
+                )
             }
             .sheet(isPresented: $showingNotificationTimePicker) {
                 NotificationTimePickerView(
@@ -196,7 +199,7 @@ struct CalendarEventDetailView: View {
         }
     }
 
-    // 添加通知的方法
+    /// 添加通知的方法
     private func addNotification(with notificationTime: NotificationTime) async {
         guard let eventDetail = viewModel.eventDetail else { return }
         guard let eventDate = eventDetail.eventDate else {
@@ -341,7 +344,8 @@ struct NotificationTimePickerView: View {
                             NSLocalizedString(
                                 "Calendar_Notification_Time_Options",
                                 comment: "Notification Time Options"
-                            ))
+                            )
+                        )
                     ) {
                         ForEach(availableTimeOptions, id: \.self) { timeOption in
                             NotificationTimeRow(
@@ -379,7 +383,7 @@ struct NotificationTimePickerView: View {
         }
     }
 
-    // 根据事件时间过滤可用的通知选项
+    /// 根据事件时间过滤可用的通知选项
     private var availableTimeOptions: [NotificationTime] {
         let now = Date()
         _ = eventTime.timeIntervalSince(now)

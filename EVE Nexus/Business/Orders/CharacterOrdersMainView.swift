@@ -1,14 +1,20 @@
 import SwiftUI
 
-// 订单物品信息模型
+/// 订单物品信息模型
 struct OrderItemInfo {
-    let name: String
-    let enName: String
-    let zhName: String
+    let names: LocalizedText
     let iconFileName: String
+
+    var name: String {
+        names.resolved()
+    }
+
+    func matches(_ query: String) -> Bool {
+        names.matchesSearch(query)
+    }
 }
 
-// 位置信息模型
+/// 位置信息模型
 typealias OrderLocationInfo = LocationInfoDetail
 
 @MainActor
@@ -23,9 +29,9 @@ final class CharacterOrdersViewModel: ObservableObject {
     @Published private(set) var isDataReady = false
     @Published var searchText = "" // 添加搜索文本状态
 
-    // 添加一个标志，表示是否已经开始加载数据
+    /// 添加一个标志，表示是否已经开始加载数据
     private var hasStartedLoading = false
-    // 添加一个标志，表示是否已经初始化过订单类型
+    /// 添加一个标志，表示是否已经初始化过订单类型
     private var hasInitializedOrderType = false
 
     private let characterId: Int64
@@ -40,8 +46,7 @@ final class CharacterOrdersViewModel: ObservableObject {
                     return true
                 }
                 if let itemInfo = itemInfoCache[order.typeId] {
-                    return itemInfo.enName.localizedCaseInsensitiveContains(searchText)
-                        || itemInfo.zhName.localizedCaseInsensitiveContains(searchText)
+                    return itemInfo.matches(searchText)
                 }
                 return false
             }
@@ -57,7 +62,7 @@ final class CharacterOrdersViewModel: ObservableObject {
         loadingTask?.cancel()
     }
 
-    // 添加一个预加载方法，在初始化后立即调用
+    /// 添加一个预加载方法，在初始化后立即调用
     func preloadOrders() {
         if !hasStartedLoading {
             hasStartedLoading = true
@@ -67,7 +72,7 @@ final class CharacterOrdersViewModel: ObservableObject {
         }
     }
 
-    // 初始化订单显示类型
+    /// 初始化订单显示类型
     private func initializeOrderType() {
         let sellOrdersCount = orders.filter { !($0.isBuyOrder ?? false) }.count
         let buyOrdersCount = orders.filter { $0.isBuyOrder ?? false }.count
@@ -156,36 +161,18 @@ final class CharacterOrdersViewModel: ObservableObject {
 
     private func loadAllInformation() async {
         // 1. 加载所有物品信息
-        let typeIds = Set(orders.map { $0.typeId })
+        let typeIds = Set(orders.map { Int($0.typeId) })
         if !typeIds.isEmpty {
-            let query = """
-                SELECT type_id, name, en_name, zh_name, icon_filename
-                FROM types
-                WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
-            """
-
-            if case let .success(rows) = databaseManager.executeQuery(query) {
-                var newItemInfoCache: [Int64: OrderItemInfo] = [:]
-                for row in rows {
-                    if let typeIdInt = (row["type_id"] as? NSNumber)?.int64Value,
-                       let name = row["name"] as? String,
-                       let enName = row["en_name"] as? String,
-                       let zhName = row["zh_name"] as? String,
-                       let iconFileName = row["icon_filename"] as? String
-                    {
-                        newItemInfoCache[typeIdInt] = OrderItemInfo(
-                            name: name,
-                            enName: enName,
-                            zhName: zhName,
-                            iconFileName: iconFileName
-                        )
-                    }
-                }
-
-                // 在主线程更新缓存
-                await MainActor.run {
-                    self.itemInfoCache = newItemInfoCache
-                }
+            var newItemInfoCache: [Int64: OrderItemInfo] = [:]
+            for typeId in typeIds {
+                guard let info = SDEMemoryStore.type(for: typeId) else { continue }
+                newItemInfoCache[Int64(typeId)] = OrderItemInfo(
+                    names: info.names,
+                    iconFileName: info.iconFilename
+                )
+            }
+            await MainActor.run {
+                self.itemInfoCache = newItemInfoCache
             }
         }
 
@@ -277,12 +264,12 @@ struct CharacterOrdersView: View {
         .navigationBarTitleDisplayMode(.inline)
         .searchable(
             text: $viewModel.searchText,
-            placement: .navigationBarDrawer(displayMode: .always),
+            // placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
         )
     }
 
-    // 订单列表视图
+    /// 订单列表视图
     private struct OrderListView: View {
         let orders: [CharacterMarketOrder]
         let itemInfoCache: [Int64: OrderItemInfo]
@@ -327,7 +314,7 @@ struct CharacterOrdersView: View {
         }
     }
 
-    // 将订单行提取为单独的视图组件
+    /// 将订单行提取为单独的视图组件
     private struct OrderRow: View {
         let order: CharacterMarketOrder
         let itemInfo: OrderItemInfo?
@@ -340,7 +327,8 @@ struct CharacterOrdersView: View {
             }
 
             let expirationDate = issuedDate.addingTimeInterval(
-                TimeInterval(order.duration * 24 * 3600))
+                TimeInterval(order.duration * 24 * 3600)
+            )
             let remainingTime = expirationDate.timeIntervalSinceNow
 
             if remainingTime <= 0 {

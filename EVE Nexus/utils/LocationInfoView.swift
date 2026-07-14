@@ -77,7 +77,8 @@ struct LocationInfoView: View {
                 + Text("\(solarSystemName)").fontWeight(.semibold)
                 + (inSpaceNote != nil ? Text(" (\(inSpaceNote!))") : Text(""))
                 + Text(
-                    " (\(NSLocalizedString("Character_in_space", comment: "")))"))
+                    " (\(NSLocalizedString("Character_in_space", comment: "")))"
+                ))
                 .font(font)
                 .foregroundColor(textColor)
                 .contextMenu {
@@ -95,7 +96,8 @@ struct LocationInfoView: View {
             (Text(security != nil ? "\(formatSystemSecurity(security!)) " : "0.0 ")
                 .foregroundColor(security != nil ? getSecurityColor(security!) : .red)
                 + Text(
-                    "\(NSLocalizedString("Assets_Unknown_Location", comment: "")) (\(locationId))"))
+                    "\(NSLocalizedString("Assets_Unknown_Location", comment: "")) (\(locationId))"
+                ))
                 .font(font)
                 .foregroundColor(textColor)
                 .contextMenu {

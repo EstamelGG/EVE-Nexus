@@ -1,12 +1,12 @@
 import Foundation
 
-// 技能组图标管理器
+/// 技能组图标管理器
 class SkillGroupIconManager {
     static let shared = SkillGroupIconManager()
 
     private init() {}
 
-    // 技能组图标映射
+    /// 技能组图标映射
     private let skillGroupIcons: [Int: String] = [
         255: "skill_group_gunnery", // 射击学
         256: "skill_group_missiles", // 导弹

@@ -74,7 +74,7 @@ struct WormholeView: View {
         .searchable(
             text: $searchText,
             isPresented: $isSearchActive,
-            placement: .navigationBarDrawer(displayMode: .always),
+            // placement: .navigationBarDrawer(displayMode: .always),
             prompt: NSLocalizedString("Main_Database_Search", comment: "")
         )
         .navigationTitle(NSLocalizedString("Main_Market_WH_info", comment: ""))
@@ -115,14 +115,8 @@ struct WormholeDetailView: View {
                     description: wormhole.description,
                     iconFileName: wormhole.icon,
                     groupName: wormhole.sizeType,
-                    categoryID: nil,
                     categoryName: wormhole.target,
-                    typeId: wormhole.id,
-                    groupID: nil,
-                    volume: nil,
-                    capacity: nil,
-                    mass: nil,
-                    marketGroupID: nil
+                    typeId: wormhole.id
                 ),
                 databaseManager: databaseManager,
                 modifiedAttributes: nil

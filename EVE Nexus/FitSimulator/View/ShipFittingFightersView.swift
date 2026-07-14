@@ -1,13 +1,16 @@
 import SwiftUI
 
-// 战斗机状态类，包装 Int 使其符合 Identifiable
+/// 战斗机状态类，包装 Int 使其符合 Identifiable
 class FighterState: ObservableObject, Identifiable {
-    var id: Int { fighterTypeId ?? 0 }
+    var id: Int {
+        fighterTypeId ?? 0
+    }
+
     @Published var fighterTypeId: Int?
     @Published var tubeId: Int = 0
     @Published var fighterSquad: SimFighterSquad?
 
-    // 更新舰载机信息
+    /// 更新舰载机信息
     func updateFighter(_ fighter: SimFighterSquad) {
         fighterTypeId = fighter.typeId
         tubeId = fighter.tubeId
@@ -15,7 +18,7 @@ class FighterState: ObservableObject, Identifiable {
     }
 }
 
-// 舰载机管视图项
+/// 舰载机管视图项
 struct FighterTubeItem: Identifiable {
     let id = UUID()
     var fighterTypeId: Int? // 如果为nil，表示未装填舰载机
@@ -23,7 +26,7 @@ struct FighterTubeItem: Identifiable {
     var fighterIconFileName: String?
     var tubeId: Int // 发射管ID
 
-    // 是否可以点击
+    /// 是否可以点击
     var isClickable: Bool = true
 }
 
@@ -46,7 +49,7 @@ struct ShipFittingFightersView: View {
     @State private var heavyFighterTubes: [FighterTubeItem] = []
     @State private var supportFighterTubes: [FighterTubeItem] = []
 
-    // 获取舰载机管数量
+    /// 获取舰载机管数量
     private var lightTubesCount: Int {
         return Int(viewModel.simulationInput.ship.baseAttributesByName["fighterLightSlots"] ?? 0)
     }
@@ -59,11 +62,12 @@ struct ShipFittingFightersView: View {
         return Int(viewModel.simulationInput.ship.baseAttributesByName["fighterSupportSlots"] ?? 0)
     }
 
-    // 判断舰载机是否已满
+    /// 判断舰载机是否已满
     private var isFighterBayFull: Bool {
         // 获取飞船的舰载机总管数
         let totalFighterTubes = Int(
-            viewModel.simulationInput.ship.baseAttributesByName["fighterTubes"] ?? 0)
+            viewModel.simulationInput.ship.baseAttributesByName["fighterTubes"] ?? 0
+        )
 
         // 获取当前已使用的舰载机管数
         let usedFighterTubes =
@@ -85,7 +89,8 @@ struct ShipFittingFightersView: View {
                 if lightTubesCount > 0 {
                     Section(
                         header: sectionHeader(
-                            title: NSLocalizedString("Fitting_Fighter_Light", comment: ""))
+                            title: NSLocalizedString("Fitting_Fighter_Light", comment: "")
+                        )
                     ) {
                         ForEach(lightFighterTubes) { tube in
                             FighterTubeRowView(
@@ -122,7 +127,8 @@ struct ShipFittingFightersView: View {
                 if heavyTubesCount > 0 {
                     Section(
                         header: sectionHeader(
-                            title: NSLocalizedString("Fitting_Fighter_Heavy", comment: ""))
+                            title: NSLocalizedString("Fitting_Fighter_Heavy", comment: "")
+                        )
                     ) {
                         ForEach(heavyFighterTubes) { tube in
                             FighterTubeRowView(
@@ -159,7 +165,8 @@ struct ShipFittingFightersView: View {
                 if supportTubesCount > 0 {
                     Section(
                         header: sectionHeader(
-                            title: NSLocalizedString("Fitting_Fighter_Support", comment: ""))
+                            title: NSLocalizedString("Fitting_Fighter_Support", comment: "")
+                        )
                     ) {
                         ForEach(supportFighterTubes) { tube in
                             FighterTubeRowView(
@@ -258,8 +265,8 @@ struct ShipFittingFightersView: View {
 
                         // 获取新舰载机的信息
                         if let newFighterItem = viewModel.getDatabaseItemInfo(
-                            typeId: newFighterTypeId)
-                        {
+                            typeId: newFighterTypeId
+                        ) {
                             // 获取原舰载机的数量，保持不变
                             let currentQuantity = selectedFighter.fighterSquad?.quantity ?? 1
 
@@ -335,7 +342,7 @@ struct ShipFittingFightersView: View {
         }
     }
 
-    // 添加舰载机
+    /// 添加舰载机
     private func addFighter(_ fighterItem: DatabaseListItem, type: FighterType, tubeId: Int) {
         Logger.info("选择舰载机：\(fighterItem.name)，类型：\(type.rawValue)，管ID：\(tubeId)")
 
@@ -409,7 +416,7 @@ struct ShipFittingFightersView: View {
         )
     }
 
-    // 更新管道显示
+    /// 更新管道显示
     private func updateTubeDisplay(
         typeId: Int, name: String, iconFileName: String?, tubeId: Int, type: FighterType
     ) {
@@ -435,13 +442,14 @@ struct ShipFittingFightersView: View {
         }
     }
 
-    // 从现有配置加载舰载机数据
+    /// 从现有配置加载舰载机数据
     private func loadFightersFromConfig() {
         guard let fighters = viewModel.simulationInput.fighters else { return }
 
         // 获取飞船的舰载机总管数
         let totalFighterTubes = Int(
-            viewModel.simulationInput.ship.baseAttributesByName["fighterTubes"] ?? 0)
+            viewModel.simulationInput.ship.baseAttributesByName["fighterTubes"] ?? 0
+        )
         if totalFighterTubes <= 0 {
             // 如果飞船不支持舰载机，不加载任何舰载机
             return
@@ -503,7 +511,7 @@ struct ShipFittingFightersView: View {
         }
     }
 
-    // 初始化舰载机管数据
+    /// 初始化舰载机管数据
     private func initializeFighterTubes() {
         // 清空现有数据
         lightFighterTubes = []
@@ -516,7 +524,8 @@ struct ShipFittingFightersView: View {
                 FighterTubeItem(
                     fighterTypeId: nil, fighterName: nil, fighterIconFileName: nil, tubeId: i,
                     isClickable: true
-                ))
+                )
+            )
         }
 
         // 重型舰载机管的tubeId从100开始
@@ -525,7 +534,8 @@ struct ShipFittingFightersView: View {
                 FighterTubeItem(
                     fighterTypeId: nil, fighterName: nil, fighterIconFileName: nil, tubeId: 100 + i,
                     isClickable: true
-                ))
+                )
+            )
         }
 
         // 辅助舰载机管的tubeId从200开始
@@ -534,11 +544,12 @@ struct ShipFittingFightersView: View {
                 FighterTubeItem(
                     fighterTypeId: nil, fighterName: nil, fighterIconFileName: nil, tubeId: 200 + i,
                     isClickable: true
-                ))
+                )
+            )
         }
     }
 
-    // 区域头部视图
+    /// 区域头部视图
     private func sectionHeader(title: String) -> some View {
         Text(title)
             .fontWeight(.semibold)
@@ -548,7 +559,7 @@ struct ShipFittingFightersView: View {
             .padding(.leading, 4)
     }
 
-    // 添加新方法：删除舰载机后更新UI
+    /// 添加新方法：删除舰载机后更新UI
     private func updateTubeDisplayAfterDelete(tubeId: Int) {
         // 根据tubeId范围确定舰载机类型并更新相应管道
         if tubeId >= 0, tubeId < 100 {
@@ -573,14 +584,14 @@ struct ShipFittingFightersView: View {
     }
 }
 
-// 舰载机管行视图
+/// 舰载机管行视图
 struct FighterTubeRowView: View {
     var fighterTube: FighterTubeItem
     var isFighterBayFull: Bool = false
     var viewModel: FittingEditorViewModel?
     var onSelected: () -> Void
 
-    // 获取舰载机的计算后属性
+    /// 获取舰载机的计算后属性
     private func getFighterOutput() -> SimFighterSquad? {
         guard let viewModel = viewModel,
               let outputFighters = viewModel.simulationOutput?.fighters
@@ -612,8 +623,8 @@ struct FighterTubeRowView: View {
         )
     }
 
-    // 格式化距离显示（与装备模块页面保持一致）
-    // 大于1000km时显示完整数字，不使用k km缩写
+    /// 格式化距离显示（与装备模块页面保持一致）
+    /// 大于1000km时显示完整数字，不使用k km缩写
     private func formatDistance(_ distance: Double) -> String {
         let formatter = NumberFormatter()
         formatter.minimumFractionDigits = 0
@@ -633,7 +644,7 @@ struct FighterTubeRowView: View {
         }
     }
 
-    // 格式化速度显示
+    /// 格式化速度显示
     private func formatSpeed(_ speed: Double) -> String {
         let formatter = NumberFormatter()
         formatter.minimumFractionDigits = 0
@@ -662,7 +673,8 @@ struct FighterTubeRowView: View {
                         .scaledToFit()
                         .frame(width: 32, height: 32)
                         .foregroundColor(
-                            fighterTube.isClickable && !isFighterBayFull ? .blue : .gray)
+                            fighterTube.isClickable && !isFighterBayFull ? .blue : .gray
+                        )
                 }
 
                 // 右侧垂直布局：舰载机名称和属性信息
@@ -800,7 +812,7 @@ struct FighterTubeRowView: View {
     }
 }
 
-// 战斗机属性条视图
+/// 战斗机属性条视图
 struct FighterAttributesView: View {
     @ObservedObject var viewModel: FittingEditorViewModel
 
@@ -846,7 +858,7 @@ struct FighterAttributesView: View {
     }
 }
 
-// 战斗机发射筒视图组件
+/// 战斗机发射筒视图组件
 struct FighterSlotView: View {
     let icon: String
     let slotType: String

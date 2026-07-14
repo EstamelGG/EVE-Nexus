@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 自定义军团图标视图，处理特殊军团ID的深色/浅色模式
+/// 自定义军团图标视图，处理特殊军团ID的深色/浅色模式
 struct CorporationIconView: View {
     let corporationId: Int
     let iconFileName: String
@@ -20,11 +20,12 @@ struct CorporationIconView: View {
             .frame(width: size, height: size)
             .cornerRadius(size == 64 ? 8 : 6)
             .modifier(
-                CorporationIconModifier(corporationId: corporationId, colorScheme: colorScheme))
+                CorporationIconModifier(corporationId: corporationId, colorScheme: colorScheme)
+            )
     }
 }
 
-// 军团图标修饰符，处理特殊军团ID的颜色反转
+/// 军团图标修饰符，处理特殊军团ID的颜色反转
 struct CorporationIconModifier: ViewModifier {
     let corporationId: Int
     let colorScheme: ColorScheme

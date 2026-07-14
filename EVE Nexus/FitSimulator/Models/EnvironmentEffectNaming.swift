@@ -31,25 +31,7 @@ struct EnvironmentEffectItem: Identifiable {
             enName: enName,
             iconFileName: iconFileName,
             published: true,
-            categoryID: 0,
-            groupID: nil,
-            groupName: nil,
-            pgNeed: nil,
-            cpuNeed: nil,
-            rigCost: nil,
-            emDamage: nil,
-            themDamage: nil,
-            kinDamage: nil,
-            expDamage: nil,
-            highSlot: nil,
-            midSlot: nil,
-            lowSlot: nil,
-            rigSlot: nil,
-            gunSlot: nil,
-            missSlot: nil,
-            metaGroupID: nil,
-            marketGroupID: nil,
-            navigationDestination: AnyView(EmptyView())
+            categoryID: 0
         )
     }
 }
@@ -79,18 +61,18 @@ enum EnvironmentEffectNaming {
             }
         }
 
-        var titleKey: String {
+        var title: String {
             switch self {
             case .darkness:
-                return "Environment_Abyssal_Type_Darkness"
+                return NSLocalizedString("Environment_Abyssal_Type_Darkness", comment: "")
             case .electricStorm:
-                return "Environment_Abyssal_Type_ElectricStorm"
+                return NSLocalizedString("Environment_Abyssal_Type_ElectricStorm", comment: "")
             case .causticToxin:
-                return "Environment_Abyssal_Type_CausticToxin"
+                return NSLocalizedString("Environment_Abyssal_Type_CausticToxin", comment: "")
             case .xenonGas:
-                return "Environment_Abyssal_Type_XenonGas"
+                return NSLocalizedString("Environment_Abyssal_Type_XenonGas", comment: "")
             case .infernal:
-                return "Environment_Abyssal_Type_Infernal"
+                return NSLocalizedString("Environment_Abyssal_Type_Infernal", comment: "")
             }
         }
 
@@ -174,7 +156,7 @@ enum EnvironmentEffectNaming {
 
             return EnvironmentEffectSection(
                 id: "abyssal-\(weatherType.rawValue)",
-                title: NSLocalizedString(weatherType.titleKey, comment: ""),
+                title: weatherType.title,
                 sortOrder: weatherType.sortOrder,
                 items: typeItems.sorted {
                     let leftLevel = abyssalTypeAndLevel(from: $0.enName)?.level ?? 0
@@ -284,7 +266,7 @@ enum EnvironmentEffectNaming {
             return enName
         }
 
-        let typeName = NSLocalizedString(weatherType.titleKey, comment: "")
+        let typeName = weatherType.title
         let levelName = abyssalLevelName(level)
         return String(
             format: NSLocalizedString("Environment_Abyssal_Item_Name_Format", comment: "%@ - %@"),

@@ -12,7 +12,7 @@ struct DroneSettingsView: View {
     var onUpdateQuantity: (Int, Int) -> Void // (新数量, 新激活数)
     var onReplaceDrone: (Int) -> Void // 新无人机类型ID
 
-    // 环境变量
+    /// 环境变量
     @Environment(\.dismiss) var dismiss
 
     // 状态变量
@@ -35,7 +35,7 @@ struct DroneSettingsView: View {
     @State private var isValidInput: Bool = false // 输入是否合法
     @State private var debounceTask: Task<Void, Never>? = nil // 防抖任务
 
-    // 初始化方法
+    /// 初始化方法
     init(
         drone: SimDrone,
         databaseManager: DatabaseManager,
@@ -68,7 +68,8 @@ struct DroneSettingsView: View {
                         Spacer()
                         // 获取计算后的无人机属性
                         let currentOutputDrone = viewModel.simulationOutput?.drones.first(
-                            where: { $0.typeId == currentDroneID })
+                            where: { $0.typeId == currentDroneID }
+                        )
                         NavigationLink(
                             destination: ShowItemInfo(
                                 databaseManager: databaseManager, itemID: currentDroneID,
@@ -142,7 +143,8 @@ struct DroneSettingsView: View {
                             String(
                                 format: NSLocalizedString("Fitting_Drones_Qty", comment: ""),
                                 quantity
-                            ))
+                            )
+                        )
                     }
                     .onChange(of: quantity) { _, newValue in
                         // 如果数量小于激活数，更新激活数
@@ -167,7 +169,8 @@ struct DroneSettingsView: View {
                             String(
                                 format: NSLocalizedString("Fitting_Act_Drones_Qty", comment: ""),
                                 activeCount
-                            ))
+                            )
+                        )
                     }
                     .onChange(of: activeCount) { _, newValue in
                         // 更新激活数量
@@ -358,7 +361,7 @@ struct DroneSettingsView: View {
         .presentationDragIndicator(.visible) // 显示拖动指示器
     }
 
-    // 加载无人机详细信息
+    /// 加载无人机详细信息
     private func loadDroneDetails() {
         isLoading = true
 
@@ -375,12 +378,12 @@ struct DroneSettingsView: View {
         isLoading = false
     }
 
-    // 检查是否有变体
+    /// 检查是否有变体
     private func checkVariations() {
         variationsCount = databaseManager.getVariationsCount(for: currentDroneID)
     }
 
-    // 加载突变质体信息
+    /// 加载突变质体信息
     private func loadMutaplasmidInfo(mutaplasmidID: Int) {
         // 获取突变质体的基本信息
         let mutaplasmids = databaseManager.getRequiredMutaplasmids(for: currentDroneID)
@@ -450,7 +453,7 @@ struct DroneSettingsView: View {
         }
     }
 
-    // 取消编辑
+    /// 取消编辑
     private func cancelEditing() {
         debounceTask?.cancel()
         editingAttributeID = nil
@@ -459,7 +462,7 @@ struct DroneSettingsView: View {
         isValidInput = false
     }
 
-    // 防抖验证输入
+    /// 防抖验证输入
     private func validateInputDebounced(_ value: String) {
         // 取消之前的防抖任务
         debounceTask?.cancel()
@@ -476,7 +479,7 @@ struct DroneSettingsView: View {
         }
     }
 
-    // 验证输入
+    /// 验证输入
     private func validateInput(_ value: String) {
         guard let attributeID = editingAttributeID,
               let attribute = mutaplasmidAttributes.first(where: { $0.attributeID == attributeID })
@@ -550,7 +553,7 @@ struct DroneSettingsView: View {
         isValidInput = true
     }
 
-    // 确认突变数值
+    /// 确认突变数值
     private func confirmMutationValue() {
         guard isValidInput,
               let attributeID = editingAttributeID,
@@ -581,7 +584,7 @@ struct DroneSettingsView: View {
         cancelEditing()
     }
 
-    // 格式化突变数值（用于输入框）
+    /// 格式化突变数值（用于输入框）
     private func formatMutationValueForInput(_ percentage: Double) -> String {
         let formatter = NumberFormatter()
         formatter.minimumFractionDigits = 0
@@ -594,7 +597,7 @@ struct DroneSettingsView: View {
         return String(format: "%.2f", percentage)
     }
 
-    // 格式化百分比（用于提示信息）
+    /// 格式化百分比（用于提示信息）
     private func formatPercentage(_ value: Double) -> String {
         let formatter = NumberFormatter()
         formatter.minimumFractionDigits = 0

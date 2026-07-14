@@ -29,11 +29,26 @@ struct EVE_NexusApp: App {
         setupNotifications()
         initializeLanguageMapSettings()
         Logger.info("App start at \(Date())")
-        // 打印 UserDefaults 中的所有键值
-        let defaults = UserDefaults.standard
+        auditUserDefaultsStorage()
 
+        // 初始化数据库
+        _ = CharacterDatabaseManager.shared // 确保角色数据库被初始化
+
+        // 加载本地化账单信息的文本数据
+        LocalizationManager.shared.loadAccountingEntryTypes()
+        validateRefreshTokens()
+        scheduleBackgroundTasks()
+
+        // 初始化内购管理器并加载商品数据
+        Task { @MainActor in
+            await PurchaseManager.shared.loadProducts()
+        }
+    }
+
+    private func auditUserDefaultsStorage() {
+        // 审计 UserDefaults 中的键值大小
+        let defaults = UserDefaults.standard
         let dictionary = defaults.dictionaryRepresentation()
-        // Logger.info("UserDefaults 内容:")
 
         // 使用 PropertyListSerialization 来获取实际的序列化大小
         var sizeMap: [(key: String, size: Int)] = []
@@ -63,38 +78,25 @@ struct EVE_NexusApp: App {
             )
             // 按大小排序并只打印超过1MB的键
             sizeMap.sort { $0.size > $1.size }
-            for item in sizeMap {
-                if item.size > 1_000_000 {
-                    Logger.info(
-                        "键: \(item.key), 大小: \(ByteCountFormatter.string(fromByteCount: Int64(item.size), countStyle: .file))"
-                    )
-                }
+            for item in sizeMap where item.size > 1_000_000 {
+                Logger.info(
+                    "键: \(item.key), 大小: \(ByteCountFormatter.string(fromByteCount: Int64(item.size), countStyle: .file))"
+                )
             }
         } else {
             Logger.success(
                 "UserDefaults 总大小: \(ByteCountFormatter.string(fromByteCount: Int64(totalSize), countStyle: .file))"
             )
         }
+    }
 
-        // 初始化数据库
-        _ = CharacterDatabaseManager.shared // 确保角色数据库被初始化
-
-        // 加载本地化账单信息的文本数据
-        LocalizationManager.shared.loadAccountingEntryTypes()
-        validateRefreshTokens()
-
-        // 安排后台任务
+    private func scheduleBackgroundTasks() {
         BackgroundTaskManager.shared.scheduleDataRefresh()
         BackgroundTaskManager.shared.scheduleAssetJsonRefresh()
         BackgroundTaskManager.shared.scheduleContractRefresh()
         BackgroundTaskManager.shared.scheduleStructureOrdersRefresh()
         BackgroundTaskManager.shared.scheduleIndustryRefresh()
         BackgroundTaskManager.shared.scheduleWalletRefresh()
-
-        // 初始化内购管理器并加载商品数据
-        Task { @MainActor in
-            await PurchaseManager.shared.loadProducts()
-        }
     }
 
     private func setupNotifications() {
@@ -192,158 +194,192 @@ struct EVE_NexusApp: App {
         }
     }
 
-    private func checkAndExtractIcons() async {
-        guard let iconPath = Bundle.main.path(forResource: "icons", ofType: "zip") else {
-            Logger.error("icons.zip file not found in bundle")
-            return
-        }
+    private func checkAndPrepareStaticResources() async {
+        let downloader = SDEDownloader()
+        let needFullSeed = StaticResourceManager.shared.needsSeedSDEExtraction()
+        let needIconsOnly = !needFullSeed && shouldExtractIcons()
+        Logger.info("[SDE初始化] 校验结果: needFullSeed=\(needFullSeed), needIconsOnly=\(needIconsOnly)")
 
-        let destinationPath = FileManager.default.urls(
-            for: .documentDirectory, in: .userDomainMask
-        )[0].appendingPathComponent("icons")
-        let iconURL = URL(fileURLWithPath: iconPath)
-
-        // 获取当前 App 版本
-        let appVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
-
-        // 检查是否需要重新解压
-        if !shouldExtractIcons(destinationPath: destinationPath, appVersion: appVersion) {
-            Logger.info("Using existing icons, skipping extraction.")
-            // 即使不需要解压，也要执行初始化
+        if !needFullSeed, !needIconsOnly {
+            Logger.info("SDE / icons 已就绪，跳过解压")
+            LocalSDELayout.purgeLegacyInstallArtifacts()
             await initializeApp()
             return
         }
 
-        // 需要重新解压
-        Logger.info("Extracting icons from Bundle...")
+        // 明确日志：说明触发原因和即将释放的资源
+        if needFullSeed {
+            Logger.info("触发 SDE 完整重播（首装 / 损坏 / Bundle 种子更新），将释放 sde.zip + icons.zip")
+        } else if needIconsOnly {
+            Logger.info("触发图标更新，将释放 icons.zip")
+        }
         await MainActor.run {
             needsUnzip = true
-        }
-
-        // 如果目录存在，删除它重新解压
-        if FileManager.default.fileExists(atPath: destinationPath.path) {
-            try? FileManager.default.removeItem(at: destinationPath)
+            unzipProgress = 0
         }
 
         do {
-            try await IconManager.shared.unzipIcons(from: iconURL, to: destinationPath) {
-                progress in
-                Task { @MainActor in
-                    unzipProgress = progress
+            if needFullSeed {
+                Logger.info("开始从 Bundle 播种 SDE（sde.zip + icons.zip）")
+                try await downloader.seedFromBundle { progress in
+                    updateUnzipProgress(progress)
                 }
+                Logger.info("Bundle SDE 播种完成")
+            } else if needIconsOnly {
+                Logger.info("开始从 Bundle 解压 icons.zip")
+                try await downloader.extractBundledIcons { progress in
+                    updateUnzipProgress(progress)
+                }
+                Logger.info("Bundle icons 解压完成")
+                if let bundleMetadata = MetadataManager.shared.readMetadataFromBundle() {
+                    try MetadataManager.shared.saveLocalMetadata(bundleMetadata)
+                }
+                LocalSDELayout.purgeLegacyInstallArtifacts()
             }
 
-            // 保存 Bundle 中的 metadata.json 到 icons 目录
-            if let bundleMetadata = MetadataManager.shared.readMetadataFromBundle() {
-                do {
-                    try MetadataManager.shared.saveMetadataToIconsDirectory(bundleMetadata)
-                    Logger.info("Saved Bundle metadata.json to icons directory (icon_version: \(bundleMetadata.iconVersion))")
-                } catch {
-                    Logger.error("Failed to save Bundle metadata.json: \(error)")
-                }
-            } else {
-                Logger.warning("Unable to read Bundle metadata.json")
-            }
-
+            // 与"重置 SDE"流程保持一致的收尾：清空可能残留的内存/查询缓存，
+            // 确保首次解压后使用的内存状态是干净的（首次安装时这些缓存为空，无副作用）
             await MainActor.run {
+                IconManager.shared.clearCache()
+                DatabaseManager.shared.clearCache()
                 loadingState = .complete
             }
-
-            // 解压完成后执行初始化
             await initializeApp()
         } catch {
-            Logger.error("Error during icons extraction: \(error)")
-            // 解压失败时重置状态
+            Logger.error("静态资源解压失败: \(error)")
             IconManager.shared.isExtractionComplete = false
-            // 即使解压失败，也要执行初始化，避免应用卡在加载状态
             await initializeApp()
         }
     }
 
-    /// 检查是否需要重新解压图标（使用 metadata.json 中的 icon_version 进行比较）
-    /// - Returns: true 表示需要重新解压，false 表示可以使用现有图标
-    private func shouldExtractIcons(destinationPath: URL, appVersion _: String) -> Bool {
-        // 1. 检查目录是否存在且非空
+    private func updateUnzipProgress(_ progress: Double) {
+        Task { @MainActor in
+            unzipProgress = progress
+        }
+    }
+
+    /// 检查是否需要用 Bundle 内置图标覆盖本地图标（不重装整库时）
+    private func shouldExtractIcons() -> Bool {
+        let destinationPath = LocalSDELayout.iconsDirectory
         let iconsExist = FileManager.default.fileExists(atPath: destinationPath.path)
-        let hasContents = (try? FileManager.default.contentsOfDirectory(atPath: destinationPath.path))?.isEmpty == false
+        let iconContents = (try? FileManager.default.contentsOfDirectory(atPath: destinationPath.path)) ?? []
+        let hasContents = !iconContents.isEmpty
+
+        var checkLog = SDECheckLog(title: "[图标初始化] 版本检查")
+        checkLog.append(
+            "本地状态: path=\(destinationPath.path), exists=\(iconsExist), count=\(iconContents.count), extractionComplete=\(IconManager.shared.isExtractionComplete)"
+        )
 
         guard iconsExist, hasContents, IconManager.shared.isExtractionComplete else {
-            Logger.info("Icons folder not found or incomplete, need extraction")
-            return true // 需要解压
+            checkLog.append("结果: 图标目录缺失、为空或标记未完成，需要解压")
+            checkLog.emit()
+            return true
         }
 
-        // 2. 获取 Bundle 中的图标版本
         guard let bundleMetadata = MetadataManager.shared.readMetadataFromBundle() else {
-            Logger.warning("Unable to read metadata from Bundle, will extract icons")
-            return true // 无法读取 Bundle metadata，需要解压
+            checkLog.append("结果: 无法读取 Bundle metadata，保留本地图标")
+            checkLog.emit(isWarning: true)
+            return false
         }
+        checkLog.append("Bundle metadata: \(bundleMetadata.debugSummary)")
 
-        // 3. 获取已解压图标的版本
-        guard let localMetadata = MetadataManager.shared.readMetadataFromIconsDirectory() else {
-            Logger.info("Local icons has no metadata.json, need extraction")
-            return true // 需要解压
+        guard let localMetadata = MetadataManager.shared.readLocalMetadata() else {
+            checkLog.append("结果: 本地 metadata 不存在，需要刷新 icons/metadata")
+            checkLog.emit()
+            return true
         }
+        checkLog.append("本地 metadata: \(localMetadata.debugSummary)")
 
-        // 4. 版本比较：如果 Bundle 中的版本更高，则需要重新解压
-        let needExtraction = bundleMetadata.iconVersion > localMetadata.iconVersion
-        Logger.info("Icon version comparison - Bundle: v\(bundleMetadata.iconVersion), Local: v\(localMetadata.iconVersion), Need Extraction: \(needExtraction)")
+        let comparison = compareBundleIconsWithLocal(
+            bundle: bundleMetadata, local: localMetadata
+        )
+        checkLog.append("比较结果: \(comparison.reason)")
+        checkLog.append("最终结果: needExtraction=\(comparison.needExtraction)")
+        checkLog.emit()
+        return comparison.needExtraction
+    }
 
-        return needExtraction
+    /// Bundle 是否比本地图标更新（逻辑对齐 SDE：优先 build/patch，再比 icon_version）
+    private func compareBundleIconsWithLocal(bundle: CloudKitMetadata, local: CloudKitMetadata)
+        -> (needExtraction: Bool, reason: String)
+    {
+        if bundle.buildNumber != local.buildNumber {
+            let result = bundle.buildNumber > local.buildNumber
+            return (result, "build 不同: Bundle=\(bundle.buildNumber), Local=\(local.buildNumber)")
+        }
+        if bundle.patchNumber != local.patchNumber {
+            let result = bundle.patchNumber > local.patchNumber
+            return (result, "patch 不同: Bundle=\(bundle.patchNumber), Local=\(local.patchNumber)")
+        }
+        if bundle.iconVersion != local.iconVersion {
+            let result = bundle.iconVersion > local.iconVersion
+            return (result, "icon_version 不同: Bundle=\(bundle.iconVersion), Local=\(local.iconVersion)")
+        }
+        if bundle.iconSha256.isEmpty {
+            return (false, "Bundle 缺少 icon_sha256，跳过 SHA256 比较")
+        }
+        if bundle.iconSha256 != local.iconSha256 {
+            return (
+                true,
+                "icon_sha256 不同: Bundle=\(bundle.iconSha256Short), Local=\(local.iconSha256Short)"
+            )
+        }
+        return (false, "build、patch、icon_version 和 icon_sha256 均一致")
     }
 
     private func initializeApp() async {
-        do {
-            // 在图标解压完成后加载主权数据
-            // _ = try await SovereigntyDataAPI.shared.fetchSovereigntyData()
+        // 在图标解压完成后加载主权数据
+        // _ = try await SovereigntyDataAPI.shared.fetchSovereigntyData()
 
-            // 异步加载保险价格数据，不阻塞主进程
+        // 异步加载保险价格数据，不阻塞主进程
+        Task.detached(priority: .background) {
+            do {
+                _ = try await InsurancePricesAPI.shared.fetchInsurancePrices()
+            } catch {
+                Logger.error("后台加载保险价格数据失败: \(error)")
+            }
+        }
+
+        // 异步加载可用模型列表，不阻塞主进程
+        Task.detached(priority: .background) {
+            do {
+                _ = try await AvailableModelsAPI.shared.fetchAvailableModels()
+            } catch {
+                Logger.error("后台加载可用模型列表失败: \(error)")
+            }
+        }
+
+        await MainActor.run {
+            // 先决策/清理 SDE，再同步配套 texts（二者同版本）
+            databaseManager.loadDatabase()
+            ItemTextStore.shared.syncWithActiveSDE()
+            CharacterDatabaseManager.shared.loadDatabase()
+
+            // 步骤1：初始化技能树
+            SkillTreeManager.shared.initialize(databaseManager: databaseManager)
+            Logger.info("技能树初始化完成")
+
+            // 步骤2：物品分类缓存在 loadDatabase 中自动初始化
+
+            // 步骤3：预加载行星资源缓存
+            PIResourceCache.shared.preloadResourceInfo()
+            Logger.info("行星资源缓存初始化完成")
+
+            // 清理钱包旧数据（在后台线程执行，不阻塞初始化）
             Task.detached(priority: .background) {
-                do {
-                    _ = try await InsurancePricesAPI.shared.fetchInsurancePrices()
-                } catch {
-                    Logger.error("后台加载保险价格数据失败: \(error)")
+                let journalDeleted = WalletJournalAPI.shared.cleanupOldData()
+                let transactionsDeleted = WalletTransactionsAPI.shared.cleanupOldData()
+                if journalDeleted > 0 || transactionsDeleted > 0 {
+                    Logger.info("钱包数据清理完成 - 流水: \(journalDeleted)条, 交易: \(transactionsDeleted)条")
                 }
             }
 
-            // 异步加载可用模型列表，不阻塞主进程
-            Task.detached(priority: .background) {
-                do {
-                    _ = try await AvailableModelsAPI.shared.fetchAvailableModels()
-                } catch {
-                    Logger.error("后台加载可用模型列表失败: \(error)")
-                }
-            }
+            isInitialized = true
+        }
 
-            await MainActor.run {
-                databaseManager.loadDatabase()
-                CharacterDatabaseManager.shared.loadDatabase()
-
-                // 步骤1：初始化技能树
-                SkillTreeManager.shared.initialize(databaseManager: databaseManager)
-                Logger.info("技能树初始化完成")
-
-                // 步骤2：物品分类缓存在 loadDatabase 中自动初始化
-
-                // 步骤3：预加载行星资源缓存
-                PIResourceCache.shared.preloadResourceInfo()
-                Logger.info("行星资源缓存初始化完成")
-
-                // 清理钱包旧数据（在后台线程执行，不阻塞初始化）
-                Task.detached(priority: .background) {
-                    let journalDeleted = WalletJournalAPI.shared.cleanupOldData()
-                    let transactionsDeleted = WalletTransactionsAPI.shared.cleanupOldData()
-                    if journalDeleted > 0 || transactionsDeleted > 0 {
-                        Logger.info("钱包数据清理完成 - 流水: \(journalDeleted)条, 交易: \(transactionsDeleted)条")
-                    }
-                }
-
-                isInitialized = true
-            }
-
-            // 在数据库加载完成后检查SDE更新
-            Task { @MainActor in
-                await SDEUpdateChecker.shared.checkForUpdates()
-            }
+        // 在数据库加载完成后检查SDE更新
+        Task { @MainActor in
+            await SDEUpdateChecker.shared.checkForUpdates()
         }
     }
 
@@ -354,13 +390,13 @@ struct EVE_NexusApp: App {
                     ContentView(databaseManager: databaseManager)
                 } else if needsUnzip {
                     LoadingView(loadingState: $loadingState, progress: unzipProgress) {
-                        // 解压完成后会在 checkAndExtractIcons 中调用 initializeApp
+                        // 解压完成后会在 checkAndPrepareStaticResources 中调用 initializeApp
                     }
                 } else {
                     Color.clear
                         .onAppear {
                             Task {
-                                await checkAndExtractIcons()
+                                await checkAndPrepareStaticResources()
                             }
                         }
                 }

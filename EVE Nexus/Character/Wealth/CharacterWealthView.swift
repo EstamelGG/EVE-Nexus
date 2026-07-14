@@ -11,7 +11,8 @@ struct CharacterWealthView: View {
 
     init(characterId: Int) {
         _viewModel = StateObject(
-            wrappedValue: CharacterWealthViewModel(characterId: characterId))
+            wrappedValue: CharacterWealthViewModel(characterId: characterId)
+        )
         // 初始化时就创建占位数据
         _cachedWealthItems = State(
             initialValue: WealthType.allCases.map { type in
@@ -20,7 +21,8 @@ struct CharacterWealthView: View {
                     value: 0,
                     details: NSLocalizedString("Assets_Loading_Calculating", comment: "")
                 )
-            })
+            }
+        )
     }
 
     private func isTypeRefreshing(_ type: WealthType) -> Bool {
@@ -31,7 +33,7 @@ struct CharacterWealthView: View {
         return cachedWealthItems.reduce(0) { $0 + $1.value }
     }
 
-    // 初始化数据加载方法
+    /// 初始化数据加载方法
     private func loadInitialDataIfNeeded() {
         guard !hasInitialized else { return }
 
@@ -224,7 +226,7 @@ struct WealthItemRow: View {
         }
     }
 
-    // 获取进度文本
+    /// 获取进度文本
     private func getProgressText(_ progress: AssetLoadingProgress) -> String {
         switch progress {
         case let .loading(page):

@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 数组分块扩展
+/// 数组分块扩展
 extension Array {
     func chunked(into size: Int) -> [[Element]] {
         return stride(from: 0, to: count, by: size).map {
@@ -41,7 +41,7 @@ struct StructureSearchView {
         self.strictMatch = strictMatch
     }
 
-    // 批量加载位置信息
+    /// 批量加载位置信息
     private func loadBatchLocationInfo(systemIds: [Int]) async throws -> [Int: (
         security: Double, systemName: String, regionName: String
     )] {
@@ -62,38 +62,7 @@ struct StructureSearchView {
         return result
     }
 
-    // 批量加载类型图标
-    private func loadBatchTypeIcons(typeIds: [Int]) throws -> [Int: String] {
-        let placeholders = String(repeating: "?,", count: typeIds.count).dropLast()
-        let sql = """
-            SELECT 
-                type_id,
-                icon_filename
-            FROM types
-            WHERE type_id IN (\(placeholders))
-        """
-
-        guard
-            case let .success(rows) = DatabaseManager.shared.executeQuery(
-                sql, parameters: typeIds.map { $0 as Any }
-            )
-        else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "未找到类型图标"])
-        }
-
-        var result: [Int: String] = [:]
-        for row in rows {
-            if let typeId = row["type_id"] as? Int,
-               let iconFilename = row["icon_filename"] as? String
-            {
-                result[typeId] = iconFilename
-            }
-        }
-
-        return result
-    }
-
-    // 从数据库批量加载空间站信息
+    /// 从数据库批量加载空间站信息
     private func loadStationsInfo(stationIds: [Int]) throws -> [(
         id: Int, name: String, typeId: Int, systemId: Int
     )] {
@@ -126,7 +95,7 @@ struct StructureSearchView {
         }
     }
 
-    // 从本地数据库搜索空间站
+    /// 从本地数据库搜索空间站
     private func searchLocalStations(searchText: String) throws -> [Int] {
         let sql = """
             SELECT stationID 
@@ -212,7 +181,6 @@ struct StructureSearchView {
         }
 
         var results: [SearcherView.SearchResult] = []
-        var typeIdMap: [Int: Int] = [:] // 建筑ID到类型ID的映射
 
         // 处理空间站结果
         if !allStationIds.isEmpty {
@@ -225,45 +193,30 @@ struct StructureSearchView {
                 // 批量获取空间站信息
                 let stationsInfo = try loadStationsInfo(stationIds: Array(allStationIds))
 
-                // 收集所有空间站的星系ID和类型ID
-                let systemIds = stationsInfo.map { $0.systemId }
-                let typeIds = Array(Set(stationsInfo.map { $0.typeId }))
-
                 // 批量获取位置信息
-                let locationInfoMap = try await loadBatchLocationInfo(systemIds: systemIds)
-
-                // 批量获取类型图标
-                let iconMap = try loadBatchTypeIcons(typeIds: typeIds)
+                let locationInfoMap = try await loadBatchLocationInfo(
+                    systemIds: stationsInfo.map { $0.systemId }
+                )
 
                 // 处理每个空间站
                 for info in stationsInfo {
                     try Task.checkCancellation()
 
-                    // 获取位置信息
                     guard let locationInfo = locationInfoMap[info.systemId] else {
                         Logger.error("未找到空间站位置信息: \(info.id)")
                         continue
                     }
 
-                    // 获取图标
-                    guard let iconFilename = iconMap[info.typeId] else {
-                        Logger.error("未找到空间站类型图标: \(info.typeId)")
-                        continue
-                    }
-
-                    // 存储类型ID映射
-                    typeIdMap[info.id] = info.typeId
-
-                    let result = SearcherView.SearchResult(
-                        id: info.id,
-                        name: info.name,
-                        type: .structure,
-                        structureType: .station,
-                        locationInfo: locationInfo,
-                        typeInfo: iconFilename
+                    results.append(
+                        SearcherView.SearchResult(
+                            id: info.id,
+                            name: info.name,
+                            type: .structure,
+                            structureType: .station,
+                            locationInfo: locationInfo,
+                            typeId: info.typeId
+                        )
                     )
-
-                    results.append(result)
                 }
             } catch {
                 if error is CancellationError { throw error }
@@ -280,9 +233,7 @@ struct StructureSearchView {
             // 计算合适的批次大小：最小1，最大10，默认为总数的1/5
             let batchSize = min(max(structureIds.count / 5, 1), 10)
             Logger.info("batchSize: \(batchSize)")
-            // 收集所有建筑物的星系ID和类型ID
             var allSystemIds: [Int] = []
-            var allTypeIds: [Int] = []
             var structureInfos: [(id: Int, name: String, typeId: Int, systemId: Int)] = []
 
             // 使用 TaskGroup 并发获取建筑物基本信息
@@ -295,12 +246,11 @@ struct StructureSearchView {
                             try Task.checkCancellation()
 
                             do {
-                                // 获取建筑物信息
                                 let info = try await UniverseStructureAPI.shared.fetchStructureInfo(
                                     structureId: Int64(structureId),
                                     characterId: characterId,
                                     forceRefresh: true, // 建筑搜索功能总是联网搜索
-                                    cacheTimeOut: 1 // 缓存超时时间改为 1 小时
+                                    cacheTimeOut: 1
                                 )
 
                                 return (structureId, info.name, info.type_id, info.solar_system_id)
@@ -316,9 +266,9 @@ struct StructureSearchView {
                     for try await result in group {
                         if let (id, name, typeId, systemId) = result {
                             structureInfos.append(
-                                (id: id, name: name, typeId: typeId, systemId: systemId))
+                                (id: id, name: name, typeId: typeId, systemId: systemId)
+                            )
                             allSystemIds.append(systemId)
-                            allTypeIds.append(typeId)
                         }
                         processedCount += 1
                         searchingStatus = String(
@@ -332,41 +282,26 @@ struct StructureSearchView {
                 }
             }
 
-            // 批量获取位置信息
             let locationInfoMap = try await loadBatchLocationInfo(systemIds: allSystemIds)
 
-            // 批量获取类型图标
-            let iconMap = try loadBatchTypeIcons(typeIds: Array(Set(allTypeIds)))
-
-            // 处理每个建筑物
             for info in structureInfos {
                 try Task.checkCancellation()
 
-                // 获取位置信息
                 guard let locationInfo = locationInfoMap[info.systemId] else {
                     Logger.error("未找到建筑物位置信息: \(info.id)")
                     continue
                 }
 
-                // 获取图标
-                guard let iconFilename = iconMap[info.typeId] else {
-                    Logger.error("未找到建筑物类型图标: \(info.typeId)")
-                    continue
-                }
-
-                // 存储类型ID映射
-                typeIdMap[info.id] = info.typeId
-
-                let result = SearcherView.SearchResult(
-                    id: info.id,
-                    name: info.name,
-                    type: .structure,
-                    structureType: .structure,
-                    locationInfo: locationInfo,
-                    typeInfo: iconFilename
+                results.append(
+                    SearcherView.SearchResult(
+                        id: info.id,
+                        name: info.name,
+                        type: .structure,
+                        structureType: .structure,
+                        locationInfo: locationInfo,
+                        typeId: info.typeId
+                    )
                 )
-
-                results.append(result)
             }
         }
 
@@ -380,9 +315,8 @@ struct StructureSearchView {
             // 定义优先级类型ID顺序
             let priorityTypeIds = [40340, 35834, 35833, 35827, 35832, 35825, 35836, 35826, 35835]
 
-            // 从映射中获取类型ID
-            let typeId1 = typeIdMap[result1.id] ?? 0
-            let typeId2 = typeIdMap[result2.id] ?? 0
+            let typeId1 = result1.typeId ?? 0
+            let typeId2 = result2.typeId ?? 0
 
             // 获取优先级索引
             let priority1 = priorityTypeIds.firstIndex(of: typeId1) ?? Int.max

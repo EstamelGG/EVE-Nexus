@@ -28,7 +28,7 @@ class KillMailViewModel: ObservableObject {
     let kbAPI = zKbToolAPI.shared
     private var currentIndex = 0
 
-    // 为每个 filter 维护分页状态
+    /// 为每个 filter 维护分页状态
     private struct FilterPaginationState {
         var currentZKBPage: Int = 1 // 当前 zkillboard API 页码
         var pendingZKBEntries: [ZKBKillMailEntry] = [] // 待转换的原始数据
@@ -205,7 +205,8 @@ class KillMailViewModel: ObservableObject {
             }
         }
 
-        if !forceRefresh {
+        // 前台加载（含强制刷新）显示加载态；后台静默刷新其他筛选不影响当前 UI
+        if updateUI {
             await MainActor.run { isLoading = true }
         }
 
@@ -359,6 +360,8 @@ class KillMailViewModel: ObservableObject {
             self.paginationState[filter] = FilterPaginationState()
             if updateUI {
                 self.killMails = []
+                // 与清空单帧同步置位，避免闪现「暂无战斗记录」
+                self.isLoading = true
             }
             self.hasMoreData = true
         }
@@ -482,7 +485,8 @@ class KillMailViewModel: ObservableObject {
                 String(
                     format: NSLocalizedString("KillMail_Stats_Failed", comment: ""),
                     error.localizedDescription
-                ))
+                )
+            )
             await MainActor.run {
                 if self.killMails.isEmpty {
                     self.isLoading = false
@@ -586,7 +590,7 @@ class KillMailViewModel: ObservableObject {
         }
     }
 
-    // 预加载所有过滤器的数据
+    /// 预加载所有过滤器的数据
     func preloadAllFilterData() async {
         await MainActor.run { isLoading = true }
 
@@ -633,7 +637,8 @@ class KillMailViewModel: ObservableObject {
                 String(
                     format: NSLocalizedString("KillMail_Stats_Failed", comment: ""),
                     error.localizedDescription
-                ))
+                )
+            )
         }
     }
 }
@@ -645,7 +650,7 @@ struct BRKillMailView: View {
     @State private var isLoading = false
     @State private var hasInitialized = false // 跟踪是否已执行初始加载
 
-    // 获取当前角色信息
+    /// 获取当前角色信息
     private var character: EVECharacterInfo? {
         EVELogin.shared.getCharacterByID(characterId)?.character
     }
@@ -655,7 +660,7 @@ struct BRKillMailView: View {
         _viewModel = StateObject(wrappedValue: KillMailViewModel(characterId: characterId))
     }
 
-    // 执行初始数据加载，但只在第一次调用时执行
+    /// 执行初始数据加载，但只在第一次调用时执行
     private func loadInitialDataIfNeeded() {
         guard !hasInitialized, !isLoading else { return }
 
@@ -733,11 +738,14 @@ struct BRKillMailView: View {
                     NSLocalizedString("KillMail_Filter", comment: ""), selection: $selectedFilter
                 ) {
                     Text(NSLocalizedString("KillMail_Filter_All", comment: "")).tag(
-                        KillMailFilter.all)
+                        KillMailFilter.all
+                    )
                     Text(NSLocalizedString("KillMail_Filter_Kills", comment: "")).tag(
-                        KillMailFilter.kill)
+                        KillMailFilter.kill
+                    )
                     Text(NSLocalizedString("KillMail_Filter_Losses", comment: "")).tag(
-                        KillMailFilter.loss)
+                        KillMailFilter.loss
+                    )
                 }
                 .pickerStyle(.segmented)
                 .padding(.vertical, 2)
@@ -748,9 +756,9 @@ struct BRKillMailView: View {
                 }
 
                 if isLoading || viewModel.isLoading {
-                    ProgressView()
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .padding(.vertical, 20)
+                    ForEach(0 ..< 6, id: \.self) { _ in
+                        ListSkeletonRow.killMail
+                    }
                 } else if viewModel.killMails.isEmpty {
                     Text(NSLocalizedString("KillMail_No_Records", comment: ""))
                         .foregroundColor(.secondary)
@@ -763,7 +771,7 @@ struct BRKillMailView: View {
                                 format: NSLocalizedString("KillMail_Unknown_Item", comment: ""),
                                 entity.shipTypeId
                             ),
-                            iconFileName: DatabaseConfig.defaultItemIcon
+                            iconFileName: IconManager.defaultItemIcon
                         )
                         BRKillMailCell(
                             entity: entity,
@@ -829,12 +837,7 @@ struct BRKillMailView: View {
 }
 
 private func formatKillMailTime(_ timestamp: Int) -> String {
-    let date = Date(timeIntervalSince1970: TimeInterval(timestamp))
-    let formatter = DateFormatter()
-    formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-    formatter.timeZone = TimeZone(identifier: "UTC")
-    formatter.locale = Locale(identifier: "en_US_POSIX")
-    return formatter.string(from: date)
+    FormatUtil.formatDateToLocalTime(Date(timeIntervalSince1970: TimeInterval(timestamp)))
 }
 
 struct BRKillMailCell: View {
@@ -845,11 +848,11 @@ struct BRKillMailCell: View {
     let characterId: Int
     let searchResult: SearchResult?
     let character: EVECharacterInfo?
-    /// 收藏夹：ESI 先出列后，zkill 估值异步写入；未就绪且 `isAsyncTotalValueLoading` 时显示指示器
+    // 收藏夹：ESI 先出列后，zkill 估值异步写入；未就绪且 `isAsyncTotalValueLoading` 时显示指示器
     var asyncTotalValue: Double? = nil
     var isAsyncTotalValueLoading: Bool = false
 
-    /// 与 12pt medium monospaced 数值行高对齐，避免加载指示器 ↔ 文本切换时上下跳变
+    // 与 12pt medium monospaced 数值行高对齐，避免加载指示器 ↔ 文本切换时上下跳变
     private static let valueRowHeight: CGFloat = 20
     private static let valueMinWidth: CGFloat = 92
 
@@ -895,7 +898,9 @@ struct BRKillMailCell: View {
         return entity.characterId == characterId
     }
 
-    private var valueColor: Color { isLoss ? .red : .green }
+    private var valueColor: Color {
+        isLoss ? .red : .green
+    }
 
     private var organizationIcon: UIImage? {
         if let allyId = entity.allianceId, allyId > 0, let icon = allianceIcon { return icon }

@@ -1,7 +1,7 @@
 import SwiftUI
 import UIKit
 
-// 蓝图活动数据模型
+/// 蓝图活动数据模型
 struct BlueprintActivity {
     let materials: [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)]
     let skills:
@@ -12,7 +12,7 @@ struct BlueprintActivity {
     let maxRunsPerCopy: Int
 }
 
-// 产出物项视图
+/// 产出物项视图
 struct ProductItemView: View {
     let item: (typeID: Int, typeName: String, typeIcon: String, quantity: Int, probability: Double?)
     let databaseManager: DatabaseManager
@@ -47,7 +47,7 @@ struct ProductItemView: View {
     }
 }
 
-// 发明产出项视图
+/// 发明产出项视图
 struct InventionProductItemView: View {
     let product:
         (typeID: Int, typeName: String, typeIcon: String, quantity: Int, probability: Double?)
@@ -75,10 +75,7 @@ struct InventionProductItemView: View {
                         .foregroundColor(.primary)
                     if let probability = product.probability {
                         Text(
-                            String(
-                                format: NSLocalizedString("Blueprint_Success_Rate", comment: ""),
-                                Int(probability * 100)
-                            )
+                            "\(NSLocalizedString("Blueprint_Success_Rate", comment: "")) \(FormatUtil.formatPercent(probability, fractionDigits: 0))"
                         )
                         .font(.caption)
                         .foregroundColor(.secondary)
@@ -89,14 +86,14 @@ struct InventionProductItemView: View {
     }
 }
 
-// 蓝图技能需求行
+/// 蓝图技能需求行
 struct BlueprintSkillRow: View {
     let skill:
         (typeID: Int, typeName: String, typeIcon: String, level: Int, timeMultiplier: Double?)
     let databaseManager: DatabaseManager
     let currentSkillLevel: Int?
 
-    // 获取当前技能点数（直接查表，不累加）
+    /// 获取当前技能点数（直接查表，不累加）
     private func getCurrentSkillPointsSimple() -> Int {
         guard let currentLevel = currentSkillLevel, let multiplier = skill.timeMultiplier else {
             return 0
@@ -106,14 +103,14 @@ struct BlueprintSkillRow: View {
         return Int(Double(SkillTreeManager.levelBasePoints[currentLevel - 1]) * multiplier)
     }
 
-    // 获取所需总点数（直接查表）
+    /// 获取所需总点数（直接查表）
     private func getRequiredSkillPointsSimple() -> Int {
         guard let multiplier = skill.timeMultiplier else { return 0 }
         if skill.level <= 0 || skill.level > SkillTreeManager.levelBasePoints.count { return 0 }
         return Int(Double(SkillTreeManager.levelBasePoints[skill.level - 1]) * multiplier)
     }
 
-    // 获取技能点数文本
+    /// 获取技能点数文本
     private var skillPointsText: String {
         guard let multiplier = skill.timeMultiplier,
               skill.level > 0 && skill.level <= SkillTreeManager.levelBasePoints.count
@@ -214,7 +211,7 @@ struct BlueprintSkillRow: View {
     }
 }
 
-// 主视图
+/// 主视图
 struct ShowBluePrintInfo: View {
     let blueprintID: Int
     let databaseManager: DatabaseManager
@@ -241,53 +238,48 @@ struct ShowBluePrintInfo: View {
     @State private var isInventionSkillsExpanded = false
     @State private var showBlueprintCalculator = false
 
-    // 加载蓝图来源
+    /// 加载蓝图来源
     private func loadBlueprintSource() {
         blueprintSource = databaseManager.getBlueprintSource(for: blueprintID)
     }
 
-    // 加载蓝图数据
+    private func skillsWithTimeMultipliers(
+        _ skills: [(typeID: Int, typeName: String, typeIcon: String, level: Int)]
+    ) -> [(
+        typeID: Int, typeName: String, typeIcon: String, level: Int, timeMultiplier: Double?
+    )] {
+        let multipliers = SkillTreeManager.shared.getTrainingTimeMultipliers(
+            for: skills.map(\.typeID),
+            databaseManager: databaseManager
+        )
+        return skills.map {
+            (
+                typeID: $0.typeID,
+                typeName: $0.typeName,
+                typeIcon: $0.typeIcon,
+                level: $0.level,
+                timeMultiplier: multipliers[$0.typeID]
+            )
+        }
+    }
+
+    /// 加载蓝图数据
     private func loadBlueprintData() {
-        // 首先获取所有处理时间
         guard let processTime = databaseManager.getBlueprintProcessTime(for: blueprintID) else {
             return
         }
 
-        // 获取最大复制流程数，默认为0
         let maxRunsPerCopy = processTime.maxRunsPerCopy
 
-        // 制造活动
         if processTime.manufacturing_time > 0 {
-            let manufacturingMaterials = databaseManager.getBlueprintManufacturingMaterials(
-                for: blueprintID)
-            let manufacturingProducts = databaseManager.getBlueprintManufacturingOutput(
-                for: blueprintID)
-
-            // 获取制造技能要求
-            let manufacturingSkills = databaseManager.getBlueprintManufacturingSkills(
-                for: blueprintID)
-            let skillIDs = manufacturingSkills.map { $0.typeID }
-            // 获取所有技能的训练时间倍增系数
-            let multipliers = SkillTreeManager.shared.getTrainingTimeMultipliers(
-                for: skillIDs, databaseManager: databaseManager
-            )
-
-            // 将时间倍率添加到技能列表中
-            let skillsWithMultipliers = manufacturingSkills.map {
-                skill -> (
-                    typeID: Int, typeName: String, typeIcon: String, level: Int,
-                    timeMultiplier: Double?
-                ) in
-                return (
-                    typeID: skill.typeID, typeName: skill.typeName, typeIcon: skill.typeIcon,
-                    level: skill.level, timeMultiplier: multipliers[skill.typeID]
-                )
-            }
+            let materials = databaseManager.getBlueprintManufacturingMaterials(for: blueprintID)
+            let products = databaseManager.getBlueprintManufacturingOutput(for: blueprintID)
+            let skills = databaseManager.getBlueprintManufacturingSkills(for: blueprintID)
 
             manufacturing = BlueprintActivity(
-                materials: manufacturingMaterials,
-                skills: skillsWithMultipliers,
-                products: manufacturingProducts.map {
+                materials: materials,
+                skills: skillsWithTimeMultipliers(skills),
+                products: products.map {
                     ($0.typeID, $0.typeName, $0.typeIcon, $0.quantity, nil)
                 },
                 time: processTime.manufacturing_time,
@@ -295,135 +287,50 @@ struct ShowBluePrintInfo: View {
             )
         }
 
-        // 材料研究活动
         if processTime.research_material_time > 0 {
-            let researchMaterialMaterials = databaseManager.getBlueprintResearchMaterialMaterials(
-                for: blueprintID)
-            let researchMaterialSkills = databaseManager.getBlueprintResearchMaterialSkills(
-                for: blueprintID)
-
-            // 获取所有技能的训练时间倍增系数
-            let skillIDs = researchMaterialSkills.map { $0.typeID }
-            let multipliers = SkillTreeManager.shared.getTrainingTimeMultipliers(
-                for: skillIDs, databaseManager: databaseManager
-            )
-
-            // 将时间倍率添加到技能列表中
-            let skillsWithMultipliers = researchMaterialSkills.map {
-                skill -> (
-                    typeID: Int, typeName: String, typeIcon: String, level: Int,
-                    timeMultiplier: Double?
-                ) in
-                return (
-                    typeID: skill.typeID, typeName: skill.typeName, typeIcon: skill.typeIcon,
-                    level: skill.level, timeMultiplier: multipliers[skill.typeID]
-                )
-            }
-
             researchMaterial = BlueprintActivity(
-                materials: researchMaterialMaterials,
-                skills: skillsWithMultipliers,
+                materials: databaseManager.getBlueprintResearchMaterialMaterials(for: blueprintID),
+                skills: skillsWithTimeMultipliers(
+                    databaseManager.getBlueprintResearchMaterialSkills(for: blueprintID)
+                ),
                 products: [],
                 time: processTime.research_material_time,
                 maxRunsPerCopy: 0
             )
         }
 
-        // 时间研究活动
         if processTime.research_time_time > 0 {
-            let researchTimeMaterials = databaseManager.getBlueprintResearchTimeMaterials(
-                for: blueprintID)
-            let researchTimeSkills = databaseManager.getBlueprintResearchTimeSkills(
-                for: blueprintID)
-
-            // 获取所有技能的训练时间倍增系数
-            let skillIDs = researchTimeSkills.map { $0.typeID }
-            let multipliers = SkillTreeManager.shared.getTrainingTimeMultipliers(
-                for: skillIDs, databaseManager: databaseManager
-            )
-
-            // 将时间倍率添加到技能列表中
-            let skillsWithMultipliers = researchTimeSkills.map {
-                skill -> (
-                    typeID: Int, typeName: String, typeIcon: String, level: Int,
-                    timeMultiplier: Double?
-                ) in
-                return (
-                    typeID: skill.typeID, typeName: skill.typeName, typeIcon: skill.typeIcon,
-                    level: skill.level, timeMultiplier: multipliers[skill.typeID]
-                )
-            }
-
             researchTime = BlueprintActivity(
-                materials: researchTimeMaterials,
-                skills: skillsWithMultipliers,
+                materials: databaseManager.getBlueprintResearchTimeMaterials(for: blueprintID),
+                skills: skillsWithTimeMultipliers(
+                    databaseManager.getBlueprintResearchTimeSkills(for: blueprintID)
+                ),
                 products: [],
                 time: processTime.research_time_time,
                 maxRunsPerCopy: 0
             )
         }
 
-        // 复制活动
         if processTime.copying_time > 0 {
-            let copyingMaterials = databaseManager.getBlueprintCopyingMaterials(for: blueprintID)
-            let copyingSkills = databaseManager.getBlueprintCopyingSkills(for: blueprintID)
-
-            // 获取所有技能的训练时间倍增系数
-            let skillIDs = copyingSkills.map { $0.typeID }
-            let multipliers = SkillTreeManager.shared.getTrainingTimeMultipliers(
-                for: skillIDs, databaseManager: databaseManager
-            )
-
-            // 将时间倍率添加到技能列表中
-            let skillsWithMultipliers = copyingSkills.map {
-                skill -> (
-                    typeID: Int, typeName: String, typeIcon: String, level: Int,
-                    timeMultiplier: Double?
-                ) in
-                return (
-                    typeID: skill.typeID, typeName: skill.typeName, typeIcon: skill.typeIcon,
-                    level: skill.level, timeMultiplier: multipliers[skill.typeID]
-                )
-            }
-
             copying = BlueprintActivity(
-                materials: copyingMaterials,
-                skills: skillsWithMultipliers,
+                materials: databaseManager.getBlueprintCopyingMaterials(for: blueprintID),
+                skills: skillsWithTimeMultipliers(
+                    databaseManager.getBlueprintCopyingSkills(for: blueprintID)
+                ),
                 products: [],
                 time: processTime.copying_time,
                 maxRunsPerCopy: maxRunsPerCopy
             )
         }
 
-        // 发明活动
         if processTime.invention_time > 0 {
-            let inventionMaterials = databaseManager.getBlueprintInventionMaterials(
-                for: blueprintID)
-            let inventionSkills = databaseManager.getBlueprintInventionSkills(for: blueprintID)
-            let inventionProducts = databaseManager.getBlueprintInventionProducts(for: blueprintID)
-
-            // 获取所有技能的训练时间倍增系数
-            let skillIDs = inventionSkills.map { $0.typeID }
-            let multipliers = SkillTreeManager.shared.getTrainingTimeMultipliers(
-                for: skillIDs, databaseManager: databaseManager
-            )
-
-            // 将时间倍率添加到技能列表中
-            let skillsWithMultipliers = inventionSkills.map {
-                skill -> (
-                    typeID: Int, typeName: String, typeIcon: String, level: Int,
-                    timeMultiplier: Double?
-                ) in
-                return (
-                    typeID: skill.typeID, typeName: skill.typeName, typeIcon: skill.typeIcon,
-                    level: skill.level, timeMultiplier: multipliers[skill.typeID]
-                )
-            }
-
+            let products = databaseManager.getBlueprintInventionProducts(for: blueprintID)
             invention = BlueprintActivity(
-                materials: inventionMaterials,
-                skills: skillsWithMultipliers,
-                products: inventionProducts.map {
+                materials: databaseManager.getBlueprintInventionMaterials(for: blueprintID),
+                skills: skillsWithTimeMultipliers(
+                    databaseManager.getBlueprintInventionSkills(for: blueprintID)
+                ),
+                products: products.map {
                     ($0.typeID, $0.typeName, $0.typeIcon, $0.quantity, $0.probability)
                 },
                 time: processTime.invention_time,
@@ -432,7 +339,7 @@ struct ShowBluePrintInfo: View {
         }
     }
 
-    // 计算特定等级的时间
+    /// 计算特定等级的时间
     private func calculateLevelTime(baseTime: Int, level: Int) -> Int {
         let levelMultipliers = [105, 250, 595, 1414, 3360, 8000, 19000, 45255, 107_700, 256_000]
         let rank = baseTime / 105
@@ -442,7 +349,7 @@ struct ShowBluePrintInfo: View {
         // rank值也可以通过查询typeAttributes表中对应物品的attribute_id = 1955的值来获取
     }
 
-    // 获取当前技能等级
+    /// 获取当前技能等级
     private func getCurrentSkillLevel(for skillID: Int) -> Int? {
         return skillsManager.getSkillLevel(for: skillID)
     }
@@ -462,7 +369,8 @@ struct ShowBluePrintInfo: View {
                 Section(
                     header: HStack {
                         Text(NSLocalizedString("Blueprint_Manufacturing", comment: "")).font(
-                            .headline)
+                            .headline
+                        )
                         Spacer()
                         Button(action: {
                             // 复制材料列表到剪贴板
@@ -541,14 +449,16 @@ struct ShowBluePrintInfo: View {
                                     }
                                 }
                                 .listRowInsets(
-                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18)
+                                )
                             },
                             label: {
                                 HStack {
                                     Text(
                                         NSLocalizedString(
                                             "Blueprint_Required_Materials", comment: ""
-                                        ))
+                                        )
+                                    )
                                     Spacer()
                                     Text(
                                         "\(manufacturing.materials.count)\(NSLocalizedString("Misc_number_items", comment: ""))"
@@ -572,12 +482,14 @@ struct ShowBluePrintInfo: View {
                                         currentSkillLevel: getCurrentSkillLevel(for: skill.typeID)
                                     )
                                 }.listRowInsets(
-                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18)
+                                )
                             },
                             label: {
                                 HStack {
                                     Text(
-                                        NSLocalizedString("Blueprint_Required_Skills", comment: ""))
+                                        NSLocalizedString("Blueprint_Required_Skills", comment: "")
+                                    )
                                     Spacer()
                                     Text(
                                         "\(manufacturing.skills.count) \(NSLocalizedString("Misc_number_items", comment: ""))"
@@ -593,7 +505,7 @@ struct ShowBluePrintInfo: View {
                     HStack {
                         Text(NSLocalizedString("Blueprint_Manufacturing_Time", comment: ""))
                         Spacer()
-                        Text(formatTime(manufacturing.time))
+                        Text(FormatUtil.formatBlueprintDuration(manufacturing.time))
                             .foregroundColor(.secondary)
                             .frame(alignment: .trailing)
                     }
@@ -638,14 +550,16 @@ struct ShowBluePrintInfo: View {
                                     }
                                 }
                                 .listRowInsets(
-                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18)
+                                )
                             },
                             label: {
                                 HStack {
                                     Text(
                                         NSLocalizedString(
                                             "Blueprint_Required_Materials", comment: ""
-                                        ))
+                                        )
+                                    )
                                     Spacer()
                                     Text(
                                         "\(researchMaterial.materials.count) \(NSLocalizedString("Misc_number_items", comment: ""))"
@@ -669,12 +583,14 @@ struct ShowBluePrintInfo: View {
                                         currentSkillLevel: getCurrentSkillLevel(for: skill.typeID)
                                     )
                                 }.listRowInsets(
-                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18)
+                                )
                             },
                             label: {
                                 HStack {
                                     Text(
-                                        NSLocalizedString("Blueprint_Required_Skills", comment: ""))
+                                        NSLocalizedString("Blueprint_Required_Skills", comment: "")
+                                    )
                                     Spacer()
                                     Text(
                                         "\(researchMaterial.skills.count) \(NSLocalizedString("Misc_number_items", comment: ""))"
@@ -697,13 +613,15 @@ struct ShowBluePrintInfo: View {
                                             format: NSLocalizedString(
                                                 "Misc_Level", comment: "lv%d"
                                             ), level
-                                        ))
+                                        )
+                                    )
                                     Spacer()
                                     Text(
-                                        formatTime(
+                                        FormatUtil.formatBlueprintDuration(
                                             calculateLevelTime(
                                                 baseTime: researchMaterial.time, level: level
-                                            ))
+                                            )
+                                        )
                                     )
                                     .foregroundColor(.secondary)
                                     .frame(alignment: .trailing)
@@ -714,7 +632,8 @@ struct ShowBluePrintInfo: View {
                         label: {
                             HStack {
                                 Text(
-                                    NSLocalizedString("Blueprint_Research_Time_Label", comment: ""))
+                                    NSLocalizedString("Blueprint_Research_Time_Label", comment: "")
+                                )
                                 Spacer()
                             }
                         }
@@ -726,7 +645,8 @@ struct ShowBluePrintInfo: View {
             if let researchTime = researchTime {
                 Section(
                     header: Text(NSLocalizedString("Blueprint_Research_Time", comment: "")).font(
-                        .headline)
+                        .headline
+                    )
                 ) {
                     // 材料折叠组
                     if !researchTime.materials.isEmpty {
@@ -762,14 +682,16 @@ struct ShowBluePrintInfo: View {
                                     }
                                 }
                                 .listRowInsets(
-                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18)
+                                )
                             },
                             label: {
                                 HStack {
                                     Text(
                                         NSLocalizedString(
                                             "Blueprint_Required_Materials", comment: ""
-                                        ))
+                                        )
+                                    )
                                     Spacer()
                                     Text(
                                         "\(researchTime.materials.count) \(NSLocalizedString("Misc_number_items", comment: ""))"
@@ -793,12 +715,14 @@ struct ShowBluePrintInfo: View {
                                         currentSkillLevel: getCurrentSkillLevel(for: skill.typeID)
                                     )
                                 }.listRowInsets(
-                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18)
+                                )
                             },
                             label: {
                                 HStack {
                                     Text(
-                                        NSLocalizedString("Blueprint_Required_Skills", comment: ""))
+                                        NSLocalizedString("Blueprint_Required_Skills", comment: "")
+                                    )
                                     Spacer()
                                     Text(
                                         "\(researchTime.skills.count) \(NSLocalizedString("Misc_number_items", comment: ""))"
@@ -821,13 +745,15 @@ struct ShowBluePrintInfo: View {
                                             format: NSLocalizedString(
                                                 "Misc_Level", comment: "lv%d"
                                             ), 2 * level
-                                        ))
+                                        )
+                                    )
                                     Spacer()
                                     Text(
-                                        formatTime(
+                                        FormatUtil.formatBlueprintDuration(
                                             calculateLevelTime(
                                                 baseTime: researchTime.time, level: level
-                                            ))
+                                            )
+                                        )
                                     )
                                     .foregroundColor(.secondary)
                                     .frame(alignment: .trailing)
@@ -838,7 +764,8 @@ struct ShowBluePrintInfo: View {
                         label: {
                             HStack {
                                 Text(
-                                    NSLocalizedString("Blueprint_Research_Time_Label", comment: ""))
+                                    NSLocalizedString("Blueprint_Research_Time_Label", comment: "")
+                                )
                                 Spacer()
                             }
                         }
@@ -850,7 +777,8 @@ struct ShowBluePrintInfo: View {
             if let copying = copying {
                 Section(
                     header: Text(NSLocalizedString("Blueprint_Copying", comment: "")).font(
-                        .headline)
+                        .headline
+                    )
                 ) {
                     // 材料折叠组
                     if !copying.materials.isEmpty {
@@ -886,14 +814,16 @@ struct ShowBluePrintInfo: View {
                                     }
                                 }
                                 .listRowInsets(
-                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18)
+                                )
                             },
                             label: {
                                 HStack {
                                     Text(
                                         NSLocalizedString(
                                             "Blueprint_Required_Materials", comment: ""
-                                        ))
+                                        )
+                                    )
                                     Spacer()
                                     Text(
                                         "\(copying.materials.count) \(NSLocalizedString("Misc_number_items", comment: ""))"
@@ -917,12 +847,14 @@ struct ShowBluePrintInfo: View {
                                         currentSkillLevel: getCurrentSkillLevel(for: skill.typeID)
                                     )
                                 }.listRowInsets(
-                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18)
+                                )
                             },
                             label: {
                                 HStack {
                                     Text(
-                                        NSLocalizedString("Blueprint_Required_Skills", comment: ""))
+                                        NSLocalizedString("Blueprint_Required_Skills", comment: "")
+                                    )
                                     Spacer()
                                     Text(
                                         "\(copying.skills.count) \(NSLocalizedString("Misc_number_items", comment: ""))"
@@ -938,7 +870,7 @@ struct ShowBluePrintInfo: View {
                     HStack {
                         Text(NSLocalizedString("Blueprint_Copying_Time", comment: ""))
                         Spacer()
-                        Text(formatTime(copying.time))
+                        Text(FormatUtil.formatBlueprintDuration(copying.time))
                             .foregroundColor(.secondary)
                             .frame(alignment: .trailing)
                     }
@@ -960,7 +892,8 @@ struct ShowBluePrintInfo: View {
             if let invention = invention {
                 Section(
                     header: Text(NSLocalizedString("Blueprint_Invention", comment: "")).font(
-                        .headline)
+                        .headline
+                    )
                 ) {
                     // 产出物
                     if !invention.products.isEmpty {
@@ -1006,14 +939,16 @@ struct ShowBluePrintInfo: View {
                                     }
                                 }
                                 .listRowInsets(
-                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18)
+                                )
                             },
                             label: {
                                 HStack {
                                     Text(
                                         NSLocalizedString(
                                             "Blueprint_Required_Materials", comment: ""
-                                        ))
+                                        )
+                                    )
                                     Spacer()
                                     Text(
                                         "\(invention.materials.count) \(NSLocalizedString("Misc_number_items", comment: ""))"
@@ -1037,12 +972,14 @@ struct ShowBluePrintInfo: View {
                                         currentSkillLevel: getCurrentSkillLevel(for: skill.typeID)
                                     )
                                 }.listRowInsets(
-                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18)
+                                )
                             },
                             label: {
                                 HStack {
                                     Text(
-                                        NSLocalizedString("Blueprint_Required_Skills", comment: ""))
+                                        NSLocalizedString("Blueprint_Required_Skills", comment: "")
+                                    )
                                     Spacer()
                                     Text(
                                         "\(invention.skills.count) \(NSLocalizedString("Misc_number_items", comment: ""))"
@@ -1058,7 +995,7 @@ struct ShowBluePrintInfo: View {
                     HStack {
                         Text(NSLocalizedString("Blueprint_Invention_Time", comment: ""))
                         Spacer()
-                        Text(formatTime(invention.time))
+                        Text(FormatUtil.formatBlueprintDuration(invention.time))
                             .foregroundColor(.secondary)
                             .frame(alignment: .trailing)
                     }
@@ -1080,7 +1017,7 @@ struct ShowBluePrintInfo: View {
                             HStack {
                                 IconManager.shared.loadImage(
                                     for: source.typeIcon.isEmpty
-                                        ? DatabaseConfig.defaultItemIcon : source.typeIcon
+                                        ? IconManager.defaultItemIcon : source.typeIcon
                                 )
                                 .resizable()
                                 .frame(width: 32, height: 32)

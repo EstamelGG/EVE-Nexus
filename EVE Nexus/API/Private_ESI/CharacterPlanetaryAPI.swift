@@ -361,7 +361,8 @@ class CharacterPlanetaryAPI {
             .appendingPathComponent("Planetary")
 
         let cacheFile = cacheDirectory.appendingPathComponent(
-            "character_\(characterId)_planet_\(planetId).json")
+            "character_\(characterId)_planet_\(planetId).json"
+        )
 
         guard fileManager.fileExists(atPath: cacheFile.path) else {
             return nil
@@ -434,7 +435,8 @@ class CharacterPlanetaryAPI {
         }
 
         let cacheFile = cacheDirectory.appendingPathComponent(
-            "character_\(characterId)_planet_\(planetId).json")
+            "character_\(characterId)_planet_\(planetId).json"
+        )
 
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601

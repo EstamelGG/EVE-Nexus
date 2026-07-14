@@ -7,7 +7,7 @@ struct FighterSettingsView: View {
     let databaseManager: DatabaseManager
     let viewModel: FittingEditorViewModel
 
-    // 获取当前选中的舰载机
+    /// 获取当前选中的舰载机
     private var fighter: SimFighterSquad {
         selectedFighter.fighterSquad!
     }
@@ -17,7 +17,7 @@ struct FighterSettingsView: View {
     var onUpdateQuantity: (Int) -> Void // 新数量
     var onReplaceFighter: (Int) -> Void // 新舰载机类型ID
 
-    // 环境变量
+    /// 环境变量
     @Environment(\.dismiss) var dismiss
 
     // 状态变量
@@ -31,7 +31,7 @@ struct FighterSettingsView: View {
     @State private var hasQuantityChanged = false // 跟踪数量是否发生了变化
     @State private var currentFighterID: Int // 当前舰载机ID
 
-    // 初始化方法
+    /// 初始化方法
     init(
         selectedFighter: FighterState,
         databaseManager: DatabaseManager,
@@ -71,7 +71,8 @@ struct FighterSettingsView: View {
                             where: {
                                 $0.typeId == currentFighterID
                                     && $0.tubeId == selectedFighter.tubeId
-                            })
+                            }
+                        )
                         NavigationLink(
                             destination: ShowItemInfo(
                                 databaseManager: databaseManager, itemID: currentFighterID,
@@ -147,7 +148,8 @@ struct FighterSettingsView: View {
                                     "Fitting_Fighters_Qty", comment: "舰载机数量: %d/%d"
                                 ), quantity,
                                 maxQuantity
-                            ))
+                            )
+                        )
                     }
                     .onChange(of: quantity) { _, newValue in
                         // 仅更新舰载机数量，不重新计算属性
@@ -211,7 +213,7 @@ struct FighterSettingsView: View {
         .presentationDragIndicator(.visible) // 显示拖动指示器
     }
 
-    // 加载舰载机详细信息
+    /// 加载舰载机详细信息
     private func loadFighterDetails() {
         isLoading = true
 
@@ -228,7 +230,7 @@ struct FighterSettingsView: View {
         isLoading = false
     }
 
-    // 加载舰载机最大数量
+    /// 加载舰载机最大数量
     private func loadMaxQuantity() {
         // 获取舰载机的fighterSquadronMaxSize属性
         if let maxSize = fighter.attributesByName["fighterSquadronMaxSize"] {
@@ -256,7 +258,7 @@ struct FighterSettingsView: View {
         }
     }
 
-    // 检查是否有变体
+    /// 检查是否有变体
     private func checkVariations() {
         variationsCount = databaseManager.getVariationsCount(for: currentFighterID)
     }

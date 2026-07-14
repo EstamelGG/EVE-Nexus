@@ -129,7 +129,7 @@ struct LanguageMapView: View {
         .searchable(
             text: $searchText,
             isPresented: $isSearchActive,
-            placement: .navigationBarDrawer(displayMode: .always),
+            // placement: .navigationBarDrawer(displayMode: .always),
             prompt: NSLocalizedString("Main_Database_Search", comment: "")
         )
         .onSubmit(of: .search) {
@@ -166,7 +166,7 @@ struct LanguageMapView: View {
         }
     }
 
-    // 提取结果行视图为单独的组件
+    /// 提取结果行视图为单独的组件
     private struct ResultRow: View {
         let result: (id: Int, names: [String: String])
         let availableLanguages: [String: String]
@@ -246,352 +246,152 @@ struct LanguageMapView: View {
         var prefix: [(id: Int, names: [String: String])] = []
         var fuzzy: [(id: Int, names: [String: String])] = []
 
-        // 重置hasTypeIdMatch
         hasTypeIdMatch = false
-
-        // 检查searchText是否可以转换为整数（用于type_id搜索）
         let typeIdToSearch = Int(searchText)
 
-        // 搜索物品 - 使用简化的SQL，在代码中进行匹配类型分类
-        let typesQuery = """
-            SELECT DISTINCT type_id, de_name, en_name, es_name, fr_name, ja_name, ko_name, ru_name, zh_name, 
-                   LENGTH(en_name) as name_length
-            FROM types
-            WHERE (
-                  -- type_id精确匹配（如果searchText是数字）
-                  (\(typeIdToSearch != nil ? "type_id = \(typeIdToSearch!)" : "0=1"))
-                  -- 名称模糊匹配（包含所有匹配类型）
-                  OR de_name LIKE ? OR en_name LIKE ? OR es_name LIKE ? OR fr_name LIKE ?
-                  OR ja_name LIKE ? OR ko_name LIKE ? OR ru_name LIKE ? OR zh_name LIKE ?
-            )
-            ORDER BY name_length, en_name
-            LIMIT 200
-        """
+        // 1) 物品（types）：支持 typeID 精确匹配分支
+        searchLocalizedTable(
+            tableName: "types", idColumn: "type_id", searchText: searchText,
+            typeIdMatch: typeIdToSearch, exact: &exact, prefix: &prefix, fuzzy: &fuzzy
+        )
+        if typeIdToSearch != nil, !exact.isEmpty { hasTypeIdMatch = true }
 
-        // 简化的查询参数：只需要模糊匹配的参数
-        let searchPattern = "%\(searchText)%"
-        let simplifiedParams = Array(repeating: searchPattern, count: 8)
+        // 2) 星系 / 星座 / 星域（内存 LocalizedText 字典遍历）
+        appendLocalizedMatches(
+            from: SDEMemoryStore.solarSystemNames,
+            searchText: searchText, exact: &exact, prefix: &prefix, fuzzy: &fuzzy
+        )
+        appendLocalizedMatches(
+            from: SDEMemoryStore.constellationNames,
+            searchText: searchText, exact: &exact, prefix: &prefix, fuzzy: &fuzzy
+        )
+        appendLocalizedMatches(
+            from: SDEMemoryStore.regionNames,
+            searchText: searchText, exact: &exact, prefix: &prefix, fuzzy: &fuzzy
+        )
 
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            typesQuery, parameters: simplifiedParams, useCache: false
-        ) {
-            for row in rows {
-                var names: [String: String] = [:]
-                if let deName = row["de_name"] as? String { names["de"] = deName }
-                if let enName = row["en_name"] as? String { names["en"] = enName }
-                if let esName = row["es_name"] as? String { names["es"] = esName }
-                if let frName = row["fr_name"] as? String { names["fr"] = frName }
-                if let jaName = row["ja_name"] as? String { names["ja"] = jaName }
-                if let koName = row["ko_name"] as? String { names["ko"] = koName }
-                if let ruName = row["ru_name"] as? String { names["ru"] = ruName }
-                if let zhName = row["zh_name"] as? String { names["zh"] = zhName }
-                if let typeId = row["type_id"] as? Int {
-                    let result = (id: typeId, names: names)
+        // 3) 势力 / NPC 军团 / 目录 / 组（SQL LIKE，无 typeID 精确匹配分支）
+        searchLocalizedTable(
+            tableName: "factions", idColumn: "id", searchText: searchText,
+            typeIdMatch: nil, exact: &exact, prefix: &prefix, fuzzy: &fuzzy
+        )
+        searchLocalizedTable(
+            tableName: "npcCorporations", idColumn: "corporation_id", searchText: searchText,
+            typeIdMatch: nil, exact: &exact, prefix: &prefix, fuzzy: &fuzzy
+        )
+        searchLocalizedTable(
+            tableName: "categories", idColumn: "category_id", searchText: searchText,
+            typeIdMatch: nil, exact: &exact, prefix: &prefix, fuzzy: &fuzzy
+        )
+        searchLocalizedTable(
+            tableName: "groups", idColumn: "group_id", searchText: searchText,
+            typeIdMatch: nil, exact: &exact, prefix: &prefix, fuzzy: &fuzzy
+        )
 
-                    // 在代码中判断匹配类型
-                    if typeId == typeIdToSearch {
-                        // type_id精确匹配
-                        hasTypeIdMatch = true
-                        exact.append(result)
-                    } else if isExactNameMatch(names: names, searchText: searchText) {
-                        // 名称完全匹配
-                        exact.append(result)
-                    } else if isPrefixNameMatch(names: names, searchText: searchText) {
-                        // 名称前缀匹配
-                        prefix.append(result)
-                    } else {
-                        // 名称模糊匹配
-                        fuzzy.append(result)
-                    }
-                }
-            }
-        }
-
-        // 搜索星系 - 简化的SQL，在代码中进行匹配类型分类
-        let systemsQuery = """
-            SELECT DISTINCT solarSystemID, solarSystemName_de, solarSystemName_en, solarSystemName_es, solarSystemName_fr,
-                   solarSystemName_ja, solarSystemName_ko, solarSystemName_ru, solarSystemName_zh,
-                   LENGTH(solarSystemName_en) as name_length
-            FROM solarsystems
-            WHERE solarSystemName_de LIKE ? OR solarSystemName_en LIKE ? OR solarSystemName_es LIKE ?
-            OR solarSystemName_fr LIKE ? OR solarSystemName_ja LIKE ? OR solarSystemName_ko LIKE ?
-            OR solarSystemName_ru LIKE ? OR solarSystemName_zh LIKE ?
-            ORDER BY name_length, solarSystemName_en
-            LIMIT 200
-        """
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            systemsQuery, parameters: simplifiedParams, useCache: false
-        ) {
-            for row in rows {
-                var names: [String: String] = [:]
-                if let deName = row["solarSystemName_de"] as? String { names["de"] = deName }
-                if let enName = row["solarSystemName_en"] as? String { names["en"] = enName }
-                if let esName = row["solarSystemName_es"] as? String { names["es"] = esName }
-                if let frName = row["solarSystemName_fr"] as? String { names["fr"] = frName }
-                if let jaName = row["solarSystemName_ja"] as? String { names["ja"] = jaName }
-                if let koName = row["solarSystemName_ko"] as? String { names["ko"] = koName }
-                if let ruName = row["solarSystemName_ru"] as? String { names["ru"] = ruName }
-                if let zhName = row["solarSystemName_zh"] as? String { names["zh"] = zhName }
-                if let systemId = row["solarSystemID"] as? Int {
-                    let result = (id: systemId, names: names)
-
-                    // 在代码中判断匹配类型
-                    if isExactNameMatch(names: names, searchText: searchText) {
-                        exact.append(result)
-                    } else if isPrefixNameMatch(names: names, searchText: searchText) {
-                        prefix.append(result)
-                    } else {
-                        fuzzy.append(result)
-                    }
-                }
-            }
-        }
-
-        // 搜索星座 - 简化的SQL，在代码中进行匹配类型分类
-        let constellationsQuery = """
-            SELECT DISTINCT constellationID, constellationName_de, constellationName_en, constellationName_es, constellationName_fr,
-                   constellationName_ja, constellationName_ko, constellationName_ru, constellationName_zh,
-                   LENGTH(constellationName_en) as name_length
-            FROM constellations
-            WHERE constellationName_de LIKE ? OR constellationName_en LIKE ? OR constellationName_es LIKE ?
-            OR constellationName_fr LIKE ? OR constellationName_ja LIKE ? OR constellationName_ko LIKE ?
-            OR constellationName_ru LIKE ? OR constellationName_zh LIKE ?
-            ORDER BY name_length, constellationName_en
-            LIMIT 200
-        """
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            constellationsQuery, parameters: simplifiedParams, useCache: false
-        ) {
-            for row in rows {
-                var names: [String: String] = [:]
-                if let deName = row["constellationName_de"] as? String { names["de"] = deName }
-                if let enName = row["constellationName_en"] as? String { names["en"] = enName }
-                if let esName = row["constellationName_es"] as? String { names["es"] = esName }
-                if let frName = row["constellationName_fr"] as? String { names["fr"] = frName }
-                if let jaName = row["constellationName_ja"] as? String { names["ja"] = jaName }
-                if let koName = row["constellationName_ko"] as? String { names["ko"] = koName }
-                if let ruName = row["constellationName_ru"] as? String { names["ru"] = ruName }
-                if let zhName = row["constellationName_zh"] as? String { names["zh"] = zhName }
-                if let constellationId = row["constellationID"] as? Int {
-                    let result = (id: constellationId, names: names)
-
-                    // 在代码中判断匹配类型
-                    if isExactNameMatch(names: names, searchText: searchText) {
-                        exact.append(result)
-                    } else if isPrefixNameMatch(names: names, searchText: searchText) {
-                        prefix.append(result)
-                    } else {
-                        fuzzy.append(result)
-                    }
-                }
-            }
-        }
-
-        // 搜索星域 - 简化的SQL，在代码中进行匹配类型分类
-        let regionsQuery = """
-            SELECT DISTINCT regionID, regionName_de, regionName_en, regionName_es, regionName_fr,
-                   regionName_ja, regionName_ko, regionName_ru, regionName_zh,
-                   LENGTH(regionName_en) as name_length
-            FROM regions
-            WHERE regionName_de LIKE ? OR regionName_en LIKE ? OR regionName_es LIKE ?
-            OR regionName_fr LIKE ? OR regionName_ja LIKE ? OR regionName_ko LIKE ?
-            OR regionName_ru LIKE ? OR regionName_zh LIKE ?
-            ORDER BY name_length, regionName_en
-            LIMIT 200
-        """
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            regionsQuery, parameters: simplifiedParams, useCache: false
-        ) {
-            for row in rows {
-                var names: [String: String] = [:]
-                if let deName = row["regionName_de"] as? String { names["de"] = deName }
-                if let enName = row["regionName_en"] as? String { names["en"] = enName }
-                if let esName = row["regionName_es"] as? String { names["es"] = esName }
-                if let frName = row["regionName_fr"] as? String { names["fr"] = frName }
-                if let jaName = row["regionName_ja"] as? String { names["ja"] = jaName }
-                if let koName = row["regionName_ko"] as? String { names["ko"] = koName }
-                if let ruName = row["regionName_ru"] as? String { names["ru"] = ruName }
-                if let zhName = row["regionName_zh"] as? String { names["zh"] = zhName }
-                if let regionId = row["regionID"] as? Int {
-                    let result = (id: regionId, names: names)
-
-                    // 在代码中判断匹配类型
-                    if isExactNameMatch(names: names, searchText: searchText) {
-                        exact.append(result)
-                    } else if isPrefixNameMatch(names: names, searchText: searchText) {
-                        prefix.append(result)
-                    } else {
-                        fuzzy.append(result)
-                    }
-                }
-            }
-        }
-
-        // 搜索势力 - 简化的SQL，在代码中进行匹配类型分类
-        let factionsQuery = """
-            SELECT DISTINCT id, de_name, en_name, es_name, fr_name, ja_name, ko_name, ru_name, zh_name,
-                   LENGTH(en_name) as name_length
-            FROM factions
-            WHERE de_name LIKE ? OR en_name LIKE ? OR es_name LIKE ? OR fr_name LIKE ?
-            OR ja_name LIKE ? OR ko_name LIKE ? OR ru_name LIKE ? OR zh_name LIKE ?
-            ORDER BY name_length, en_name
-            LIMIT 200
-        """
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            factionsQuery, parameters: simplifiedParams, useCache: false
-        ) {
-            for row in rows {
-                var names: [String: String] = [:]
-                if let deName = row["de_name"] as? String { names["de"] = deName }
-                if let enName = row["en_name"] as? String { names["en"] = enName }
-                if let esName = row["es_name"] as? String { names["es"] = esName }
-                if let frName = row["fr_name"] as? String { names["fr"] = frName }
-                if let jaName = row["ja_name"] as? String { names["ja"] = jaName }
-                if let koName = row["ko_name"] as? String { names["ko"] = koName }
-                if let ruName = row["ru_name"] as? String { names["ru"] = ruName }
-                if let zhName = row["zh_name"] as? String { names["zh"] = zhName }
-                if let factionId = row["id"] as? Int {
-                    let result = (id: factionId, names: names)
-
-                    // 在代码中判断匹配类型
-                    if isExactNameMatch(names: names, searchText: searchText) {
-                        exact.append(result)
-                    } else if isPrefixNameMatch(names: names, searchText: searchText) {
-                        prefix.append(result)
-                    } else {
-                        fuzzy.append(result)
-                    }
-                }
-            }
-        }
-
-        // 搜索 NPC 军团 - 简化的SQL，在代码中进行匹配类型分类
-        let npcCorpsQuery = """
-            SELECT DISTINCT corporation_id, de_name, en_name, es_name, fr_name, ja_name, ko_name, ru_name, zh_name,
-                   LENGTH(en_name) as name_length
-            FROM npcCorporations
-            WHERE de_name LIKE ? OR en_name LIKE ? OR es_name LIKE ? OR fr_name LIKE ?
-            OR ja_name LIKE ? OR ko_name LIKE ? OR ru_name LIKE ? OR zh_name LIKE ?
-            ORDER BY name_length, en_name
-            LIMIT 200
-        """
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            npcCorpsQuery, parameters: simplifiedParams, useCache: false
-        ) {
-            for row in rows {
-                var names: [String: String] = [:]
-                if let deName = row["de_name"] as? String { names["de"] = deName }
-                if let enName = row["en_name"] as? String { names["en"] = enName }
-                if let esName = row["es_name"] as? String { names["es"] = esName }
-                if let frName = row["fr_name"] as? String { names["fr"] = frName }
-                if let jaName = row["ja_name"] as? String { names["ja"] = jaName }
-                if let koName = row["ko_name"] as? String { names["ko"] = koName }
-                if let ruName = row["ru_name"] as? String { names["ru"] = ruName }
-                if let zhName = row["zh_name"] as? String { names["zh"] = zhName }
-                if let corpId = row["corporation_id"] as? Int {
-                    let result = (id: corpId, names: names)
-
-                    // 在代码中判断匹配类型
-                    if isExactNameMatch(names: names, searchText: searchText) {
-                        exact.append(result)
-                    } else if isPrefixNameMatch(names: names, searchText: searchText) {
-                        prefix.append(result)
-                    } else {
-                        fuzzy.append(result)
-                    }
-                }
-            }
-        }
-
-        // 搜索物品目录名 - 简化的SQL，在代码中进行匹配类型分类
-        let categoriesQuery = """
-            SELECT DISTINCT category_id, de_name, en_name, es_name, fr_name, ja_name, ko_name, ru_name, zh_name,
-                   LENGTH(en_name) as name_length
-            FROM categories
-            WHERE de_name LIKE ? OR en_name LIKE ? OR es_name LIKE ? OR fr_name LIKE ?
-            OR ja_name LIKE ? OR ko_name LIKE ? OR ru_name LIKE ? OR zh_name LIKE ?
-            ORDER BY name_length, en_name
-            LIMIT 200
-        """
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            categoriesQuery, parameters: simplifiedParams, useCache: false
-        ) {
-            for row in rows {
-                var names: [String: String] = [:]
-                if let deName = row["de_name"] as? String { names["de"] = deName }
-                if let enName = row["en_name"] as? String { names["en"] = enName }
-                if let esName = row["es_name"] as? String { names["es"] = esName }
-                if let frName = row["fr_name"] as? String { names["fr"] = frName }
-                if let jaName = row["ja_name"] as? String { names["ja"] = jaName }
-                if let koName = row["ko_name"] as? String { names["ko"] = koName }
-                if let ruName = row["ru_name"] as? String { names["ru"] = ruName }
-                if let zhName = row["zh_name"] as? String { names["zh"] = zhName }
-                if let categoryId = row["category_id"] as? Int {
-                    let result = (id: categoryId, names: names)
-
-                    // 在代码中判断匹配类型
-                    if isExactNameMatch(names: names, searchText: searchText) {
-                        exact.append(result)
-                    } else if isPrefixNameMatch(names: names, searchText: searchText) {
-                        prefix.append(result)
-                    } else {
-                        fuzzy.append(result)
-                    }
-                }
-            }
-        }
-
-        // 搜索物品组名 - 简化的SQL，在代码中进行匹配类型分类
-        let groupsQuery = """
-            SELECT DISTINCT group_id, de_name, en_name, es_name, fr_name, ja_name, ko_name, ru_name, zh_name,
-                   LENGTH(en_name) as name_length
-            FROM groups
-            WHERE de_name LIKE ? OR en_name LIKE ? OR es_name LIKE ? OR fr_name LIKE ?
-            OR ja_name LIKE ? OR ko_name LIKE ? OR ru_name LIKE ? OR zh_name LIKE ?
-            ORDER BY name_length, en_name
-            LIMIT 200
-        """
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            groupsQuery, parameters: simplifiedParams, useCache: false
-        ) {
-            for row in rows {
-                var names: [String: String] = [:]
-                if let deName = row["de_name"] as? String { names["de"] = deName }
-                if let enName = row["en_name"] as? String { names["en"] = enName }
-                if let esName = row["es_name"] as? String { names["es"] = esName }
-                if let frName = row["fr_name"] as? String { names["fr"] = frName }
-                if let jaName = row["ja_name"] as? String { names["ja"] = jaName }
-                if let koName = row["ko_name"] as? String { names["ko"] = koName }
-                if let ruName = row["ru_name"] as? String { names["ru"] = ruName }
-                if let zhName = row["zh_name"] as? String { names["zh"] = zhName }
-                if let groupId = row["group_id"] as? Int {
-                    let result = (id: groupId, names: names)
-
-                    // 在代码中判断匹配类型
-                    if isExactNameMatch(names: names, searchText: searchText) {
-                        exact.append(result)
-                    } else if isPrefixNameMatch(names: names, searchText: searchText) {
-                        prefix.append(result)
-                    } else {
-                        fuzzy.append(result)
-                    }
-                }
-            }
-        }
-
-        // 最后更新结果
         exactMatchResults = exact
         prefixMatchResults = prefix
         fuzzyMatchResults = fuzzy
     }
 
-    // 判断是否为名称完全匹配
+    /// 通用 SQL LIKE 搜索模板（8 语种 + 可选 typeID 精确匹配）
+    private func searchLocalizedTable(
+        tableName: String,
+        idColumn: String,
+        searchText: String,
+        typeIdMatch: Int?,
+        exact: inout [(id: Int, names: [String: String])],
+        prefix: inout [(id: Int, names: [String: String])],
+        fuzzy: inout [(id: Int, names: [String: String])]
+    ) {
+        let typeIDClause = (typeIdMatch != nil) ? "\(idColumn) = \(typeIdMatch!) OR " : ""
+        let query = """
+            SELECT DISTINCT \(idColumn), \(LocalizedText.typeLangNameColumns.joined(separator: ", ")),
+                   LENGTH(en_name) as name_length
+            FROM \(tableName)
+            WHERE \(typeIDClause)
+                  (de_name LIKE ? OR en_name LIKE ? OR es_name LIKE ? OR fr_name LIKE ?
+                   OR ja_name LIKE ? OR ko_name LIKE ? OR ru_name LIKE ? OR zh_name LIKE ?)
+            ORDER BY name_length, en_name
+            LIMIT 200
+        """
+        let params = Array(repeating: "%\(searchText)%", count: 8)
+
+        guard case let .success(rows) = DatabaseManager.shared.executeQuery(
+            query, parameters: params, useCache: false
+        ) else { return }
+
+        for row in rows {
+            guard let id = row[idColumn] as? Int else { continue }
+            let names = localizedNamesDict(row: row)
+            let result = (id: id, names: names)
+
+            if typeIdMatch != nil, id == typeIdMatch! {
+                exact.append(result)
+            } else if isExactNameMatch(names: names, searchText: searchText) {
+                exact.append(result)
+            } else if isPrefixNameMatch(names: names, searchText: searchText) {
+                prefix.append(result)
+            } else {
+                fuzzy.append(result)
+            }
+        }
+    }
+
+    /// 从 SQL 行字典中提取 8 语种名称
+    private func localizedNamesDict(row: [String: Any]) -> [String: String] {
+        var names: [String: String] = [:]
+        for lang in ["de", "en", "es", "fr", "ja", "ko", "ru", "zh"] {
+            if let value = row["\(lang)_name"] as? String, !value.isEmpty {
+                names[lang] = value
+            }
+        }
+        return names
+    }
+
+    private func localizedNamesDict(_ text: LocalizedText) -> [String: String] {
+        [
+            "de": text.de, "en": text.en, "es": text.es, "fr": text.fr,
+            "ja": text.ja, "ko": text.ko, "ru": text.ru, "zh": text.zh,
+        ].filter { !$0.value.isEmpty }
+    }
+
+    private func appendLocalizedMatches(
+        from source: [Int: LocalizedText],
+        searchText: String,
+        exact: inout [(id: Int, names: [String: String])],
+        prefix: inout [(id: Int, names: [String: String])],
+        fuzzy: inout [(id: Int, names: [String: String])],
+        limit: Int = 200
+    ) {
+        var matches: [(id: Int, names: [String: String], enLen: Int)] = []
+        for (id, text) in source {
+            guard text.matchesSearch(searchText) else { continue }
+            matches.append((id, localizedNamesDict(text), text.en.count))
+        }
+        matches.sort {
+            if $0.enLen != $1.enLen { return $0.enLen < $1.enLen }
+            return ($0.names["en"] ?? "").localizedStandardCompare($1.names["en"] ?? "")
+                == .orderedAscending
+        }
+        for match in matches.prefix(limit) {
+            let result = (id: match.id, names: match.names)
+            if isExactNameMatch(names: match.names, searchText: searchText) {
+                exact.append(result)
+            } else if isPrefixNameMatch(names: match.names, searchText: searchText) {
+                prefix.append(result)
+            } else {
+                fuzzy.append(result)
+            }
+        }
+    }
+
+    /// 判断是否为名称完全匹配
     private func isExactNameMatch(names: [String: String], searchText: String) -> Bool {
         let lowercaseSearchText = searchText.lowercased()
         return names.values.contains { $0.lowercased() == lowercaseSearchText }
     }
 
-    // 判断是否为名称前缀匹配
+    /// 判断是否为名称前缀匹配
     private func isPrefixNameMatch(names: [String: String], searchText: String) -> Bool {
         let lowercaseSearchText = searchText.lowercased()
         return names.values.contains { $0.lowercased().hasPrefix(lowercaseSearchText) }

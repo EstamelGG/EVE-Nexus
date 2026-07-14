@@ -97,7 +97,7 @@ struct ExtractorYieldChartView: View {
             currentCycle = 0
             maxYield = 0
             totalCycles = 0
-            self.cycleTime = 0
+            cycleTime = 0
             self.installTime = ""
             self.expiryTime = ""
             self.currentTime = currentTime
@@ -133,35 +133,19 @@ struct ExtractorYieldChartView: View {
         return "\(value)"
     }
 
-    private func formatTimeInterval(_ interval: TimeInterval) -> String {
-        if interval <= 0 {
-            return "00:00:00"
-        }
-
-        let days = Int(interval) / 86400
-        let hours = Int(interval) / 3600 % 24
-        let minutes = Int(interval) / 60 % 60
-        let seconds = Int(interval) % 60
-
-        if days > 0 {
-            return String(format: "%dd %02d:%02d:%02d", days, hours, minutes, seconds)
-        }
-        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
-    }
-
     private func formatElapsedTime(installTime: String) -> String {
         guard let installDate = ISO8601DateFormatter().date(from: installTime) else {
-            return "00:00:00"
+            return FormatUtil.formatClockDuration(0)
         }
 
         // 检查是否所有周期都已结束
         if currentCycle == -1 {
-            return "00:00:00"
+            return FormatUtil.formatClockDuration(0)
         }
 
         let elapsedTime = currentTime.timeIntervalSince(installDate)
         let cycleElapsed = elapsedTime.truncatingRemainder(dividingBy: Double(cycleTime))
-        return formatTimeInterval(cycleElapsed)
+        return FormatUtil.formatClockDuration(cycleElapsed)
     }
 
     var body: some View {
@@ -246,8 +230,7 @@ struct ExtractorYieldChartView: View {
                 installTime: installTime,
                 expiryTime: expiryTime,
                 currentTime: currentTime,
-                formatElapsedTime: formatElapsedTime,
-                formatTimeInterval: formatTimeInterval
+                formatElapsedTime: formatElapsedTime
             )
         }
         .padding(.bottom, 8)
@@ -265,7 +248,6 @@ struct ExtractorStatsView: View {
     let expiryTime: String
     let currentTime: Date
     let formatElapsedTime: (String) -> String
-    let formatTimeInterval: (TimeInterval) -> String
 
     var body: some View {
         HStack {
@@ -293,14 +275,14 @@ struct ExtractorStatsView: View {
                 }
                 Text(formatElapsedTime(installTime))
                     .foregroundColor(.secondary)
-                Text(formatTimeInterval(TimeInterval(cycleTime)))
+                Text(FormatUtil.formatClockDuration(TimeInterval(cycleTime)))
                     .foregroundColor(.secondary)
                 if let expiryDate = ISO8601DateFormatter().date(from: expiryTime) {
                     let timeRemaining = expiryDate.timeIntervalSince(currentTime)
-                    Text(formatTimeInterval(timeRemaining))
+                    Text(FormatUtil.formatClockDuration(timeRemaining))
                         .foregroundColor(timeRemaining > 24 * 3600 ? .secondary : .red)
                 } else {
-                    Text("00:00:00")
+                    Text(FormatUtil.formatClockDuration(0))
                         .foregroundColor(.secondary)
                 }
             }

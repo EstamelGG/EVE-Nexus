@@ -4,13 +4,12 @@
 
 import Foundation
 
-/// Automates URLSession request tracking.
-///
-/// - important: On iOS 16, tvOS 16, macOS 13, watchOS 9.0, it automatically
-/// tracks new task creation using the `urlSession(_:didCreateTask:)` delegate
-/// method which allows the logger to start tracking network requests right
-/// after their creation. On earlier versions, you can (optionally) call
-/// ``NetworkLogger/logTaskCreated(_:)`` manually.
+// Automates URLSession request tracking.
+// // - important: On iOS 16, tvOS 16, macOS 13, watchOS 9.0, it automatically
+// tracks new task creation using the `urlSession(_:didCreateTask:)` delegate
+// method which allows the logger to start tracking network requests right
+// after their creation. On earlier versions, you can (optionally) call
+// ``NetworkLogger/logTaskCreated(_:)`` manually.
 public final class URLSessionProxyDelegate: NSObject, URLSessionTaskDelegate, URLSessionDataDelegate, URLSessionDownloadDelegate {
     private let actualDelegate: URLSessionDelegate?
     private let taskDelegate: URLSessionTaskDelegate?
@@ -18,8 +17,8 @@ public final class URLSessionProxyDelegate: NSObject, URLSessionTaskDelegate, UR
     private var logger: NetworkLogger { _logger ?? .shared }
     private let _logger: NetworkLogger?
 
-    /// - parameter logger: By default, uses a shared logger
-    /// - parameter delegate: The "actual" session delegate, strongly retained.
+    // - parameter logger: By default, uses a shared logger
+    // - parameter delegate: The "actual" session delegate, strongly retained.
     public init(logger: NetworkLogger? = nil, delegate: URLSessionDelegate? = nil) {
         self.actualDelegate = delegate
         self.taskDelegate = delegate as? URLSessionTaskDelegate

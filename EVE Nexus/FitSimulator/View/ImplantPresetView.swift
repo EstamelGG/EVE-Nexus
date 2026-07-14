@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 系统预设数据缓存（静态数据，只需要加载一次）
+/// 系统预设数据缓存（静态数据，只需要加载一次）
 private class SystemPresetCache {
     static let shared = SystemPresetCache()
     private var cachedPresetData: [String: [String: [ImplantPresetItem]]] = [:]
@@ -115,7 +115,7 @@ private class SystemPresetCache {
     }
 }
 
-// 全局本地化映射字典
+/// 全局本地化映射字典
 private let localizationMap: [String: String] = [
     // 等级映射
     "High-grade": "Implant_High_grade",
@@ -134,7 +134,7 @@ private let localizationMap: [String: String] = [
     "Hydra": "Implant_Hydra",
 ]
 
-// 套装对应的属性ID映射（支持单属性或多属性）
+/// 套装对应的属性ID映射（支持单属性或多属性）
 private let implantSetAttributeMap: [String: [Int]] = [
     "Snake": [315], // 速度加成
     "Crystal": [548], // 护盾加成
@@ -147,7 +147,7 @@ private let implantSetAttributeMap: [String: [Int]] = [
     "Hydra": [3028, 3029, 3030, 3031], // 九头蛇套多属性
 ]
 
-// 全局本地化函数
+/// 全局本地化函数
 func localizedImplantString(_ key: String) -> String {
     if let localizedKey = localizationMap[key] {
         return NSLocalizedString(localizedKey, comment: "")
@@ -272,13 +272,13 @@ struct ImplantPresetView: View {
         }
     }
 
-    // 加载自定义预设
+    /// 加载自定义预设
     private func loadCustomPresets() {
         customPresets = CustomImplantPresetManager.shared.loadPresets()
         loadCustomPresetIcons()
     }
 
-    // 加载自定义预设的第一个物品图标
+    /// 加载自定义预设的第一个物品图标
     private func loadCustomPresetIcons() {
         var icons: [UUID: String] = [:]
 
@@ -299,29 +299,17 @@ struct ImplantPresetView: View {
         }
 
         // 查询第一个物品的图标
-        let placeholders = String(repeating: "?,", count: allTypeIds.count).dropLast()
-        let query = """
-            SELECT type_id, icon_filename 
-            FROM types 
-            WHERE type_id IN (\(placeholders))
-            AND published = 1
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: allTypeIds) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let iconFile = row["icon_filename"] as? String,
-                   let presetId = presetIdMap[typeId]
-                {
-                    icons[presetId] = iconFile
-                }
-            }
+        for typeId in allTypeIds {
+            guard let presetId = presetIdMap[typeId],
+                  ItemInfoMap.typeInfo(for: typeId) != nil
+            else { continue }
+            icons[presetId] = ItemInfoMap.iconFilename(for: typeId)
         }
 
         customPresetIcons = icons
     }
 
-    // 删除自定义预设
+    /// 删除自定义预设
     private func deleteCustomPresets(at offsets: IndexSet) {
         for index in offsets {
             let preset = customPresets[index]
@@ -331,7 +319,7 @@ struct ImplantPresetView: View {
     }
 }
 
-// 等级详情视图 - 第二层
+/// 等级详情视图 - 第二层
 struct GradeDetailView: View {
     let grade: String
     let implantSets: [String: [ImplantPresetItem]]
@@ -382,14 +370,14 @@ struct GradeDetailView: View {
         .navigationTitle(localizedImplantString(grade))
     }
 
-    // 植入体套装列表
+    /// 植入体套装列表
     private var implantSet_list: [String] {
         // 按字母顺序排序，只包含有植入体的套装
         return implantSets.keys.sorted()
     }
 }
 
-// 植入体预设项模型
+/// 植入体预设项模型
 struct ImplantPresetItem: Identifiable {
     let id = UUID()
     let typeId: Int
@@ -399,7 +387,7 @@ struct ImplantPresetItem: Identifiable {
     let type: String
 }
 
-// 植入体套装详情视图 - 第三层
+/// 植入体套装详情视图 - 第三层
 struct ImplantSetDetailView: View {
     let setName: String
     let grade: String
@@ -435,7 +423,7 @@ struct ImplantSetDetailView: View {
     }
 }
 
-// 植入体预设项行组件
+/// 植入体预设项行组件
 struct ImplantPresetItemRow: View {
     let item: ImplantPresetItem
     @State private var showingItemInfo = false
@@ -470,7 +458,7 @@ struct ImplantPresetItemRow: View {
     }
 }
 
-// 自定义预设详情视图
+/// 自定义预设详情视图
 struct CustomPresetDetailView: View {
     let preset: CustomImplantPreset
     let databaseManager: DatabaseManager
@@ -555,46 +543,22 @@ struct CustomPresetDetailView: View {
             return
         }
 
-        let placeholders = String(repeating: "?,", count: preset.implantTypeIds.count).dropLast()
-        let query = """
-            SELECT type_id, name, icon_filename 
-            FROM types 
-            WHERE type_id IN (\(placeholders))
-            AND published = 1
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: preset.implantTypeIds) {
-            var items: [PresetItemInfo] = []
-
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let iconFile = row["icon_filename"] as? String
-                {
-                    items.append(PresetItemInfo(
-                        typeId: typeId,
-                        name: name,
-                        iconFileName: iconFile
-                    ))
-                }
-            }
-
-            // 按照原始顺序排序
-            var sortedItems: [PresetItemInfo] = []
-            for typeId in preset.implantTypeIds {
-                if let item = items.first(where: { $0.typeId == typeId }) {
-                    sortedItems.append(item)
-                }
-            }
-
-            presetItems = sortedItems
+        var itemsById: [Int: PresetItemInfo] = [:]
+        for typeId in preset.implantTypeIds {
+            guard let info = ItemInfoMap.typeInfo(for: typeId), !info.name.isEmpty else { continue }
+            itemsById[typeId] = PresetItemInfo(
+                typeId: typeId,
+                name: info.name,
+                iconFileName: info.iconFilename
+            )
         }
 
+        presetItems = preset.implantTypeIds.compactMap { itemsById[$0] }
         isLoading = false
     }
 }
 
-// 预设物品信息
+/// 预设物品信息
 struct PresetItemInfo: Identifiable {
     let id: UUID = .init()
     let typeId: Int

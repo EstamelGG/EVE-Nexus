@@ -126,7 +126,7 @@ struct GroupItemsView: View {
 
             if orderType == .sell {
                 // 卖单：获取Jita空间站卖价
-                let regionID = 10_000_002 // The Forge (Jita所在星域)
+                let regionID = MarketManager.theForgeRegionID // The Forge (Jita所在星域)
                 let systemID = 30_000_142 // Jita星系ID
                 let stationID = 60_003_760 // Jita 4-4 空间站 ID
 
@@ -159,7 +159,7 @@ struct GroupItemsView: View {
                 }
             } else {
                 // 买单：获取Jita空间站买价
-                let regionID = 10_000_002 // The Forge (Jita所在星域)
+                let regionID = MarketManager.theForgeRegionID // The Forge (Jita所在星域)
                 let systemID = 30_000_142 // Jita星系ID
                 let stationID = 60_003_760 // Jita 4-4 空间站 ID
 
@@ -211,7 +211,7 @@ struct GroupItemsView: View {
         }
     }
 
-    // 计算指定组内物品的订单数和物品数
+    /// 计算指定组内物品的订单数和物品数
     private func calculateGroupItems(orders: [StructureMarketOrder], groupID: Int, orderType: MarketOrderType) async -> [GroupItemInfo] {
         guard !orders.isEmpty else {
             return []
@@ -267,7 +267,7 @@ struct GroupItemsView: View {
                 let typeName = row["name"] as? String ?? "Unknown"
                 let iconFileName = (row["icon_filename"] as? String)?.isEmpty == false
                     ? (row["icon_filename"] as! String)
-                    : DatabaseConfig.defaultItemIcon
+                    : IconManager.defaultItemIcon
 
                 // 计算价格：卖单显示最低价，买单显示最高价
                 let structurePrice: Double?
@@ -308,7 +308,7 @@ struct GroupItemsView: View {
         return Array(items)
     }
 
-    // 计算百分比
+    /// 计算百分比
     private func calculatePercentage(structurePrice: Double, jitaPrice: Double, orderType: MarketOrderType) -> Double {
         guard jitaPrice > 0 else { return 0 }
 
@@ -325,7 +325,7 @@ struct GroupItemsView: View {
         }
     }
 
-    // 格式化百分比显示（不带括号）
+    /// 格式化百分比显示（不带括号）
     private func formatPercentage(percentage: Double, orderType: MarketOrderType) -> (String, Color) {
         let sign = percentage >= 0 ? "+" : ""
         let text = String(format: "\(sign)%.1f%%", percentage)

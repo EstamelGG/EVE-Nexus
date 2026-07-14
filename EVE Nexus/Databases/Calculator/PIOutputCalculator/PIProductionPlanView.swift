@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 定义行星资源链视图
+/// 定义行星资源链视图
 struct PIResourceChainView: View {
     let resourceId: Int
     let resourceName: String
@@ -109,7 +109,8 @@ struct PIResourceChainView: View {
                         header: Text(
                             NSLocalizedString(
                                 "PI_Production_Plan_P0Requirements", comment: "需求资源与比例"
-                            ))
+                            )
+                        )
                     ) {
                         ForEach(p0Resources, id: \.id) { resource in
                             NavigationLink(
@@ -153,7 +154,6 @@ struct PIResourceChainView: View {
         isLoading = true
         errorMessage = nil
 
-        // 改为获取完整资源链
         calculator.calculateFullResourceChain(for: resourceId, in: systemIds) { result in
             DispatchQueue.main.async {
                 if let allResources = result, !allResources.isEmpty {
@@ -177,7 +177,9 @@ struct PIResourceChainView: View {
         // 使用缓存类获取星系信息
         if let systemInfo = PIResourceCache.shared.getSystemInfo(for: systemId) {
             self.systemInfo = (
-                name: systemInfo.name, security: systemInfo.security, region: systemInfo.region
+                name: SDEMemoryStore.solarSystemName(for: systemId) ?? "System \(systemId)",
+                security: systemInfo.security,
+                region: SDEMemoryStore.regionName(for: systemInfo.regionId) ?? "Region \(systemInfo.regionId)"
             )
         }
     }
@@ -188,19 +190,22 @@ struct PIResourceChainView: View {
         Task {
             do {
                 let sovereigntyData = try await SovereigntyDataAPI.shared.fetchSovereigntyData(
-                    forceRefresh: false)
+                    forceRefresh: false
+                )
                 if let systemData = sovereigntyData.first(where: { $0.systemId == systemId }) {
                     let id = systemData.allianceId ?? systemData.factionId
                     var name: String?
 
                     if let allianceId = systemData.allianceId {
                         let allianceInfo = try await AllianceAPI.shared.fetchAllianceInfo(
-                            allianceId: allianceId)
+                            allianceId: allianceId
+                        )
                         name = allianceInfo.name
 
                         // 直接获取联盟图标
                         let allianceIcon = try? await AllianceAPI.shared.fetchAllianceLogo(
-                            allianceID: allianceId)
+                            allianceID: allianceId
+                        )
                         if let uiImage = allianceIcon {
                             let image = Image(uiImage: uiImage)
                             DispatchQueue.main.async {
@@ -256,8 +261,8 @@ struct PIResourceChainView: View {
                     var totalRequired = 0.0
                     for upper in upperResources {
                         if let schematic = PIResourceCache.shared.getSchematic(
-                            for: upper.resourceId)
-                        {
+                            for: upper.resourceId
+                        ) {
                             let outputValue = Double(schematic.outputValue)
                             let inputIndex =
                                 schematic.inputTypeIds.firstIndex(of: resource.resourceId) ?? -1

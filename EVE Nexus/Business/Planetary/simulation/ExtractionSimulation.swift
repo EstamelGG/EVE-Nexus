@@ -56,7 +56,8 @@ class ExtractionSimulation {
                     startTime: startTime,
                     currentTime: currentTime,
                     cycleTime: cycleTime
-                ))
+                )
+            )
         }
 
         return results

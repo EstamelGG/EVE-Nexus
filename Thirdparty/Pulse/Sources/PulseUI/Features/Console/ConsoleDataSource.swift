@@ -9,18 +9,18 @@ import Combine
 import SwiftUI
 
 protocol ConsoleDataSourceDelegate: AnyObject {
-    /// The data source reloaded the entire dataset.
+    // The data source reloaded the entire dataset.
     func dataSourceDidRefresh(_ dataSource: ConsoleDataSource)
 
-    /// An incremental update. If the diff is nil, it means the app is displaying
-    /// a grouped view that doesn't support diffing.
+    // An incremental update. If the diff is nil, it means the app is displaying
+    // a grouped view that doesn't support diffing.
     func dataSource(_ dataSource: ConsoleDataSource, didUpdateWith diff: CollectionDifference<NSManagedObjectID>?)
 }
 
 final class ConsoleDataSource: NSObject, NSFetchedResultsControllerDelegate {
     weak var delegate: ConsoleDataSourceDelegate?
 
-    /// - warning: Incompatible with the "group by" option.
+    // - warning: Incompatible with the "group by" option.
     var sortDescriptors: [NSSortDescriptor] = [] {
         didSet { controller.fetchRequest.sortDescriptors = sortDescriptors }
     }
@@ -184,8 +184,8 @@ private final class ConsoleFetchDelegate: NSObject, NSFetchedResultsControllerDe
 }
 
 package enum ConsoleUpdateEvent {
-    /// Full refresh of data.
+    // Full refresh of data.
     case refresh
-    /// Incremental update.
+    // Incremental update.
     case update(CollectionDifference<NSManagedObjectID>?)
 }

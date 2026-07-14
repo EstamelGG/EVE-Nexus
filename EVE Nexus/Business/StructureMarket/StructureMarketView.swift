@@ -47,6 +47,9 @@ struct StructureMarketView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .refreshable {
+            await manager.refreshStructureInfos()
+        }
         .navigationTitle(NSLocalizedString("Main_Structure_Market", comment: "建筑市场"))
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
@@ -83,22 +86,11 @@ struct StructureMarketRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // 建筑图标
-            if let iconFilename = structure.iconFilename {
-                IconManager.shared.loadImage(for: iconFilename)
-                    .resizable()
-                    .frame(width: 40, height: 40)
-                    .cornerRadius(8)
-            } else {
-                // 默认建筑图标
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 40, height: 40)
-                    .overlay(
-                        Image(systemName: "building.2")
-                            .foregroundColor(.secondary)
-                    )
-            }
+            // 建筑图标（按 typeId 查询）
+            IconManager.shared.loadImage(for: structure.iconFileName)
+                .resizable()
+                .frame(width: 40, height: 40)
+                .cornerRadius(8)
 
             // 建筑信息
             VStack(alignment: .leading, spacing: 4) {
@@ -194,7 +186,7 @@ struct StructureOwnerIconView: View {
     let characterId: Int
     @ObservedObject var allianceIconLoader: AllianceIconLoader
 
-    // 回调：当检测到建筑无法访问时通知父视图
+    /// 回调：当检测到建筑无法访问时通知父视图
     var onAccessDenied: (() -> Void)? = nil
 
     // 拥有者信息

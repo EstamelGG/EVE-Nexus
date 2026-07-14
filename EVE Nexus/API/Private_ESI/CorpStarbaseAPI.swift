@@ -1,6 +1,6 @@
 import Foundation
 
-// 军团星堡信息模型
+/// 军团星堡信息模型
 public struct StarbaseInfo: Codable {
     public let moon_id: Int?
     public let onlined_since: String?
@@ -12,7 +12,7 @@ public struct StarbaseInfo: Codable {
     public let unanchor_at: String?
 }
 
-// 缓存数据结构
+/// 缓存数据结构
 private struct StarbaseCacheData: Codable {
     let data: [StarbaseInfo]
     let timestamp: Date
@@ -42,7 +42,8 @@ public class CorpStarbaseAPI {
         // 1. 获取角色的军团ID
         guard
             let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(
-                characterId: characterId)
+                characterId: characterId
+            )
         else {
             throw NetworkError.authenticationError("无法获取军团ID")
         }

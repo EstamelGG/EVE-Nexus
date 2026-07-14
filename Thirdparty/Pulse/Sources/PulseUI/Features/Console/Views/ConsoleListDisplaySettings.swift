@@ -4,26 +4,26 @@
 
 import Foundation
 
-/// Defines the configuration options for displaying network tasks in the console.
+// Defines the configuration options for displaying network tasks in the console.
 public struct ConsoleListDisplaySettings: Hashable, Codable {
-    /// Specifies what is displayed in the network task cell header.
+    // Specifies what is displayed in the network task cell header.
     public var header = HeaderSettings()
 
-    /// Specifies how the main content of the is displaying, including the
-    /// method, URL, or task description.
+    // Specifies how the main content of the is displaying, including the
+    // method, URL, or task description.
     public var content = ContentSettings()
 
-    /// Specifies what is displayed in the footer of the task cells.
+    // Specifies what is displayed in the footer of the task cells.
     public var footer = FooterSettings()
 
-    /// Specifies what is displayed in the network task cell header.
+    // Specifies what is displayed in the network task cell header.
     public struct HeaderSettings: Hashable, Codable {
         public var fontSize: Int
 
-        /// The line limit for messages in the console. By default, `1`.
+        // The line limit for messages in the console. By default, `1`.
         public var lineLimit: Int
 
-        /// Additinoal fields to display below the in the header.
+        // Additinoal fields to display below the in the header.
         public var fields: [TaskField]
 
         public init(fontSize: Int? = nil, lineLimit: Int = 1, fields: [TaskField]? = nil) {
@@ -41,28 +41,28 @@ public struct ConsoleListDisplaySettings: Hashable, Codable {
         }
     }
 
-    /// Specifies how the main content of the is displaying, including the
-    /// method, URL, or task description.
+    // Specifies how the main content of the is displaying, including the
+    // method, URL, or task description.
     public struct ContentSettings: Hashable, Codable {
 
-        /// If task description is available, show it instead of the `URL`.
+        // If task description is available, show it instead of the `URL`.
         public var showTaskDescription: Bool
 
-        /// Show HTTP method when available.
+        // Show HTTP method when available.
         public var showMethod: Bool
 
-        /// Defines what components to display in the list. By default, shows
-        /// only path.
+        // Defines what components to display in the list. By default, shows
+        // only path.
         public var components: Set<URLComponent>
 
-        /// The default value is different based on the platform but typically
-        /// matches the "body" font size.
+        // The default value is different based on the platform but typically
+        // matches the "body" font size.
         public var fontSize: Int
 
-        /// The line limit for messages in the console. By default, `3`.
+        // The line limit for messages in the console. By default, `3`.
         public var lineLimit: Int
 
-        /// If enabled, use monospaced font to display the content.
+        // If enabled, use monospaced font to display the content.
         public var isMonospaced = false
 
         public init(
@@ -81,19 +81,19 @@ public struct ConsoleListDisplaySettings: Hashable, Codable {
     }
 
     public struct FooterSettings: Sendable, Hashable, Codable {
-        /// By default, matches the "footnote" style.
+        // By default, matches the "footnote" style.
         public var fontSize: Int
 
-        /// The line limit for messages in the console. By default, `1`.
+        // The line limit for messages in the console. By default, `1`.
         public var lineLimit: Int
 
-        /// Fields to display horizontally below the main text label with a separator.
+        // Fields to display horizontally below the main text label with a separator.
         public var fields: [TaskField]
 
-        /// Additional fields to display below the main list.
+        // Additional fields to display below the main list.
         public var additionalFields: [TaskField] = []
 
-        /// If enabled, use monospaced font to display the content.
+        // If enabled, use monospaced font to display the content.
         public var isMonospaced = false
 
         public init(fontSize: Int? = nil, lineLimit: Int = 1) {

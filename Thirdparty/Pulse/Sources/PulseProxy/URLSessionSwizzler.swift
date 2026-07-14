@@ -6,14 +6,12 @@ import Foundation
 import Pulse
 
 extension NetworkLogger {
-    /// Enables automatic logging and remote debugging of network requests.
-    ///
-    /// - warning: This method of logging relies heavily on swizzling and might
-    /// stop working in the future versions of the native SDKs. If you are looking
-    /// for a more stable solution, consider using ``URLSessionProxyDelegate`` or
-    /// manually logging the requests using ``NetworkLogger``.
-    ///
-    /// - parameter logger: The network logger to be used for recording the requests. By default, uses shared logger.
+    // Enables automatic logging and remote debugging of network requests.
+    //     // - warning: This method of logging relies heavily on swizzling and might
+    // stop working in the future versions of the native SDKs. If you are looking
+    // for a more stable solution, consider using ``URLSessionProxyDelegate`` or
+    // manually logging the requests using ``NetworkLogger``.
+    //     // - parameter logger: The network logger to be used for recording the requests. By default, uses shared logger.
     public static func enableProxy(logger: NetworkLogger? = nil) {
         URLSessionSwizzler.enable(logger: logger)
     }

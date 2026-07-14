@@ -5,7 +5,7 @@ import SwiftUI
 struct ModulesExportSection: View {
     @ObservedObject var viewModel: FittingEditorViewModel
 
-    // 获取槽位类型的显示模块
+    /// 获取槽位类型的显示模块
     private func getDisplayModules(for slotType: FittingSlotType) -> [SimModuleOutput] {
         guard let simulationOutput = viewModel.simulationOutput else { return [] }
 
@@ -19,7 +19,7 @@ struct ModulesExportSection: View {
         }
     }
 
-    // 获取槽位数量
+    /// 获取槽位数量
     private func getSlotCount(for slotType: FittingSlotType) -> Int {
         guard let outputShip = viewModel.simulationOutput?.ship else { return 0 }
 
@@ -43,7 +43,7 @@ struct ModulesExportSection: View {
         }
     }
 
-    // 获取空槽位图标
+    /// 获取空槽位图标
     private func getSlotIcon(for slotType: FittingSlotType) -> String {
         switch slotType {
         case .hiSlots:
@@ -61,7 +61,7 @@ struct ModulesExportSection: View {
         }
     }
 
-    // 获取槽位类型对应的flag列表
+    /// 获取槽位类型对应的flag列表
     private func getSlotFlags(for slotType: FittingSlotType) -> [FittingFlag] {
         switch slotType {
         case .hiSlots:
@@ -82,7 +82,7 @@ struct ModulesExportSection: View {
         }
     }
 
-    // 获取状态图标
+    /// 获取状态图标
     private func getStatusIcon(status: Int) -> some View {
         switch status {
         case 0:
@@ -229,7 +229,7 @@ struct ModulesExportSection: View {
         .background(Color(.systemGroupedBackground))
     }
 
-    // 根据槽位类型和索引获取对应的flag
+    /// 根据槽位类型和索引获取对应的flag
     private func getSlotFlag(for slotType: FittingSlotType, index: Int) -> FittingFlag {
         let allSlotFlags = getSlotFlags(for: slotType)
         return index < allSlotFlags.count ? allSlotFlags[index] : allSlotFlags.first ?? .invalid

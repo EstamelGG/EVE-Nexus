@@ -10,7 +10,7 @@ struct PIAllInOneMainView: View {
     @State private var singlePlanetProducts: [AllInOneSinglePlanetProductResult] = []
     @State private var systemPlanetCounts: [String: Int] = [:]
 
-    // 单星球分析器
+    /// 单星球分析器
     private let singlePlanetAnalyzer = SinglePlanetProductAnalyzer()
 
     var body: some View {
@@ -159,12 +159,12 @@ struct PIAllInOneMainView: View {
         }
     }
 
-    // 按产品等级分组
+    /// 按产品等级分组
     private var groupedProducts: [Int: [AllInOneSinglePlanetProductResult]] {
         Dictionary(grouping: singlePlanetProducts) { $0.productLevel }
     }
 
-    // 计算单星球产品
+    /// 计算单星球产品
     private func calculateSinglePlanetProducts() {
         guard let systemId = selectedSystemID else { return }
 
@@ -237,7 +237,7 @@ struct PIAllInOneMainView: View {
     }
 }
 
-// 单星球产品行视图
+/// 单星球产品行视图
 struct AllInOneSinglePlanetProductRowView: View {
     let product: AllInOneSinglePlanetProductResult
     let systemPlanetCounts: [String: Int]
@@ -320,7 +320,7 @@ struct AllInOneSinglePlanetProductRowView: View {
         }
     }
 
-    // 根据产品等级返回颜色
+    /// 根据产品等级返回颜色
     private func levelColor(for level: Int) -> Color {
         switch level {
         case 1: return .blue
@@ -332,7 +332,7 @@ struct AllInOneSinglePlanetProductRowView: View {
     }
 }
 
-// 单星球产品结果模型
+/// 单星球产品结果模型
 struct AllInOneSinglePlanetProductResult {
     let productId: Int
     let productName: String
@@ -342,41 +342,41 @@ struct AllInOneSinglePlanetProductResult {
     let requiredP0Resources: [AllInOneP0ResourceInfo]
 }
 
-// All-in-One 行星类型信息
+/// All-in-One 行星类型信息
 struct AllInOnePlanetTypeInfo: Hashable {
     let typeId: Int
     let name: String
     let iconFileName: String
 
-    // 实现 Hashable
+    /// 实现 Hashable
     func hash(into hasher: inout Hasher) {
         hasher.combine(typeId)
     }
 
-    // 实现 Equatable
+    /// 实现 Equatable
     static func == (lhs: AllInOnePlanetTypeInfo, rhs: AllInOnePlanetTypeInfo) -> Bool {
         return lhs.typeId == rhs.typeId
     }
 }
 
-// All-in-One P0资源信息
+/// All-in-One P0资源信息
 struct AllInOneP0ResourceInfo: Hashable {
     let resourceId: Int
     let resourceName: String
     let iconFileName: String
 
-    // 实现 Hashable
+    /// 实现 Hashable
     func hash(into hasher: inout Hasher) {
         hasher.combine(resourceId)
     }
 
-    // 实现 Equatable
+    /// 实现 Equatable
     static func == (lhs: AllInOneP0ResourceInfo, rhs: AllInOneP0ResourceInfo) -> Bool {
         return lhs.resourceId == rhs.resourceId
     }
 }
 
-// 单星球产品分析器
+/// 单星球产品分析器
 class SinglePlanetProductAnalyzer {
     private let databaseManager = DatabaseManager.shared
 
@@ -425,7 +425,7 @@ class SinglePlanetProductAnalyzer {
         return products
     }
 
-    // 预加载所有缓存数据
+    /// 预加载所有缓存数据
     private func preloadCacheData() {
         // 只加载一次
         if cachedPlanetTypes != nil { return }
@@ -440,7 +440,7 @@ class SinglePlanetProductAnalyzer {
         preloadP0ResourceData()
     }
 
-    // 预加载所有行星商品的图标
+    /// 预加载所有行星商品的图标
     private func preloadAllPlanetaryProductIcons() {
         // 获取所有行星商品的type_id (P0-P4)
         var allPlanetaryProductIds: Set<Int> = []
@@ -459,35 +459,13 @@ class SinglePlanetProductAnalyzer {
 
         // 批量查询所有图标
         if !allPlanetaryProductIds.isEmpty {
-            let allIds = Array(allPlanetaryProductIds)
-            let placeholders = allIds.map { _ in "?" }.joined(separator: ",")
-            let query = """
-                SELECT type_id, icon_filename
-                FROM types
-                WHERE type_id IN (\(placeholders))
-            """
-
-            if case let .success(rows) = databaseManager.executeQuery(query, parameters: allIds) {
-                for row in rows {
-                    if let typeId = row["type_id"] as? Int,
-                       let iconFileName = row["icon_filename"] as? String
-                    {
-                        // 缓存图标信息
-                        cachedIconMap[typeId] = iconFileName.isEmpty ? "not_found" : iconFileName
-                    }
-                }
-
-                // 为没有找到图标的type_id设置默认值
-                for typeId in allIds {
-                    if cachedIconMap[typeId] == nil {
-                        cachedIconMap[typeId] = "not_found"
-                    }
-                }
+            for typeId in allPlanetaryProductIds {
+                cachedIconMap[typeId] = ItemInfoMap.iconFilename(for: typeId)
             }
         }
     }
 
-    // 预加载P0资源数据
+    /// 预加载P0资源数据
     private func preloadP0ResourceData() {
         // 获取所有P0资源ID
         let allP0ResourceIds = getAllP0ResourceIds()
@@ -507,7 +485,7 @@ class SinglePlanetProductAnalyzer {
         }
     }
 
-    // 获取所有P0资源ID
+    /// 获取所有P0资源ID
     private func getAllP0ResourceIds() -> [Int] {
         var allP0Ids: Set<Int> = []
 
@@ -524,7 +502,7 @@ class SinglePlanetProductAnalyzer {
         return Array(allP0Ids)
     }
 
-    // 获取产品需要的P0资源ID（不创建对象，只返回ID）
+    /// 获取产品需要的P0资源ID（不创建对象，只返回ID）
     private func getRequiredP0ResourceIds(for productId: Int) -> Set<Int> {
         var allP0Resources: Set<Int> = []
         var toProcess: [Int] = [productId]
@@ -557,33 +535,16 @@ class SinglePlanetProductAnalyzer {
     }
 
     private func getPlanetTypeInfo() -> [Int: AllInOnePlanetTypeInfo] {
-        // 使用PlanetaryUtils中定义的行星类型ID，确保一致性
         let planetTypeIds = Array(PlanetaryUtils.planetTypeToColumn.keys)
-        let typeIdsString = planetTypeIds.map { String($0) }.joined(separator: ",")
-
-        let query = """
-            SELECT type_id, name, icon_filename
-            FROM types
-            WHERE type_id IN (\(typeIdsString))
-        """
-
         var planetTypes: [Int: AllInOnePlanetTypeInfo] = [:]
 
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            for row in rows {
-                guard let typeId = row["type_id"] as? Int,
-                      let name = row["name"] as? String,
-                      let iconFileName = row["icon_filename"] as? String
-                else {
-                    continue
-                }
-
-                planetTypes[typeId] = AllInOnePlanetTypeInfo(
-                    typeId: typeId,
-                    name: name,
-                    iconFileName: iconFileName.isEmpty ? "not_found" : iconFileName
-                )
-            }
+        for typeId in planetTypeIds {
+            guard let info = ItemInfoMap.typeInfo(for: typeId), !info.name.isEmpty else { continue }
+            planetTypes[typeId] = AllInOnePlanetTypeInfo(
+                typeId: typeId,
+                name: info.name,
+                iconFileName: info.iconFilename
+            )
         }
 
         return planetTypes
@@ -601,7 +562,8 @@ class SinglePlanetProductAnalyzer {
 
         // 从缓存获取P0资源的行星类型映射
         let p0PlanetMapping = getCachedP0PlanetMapping(
-            for: requiredP0Resources.map { $0.resourceId })
+            for: requiredP0Resources.map { $0.resourceId }
+        )
 
         // 找到能提供所有P0资源的行星类型
         var compatiblePlanetTypes: Set<Int> = Set(planetTypes.keys)
@@ -649,36 +611,17 @@ class SinglePlanetProductAnalyzer {
     private func getP0ResourceInfo(for resourceIds: [Int]) -> [AllInOneP0ResourceInfo] {
         guard !resourceIds.isEmpty else { return [] }
 
-        // 批量查询类型信息（图标已经预加载了）
-        let placeholders = resourceIds.map { _ in "?" }.joined(separator: ",")
-        let query = """
-            SELECT type_id, name
-            FROM types
-            WHERE type_id IN (\(placeholders))
-        """
-
         var resources: [AllInOneP0ResourceInfo] = []
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: resourceIds) {
-            for row in rows {
-                guard let typeId = row["type_id"] as? Int,
-                      let name = row["name"] as? String
-                else {
-                    continue
-                }
-
-                // 从缓存中获取图标（已经预加载）
-                let iconFileName = getIconFileName(for: typeId)
-
-                resources.append(
-                    AllInOneP0ResourceInfo(
-                        resourceId: typeId,
-                        resourceName: name,
-                        iconFileName: iconFileName
-                    ))
-            }
+        for typeId in resourceIds {
+            guard let name = ItemInfoMap.typeName(for: typeId) else { continue }
+            resources.append(
+                AllInOneP0ResourceInfo(
+                    resourceId: typeId,
+                    resourceName: name,
+                    iconFileName: getIconFileName(for: typeId)
+                )
+            )
         }
-
         return resources
     }
 
@@ -697,7 +640,7 @@ class SinglePlanetProductAnalyzer {
         return mapping
     }
 
-    // 从缓存获取P0资源与行星类型的映射
+    /// 从缓存获取P0资源与行星类型的映射
     private func getCachedP0PlanetMapping(for resourceIds: [Int]) -> [Int: Set<Int>] {
         var result: [Int: Set<Int>] = [:]
         for resourceId in resourceIds {
@@ -714,7 +657,7 @@ class SinglePlanetProductAnalyzer {
     }
 }
 
-// All-in-One 行星分布视图
+/// All-in-One 行星分布视图
 struct AllInOnePlanetDistributionView: View {
     let systemId: Int
     let systemName: String
@@ -758,7 +701,8 @@ struct AllInOnePlanetDistributionView: View {
             } else {
                 Section(
                     header: Text(
-                        NSLocalizedString("All_in_One_Planet_Type_Distribution", comment: "行星类型分布"))
+                        NSLocalizedString("All_in_One_Planet_Type_Distribution", comment: "行星类型分布")
+                    )
                 ) {
                     ForEach(planetTypeSummary, id: \.typeId) { planet in
                         HStack {
@@ -813,30 +757,10 @@ struct AllInOnePlanetDistributionView: View {
                let row = rows.first
             {
                 // 获取行星类型名称
-                let planetTypeIds = Array(PlanetaryUtils.planetTypeToColumn.keys)
-                let planetTypeIdsString = planetTypeIds.map { String($0) }.joined(separator: ",")
-                let planetTypeQuery = """
-                    SELECT type_id, name, icon_filename
-                    FROM types
-                    WHERE type_id IN (\(planetTypeIdsString))
-                """
-
                 var typeIdToName: [Int: (name: String, iconFileName: String)] = [:]
-
-                if case let .success(typeRows) = DatabaseManager.shared.executeQuery(
-                    planetTypeQuery)
-                {
-                    for typeRow in typeRows {
-                        if let typeId = typeRow["type_id"] as? Int,
-                           let name = typeRow["name"] as? String,
-                           let iconFileName = typeRow["icon_filename"] as? String
-                        {
-                            typeIdToName[typeId] = (
-                                name: name,
-                                iconFileName: iconFileName.isEmpty ? "not_found" : iconFileName
-                            )
-                        }
-                    }
+                for typeId in PlanetaryUtils.planetTypeToColumn.keys {
+                    guard let info = ItemInfoMap.typeInfo(for: typeId), !info.name.isEmpty else { continue }
+                    typeIdToName[typeId] = (name: info.name, iconFileName: info.iconFilename)
                 }
 
                 // 收集行星总数
@@ -853,7 +777,8 @@ struct AllInOnePlanetDistributionView: View {
                                 name: typeInfo.name,
                                 count: count,
                                 iconFileName: typeInfo.iconFileName
-                            ))
+                            )
+                        )
                     }
                 }
 

@@ -1,12 +1,23 @@
 import SwiftUI
 
-// 用于存储星系信息的结构体
+/// 用于存储星系信息的结构体
 struct FWSystemInfo {
     let id: Int
-    let name: String
     let security: Double
-    let constellationName: String
-    let regionName: String
+    let constellationId: Int
+    let regionId: Int
+
+    var name: String {
+        SDEMemoryStore.solarSystemName(for: id) ?? "System \(id)"
+    }
+
+    var constellationName: String {
+        SDEMemoryStore.constellationName(for: constellationId) ?? "Constellation \(constellationId)"
+    }
+
+    var regionName: String {
+        SDEMemoryStore.regionName(for: regionId) ?? "Region \(regionId)"
+    }
 }
 
 struct InsurgencySystemCell: View {
@@ -160,8 +171,6 @@ struct InsurgencyView: View {
     @State private var sortType: SortType = .corruption
     @State private var searchText = ""
     @State private var isSearchActive = false
-    @State private var systemNameCache: [Int: (name: String, name_en: String, name_zh: String)] =
-        [:]
     @State private var factionIconMap: [Int: String] = [:]
     @State private var isInfoSheetPresented = false
     @Environment(\.colorScheme) private var colorScheme
@@ -194,7 +203,7 @@ struct InsurgencyView: View {
         }
     }
 
-    // 计算腐败进度
+    /// 计算腐败进度
     private func calculateCorruptionProgress() -> (current: Int, total: Int) {
         let totalThreshold = campaigns.reduce(0) { $0 + $1.corruptionThresHold }
         let completedCount = campaigns.flatMap { $0.insurgencies }
@@ -203,7 +212,7 @@ struct InsurgencyView: View {
         return (completedCount, totalThreshold)
     }
 
-    // 计算镇压进度
+    /// 计算镇压进度
     private func calculateSuppressionProgress() -> (current: Int, total: Int) {
         let totalThreshold = campaigns.reduce(0) { $0 + $1.suppressionThresHold }
         let completedCount = campaigns.flatMap { $0.insurgencies }
@@ -245,15 +254,9 @@ struct InsurgencyView: View {
         }
 
         // 在内存中搜索匹配的星系
-        let matchingSystemIds = Set(
-            systemNameCache.filter { _, names in
-                names.name_en.localizedCaseInsensitiveContains(searchText)
-                    || names.name.localizedCaseInsensitiveContains(searchText)
-                    || names.name_zh.localizedCaseInsensitiveContains(searchText)
-            }.keys)
-
         let filtered = allInsurgencies.filter { insurgency in
-            matchingSystemIds.contains(insurgency.solarSystem.id)
+            SDEMemoryStore.solarSystemNames[insurgency.solarSystem.id]?.matchesSearch(searchText)
+                == true
         }
 
         switch sortType {
@@ -467,8 +470,13 @@ struct InsurgencyView: View {
                                 .resizable()
                                 .frame(width: 40, height: 40)
                                 .cornerRadius(4)
-                            Text(NSLocalizedString("Insurgency_info_corr_s1", comment: ""))
-                                .font(.body)
+                            Text(
+                                String(
+                                    format: NSLocalizedString("Insurgency_info_corr_s1", comment: ""),
+                                    FormatUtil.formatSignedPercentFrom100(7.5, fractionDigits: 1)
+                                )
+                            )
+                            .font(.body)
                             Spacer()
                         }
                         HStack(spacing: 8) {
@@ -476,8 +484,13 @@ struct InsurgencyView: View {
                                 .resizable()
                                 .frame(width: 40, height: 40)
                                 .cornerRadius(4)
-                            Text(NSLocalizedString("Insurgency_info_supp_s1", comment: ""))
-                                .font(.body)
+                            Text(
+                                String(
+                                    format: NSLocalizedString("Insurgency_info_supp_s1", comment: ""),
+                                    FormatUtil.formatSignedPercentFrom100(5, fractionDigits: 0)
+                                )
+                            )
+                            .font(.body)
                             Spacer()
                         }
                     } header: {
@@ -500,8 +513,13 @@ struct InsurgencyView: View {
                                 .resizable()
                                 .frame(width: 40, height: 40)
                                 .cornerRadius(4)
-                            Text(NSLocalizedString("Insurgency_info_supp_s2", comment: ""))
-                                .font(.body)
+                            Text(
+                                String(
+                                    format: NSLocalizedString("Insurgency_info_supp_s2", comment: ""),
+                                    FormatUtil.formatSignedPercentFrom100(5, fractionDigits: 0)
+                                )
+                            )
+                            .font(.body)
                             Spacer()
                         }
                     } header: {
@@ -524,8 +542,13 @@ struct InsurgencyView: View {
                                 .resizable()
                                 .frame(width: 40, height: 40)
                                 .cornerRadius(4)
-                            Text(NSLocalizedString("Insurgency_info_supp_s3", comment: ""))
-                                .font(.body)
+                            Text(
+                                String(
+                                    format: NSLocalizedString("Insurgency_info_supp_s3", comment: ""),
+                                    FormatUtil.formatSignedPercentFrom100(-30, fractionDigits: 0)
+                                )
+                            )
+                            .font(.body)
                             Spacer()
                         }
                     } header: {
@@ -548,8 +571,13 @@ struct InsurgencyView: View {
                                 .resizable()
                                 .frame(width: 40, height: 40)
                                 .cornerRadius(4)
-                            Text(NSLocalizedString("Insurgency_info_supp_s4", comment: ""))
-                                .font(.body)
+                            Text(
+                                String(
+                                    format: NSLocalizedString("Insurgency_info_supp_s4", comment: ""),
+                                    FormatUtil.formatSignedPercentFrom100(10, fractionDigits: 0)
+                                )
+                            )
+                            .font(.body)
                             Spacer()
                         }
                     } header: {
@@ -601,7 +629,7 @@ struct InsurgencyView: View {
         .searchable(
             text: $searchText,
             isPresented: $isSearchActive,
-            placement: .navigationBarDrawer(displayMode: .always),
+            // placement: .navigationBarDrawer(displayMode: .always),
             prompt: NSLocalizedString("System_Search_Placeholder", comment: "")
         )
         .task {
@@ -622,30 +650,11 @@ struct InsurgencyView: View {
                 databaseManager: databaseManager
             )
 
-            // 预加载所有星系的中英文名称
-            let allSystemIds = Set(originSystemIds + insurgencySystemIds)
-            let query =
-                "SELECT solarSystemID, solarSystemName, solarSystemName_en, solarSystemName_zh FROM solarsystems WHERE solarSystemID IN (\(String(repeating: "?,", count: allSystemIds.count).dropLast()))"
-            if case let .success(rows) = databaseManager.executeQuery(
-                query, parameters: Array(allSystemIds)
-            ) {
-                systemNameCache = Dictionary(
-                    uniqueKeysWithValues: rows.compactMap { row in
-                        guard let id = row["solarSystemID"] as? Int,
-                              let name = row["solarSystemName"] as? String,
-                              let nameEn = row["solarSystemName_en"] as? String,
-                              let nameZh = row["solarSystemName_zh"] as? String
-                        else {
-                            return nil
-                        }
-                        return (id, (name: name, name_en: nameEn, name_zh: nameZh))
-                    })
-            }
-
             // 获取所有不重复的占领势力ID
             let occupierFactionIds = Set(
                 campaigns.flatMap { $0.insurgencies }
-                    .compactMap { $0.solarSystem.occupierFactionId })
+                    .compactMap { $0.solarSystem.occupierFactionId }
+            )
 
             // 一次性查询所有势力图标
             if !occupierFactionIds.isEmpty {
@@ -662,7 +671,8 @@ struct InsurgencyView: View {
                                 return nil
                             }
                             return (id, iconName)
-                        })
+                        }
+                    )
                 }
             }
 
@@ -670,27 +680,25 @@ struct InsurgencyView: View {
             for (id, info) in originSystemInfoMap {
                 originSystemInfo[id] = FWSystemInfo(
                     id: id,
-                    name: info.systemName,
                     security: info.security,
-                    constellationName: info.constellationName,
-                    regionName: info.regionName
+                    constellationId: info.constellationId,
+                    regionId: info.regionId
                 )
             }
 
             for (id, info) in insurgencySystemInfoMap {
                 insurgencySystemInfo[id] = FWSystemInfo(
                     id: id,
-                    name: info.systemName,
                     security: info.security,
-                    constellationName: info.constellationName,
-                    regionName: info.regionName
+                    constellationId: info.constellationId,
+                    regionId: info.regionId
                 )
             }
         }
     }
 }
 
-// 在 InsurgencyView 结构体外部添加格式化函数
+/// 在 InsurgencyView 结构体外部添加格式化函数
 private func formatPercentage(_ value: Double) -> String {
     if value >= 100 {
         return "100 %"

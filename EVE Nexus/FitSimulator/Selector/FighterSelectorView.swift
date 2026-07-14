@@ -1,13 +1,13 @@
 import SwiftUI
 
-// 舰载机类型枚举
+/// 舰载机类型枚举
 enum FighterType: Int {
     case light = 840 // 轻型舰载机
     case heavy = 1310 // 重型舰载机
     case support = 2239 // 辅助舰载机
 }
 
-// 舰载机选择器
+/// 舰载机选择器
 struct FighterSelectorView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var items: [DatabaseListItem] = []
@@ -29,7 +29,7 @@ struct FighterSelectorView: View {
         self.shipTypeID = shipTypeID
     }
 
-    // 按科技等级分组的物品
+    /// 按科技等级分组的物品
     var groupedItems: [(id: Int, name: String, items: [DatabaseListItem])] {
         let publishedItems = items.filter { $0.published }
         let unpublishedItems = items.filter { !$0.published }
@@ -61,7 +61,8 @@ struct FighterSelectorView: View {
                 (
                     id: -2, name: NSLocalizedString("Main_Database_ungrouped", comment: "未分组"),
                     items: ungroupedItems
-                ))
+                )
+            )
         }
 
         if !unpublishedItems.isEmpty {
@@ -69,7 +70,8 @@ struct FighterSelectorView: View {
                 (
                     id: -1, name: NSLocalizedString("Main_Database_unpublished", comment: "未发布"),
                     items: unpublishedItems
-                ))
+                )
+            )
         }
 
         return result
@@ -115,7 +117,8 @@ struct FighterSelectorView: View {
                                 }
                                 .foregroundColor(.primary)
                                 .listRowInsets(
-                                    EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                                    EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16)
+                                )
                             }
                         }
                     }
@@ -136,7 +139,7 @@ struct FighterSelectorView: View {
         }
     }
 
-    // 根据舰载机类型获取标题
+    /// 根据舰载机类型获取标题
     private func getTitleForFighterType() -> String {
         switch fighterType {
         case .light:
@@ -148,7 +151,7 @@ struct FighterSelectorView: View {
         }
     }
 
-    // 加载舰载机物品数据
+    /// 加载舰载机物品数据
     private func loadItems() {
         isLoading = true
         Logger.info("开始加载全部舰载机数据")
@@ -167,7 +170,8 @@ struct FighterSelectorView: View {
         metaGroupNames = databaseManager.loadMetaGroupNames(for: Array(metaGroupIDs))
 
         Logger.info(
-            "加载完成，全部舰载机: \(allFighters.count)，当前类型(\(fighterType.rawValue)): \(items.count)")
+            "加载完成，全部舰载机: \(allFighters.count)，当前类型(\(fighterType.rawValue)): \(items.count)"
+        )
         isLoading = false
     }
 }

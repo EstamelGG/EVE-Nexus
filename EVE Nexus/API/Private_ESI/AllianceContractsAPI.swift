@@ -32,7 +32,7 @@ class AllianceContractsAPI {
         return try decoder.decode([ContractItemInfo].self, from: data)
     }
 
-    // 从服务器获取合同列表
+    /// 从服务器获取合同列表
     private func fetchContractsFromServer(
         corporationId: Int, characterId: Int, progressCallback: ((Int) -> Void)? = nil
     ) async throws -> [ContractInfo] {
@@ -61,7 +61,7 @@ class AllianceContractsAPI {
         return contracts
     }
 
-    // 从数据库获取合同列表
+    /// 从数据库获取合同列表
     private func getContractsFromDB(allianceId: Int) async -> [ContractInfo]? {
         let query = """
             SELECT contract_id, acceptor_id, assignee_id, availability,
@@ -215,7 +215,7 @@ class AllianceContractsAPI {
         return nil
     }
 
-    // 保存合同列表到数据库
+    /// 保存合同列表到数据库
     private func saveContractsToDB(allianceId: Int, contracts: [ContractInfo]) -> Bool {
         // 如果没有合同需要保存，直接返回成功
         if contracts.isEmpty {
@@ -234,7 +234,8 @@ class AllianceContractsAPI {
         }
 
         Logger.debug(
-            "过滤后需要保存的合同数量: \(filteredContracts.count) / \(contracts.count) (已排除指定给其他组织和已删除的合同)")
+            "过滤后需要保存的合同数量: \(filteredContracts.count) / \(contracts.count) (已排除指定给其他组织和已删除的合同)"
+        )
 
         // 获取已存在的合同ID和状态
         let checkQuery =
@@ -380,14 +381,15 @@ class AllianceContractsAPI {
         }
     }
 
-    // 获取合同物品
+    /// 获取合同物品
     func fetchContractItems(
         characterId: Int, contractId: Int, forceRefresh: Bool = false
     ) async throws -> [ContractItemInfo] {
         // 1. 获取角色的军团ID
         guard
             let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(
-                characterId: characterId)
+                characterId: characterId
+            )
         else {
             throw NetworkError.authenticationError("无法获取军团ID")
         }
@@ -424,7 +426,7 @@ class AllianceContractsAPI {
         return items
     }
 
-    // 主要的公共接口：获取联盟合同列表
+    /// 主要的公共接口：获取联盟合同列表
     func fetchContracts(
         characterId: Int, corporationId: Int, allianceId: Int,
         forceRefresh: Bool = false, progressCallback: ((Int) -> Void)? = nil

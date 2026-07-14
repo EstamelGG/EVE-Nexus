@@ -77,7 +77,7 @@ extension String.CompareOptions {
 }
 
 extension String {
-    /// Returns first range of substring.
+    // Returns first range of substring.
     package func firstRange(of substring: String, options: String.CompareOptions = []) -> Range<String.Index>? {
         range(of: substring, options: options, range: startIndex..<endIndex, locale: nil)
     }

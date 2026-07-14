@@ -31,9 +31,9 @@ struct PlanetDetailView: View {
     @State private var checkpointTime: Date? // 存储 checkpoint 时间，用于计算进度
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
-    // 计算要显示的殖民地
-    // - 如果selectedMinutes == 0，显示实时模拟结果（simulatedColony）
-    // - 如果selectedMinutes > 0，显示对应分钟数的快照
+    /// 计算要显示的殖民地
+    /// - 如果selectedMinutes == 0，显示实时模拟结果（simulatedColony）
+    /// - 如果selectedMinutes > 0，显示对应分钟数的快照
     private var displayColony: Colony? {
         if selectedMinutes == 0 {
             return simulatedColony
@@ -43,30 +43,30 @@ struct PlanetDetailView: View {
         return simulatedColony
     }
 
-    // 判断当前现实时间的殖民地是否已停工（用于禁用控件和显示提示）
+    /// 判断当前现实时间的殖民地是否已停工（用于禁用控件和显示提示）
     private var isRealtimeColonyStopped: Bool {
         // 只有在实时模式（selectedMinutes == 0）时才检查
         guard selectedMinutes == 0, let colony = simulatedColony else { return false }
         return !ColonySimulation.isColonyStillWorking(colony: colony)
     }
 
-    // 计算最大分钟数
+    /// 计算最大分钟数
     private var maxMinutes: Int {
         hourlySnapshots.keys.max() ?? 0
     }
 
-    // 获取所有可用的快照分钟数（排序后）
+    /// 获取所有可用的快照分钟数（排序后）
     private var availableSnapShot: [Int] {
         hourlySnapshots.keys.sorted()
     }
 
-    // 获取当前选中分钟数在采样点序列中的索引
+    /// 获取当前选中分钟数在采样点序列中的索引
     private var selectedSnapshotIndex: Int {
         let sorted = availableSnapShot
         return sorted.firstIndex(of: selectedMinutes) ?? 0
     }
 
-    // 根据索引获取对应的分钟数
+    /// 根据索引获取对应的分钟数
     private func getMinutesAtIndex(_ index: Int) -> Int {
         let sorted = availableSnapShot
         guard index >= 0 && index < sorted.count else {
@@ -75,13 +75,13 @@ struct PlanetDetailView: View {
         return sorted[index]
     }
 
-    // 找到下一个可用的快照时间点（分钟数）
+    /// 找到下一个可用的快照时间点（分钟数）
     private func nextAvailableMinutes(after minutes: Int) -> Int? {
         let sorted = availableSnapShot
         return sorted.first { $0 > minutes }
     }
 
-    // 找到上一个可用的快照时间点（分钟数）
+    /// 找到上一个可用的快照时间点（分钟数）
     private func previousAvailableMinutes(before minutes: Int) -> Int? {
         let sorted = availableSnapShot
         return sorted.last { $0 < minutes }
@@ -113,7 +113,7 @@ struct PlanetDetailView: View {
                         let group1 = typeGroupIds[pin1.typeId] ?? 0
                         let group2 = typeGroupIds[pin2.typeId] ?? 0
 
-                        // 定义组的优先级
+                        /// 定义组的优先级
                         func getPriority(_ groupId: Int) -> Int {
                             switch groupId {
                             case 1027: return 0 // 指挥中心优先级最高
@@ -189,7 +189,7 @@ struct PlanetDetailView: View {
                                             VStack(alignment: .leading, spacing: 4) {
                                                 if let lastUpdateTime = simulatedColony?.checkpointSimTime {
                                                     Text(
-                                                        "\(NSLocalizedString("Planet_Detail_Last_Update", comment: "")): \(formatRelativeTime(from: lastUpdateTime, currentTime: currentTime))"
+                                                        "\(NSLocalizedString("Planet_Detail_Last_Update", comment: "")): \(FormatUtil.formatRelativeAgo(since: lastUpdateTime, now: currentTime))"
                                                     )
                                                     .font(.caption)
                                                     .foregroundColor(.secondary)
@@ -426,8 +426,6 @@ struct PlanetDetailView: View {
         // 显示条件：有快照数据，或者正在生成快照
         if !hourlySnapshots.isEmpty || isGeneratingSnapshots {
             timeSliderControlsView
-        } else {
-            EmptyView()
         }
     }
 
@@ -561,7 +559,7 @@ struct PlanetDetailView: View {
                         Text(formatDate(colony.currentSimTime))
                             .font(.caption)
                             .fontWeight(.medium)
-                        Text("(+\(formatTimeDiff(timeDiff)))")
+                        Text("(+\(FormatUtil.formatCompactDuration(timeDiff)))")
                             .font(.caption)
                             .foregroundColor(.blue)
                     }
@@ -609,107 +607,12 @@ struct PlanetDetailView: View {
         return schematic.inputs.count
     }
 
-    // 格式化日期
+    /// 格式化日期
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
         formatter.locale = Locale(identifier: "en_US_POSIX") // 使用POSIX locale确保24小时制
         return formatter.string(from: date)
-    }
-
-    // 格式化相对时间（如"x 分钟前"、"x 小时前"、"x 天 x 小时前"）
-    private func formatRelativeTime(from date: Date, currentTime: Date) -> String {
-        let interval = currentTime.timeIntervalSince(date)
-
-        // 如果时间在未来，返回"刚刚"
-        if interval < 0 {
-            return NSLocalizedString("Time_Just_Now", comment: "刚刚")
-        }
-
-        let totalSeconds = Int(interval)
-        let days = totalSeconds / (24 * 3600)
-        let hours = totalSeconds / 3600 % 24
-        let minutes = totalSeconds / 60 % 60
-
-        if days > 0 {
-            // 如果有小时，显示"x 天 x 小时前"
-            if hours > 0 {
-                return String.localizedStringWithFormat(NSLocalizedString("Time_Days_Hours_Ago", comment: "%d天%d小时前"), days, hours)
-            } else {
-                // 只有天数
-                return String.localizedStringWithFormat(NSLocalizedString("Time_Days_Ago", comment: ""), days)
-            }
-        } else if hours > 0 {
-            // 如果有分钟，显示"x 小时 x 分钟前"
-            if minutes > 0 {
-                return String.localizedStringWithFormat(NSLocalizedString("Time_Hours_Minutes_Ago", comment: "%d小时%d分钟前"), hours, minutes)
-            } else {
-                // 只有小时
-                return String.localizedStringWithFormat(NSLocalizedString("Time_Hours_Ago", comment: ""), hours)
-            }
-        } else if minutes > 0 {
-            // 只有分钟
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Minutes_Ago", comment: ""), minutes)
-        } else {
-            // 小于30秒，显示"刚刚"
-            return NSLocalizedString("Time_Just_Now", comment: "刚刚")
-        }
-    }
-
-    // 格式化时间差（使用本地化字符串）
-    private func formatTimeDiff(_ interval: TimeInterval) -> String {
-        if interval < 1 {
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Seconds", comment: ""), 0)
-        }
-
-        let totalSeconds = interval
-        let days = Int(totalSeconds) / (24 * 3600)
-        var hours = Int(totalSeconds) / 3600 % 24
-        var minutes = Int(totalSeconds) / 60 % 60
-        let seconds = Int(totalSeconds) % 60
-
-        // 当显示两个单位时，对第二个单位进行四舍五入
-        if days > 0 {
-            // 对小时进行四舍五入
-            if minutes >= 30 {
-                hours += 1
-                if hours == 24 { // 如果四舍五入后小时数达到24
-                    return String.localizedStringWithFormat(NSLocalizedString("Time_Days", comment: ""), days + 1)
-                }
-            }
-            if hours > 0 {
-                return String(
-                    format: NSLocalizedString("Time_Days_Hours", comment: ""), days, hours
-                )
-            }
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Days", comment: ""), days)
-        } else if hours > 0 {
-            // 对分钟进行四舍五入
-            if seconds >= 30 {
-                minutes += 1
-                if minutes == 60 { // 如果四舍五入后分钟数达到60
-                    return String.localizedStringWithFormat(NSLocalizedString("Time_Hours", comment: ""), hours + 1)
-                }
-            }
-            if minutes > 0 {
-                return String(
-                    format: NSLocalizedString("Time_Hours_Minutes", comment: ""), hours, minutes
-                )
-            }
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Hours", comment: ""), hours)
-        } else if minutes > 0 {
-            // 对秒进行四舍五入
-            if seconds >= 30 {
-                return String.localizedStringWithFormat(NSLocalizedString("Time_Minutes", comment: ""), minutes + 1)
-            }
-            if seconds > 0 {
-                return String(
-                    format: NSLocalizedString("Time_Minutes_Seconds", comment: ""), minutes, seconds
-                )
-            }
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Minutes", comment: ""), minutes)
-        }
-        return String.localizedStringWithFormat(NSLocalizedString("Time_Seconds", comment: ""), seconds)
     }
 
     private func shouldUpdateView(newTime: Date) -> Bool {
@@ -746,7 +649,7 @@ struct PlanetDetailView: View {
         return floor(newTime.timeIntervalSince1970) != floor(currentTime.timeIntervalSince1970)
     }
 
-    // 计算存储设施体积缓存
+    /// 计算存储设施体积缓存
     private func calculateStorageVolumeCache(snapshots: [Int: Colony], currentColony _: Colony) async {
         // 预先计算并缓存每个存储设施在每个时间点的体积数据
         var volumeCache: [Int64: [Int: Double]] = [:]
@@ -869,7 +772,6 @@ struct PlanetDetailView: View {
                         planetName: planetName,
                         planetType: info.planetType,
                         systemId: info.solarSystemId,
-                        systemName: getSystemName(systemId: info.solarSystemId),
                         upgradeLevel: info.upgradeLevel,
                         lastUpdate: info.lastUpdate
                     )
@@ -952,45 +854,25 @@ struct PlanetDetailView: View {
                 }
 
                 if !typeIds.isEmpty {
-                    let typeIdsString = typeIds.sorted().map { String($0) }.joined(separator: ",")
-                    let query = """
-                        SELECT type_id, name, en_name, icon_filename, groupID, marketGroupID, volume
-                        FROM types 
-                        WHERE type_id IN (\(typeIdsString))
-                    """
-
-                    if case let .success(rows) = DatabaseManager.shared.executeQuery(query) {
-                        for row in rows {
-                            if let typeId = row["type_id"] as? Int,
-                               let name = row["name"] as? String
-                            {
-                                typeNames[typeId] = name
-                                if let iconFilename = row["icon_filename"] as? String {
-                                    typeIcons[typeId] = iconFilename
-                                }
-                                // 存储 groupID（用于判断设施类型）
-                                if let groupId = row["groupID"] as? Int {
-                                    typeGroupIds[typeId] = groupId
-                                }
-                                // 存储 marketGroupID（用于排序仓储内容）
-                                if let marketGroupId = row["marketGroupID"] as? Int {
-                                    typeMarketGroupIds[typeId] = marketGroupId
-                                }
-                                if let volume = row["volume"] as? Double {
-                                    typeVolumes[typeId] = volume
-                                }
-                                // 存储 en_name（用于识别工厂类型）
-                                if let enName = row["en_name"] as? String {
-                                    typeEnNames[typeId] = enName
-                                }
-                            }
+                    for typeId in typeIds {
+                        guard let info = SDEMemoryStore.type(for: typeId) else { continue }
+                        typeNames[typeId] = info.name
+                        typeIcons[typeId] = info.iconFilename
+                        if let groupId = info.groupID {
+                            typeGroupIds[typeId] = groupId
                         }
+                        if let marketGroupId = info.marketGroupID {
+                            typeMarketGroupIds[typeId] = marketGroupId
+                        }
+                        typeVolumes[typeId] = info.volume
+                        typeEnNames[typeId] = info.enName
                     }
                 }
 
                 if !schematicIds.isEmpty {
                     let schematicIdsString = schematicIds.sorted().map { String($0) }.joined(
-                        separator: ",")
+                        separator: ","
+                    )
                     let schematicQuery = """
                         SELECT schematic_id, output_typeid, cycle_time, output_value, input_typeid, input_value
                         FROM planetSchematics
@@ -1034,40 +916,18 @@ struct PlanetDetailView: View {
 
                     // 如果有新的类型ID被添加，重新查询类型信息
                     if !typeIds.isEmpty {
-                        let typeIdsString = typeIds.sorted().map { String($0) }.joined(
-                            separator: ",")
-                        let query = """
-                            SELECT type_id, name, en_name, icon_filename, groupID, marketGroupID, volume
-                            FROM types 
-                            WHERE type_id IN (\(typeIdsString))
-                        """
-
-                        if case let .success(rows) = DatabaseManager.shared.executeQuery(query) {
-                            for row in rows {
-                                if let typeId = row["type_id"] as? Int,
-                                   let name = row["name"] as? String
-                                {
-                                    typeNames[typeId] = name
-                                    if let iconFilename = row["icon_filename"] as? String {
-                                        typeIcons[typeId] = iconFilename
-                                    }
-                                    // 存储 groupID（用于判断设施类型）
-                                    if let groupId = row["groupID"] as? Int {
-                                        typeGroupIds[typeId] = groupId
-                                    }
-                                    // 存储 marketGroupID（用于排序仓储内容）
-                                    if let marketGroupId = row["marketGroupID"] as? Int {
-                                        typeMarketGroupIds[typeId] = marketGroupId
-                                    }
-                                    if let volume = row["volume"] as? Double {
-                                        typeVolumes[typeId] = volume
-                                    }
-                                    // 存储 en_name（用于识别工厂类型）
-                                    if let enName = row["en_name"] as? String {
-                                        typeEnNames[typeId] = enName
-                                    }
-                                }
+                        for typeId in typeIds {
+                            guard let info = SDEMemoryStore.type(for: typeId) else { continue }
+                            typeNames[typeId] = info.name
+                            typeIcons[typeId] = info.iconFilename
+                            if let groupId = info.groupID {
+                                typeGroupIds[typeId] = groupId
                             }
+                            if let marketGroupId = info.marketGroupID {
+                                typeMarketGroupIds[typeId] = marketGroupId
+                            }
+                            typeVolumes[typeId] = info.volume
+                            typeEnNames[typeId] = info.enName
                         }
                     }
 
@@ -1229,18 +1089,5 @@ struct PlanetDetailView: View {
             }
         }
         storageContentMarketPrices = prices
-    }
-
-    /// 获取恒星系名称
-    /// - Parameter systemId: 恒星系ID
-    /// - Returns: 恒星系名称
-    private func getSystemName(systemId: Int) -> String {
-        let query = "SELECT solarSystemName FROM solarsystems WHERE solarSystemID = ?"
-        let result = DatabaseManager.shared.executeQuery(query, parameters: [systemId])
-
-        if case let .success(rows) = result, let row = rows.first {
-            return row["solarSystemName"] as? String ?? "Unknown System"
-        }
-        return "Unknown System"
     }
 }

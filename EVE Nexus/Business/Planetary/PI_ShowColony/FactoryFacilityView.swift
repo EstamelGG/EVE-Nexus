@@ -19,8 +19,8 @@ struct FactoryFacilityView: View {
         return FactoryTypeClassifier.getProgressColor(for: factoryType, isActive: isActive)
     }
 
-    // 获取设施图标文件名
-    // 优先级：1. 根据 groupID 和 en_name 映射的图标 2. typeid 对应的图标（兜底）
+    /// 获取设施图标文件名
+    /// 优先级：1. 根据 groupID 和 en_name 映射的图标 2. typeid 对应的图标（兜底）
     private func getFacilityIconName() -> String? {
         // 尝试使用映射规则获取图标
         if let groupId = typeGroupIds[pin.typeId] {
@@ -72,7 +72,8 @@ struct FactoryFacilityView: View {
 
                             if simPin.isActive, let lastCycleStartTime = simPin.lastCycleStartTime {
                                 let cycleEndTime = lastCycleStartTime.addingTimeInterval(
-                                    schematicObj.cycleTime)
+                                    schematicObj.cycleTime
+                                )
                                 // 计算相对于模拟时间的时间差，而不是系统当前时间
                                 let timeRemaining = cycleEndTime.timeIntervalSince(currentTime)
                                 HStack {
@@ -84,7 +85,7 @@ struct FactoryFacilityView: View {
                                         .font(.caption)
                                         .fontWeight(.semibold)
                                         .foregroundColor(.secondary)
-                                    Text(formatTimeInterval(timeRemaining))
+                                    Text(FormatUtil.formatSimulatedDuration(timeRemaining))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -279,46 +280,5 @@ struct FactoryFacilityView: View {
 
         // 确保进度在0到1之间
         return min(max(progress, 0), 1)
-    }
-
-    /// 格式化时间间隔（相对于模拟时间）
-    /// - Parameter interval: 时间间隔（秒），正数表示未来，负数表示过去
-    /// - Returns: 格式化后的时间字符串
-    private func formatTimeInterval(_ interval: TimeInterval) -> String {
-        let absInterval = abs(interval)
-
-        if absInterval < 60 {
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Seconds", comment: ""), Int(absInterval))
-        } else if absInterval < 3600 {
-            let minutes = Int(absInterval) / 60
-            let seconds = Int(absInterval) % 60
-            if seconds >= 30 {
-                return String.localizedStringWithFormat(NSLocalizedString("Time_Minutes", comment: ""), minutes + 1)
-            }
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Minutes", comment: ""), minutes)
-        } else if absInterval < 86400 {
-            let hours = Int(absInterval) / 3600
-            let minutes = Int(absInterval) / 60 % 60
-            if minutes >= 30 {
-                return String.localizedStringWithFormat(NSLocalizedString("Time_Hours", comment: ""), hours + 1)
-            }
-            if hours > 0 {
-                return String.localizedStringWithFormat(NSLocalizedString("Time_Hours", comment: ""), hours)
-            }
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Minutes", comment: ""), minutes)
-        } else {
-            let days = Int(absInterval) / 86400
-            let hours = Int(absInterval) / 3600 % 24
-            if hours >= 12 {
-                return String.localizedStringWithFormat(NSLocalizedString("Time_Days", comment: ""), days + 1)
-            }
-            if days > 0 {
-                if hours > 0 {
-                    return String.localizedStringWithFormat(NSLocalizedString("Time_Days_Hours", comment: ""), days, hours)
-                }
-                return String.localizedStringWithFormat(NSLocalizedString("Time_Days", comment: ""), days)
-            }
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Hours", comment: ""), hours)
-        }
     }
 }

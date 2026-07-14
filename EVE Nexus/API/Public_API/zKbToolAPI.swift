@@ -1,11 +1,11 @@
 import Foundation
 
-// 战斗记录数据处理类
+/// 战斗记录数据处理类
 class zKbToolAPI {
     static let shared = zKbToolAPI()
     private init() {}
 
-    // 通用搜索方法
+    /// 通用搜索方法
     func searchEveItems(characterId _: Int, searchText: String) async throws -> [String:
         [ZKBSearchResult]]
     {
@@ -21,8 +21,8 @@ class zKbToolAPI {
         // 1. 从本地数据库搜索物品
         let query = """
             SELECT type_id, name, icon_filename
-            FROM types
-            WHERE (name LIKE ?1 OR en_name like ?1)
+            FROM types t
+            WHERE \(LocalizedText.typeLangNameLikeSQL)
             AND published = 1
             AND categoryID IN (6, 65, 87)
             order by categoryID
@@ -30,7 +30,7 @@ class zKbToolAPI {
         """
 
         if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            query, parameters: ["%\(searchText)%"]
+            query, parameters: LocalizedText.typeLangNameLikeParams(searchText)
         ) {
             for row in rows {
                 if let typeId = row["type_id"] as? Int,
@@ -43,7 +43,8 @@ class zKbToolAPI {
                             name: name,
                             type: "ship",
                             image: imageURL
-                        ))
+                        )
+                    )
                 }
             }
         }
@@ -52,7 +53,8 @@ class zKbToolAPI {
         if searchText.count >= 3 {
             guard
                 let encodedText = searchText.addingPercentEncoding(
-                    withAllowedCharacters: .urlQueryAllowed),
+                    withAllowedCharacters: .urlQueryAllowed
+                ),
                 let url = URL(string: "https://zkillboard.com/autocomplete/\(encodedText)/")
             else {
                 throw NSError(
@@ -104,7 +106,7 @@ class zKbToolAPI {
         return result
     }
 
-    // ZKillboard 搜索结果模型
+    /// ZKillboard 搜索结果模型
     struct ZKBSearchResult: Codable {
         let id: Int
         let name: String
@@ -112,7 +114,7 @@ class zKbToolAPI {
         let image: String
     }
 
-    // 从 zkillboard 获取角色战斗记录列表
+    /// 从 zkillboard 获取角色战斗记录列表
     func fetchZKBCharacterKillMails(characterId: Int, page: Int = 1, filter: KillMailFilter = .all)
         async throws -> [ZKBKillMailEntry]
     {
@@ -183,7 +185,7 @@ class zKbToolAPI {
         }
     }
 
-    // 根据搜索结果从 zkillboard 获取战斗日志列表
+    /// 根据搜索结果从 zkillboard 获取战斗日志列表
     func fetchZKBKillMailsBySearchResult(
         result: SearchResult, page: Int = 1, filter: KillMailFilter = .all
     ) async throws -> [ZKBKillMailEntry] {
@@ -272,7 +274,7 @@ class zKbToolAPI {
         }
     }
 
-    // 根据 killmail ID 从 zkillboard 获取单个战斗日志信息（包含 hash）
+    /// 根据 killmail ID 从 zkillboard 获取单个战斗日志信息（包含 hash）
     func fetchZKBKillMailByID(killmailId: Int) async throws -> ZKBKillMailEntry {
         Logger.debug("准备从 zkillboard 获取战斗日志 - killmail_id: \(killmailId)")
 
@@ -320,12 +322,12 @@ class zKbToolAPI {
     }
 }
 
-// ZKillboard API 响应数据结构（与 KillMailDataConverter 中的定义保持一致）
+/// ZKillboard API 响应数据结构（与 KillMailDataConverter 中的定义保持一致）
 struct ZKBKillMailEntry: Codable {
     let killmail_id: Int
     let zkb: ZKBInfo
 
-    // 自定义解码，确保 killmail_id 和 zkb.hash 存在
+    /// 自定义解码，确保 killmail_id 和 zkb.hash 存在
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -371,13 +373,13 @@ struct ZKBKillMailEntry: Codable {
         )
     }
 
-    // 定义 CodingKeys
+    /// 定义 CodingKeys
     enum CodingKeys: String, CodingKey {
         case killmail_id
         case zkb
     }
 
-    // 定义 ZKBInfo 的 CodingKeys（用于嵌套解码）
+    /// 定义 ZKBInfo 的 CodingKeys（用于嵌套解码）
     enum ZKBInfoCodingKeys: String, CodingKey {
         case locationID
         case hash
@@ -406,19 +408,19 @@ struct ZKBInfo: Codable {
     let awox: Bool?
     let labels: [String]?
 
-    // 初始化方法（用于自定义解码）
+    /// 初始化方法（用于自定义解码）
     init(
-        locationID: Int?,
+        locationID: Int? = nil,
         hash: String,
-        fittedValue: Double?,
-        droppedValue: Double?,
-        destroyedValue: Double?,
-        totalValue: Double?,
-        points: Int?,
-        npc: Bool?,
-        solo: Bool?,
-        awox: Bool?,
-        labels: [String]?
+        fittedValue: Double? = nil,
+        droppedValue: Double? = nil,
+        destroyedValue: Double? = nil,
+        totalValue: Double? = nil,
+        points: Int? = nil,
+        npc: Bool? = nil,
+        solo: Bool? = nil,
+        awox: Bool? = nil,
+        labels: [String]? = nil
     ) {
         self.locationID = locationID
         self.hash = hash
@@ -433,7 +435,7 @@ struct ZKBInfo: Codable {
         self.labels = labels
     }
 
-    // 提供默认值的计算属性，用于 UI 展示
+    /// 提供默认值的计算属性，用于 UI 展示
     var fittedValueValue: Double {
         fittedValue ?? 0
     }
@@ -464,17 +466,10 @@ extension ZKBKillMailEntry {
     ) {
         killmail_id = killmailId
         zkb = ZKBInfo(
-            locationID: nil,
             hash: storedHash,
-            fittedValue: nil,
             droppedValue: storedDroppedValue,
             destroyedValue: storedDestroyedValue,
-            totalValue: storedTotalValue,
-            points: nil,
-            npc: nil,
-            solo: nil,
-            awox: nil,
-            labels: nil
+            totalValue: storedTotalValue
         )
     }
 }

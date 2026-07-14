@@ -49,5 +49,4 @@ struct Colony {
 /// 恒星系
 struct SolarSystem {
     let id: Int
-    let name: String
 }

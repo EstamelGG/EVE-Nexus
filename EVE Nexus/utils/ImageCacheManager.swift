@@ -16,7 +16,7 @@ struct ImageCacheMetadata: Codable {
         cachedAt = Date()
     }
 
-    // 检查缓存是否过期（针对无 ETag 的情况）
+    /// 检查缓存是否过期（针对无 ETag 的情况）
     func isExpired(timeoutHours: Double = 8) -> Bool {
         let elapsed = Date().timeIntervalSince(cachedAt) / 3600
         return elapsed > timeoutHours
@@ -278,9 +278,8 @@ class ImageCacheManager {
             if let httpResponse = response as? HTTPURLResponse,
                let serverETag = httpResponse.value(forHTTPHeaderField: "ETag")
             {
-                let isValid = serverETag == cachedETag
+                return serverETag == cachedETag
                 // Logger.debug("ETag 验证: 缓存=\(cachedETag), 服务器=\(serverETag), 有效=\(isValid)")
-                return isValid
             }
 
             // 如果服务器不返回 ETag，认为缓存有效

@@ -5,7 +5,7 @@
 import Foundation
 import Pulse
 
-/// Filter the logs displayed in the console.
+// Filter the logs displayed in the console.
 struct ConsoleFilters: Hashable {
     var shared = Shared()
     var messages = Messages()

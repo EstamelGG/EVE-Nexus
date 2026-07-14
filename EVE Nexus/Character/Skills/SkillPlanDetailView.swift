@@ -9,7 +9,6 @@ private enum SkillPlanNetworkLoadingPhase: Equatable {
     case fetchingLearnedSkills
     case fetchingAttributes
     case fetchingImplants
-    case fetchingInjectorSkillPoints
     case fetchingInjectorPrices
 }
 
@@ -23,7 +22,6 @@ struct SkillPlanDetailView: View {
     @State private var characterAttributes: CharacterAttributes?
     @State private var implantBonuses: ImplantAttributes?
     @State private var trainingRates: [Int: Int] = [:] // [skillId: pointsPerHour]
-    @State private var skillTimeMultipliers: [Int: Int] = [:] // [skillId: timeMultiplier]
     @State private var injectorCalculation: InjectorCalculation?
     @State private var injectorPrices: InjectorPriceManager.InjectorPrices =
         .init(large: nil, small: nil)
@@ -31,18 +29,26 @@ struct SkillPlanDetailView: View {
     @State private var learnedSkills: [Int: CharacterSkill] = [:] // 添加缓存
     @State private var skillDependencies: [String: Set<String>] = [:] // [skillId_level: Set<依赖它的skillId_level>]
     @AppStorage(kShowCompletedSkillsKey) private var showCompletedSkills = true
+    @State private var freshQueueMode = false
+    @State private var isFreshQueueTransitioning = false
+    @State private var displayedRequiredSkillPoints = 0
+    @State private var displayedRequiredTrainingTime: TimeInterval = 0
+    @State private var displayedAllSkillPoints = 0
     @State private var showAddSkillSheet = false
     @State private var showAddItemSheet = false
     @State private var showExportSuccessAlert = false
     @State private var networkLoadingPhase: SkillPlanNetworkLoadingPhase?
+    @State private var optimalAttributes: SkillTrainingCalculator.OptimalAttributes?
+    @State private var attributeComparisons:
+        [(name: String, icon: String, current: Int, optimal: Int, diff: Int)] = []
     /// 首次进入：完成 `loadCharacterData`（含注入器）及待添加技能后再展示主列表，避免 Unknown 名称等中间态
     @State private var isInitialLoadComplete = false
+    @State private var cachedCharacterTotalSP: Int?
 
     init(
         plan: SkillPlan, characterId: Int, databaseManager: DatabaseManager,
         skillPlans: Binding<[SkillPlan]>
     ) {
-        // 简化初始化，不进行同步数据加载
         _plan = State(initialValue: plan)
         self.characterId = characterId
         self.databaseManager = databaseManager
@@ -200,40 +206,63 @@ struct SkillPlanDetailView: View {
         skillPlanNetworkLoadingSection
 
         Section(header: Text(NSLocalizedString("Main_Skills_Points", comment: "技能点数"))) {
+            HStack(spacing: 12) {
+                Toggle(isOn: freshQueueToggleBinding) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(NSLocalizedString("Main_Skills_Plan_Fresh_Queue", comment: ""))
+                        Text(freshQueueDescription)
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .animation(.easeInOut(duration: 0.25), value: freshQueueMode)
+                    }
+                }
+                .disabled(isFreshQueueTransitioning)
+            }
+
             HStack {
                 Text(NSLocalizedString("Main_Skills_To_Learn", comment: "需要学习"))
                 Spacer()
-                Text("\(FormatUtil.format(Double(plan.totalSkillPoints))) SP")
+                Text("\(FormatUtil.format(Double(displayedRequiredSkillPoints))) SP")
                     .foregroundColor(.secondary)
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.35), value: displayedRequiredSkillPoints)
             }
 
             HStack {
                 Text(NSLocalizedString("Main_Skills_Required_Time", comment: "需要时间"))
                 Spacer()
-                Text(formatTimeInterval(plan.totalTrainingTime))
+                Text(FormatUtil.formatCompactDuration(displayedRequiredTrainingTime))
                     .foregroundColor(.secondary)
+                    .contentTransition(.interpolate)
+                    .animation(.easeInOut(duration: 0.35), value: displayedRequiredTrainingTime)
             }
 
             HStack {
                 Text(NSLocalizedString("Main_Skills_All_Points", comment: "全部点数"))
                 Spacer()
-                Text("\(FormatUtil.format(Double(calculateAllSkillPoints()))) SP")
+                Text("\(FormatUtil.format(Double(displayedAllSkillPoints))) SP")
                     .foregroundColor(.secondary)
+                    .monospacedDigit()
+                    .contentTransition(.numericText())
+                    .animation(.easeInOut(duration: 0.35), value: displayedAllSkillPoints)
             }
         }
 
         // 添加注入器需求部分
-        if !plan.skills.isEmpty && !isLoadingInjectors && filteredSkills.count > 0 {
+        if !plan.skills.isEmpty && !isLoadingInjectors && (freshQueueMode || filteredSkills.count > 0) {
             if let calculation = injectorCalculation,
                calculation.largeInjectorCount + calculation.smallInjectorCount > 0
             {
                 Section(
                     header: Text(
-                        NSLocalizedString("Main_Skills_Required_Injectors", comment: ""))
+                        NSLocalizedString("Main_Skills_Required_Injectors", comment: "")
+                    )
                 ) {
                     // 大型注入器
                     if let largeInfo = getInjectorInfo(
-                        typeId: SkillInjectorCalculator.largeInjectorTypeId),
+                        typeId: SkillInjectorCalculator.largeInjectorTypeId
+                    ),
                         calculation.largeInjectorCount > 0
                     {
                         injectorItemView(
@@ -244,7 +273,8 @@ struct SkillPlanDetailView: View {
 
                     // 小型注入器
                     if let smallInfo = getInjectorInfo(
-                        typeId: SkillInjectorCalculator.smallInjectorTypeId),
+                        typeId: SkillInjectorCalculator.smallInjectorTypeId
+                    ),
                         calculation.smallInjectorCount > 0
                     {
                         injectorItemView(
@@ -258,6 +288,8 @@ struct SkillPlanDetailView: View {
                 }
             }
         }
+
+        optimalAttributesSection
 
         Section(
             header: HStack {
@@ -343,6 +375,295 @@ struct SkillPlanDetailView: View {
         }
     }
 
+    @ViewBuilder
+    private var optimalAttributesSection: some View {
+        if shouldShowOptimalAttributesSection(freshQueue: freshQueueMode), !attributeComparisons.isEmpty {
+            Section {
+                ForEach(attributeComparisons, id: \.name) { attr in
+                    HStack {
+                        Image(attr.icon)
+                            .resizable()
+                            .frame(width: 32, height: 32)
+                            .cornerRadius(4)
+                        Text(attr.name)
+                        Spacer()
+                        if attr.diff != 0 {
+                            Text("+\(attr.diff)")
+                                .foregroundColor(.green)
+                        }
+                    }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                }
+
+                if let optimal = optimalAttributes {
+                    VStack(alignment: .leading, spacing: 4) {
+                        let savedTime = optimal.currentTrainingTime - optimal.totalTrainingTime
+                        if savedTime > 0 {
+                            Text(
+                                String(
+                                    format: NSLocalizedString(
+                                        "Main_Skills_Optimal_Attributes_Time_Saved_With_Total", comment: ""
+                                    ),
+                                    FormatUtil.formatCompactDuration(savedTime, rounding: .ceil),
+                                    FormatUtil.formatCompactDuration(optimal.totalTrainingTime, rounding: .ceil)
+                                )
+                            )
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        } else {
+                            Text(
+                                NSLocalizedString(
+                                    "Main_Skills_Optimal_Attributes_Already_Optimal", comment: ""
+                                )
+                            )
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        }
+
+                        if !freshQueueMode,
+                           let attrs = characterAttributes,
+                           let implants = implantBonuses,
+                           SkillTrainingCalculator.detectBoosterBonus(
+                               currentAttributes: attrs,
+                               implantBonuses: implants
+                           ) > 0
+                        {
+                            Text(
+                                NSLocalizedString(
+                                    "Main_Skills_Optimal_Attributes_Note", comment: ""
+                                )
+                            )
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                        }
+                    }
+                }
+            } header: {
+                OptimalAttributesSectionHeader()
+            }
+        }
+    }
+
+    private var allSkillsCompleted: Bool {
+        !plan.skills.isEmpty && plan.skills.allSatisfy(\.isCompleted)
+    }
+
+    private var freshQueueToggleBinding: Binding<Bool> {
+        Binding(
+            get: { freshQueueMode },
+            set: { newValue in
+                guard newValue != freshQueueMode, !isFreshQueueTransitioning else { return }
+                Task { await transitionFreshQueueMode(to: newValue) }
+            }
+        )
+    }
+
+    private var freshQueueDescription: String {
+        freshQueueMode
+            ? NSLocalizedString("Main_Skills_Plan_Fresh_Queue_Description", comment: "")
+            : NSLocalizedString("Main_Skills_Plan_Fresh_Queue_Description_Current", comment: "")
+    }
+
+    private func shouldShowOptimalAttributesSection(freshQueue: Bool) -> Bool {
+        guard !plan.skills.isEmpty else { return false }
+        return freshQueue || !allSkillsCompleted
+    }
+
+    private func attributesBaselineForOptimal(freshQueue _: Bool) -> CharacterAttributes? {
+        characterAttributes
+    }
+
+    private func requiredSkillPoints(freshQueue: Bool) -> Int {
+        freshQueue ? freshQueueTotalSkillPoints() : plan.totalSkillPoints
+    }
+
+    private func requiredTrainingTime(freshQueue: Bool) -> TimeInterval {
+        freshQueue ? freshQueueTotalTrainingTime() : plan.totalTrainingTime
+    }
+
+    private func allSkillPoints(freshQueue: Bool) -> Int {
+        freshQueue ? freshQueueTotalSkillPoints() : calculateAllSkillPoints()
+    }
+
+    @MainActor
+    private func syncDisplayedMetrics(freshQueue: Bool, animated: Bool) {
+        let sp = requiredSkillPoints(freshQueue: freshQueue)
+        let time = requiredTrainingTime(freshQueue: freshQueue)
+        let all = allSkillPoints(freshQueue: freshQueue)
+
+        if animated {
+            withAnimation(.easeInOut(duration: 0.35)) {
+                displayedRequiredSkillPoints = sp
+                displayedRequiredTrainingTime = time
+                displayedAllSkillPoints = all
+            }
+        } else {
+            displayedRequiredSkillPoints = sp
+            displayedRequiredTrainingTime = time
+            displayedAllSkillPoints = all
+        }
+    }
+
+    private func transitionFreshQueueMode(to newValue: Bool) async {
+        await MainActor.run { isFreshQueueTransitioning = true }
+        await recalculatePlanMetrics(freshQueue: newValue, animated: true)
+        await MainActor.run {
+            freshQueueMode = newValue
+            isFreshQueueTransitioning = false
+        }
+    }
+
+    private static func freshQueueBaselineAttributes() -> CharacterAttributes {
+        CharacterAttributes(
+            charisma: 19,
+            intelligence: 20,
+            memory: 20,
+            perception: 20,
+            willpower: 20,
+            bonus_remaps: nil,
+            accrued_remap_cooldown_date: nil,
+            last_remap_date: nil
+        )
+    }
+
+    private func skillRequiredSPFromZero(_ skill: PlannedSkill) -> Int {
+        let timeMultiplier = getSkillTimeMultiplier(skill.skillID)
+        let startSP = (getBaseSkillPointsForLevel(skill.targetLevel - 1) ?? 0) * timeMultiplier
+        let endSP = (getBaseSkillPointsForLevel(skill.targetLevel) ?? 0) * timeMultiplier
+        return endSP - startSP
+    }
+
+    private func freshQueueTotalSkillPoints() -> Int {
+        plan.skills.reduce(0) { $0 + skillRequiredSPFromZero($1) }
+    }
+
+    private func trainingTime(forSkill skill: PlannedSkill, requiredSP: Int, attributes: CharacterAttributes) -> TimeInterval {
+        guard let (primary, secondary) = SkillTrainingCalculator.getSkillAttributes(
+            skillId: skill.skillID, databaseManager: databaseManager
+        ),
+            let rate = SkillTrainingCalculator.calculateTrainingRate(
+                primaryAttrId: primary,
+                secondaryAttrId: secondary,
+                attributes: attributes
+            ),
+            rate > 0
+        else {
+            return 0
+        }
+        return Double(requiredSP) / Double(rate) * 3600
+    }
+
+    private func freshQueueTotalTrainingTime() -> TimeInterval {
+        let attributes = Self.freshQueueBaselineAttributes()
+        return plan.skills.reduce(0) { total, skill in
+            total + trainingTime(
+                forSkill: skill,
+                requiredSP: skillRequiredSPFromZero(skill),
+                attributes: attributes
+            )
+        }
+    }
+
+    private func updateAttributeComparisons(freshQueue: Bool) {
+        guard let attrs = attributesBaselineForOptimal(freshQueue: freshQueue),
+              let optimal = optimalAttributes
+        else {
+            attributeComparisons = []
+            return
+        }
+
+        let minAttr = 17
+        var comparisons: [(name: String, icon: String, current: Int, optimal: Int, diff: Int)] = []
+
+        let attributes = [
+            (
+                NSLocalizedString("Character_Attribute_Perception", comment: ""), "perception",
+                attrs.perception, optimal.perception, optimal.perception - minAttr
+            ),
+            (
+                NSLocalizedString("Character_Attribute_Memory", comment: ""), "memory",
+                attrs.memory, optimal.memory, optimal.memory - minAttr
+            ),
+            (
+                NSLocalizedString("Character_Attribute_Willpower", comment: ""), "willpower",
+                attrs.willpower, optimal.willpower, optimal.willpower - minAttr
+            ),
+            (
+                NSLocalizedString("Character_Attribute_Intelligence", comment: ""), "intelligence",
+                attrs.intelligence, optimal.intelligence, optimal.intelligence - minAttr
+            ),
+            (
+                NSLocalizedString("Character_Attribute_Charisma", comment: ""), "charisma",
+                attrs.charisma, optimal.charisma, optimal.charisma - minAttr
+            ),
+        ]
+
+        for attr in attributes where attr.4 > 0 {
+            comparisons.append(attr)
+        }
+        attributeComparisons = comparisons
+    }
+
+    private func persistPlan(_ updatedPlan: SkillPlan) {
+        let saved = SkillPlanFileManager.shared.saveSkillPlan(
+            characterId: characterId, plan: updatedPlan, databaseManager: databaseManager
+        )
+        plan = saved
+        if let index = skillPlans.firstIndex(where: { $0.id == saved.id }) {
+            skillPlans[index] = saved
+        }
+    }
+
+    private func updateOptimalAttributes(freshQueue: Bool) async {
+        guard shouldShowOptimalAttributesSection(freshQueue: freshQueue),
+              let baselineAttrs = attributesBaselineForOptimal(freshQueue: freshQueue)
+        else {
+            await MainActor.run {
+                optimalAttributes = nil
+                attributeComparisons = []
+            }
+            return
+        }
+
+        let queueInfo = plan.skills.compactMap {
+            skill -> (skillId: Int, remainingSP: Int, startDate: Date?, finishDate: Date?)? in
+            if !freshQueue, skill.isCompleted { return nil }
+
+            let remainingSP: Int
+            if freshQueue {
+                remainingSP = skillRequiredSPFromZero(skill)
+            } else {
+                let spRange = getSkillPointRange(skill)
+                remainingSP = spRange.end - spRange.start
+            }
+            guard remainingSP > 0 else { return nil }
+            return (skillId: skill.skillID, remainingSP: remainingSP, startDate: nil, finishDate: nil)
+        }
+
+        guard !queueInfo.isEmpty else {
+            await MainActor.run {
+                optimalAttributes = nil
+                attributeComparisons = []
+            }
+            return
+        }
+
+        let optimal = await SkillTrainingCalculator.calculateOptimalAttributes(
+            skillQueue: queueInfo,
+            databaseManager: databaseManager,
+            currentAttributes: baselineAttrs,
+            characterId: characterId,
+            implantBonuses: implantBonuses ?? ImplantAttributes()
+        )
+
+        await MainActor.run {
+            withAnimation(.easeInOut(duration: 0.35)) {
+                optimalAttributes = optimal
+                updateAttributeComparisons(freshQueue: freshQueue)
+            }
+        }
+    }
+
     private var initialLoadStatusText: String {
         if let phase = networkLoadingPhase {
             return skillPlanLoadingPhaseText(phase)
@@ -353,14 +674,18 @@ struct SkillPlanDetailView: View {
     private func performInitialLoad() async {
         await loadCharacterData()
         calculateSkillDependencies()
-        await MainActor.run { isInitialLoadComplete = true }
+        await loadInjectorPricesIfNeeded()
+        await MainActor.run {
+            isLoadingInjectors = false
+            isInitialLoadComplete = true
+        }
     }
 
     private var filteredSkills: [PlannedSkill] {
         showCompletedSkills ? plan.skills : plan.skills.filter { !$0.isCompleted }
     }
 
-    // 技能计划标题文本
+    /// 技能计划标题文本
     private var skillPlanHeaderText: String {
         let totalCount = plan.skills.count
 
@@ -403,8 +728,6 @@ struct SkillPlanDetailView: View {
             return NSLocalizedString("Main_Skills_Plan_Loading_Fetching_Attributes", comment: "")
         case .fetchingImplants:
             return NSLocalizedString("Main_Skills_Plan_Loading_Fetching_Implants", comment: "")
-        case .fetchingInjectorSkillPoints:
-            return NSLocalizedString("Main_Skills_Plan_Loading_Fetching_Injector_SP", comment: "")
         case .fetchingInjectorPrices:
             return NSLocalizedString("Main_Skills_Plan_Loading_Fetching_Injector_Prices", comment: "")
         }
@@ -444,11 +767,21 @@ struct SkillPlanDetailView: View {
         if characterAttributes == nil {
             await setNetworkLoadingPhase(.fetchingAttributes)
             characterAttributes = try? await CharacterSkillsAPI.shared.fetchAttributes(
-                characterId: characterId)
+                characterId: characterId
+            )
         }
         if implantBonuses == nil {
             await setNetworkLoadingPhase(.fetchingImplants)
             implantBonuses = await SkillTrainingCalculator.getImplantBonuses(characterId: characterId)
+        }
+        if cachedCharacterTotalSP == nil, let sp = spForInjector {
+            cachedCharacterTotalSP = sp
+        } else if cachedCharacterTotalSP == nil,
+                  let cached = CharacterSkillsAPI.shared.loadSkillsFromCacheIfAvailable(
+                      characterId: characterId
+                  )
+        {
+            cachedCharacterTotalSP = cached.total_sp + cached.unallocated_sp
         }
         await setNetworkLoadingPhase(nil)
         return spForInjector
@@ -500,7 +833,7 @@ struct SkillPlanDetailView: View {
                     Text(NSLocalizedString("Main_Skills_Completed", comment: ""))
                         .foregroundColor(.green)
                 } else {
-                    Text(formatTimeInterval(skill.trainingTime))
+                    Text(FormatUtil.formatCompactDuration(skill.trainingTime))
                 }
             }
             .font(.caption)
@@ -508,61 +841,6 @@ struct SkillPlanDetailView: View {
             .padding(.top, 2)
         }
         .padding(.vertical, 2)
-    }
-
-    private func formatTimeInterval(_ interval: TimeInterval) -> String {
-        if interval < 1 {
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Seconds", comment: ""), 0)
-        }
-
-        let totalSeconds = interval
-        let days = Int(totalSeconds) / (24 * 3600)
-        var hours = Int(totalSeconds) / 3600 % 24
-        var minutes = Int(totalSeconds) / 60 % 60
-        let seconds = Int(totalSeconds) % 60
-
-        // 当显示两个单位时，对第二个单位进行四舍五入
-        if days > 0 {
-            // 对小时进行四舍五入
-            if minutes >= 30 {
-                hours += 1
-                if hours == 24 { // 如果四舍五入后小时数达到24
-                    return String.localizedStringWithFormat(NSLocalizedString("Time_Days", comment: ""), days + 1)
-                }
-            }
-            if hours > 0 {
-                return String(
-                    format: NSLocalizedString("Time_Days_Hours", comment: ""), days, hours
-                )
-            }
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Days", comment: ""), days)
-        } else if hours > 0 {
-            // 对分钟进行四舍五入
-            if seconds >= 30 {
-                minutes += 1
-                if minutes == 60 { // 如果四舍五入后分钟数达到60
-                    return String.localizedStringWithFormat(NSLocalizedString("Time_Hours", comment: ""), hours + 1)
-                }
-            }
-            if minutes > 0 {
-                return String(
-                    format: NSLocalizedString("Time_Hours_Minutes", comment: ""), hours, minutes
-                )
-            }
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Hours", comment: ""), hours)
-        } else if minutes > 0 {
-            // 对秒进行四舍五入
-            if seconds >= 30 {
-                minutes += 1
-            }
-            if seconds > 0 {
-                return String(
-                    format: NSLocalizedString("Time_Minutes_Seconds", comment: ""), minutes, seconds
-                )
-            }
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Minutes", comment: ""), minutes)
-        }
-        return String.localizedStringWithFormat(NSLocalizedString("Time_Seconds", comment: ""), seconds)
     }
 
     private func importSkillsFromClipboard() async {
@@ -584,7 +862,7 @@ struct SkillPlanDetailView: View {
         if !result.skills.isEmpty {
             Logger.debug("解析技能计划结果: \(result.skills)")
 
-            // 1. 将解析结果转换为 (skillId, level) 列表
+            // 将解析结果转换为待添加技能
             let parsedSkills = result.skills.compactMap { skillString -> (skillId: Int, level: Int)? in
                 let components = skillString.split(separator: ":")
                 guard components.count == 2,
@@ -596,42 +874,18 @@ struct SkillPlanDetailView: View {
                 return (skillId: typeId, level: targetLevel)
             }
 
-            // 2. 使用修正工具类补齐前置依赖并去重
-            Logger.debug("[导入] 修正前技能数量: \(parsedSkills.count)")
-            let corrector = SkillQueueCorrector(databaseManager: databaseManager)
-            let correctedSkills = corrector.correctSkillQueue(inputSkills: parsedSkills)
-            Logger.debug("[导入] 修正后技能数量: \(correctedSkills.count)")
-
-            // 获取所有技能的ID（用于批量加载数据）
-            let allSkillIds = Array(Set(correctedSkills.map { $0.skillId }))
-
-            let (newLearnedSkills, _) = await getLearnedSkills(skillIds: allSkillIds)
-            learnedSkills.merge(newLearnedSkills) { current, _ in current }
-
-            // 批量加载新技能的倍增系数
-            loadSkillTimeMultipliers(allSkillIds)
-
-            // 批量加载技能名称
-            let skillNamesDict = loadSkillNames(skillIds: allSkillIds)
-
-            // 更新计划数据
             var updatedPlan = plan
-            let validSkills = correctedSkills.compactMap { skill -> PlannedSkill? in
-                // 检查是否已存在相同技能和等级
+            let validSkills = parsedSkills.compactMap { skill -> PlannedSkill? in
                 if updatedPlan.skills.contains(where: {
                     $0.skillID == skill.skillId && $0.targetLevel == skill.level
                 }) {
                     return nil
                 }
 
-                // 获取技能名称
-                let skillName = skillNamesDict[skill.skillId] ?? "Unknown Skill (\(skill.skillId))"
-
-                // 获取已学习的技能信息
+                let skillName = SkillTreeManager.shared.getSkillName(for: skill.skillId)
+                    ?? "Unknown Skill (\(skill.skillId))"
                 let learnedSkill = learnedSkills[skill.skillId]
                 let currentLevel = learnedSkill?.trained_skill_level ?? 0
-
-                // 如果目标等级小于等于当前等级，说明已完成
                 let isCompleted = skill.level <= currentLevel
 
                 return createPlannedSkill(
@@ -642,29 +896,11 @@ struct SkillPlanDetailView: View {
                 )
             }
 
-            // 只有在有有效技能时才更新计划
             if !validSkills.isEmpty {
-                // 将新技能添加到现有技能列表末尾
-                let allSkills = updatedPlan.skills + validSkills
-                updatedPlan = updatePlanWithSkills(updatedPlan, skills: allSkills)
-
-                // 保存更新后的计划
-                SkillPlanFileManager.shared.saveSkillPlan(
-                    characterId: characterId, plan: updatedPlan
-                )
-
-                // 在主线程中更新UI状态
+                updatedPlan = updatePlanWithSkills(updatedPlan, skills: updatedPlan.skills + validSkills)
                 await MainActor.run {
-                    // 更新当前视图的计划
-                    plan = updatedPlan
-
-                    // 更新父视图中的计划列表
-                    if let index = skillPlans.firstIndex(where: { $0.id == plan.id }) {
-                        skillPlans[index] = updatedPlan
-                    }
+                    persistPlan(updatedPlan)
                 }
-
-                // 重新加载所有数据并计算注入器需求
                 await loadCharacterData()
             }
 
@@ -764,7 +1000,7 @@ struct SkillPlanDetailView: View {
     private func loadCharacterData() async {
         let skillIds = plan.skills.map { $0.skillID }
 
-        let spFromSkillsFetch = await refreshSkillPlanNetworkCaches(skillIds: skillIds)
+        _ = await refreshSkillPlanNetworkCaches(skillIds: skillIds)
 
         var updatedSkills = plan.skills
         if !skillIds.isEmpty {
@@ -788,17 +1024,16 @@ struct SkillPlanDetailView: View {
             }
         }
 
-        loadSkillTimeMultipliers(skillIds)
-
-        let skillAttributes = primarySecondaryAttributesForSkills(skillIds: skillIds)
         if let attrs = characterAttributes {
             for skill in updatedSkills {
-                if let (primary, secondary) = skillAttributes[skill.skillID],
-                   let rate = SkillTrainingCalculator.calculateTrainingRate(
-                       primaryAttrId: primary,
-                       secondaryAttrId: secondary,
-                       attributes: attrs
-                   )
+                if let (primary, secondary) = SkillTrainingCalculator.getSkillAttributes(
+                    skillId: skill.skillID, databaseManager: databaseManager
+                ),
+                    let rate = SkillTrainingCalculator.calculateTrainingRate(
+                        primaryAttrId: primary,
+                        secondaryAttrId: secondary,
+                        attributes: attrs
+                    )
                 {
                     trainingRates[skill.skillID] = rate
                 }
@@ -835,77 +1070,11 @@ struct SkillPlanDetailView: View {
             }
         }
 
-        await calculateInjectors(preferredCharacterTotalSP: spFromSkillsFetch)
-    }
-
-    /// 从本地 DB 读取技能主属性(180)与副属性(181)
-    private func primarySecondaryAttributesForSkills(skillIds: [Int]) -> [Int: (primary: Int, secondary: Int)] {
-        guard !skillIds.isEmpty else { return [:] }
-
-        let attributesQuery = """
-            SELECT type_id, attribute_id, value
-            FROM typeAttributes
-            WHERE type_id IN (\(skillIds.sorted().map(String.init).joined(separator: ",")))
-            AND attribute_id IN (180, 181)
-        """
-
-        var skillAttributes: [Int: (primary: Int, secondary: Int)] = [:]
-        guard case let .success(rows) = databaseManager.executeQuery(attributesQuery) else {
-            return [:]
-        }
-
-        var groupedAttributes: [Int: [(attributeId: Int, value: Int)]] = [:]
-        for row in rows {
-            guard let typeId = row["type_id"] as? Int,
-                  let attributeId = row["attribute_id"] as? Int,
-                  let value = row["value"] as? Double
-            else {
-                continue
-            }
-            groupedAttributes[typeId, default: []].append((attributeId, Int(value)))
-        }
-
-        for (typeId, attributes) in groupedAttributes {
-            var primary: Int?
-            var secondary: Int?
-            for attr in attributes {
-                if attr.attributeId == 180 {
-                    primary = attr.value
-                } else if attr.attributeId == 181 {
-                    secondary = attr.value
-                }
-            }
-            if let p = primary, let s = secondary {
-                skillAttributes[typeId] = (p, s)
-            }
-        }
-        return skillAttributes
-    }
-
-    private func loadSkillTimeMultipliers(_ skillIds: [Int]) {
-        guard !skillIds.isEmpty else { return }
-
-        let query = """
-            SELECT type_id, value
-            FROM typeAttributes
-            WHERE type_id IN (\(skillIds.sorted().map(String.init).joined(separator: ",")))
-            AND attribute_id = 275
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let value = row["value"] as? Double
-                {
-                    skillTimeMultipliers[typeId] = Int(value)
-                }
-            }
-        }
-        // Logger.debug("\(skillTimeMultipliers)")
+        await recalculatePlanMetrics()
     }
 
     private func getSkillTimeMultiplier(_ skillId: Int) -> Int {
-        return skillTimeMultipliers[skillId] ?? 1
+        Int(SkillTreeManager.shared.trainingTimeMultiplier(for: skillId) ?? 1)
     }
 
     private func getBaseSkillPointsForLevel(_ level: Int) -> Int? {
@@ -974,30 +1143,17 @@ struct SkillPlanDetailView: View {
         // 使用通用函数更新计划
         updatedPlan = updatePlanWithSkills(updatedPlan, skills: updatedPlan.skills)
 
-        // 保存更新后的计划
-        SkillPlanFileManager.shared.saveSkillPlan(characterId: characterId, plan: updatedPlan)
-
-        // 更新当前视图的计划
-        plan = updatedPlan
-
-        // 更新父视图中的计划列表
-        if let index = skillPlans.firstIndex(where: { $0.id == plan.id }) {
-            skillPlans[index] = updatedPlan
-        }
+        persistPlan(updatedPlan)
 
         // 重新计算依赖关系
         calculateSkillDependencies()
 
         // 重新计算注入器需求
-        Task {
-            await calculateInjectors()
-        }
+        Task { await recalculatePlanMetrics() }
     }
 
-    // 移除技能的某些等级（从技能选择器降级时调用）
+    /// 移除技能的某些等级（从技能选择器降级时调用）
     private func removeSkillLevels(skillId: Int, fromLevel: Int, toLevel: Int) {
-        // Logger.debug("[移除技能等级] skillId: \(skillId), 从等级 \(fromLevel) 到 \(toLevel)")
-
         var updatedPlan = plan
 
         // 移除指定范围的技能等级
@@ -1008,27 +1164,15 @@ struct SkillPlanDetailView: View {
         // 使用通用函数更新计划
         updatedPlan = updatePlanWithSkills(updatedPlan, skills: updatedPlan.skills)
 
-        // 保存更新后的计划
-        SkillPlanFileManager.shared.saveSkillPlan(characterId: characterId, plan: updatedPlan)
-
-        // 更新当前视图的计划
-        plan = updatedPlan
-
-        // 更新父视图中的计划列表
-        if let index = skillPlans.firstIndex(where: { $0.id == plan.id }) {
-            skillPlans[index] = updatedPlan
-        }
+        persistPlan(updatedPlan)
 
         // 重新计算依赖关系（移除后其他技能可能可以降级）
         calculateSkillDependencies()
 
         // 重新计算注入器需求
-        Task {
-            await calculateInjectors()
-        }
+        Task { await recalculatePlanMetrics() }
     }
 
-    @ViewBuilder
     private func injectorItemView(info: InjectorInfo, count: Int, typeId: Int) -> some View {
         NavigationLink {
             ShowItemInfo(
@@ -1049,20 +1193,21 @@ struct SkillPlanDetailView: View {
         }
     }
 
-    @ViewBuilder
     private func injectorSummaryView(calculation: InjectorCalculation) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(
                 String(
                     format: NSLocalizedString("Main_Skills_Total_Required_SP", comment: ""),
                     FormatUtil.format(Double(calculation.totalSkillPoints))
-                ))
+                )
+            )
             if let totalCost = totalInjectorCost {
                 Text(
                     String(
                         format: NSLocalizedString("Main_Skills_Total_Injector_Cost", comment: ""),
                         FormatUtil.formatISK(totalCost)
-                    ))
+                    )
+                )
             }
         }
         .font(.caption)
@@ -1075,19 +1220,10 @@ struct SkillPlanDetailView: View {
     }
 
     private func getInjectorInfo(typeId: Int) -> InjectorInfo? {
-        let query = """
-            SELECT name, icon_filename
-            FROM types
-            WHERE type_id = ?
-        """
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]),
-           let row = rows.first,
-           let name = row["name"] as? String,
-           let iconFilename = row["icon_filename"] as? String
-        {
-            return InjectorInfo(name: name, iconFilename: iconFilename)
-        }
-        return nil
+        guard let info = ItemInfoMap.typeInfo(for: typeId),
+              !info.name.isEmpty
+        else { return nil }
+        return InjectorInfo(name: info.name, iconFilename: info.iconFilename)
     }
 
     private var totalInjectorCost: Double? {
@@ -1102,65 +1238,31 @@ struct SkillPlanDetailView: View {
         )
     }
 
-    private func calculateInjectors(preferredCharacterTotalSP: Int? = nil) async {
-        await MainActor.run { isLoadingInjectors = true }
-
-        let totalRequiredSP = plan.totalSkillPoints
-        Logger.debug("计划总需求技能点: \(totalRequiredSP)")
-
-        let characterTotalSP: Int
-        if let preferred = preferredCharacterTotalSP {
-            characterTotalSP = preferred
-            await setNetworkLoadingPhase(.fetchingInjectorPrices)
-        } else {
-            await setNetworkLoadingPhase(.fetchingInjectorSkillPoints)
-            characterTotalSP = await getCharacterTotalSP()
-            await setNetworkLoadingPhase(.fetchingInjectorPrices)
-        }
-
-        injectorCalculation = SkillInjectorCalculator.calculate(
-            requiredSkillPoints: totalRequiredSP,
-            characterTotalSP: characterTotalSP
-        )
-        if let calc = injectorCalculation {
-            Logger.debug(
-                "计算结果 - 大型注入器: \(calc.largeInjectorCount), 小型注入器: \(calc.smallInjectorCount)")
-        }
-
-        await loadInjectorPrices()
-
+    private func recalculatePlanMetrics(freshQueue: Bool? = nil, animated: Bool = false) async {
+        let mode = freshQueue ?? freshQueueMode
         await MainActor.run {
-            isLoadingInjectors = false
+            injectorCalculation = SkillInjectorCalculator.calculate(
+                requiredSkillPoints: requiredSkillPoints(freshQueue: mode),
+                characterTotalSP: mode ? 0 : (cachedCharacterTotalSP ?? 0)
+            )
+        }
+        await updateOptimalAttributes(freshQueue: mode)
+        await MainActor.run {
+            syncDisplayedMetrics(freshQueue: mode, animated: animated)
+        }
+    }
+
+    private func loadInjectorPricesIfNeeded() async {
+        guard injectorPrices.large == nil || injectorPrices.small == nil else { return }
+        await setNetworkLoadingPhase(.fetchingInjectorPrices)
+        let prices = await InjectorPriceManager.shared.loadInjectorPrices()
+        await MainActor.run {
+            injectorPrices = prices
             networkLoadingPhase = nil
         }
     }
 
-    private func loadInjectorPrices() async {
-        let prices = await InjectorPriceManager.shared.loadInjectorPrices()
-
-        await MainActor.run {
-            injectorPrices = prices
-        }
-    }
-
-    private func getCharacterTotalSP() async -> Int {
-        // 直接从API获取角色当前的总技能点数
-        do {
-            let skillsInfo = try await CharacterSkillsAPI.shared.fetchCharacterSkills(
-                characterId: characterId, forceRefresh: false
-            )
-            let characterTotalSP = skillsInfo.total_sp + skillsInfo.unallocated_sp
-            Logger.debug(
-                "从API获取角色总技能点: \(characterTotalSP) (已分配: \(skillsInfo.total_sp), 未分配: \(skillsInfo.unallocated_sp))"
-            )
-            return characterTotalSP
-        } catch {
-            Logger.error("获取技能点数据失败: \(error)")
-            return 0
-        }
-    }
-
-    // 添加新的通用函数
+    /// 添加新的通用函数
     private func updatePlanWithSkills(_ currentPlan: SkillPlan, skills: [PlannedSkill]) -> SkillPlan {
         var updatedPlan = currentPlan
         updatedPlan.skills = skills
@@ -1224,7 +1326,7 @@ struct SkillPlanDetailView: View {
         }
     }
 
-    // 清空所有技能
+    /// 清空所有技能
     private func clearAllSkills() {
         var updatedPlan = plan
         updatedPlan.skills = []
@@ -1232,27 +1334,16 @@ struct SkillPlanDetailView: View {
         // 使用通用函数更新计划
         updatedPlan = updatePlanWithSkills(updatedPlan, skills: [])
 
-        // 保存更新后的计划
-        SkillPlanFileManager.shared.saveSkillPlan(characterId: characterId, plan: updatedPlan)
-
-        // 更新当前视图的计划
-        plan = updatedPlan
-
-        // 更新父视图中的计划列表
-        if let index = skillPlans.firstIndex(where: { $0.id == plan.id }) {
-            skillPlans[index] = updatedPlan
-        }
+        persistPlan(updatedPlan)
 
         // 重新计算依赖关系
         calculateSkillDependencies()
 
         // 重新计算注入器需求
-        Task {
-            await calculateInjectors()
-        }
+        Task { await recalculatePlanMetrics() }
     }
 
-    // 批量添加技能到计划（从 AddSkillSelectorView 回调）
+    /// 批量添加技能到计划（从 AddSkillSelectorView 回调）
     private func addBatchSkillsToPlan(skills: [(skillId: Int, skillName: String, level: Int)]) async {
         // 加载所有相关技能的数据
         let skillIds = Array(Set(skills.map { $0.skillId }))
@@ -1262,24 +1353,23 @@ struct SkillPlanDetailView: View {
         addSkillLevelsToPlan(skills)
     }
 
-    // 确保技能数据已加载
+    /// 确保技能数据已加载
     private func ensureSkillsDataLoaded(skillIds: [Int]) async {
         _ = await refreshSkillPlanNetworkCaches(skillIds: skillIds)
 
-        loadSkillTimeMultipliers(skillIds)
-
-        let skillAttributes = primarySecondaryAttributesForSkills(skillIds: skillIds)
         if let attrs = characterAttributes {
             for skillId in skillIds {
                 if trainingRates[skillId] != nil {
                     continue
                 }
-                if let (primary, secondary) = skillAttributes[skillId],
-                   let rate = SkillTrainingCalculator.calculateTrainingRate(
-                       primaryAttrId: primary,
-                       secondaryAttrId: secondary,
-                       attributes: attrs
-                   )
+                if let (primary, secondary) = SkillTrainingCalculator.getSkillAttributes(
+                    skillId: skillId, databaseManager: databaseManager
+                ),
+                    let rate = SkillTrainingCalculator.calculateTrainingRate(
+                        primaryAttrId: primary,
+                        secondaryAttrId: secondary,
+                        attributes: attrs
+                    )
                 {
                     trainingRates[skillId] = rate
                 }
@@ -1287,7 +1377,7 @@ struct SkillPlanDetailView: View {
         }
     }
 
-    // 批量添加技能等级到计划（内部使用）
+    /// 批量添加技能等级到计划（内部使用）
     private func addSkillLevelsToPlan(_ skillsToAdd: [(skillId: Int, skillName: String, level: Int)]) {
         var updatedSkills = plan.skills
         var skillNamesToLoad: Set<Int> = []
@@ -1350,9 +1440,6 @@ struct SkillPlanDetailView: View {
             // 更新记录的最高等级
             let currentMax = existingMaxLevels[skill.skillId] ?? 0
             existingMaxLevels[skill.skillId] = max(currentMax, skill.level)
-
-            // let status = isCompleted ? "[完成]" : ""
-            // Logger.debug("   将添加: \(skillName) 等级 \(skill.level) \(status)")
         }
 
         // 如果有新技能要添加
@@ -1362,22 +1449,13 @@ struct SkillPlanDetailView: View {
 
             let updatedPlan = updatePlanWithSkills(plan, skills: updatedSkills)
 
-            // 保存更新后的计划
-            SkillPlanFileManager.shared.saveSkillPlan(characterId: characterId, plan: updatedPlan)
-
-            // 更新UI状态
-            plan = updatedPlan
-            if let index = skillPlans.firstIndex(where: { $0.id == plan.id }) {
-                skillPlans[index] = updatedPlan
-            }
+            persistPlan(updatedPlan)
 
             // 重新计算依赖关系
             calculateSkillDependencies()
 
             // 重新计算注入器需求
-            Task {
-                await calculateInjectors()
-            }
+            Task { await recalculatePlanMetrics() }
 
             Logger.debug("  [*] 批量添加完成，共添加 \(newSkills.count) 个技能等级")
         } else {
@@ -1385,7 +1463,7 @@ struct SkillPlanDetailView: View {
         }
     }
 
-    // 添加物品的所有技能依赖到计划
+    /// 添加物品的所有技能依赖到计划
     private func addItemSkillsToPlan(itemId: Int, itemName: String) async {
         Logger.debug(" 开始添加物品技能依赖到计划 - 物品: \(itemName) (ID: \(itemId))")
 
@@ -1412,9 +1490,6 @@ struct SkillPlanDetailView: View {
 
         // 批量加载技能名称
         let skillNamesDict = loadSkillNames(skillIds: skillIds)
-
-        // 批量加载技能倍增系数
-        loadSkillTimeMultipliers(skillIds)
 
         // 收集所有需要添加的技能（包括前置技能）
         var skillsToAdd: [(skillId: Int, skillName: String, level: Int)] = []
@@ -1446,98 +1521,60 @@ struct SkillPlanDetailView: View {
         Logger.debug(" 物品技能依赖添加完成")
     }
 
-    // 获取技能的所有前置要求（递归，包括所有等级，从1级开始）
+    /// 获取技能的所有前置要求（递归，包括所有等级，从1级开始）
     private func getAllPrerequisitesForSkill(
         skillId: Int,
         requiredLevel _: Int
     ) -> [(skillId: Int, requiredLevel: Int)] {
-        // 使用SkillTreeManager获取所有前置技能（已经递归处理）
-        let requirements = SkillTreeManager.shared.getDeduplicatedSkillRequirements(
-            for: skillId,
-            databaseManager: databaseManager
-        )
-
-        var skillLevels: [Int: Int] = [:] // [skillId: maxLevel]
-
-        // 收集每个技能需要的最高等级
-        for requirement in requirements {
-            let currentMax = skillLevels[requirement.skillID] ?? 0
-            skillLevels[requirement.skillID] = max(currentMax, requirement.level)
+        var depthCache: [Int: Int] = [:]
+        func skillDepth(for id: Int) -> Int {
+            if let cached = depthCache[id] { return cached }
+            let directReqs = SkillTreeManager.shared.directSkillRequirements(for: id)
+            let depth: Int
+            if directReqs.isEmpty {
+                depth = 0
+            } else {
+                depth = 1 + (directReqs.map { skillDepth(for: $0.skillID) }.max() ?? 0)
+            }
+            depthCache[id] = depth
+            return depth
         }
 
-        // 计算每个技能的依赖深度（最底层=最大深度）
-        var skillDepths: [Int: Int] = [:]
-        for (prereqSkillId, _) in skillLevels {
-            let depth = calculateSkillDepth(skillId: prereqSkillId)
-            skillDepths[prereqSkillId] = depth
-        }
-
+        let skillLevels = SkillTreeManager.shared.prerequisiteMaxLevels(for: skillId)
         var allPrerequisites: [(skillId: Int, requiredLevel: Int)] = []
-
-        // 将每个技能展开成从1到最高等级的所有等级
         for (prereqSkillId, maxLevel) in skillLevels {
             for level in 1 ... maxLevel {
                 allPrerequisites.append((skillId: prereqSkillId, requiredLevel: level))
             }
         }
 
-        // 按深度排序（深度小的先=最底层的前置优先）
         return allPrerequisites.sorted { first, second in
-            let depth1 = skillDepths[first.skillId] ?? 0
-            let depth2 = skillDepths[second.skillId] ?? 0
+            let depth1 = skillDepth(for: first.skillId)
+            let depth2 = skillDepth(for: second.skillId)
 
             if depth1 != depth2 {
-                return depth1 < depth2 // 深度小的优先（最底层优先）
+                return depth1 < depth2
             } else if first.skillId == second.skillId {
-                return first.requiredLevel < second.requiredLevel // 同一技能，等级从低到高
+                return first.requiredLevel < second.requiredLevel
             } else {
-                return first.skillId < second.skillId // 同深度，按 ID 排序
+                return first.skillId < second.skillId
             }
         }
     }
 
-    // 计算技能的依赖深度（递归）
-    private func calculateSkillDepth(skillId: Int) -> Int {
-        let directReqs = SkillTreeManager.shared.getDeduplicatedSkillRequirements(
-            for: skillId, databaseManager: databaseManager
-        )
-
-        if directReqs.isEmpty {
-            return 0 // 没有前置，深度为0
-        }
-
-        // 深度 = 1 + 所有前置技能的最大深度
-        let maxPrereqDepth = directReqs.map { req in
-            calculateSkillDepth(skillId: req.skillID)
-        }.max() ?? 0
-
-        return 1 + maxPrereqDepth
-    }
-
-    // 批量加载技能名称
+    /// 批量加载技能名称
     private func loadSkillNames(skillIds: [Int]) -> [Int: String] {
         guard !skillIds.isEmpty else { return [:] }
-
-        let query = """
-            SELECT type_id, name
-            FROM types
-            WHERE type_id IN (\(skillIds.sorted().map(String.init).joined(separator: ",")))
-        """
-
         var skillNames: [Int: String] = [:]
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String
-                {
-                    skillNames[typeId] = name
-                }
+        for skillId in skillIds {
+            if let name = ItemInfoMap.typeName(for: skillId) {
+                skillNames[skillId] = name
             }
         }
         return skillNames
     }
 
-    // 获取计划中已有技能的最高等级
+    /// 获取计划中已有技能的最高等级
     private func getExistingSkillLevels() -> [Int: Int] {
         var skillLevels: [Int: Int] = [:]
         for skill in plan.skills {
@@ -1547,7 +1584,7 @@ struct SkillPlanDetailView: View {
         return skillLevels
     }
 
-    // 计算技能的后置依赖关系
+    /// 计算技能的后置依赖关系
     private func calculateSkillDependencies() {
         var dependencies: [String: Set<String>] = [:]
 
@@ -1564,14 +1601,8 @@ struct SkillPlanDetailView: View {
             }
 
             // 2. 该技能依赖的前置技能
-            // 例如：Amarr Destroyer 1 依赖 Amarr Frigate 3
-            let prerequisites = SkillTreeManager.shared.getDeduplicatedSkillRequirements(
-                for: skill.skillID,
-                databaseManager: databaseManager
-            )
-
-            for prereq in prerequisites {
-                let prereqKey = "\(prereq.skillID)_\(prereq.level)"
+            for (prereqId, level) in SkillTreeManager.shared.prerequisiteMaxLevels(for: skill.skillID) {
+                let prereqKey = "\(prereqId)_\(level)"
                 dependencies[prereqKey, default: []].insert(skillKey)
             }
         }
@@ -1579,19 +1610,19 @@ struct SkillPlanDetailView: View {
         skillDependencies = dependencies
     }
 
-    // 检查技能等级是否有后置依赖
+    /// 检查技能等级是否有后置依赖
     private func hasPostDependencies(skillId: Int, level: Int) -> Bool {
         let key = "\(skillId)_\(level)"
         return !(skillDependencies[key]?.isEmpty ?? true)
     }
 
-    // 判断当前数据库语言是否为英文
+    /// 判断当前数据库语言是否为英文
     private func isEnglishLanguage() -> Bool {
         let dbLanguage = UserDefaults.standard.string(forKey: "selectedDatabaseLanguage") ?? "en"
         return dbLanguage == "en"
     }
 
-    // 导出技能计划
+    /// 导出技能计划
     private func exportSkillPlan(useEnglishNames: Bool) async {
         guard !plan.skills.isEmpty else {
             await MainActor.run {
@@ -1604,22 +1635,12 @@ struct SkillPlanDetailView: View {
         // 获取所有技能ID
         let skillIds = plan.skills.map { $0.skillID }
 
-        // 从数据库批量获取技能名称
-        let nameField = useEnglishNames ? "en_name" : "name"
-        let query = """
-            SELECT type_id, \(nameField) as skill_name
-            FROM types
-            WHERE type_id IN (\(skillIds.sorted().map(String.init).joined(separator: ",")))
-        """
-
         var skillNamesDict: [Int: String] = [:]
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let skillName = row["skill_name"] as? String
-                {
-                    skillNamesDict[typeId] = skillName
-                }
+        for skillId in skillIds {
+            guard let info = ItemInfoMap.typeInfo(for: skillId) else { continue }
+            let skillName = useEnglishNames ? info.enName : info.name
+            if !skillName.isEmpty {
+                skillNamesDict[skillId] = skillName
             }
         }
 

@@ -5,7 +5,7 @@ struct ShipResourcesStatsView: View {
     @State private var slotsValues: [String: Int] = [:]
     @State private var resourceValues: [String: Double] = [:]
 
-    // 计算当前已安装的炮台数量
+    /// 计算当前已安装的炮台数量
     private var turretUsed: Int {
         var count = 0
         for module in viewModel.simulationInput.modules {
@@ -16,7 +16,7 @@ struct ShipResourcesStatsView: View {
         return count
     }
 
-    // 计算当前已安装的发射器数量
+    /// 计算当前已安装的发射器数量
     private var launcherUsed: Int {
         var count = 0
         for module in viewModel.simulationInput.modules {
@@ -139,34 +139,40 @@ struct ShipResourcesStatsView: View {
         }
     }
 
-    // 更新所有数值
+    /// 更新所有数值
     private func updateValues() {
         updateSlotValues()
         updateResourceValues()
     }
 
-    // 更新槽位数值
+    /// 更新槽位数值
     private func updateSlotValues() {
         if let output = viewModel.simulationOutput {
             Logger.info("使用计算后的属性值更新槽位数")
             slotsValues["turretSlotsLeft"] = Int(
-                output.ship.attributesByName["turretSlotsLeft"] ?? 0)
+                output.ship.attributesByName["turretSlotsLeft"] ?? 0
+            )
             slotsValues["launcherSlotsLeft"] = Int(
-                output.ship.attributesByName["launcherSlotsLeft"] ?? 0)
+                output.ship.attributesByName["launcherSlotsLeft"] ?? 0
+            )
             slotsValues["upgradeCapacity"] = Int(
-                output.ship.attributesByName["upgradeCapacity"] ?? 0)
+                output.ship.attributesByName["upgradeCapacity"] ?? 0
+            )
         } else {
             Logger.info("没有计算结果，使用基础属性值更新槽位数")
             slotsValues["turretSlotsLeft"] = Int(
-                viewModel.simulationInput.ship.baseAttributesByName["turretSlotsLeft"] ?? 0)
+                viewModel.simulationInput.ship.baseAttributesByName["turretSlotsLeft"] ?? 0
+            )
             slotsValues["launcherSlotsLeft"] = Int(
-                viewModel.simulationInput.ship.baseAttributesByName["launcherSlotsLeft"] ?? 0)
+                viewModel.simulationInput.ship.baseAttributesByName["launcherSlotsLeft"] ?? 0
+            )
             slotsValues["upgradeCapacity"] = Int(
-                viewModel.simulationInput.ship.baseAttributesByName["upgradeCapacity"] ?? 0)
+                viewModel.simulationInput.ship.baseAttributesByName["upgradeCapacity"] ?? 0
+            )
         }
     }
 
-    // 更新资源数值
+    /// 更新资源数值
     private func updateResourceValues() {
         // 计算CPU和电力使用情况
         var cpuUsed: Double = 0
@@ -205,7 +211,7 @@ struct ShipResourcesStatsView: View {
     }
 }
 
-// 纯数值属性视图
+/// 纯数值属性视图
 struct StatsAttributeValueView: View {
     let icon: String
     let current: Int

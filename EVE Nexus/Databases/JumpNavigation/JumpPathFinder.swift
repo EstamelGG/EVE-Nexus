@@ -1,27 +1,26 @@
-//
+
 //  JumpPathFinder.swift
 //  EVE Nexus
-//
+
 //  Created by GG on 2025/4/1.
-//
 
 import Foundation
 
-// 跳跃连接结构，保存两个星系间的跳跃信息
+/// 跳跃连接结构，保存两个星系间的跳跃信息
 struct JumpConnection {
     let sourceId: Int
     let destId: Int
     let distance: Double // 光年距离
 }
 
-// 路径段结构，包含起点、终点和距离
+/// 路径段结构，包含起点、终点和距离
 struct PathSegment {
     let src: Int // 起点ID
     let dst: Int // 终点ID
     let range: Double // 距离
 }
 
-// 路径结果结构，包含完整路径和详细信息
+/// 路径结果结构，包含完整路径和详细信息
 struct PathResult {
     let path: [Int] // 路径上的星系ID序列
     let segments: [PathSegment] // 路径段信息
@@ -29,14 +28,14 @@ struct PathResult {
 }
 
 class JumpPathFinder {
-    // 保存星系间的跳跃连接，键为源星系ID，值为可跳跃的目标星系及距离
+    /// 保存星系间的跳跃连接，键为源星系ID，值为可跳跃的目标星系及距离
     private var jumpConnections: [Int: [JumpConnection]] = [:]
-    // 保存星系ID到名称的映射，用于显示
+    /// 保存星系ID到名称的映射，用于显示
     private var systemIdToName: [Int: String] = [:]
-    // 添加星系ID到安全等级的映射
+    /// 添加星系ID到安全等级的映射
     private var systemIdToSecurity: [Int: Double] = [:]
 
-    // 添加一个新的初始化方法，接收预加载的星系数据
+    /// 添加一个新的初始化方法，接收预加载的星系数据
     init(databaseManager _: DatabaseManager, preloadedSystems: [JumpSystemData]) {
         loadJumpMap()
         // 使用预加载的星系数据
@@ -46,7 +45,7 @@ class JumpPathFinder {
         Logger.info("已使用预加载的星系数据: \(preloadedSystems.count) 个星系")
     }
 
-    // 从JSON文件加载跳跃地图数据
+    /// 从JSON文件加载跳跃地图数据
     private func loadJumpMap() {
         let fileManager = FileManager.default
         let documentsPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -66,7 +65,7 @@ class JumpPathFinder {
         }
     }
 
-    // 处理JSON数据，构建跳跃连接图
+    /// 处理JSON数据，构建跳跃连接图
     private func processJumpConnections(_ jsonArray: [[String: Any]]) {
         for connection in jsonArray {
             guard let sourceId = connection["s_id"] as? Int,
@@ -84,7 +83,7 @@ class JumpPathFinder {
         Logger.info("已加载跳跃连接: \(jumpConnections.count) 个星系")
     }
 
-    // 添加一个连接到图中
+    /// 添加一个连接到图中
     private func addConnection(sourceId: Int, destId: Int, distance: Double) {
         let connection = JumpConnection(sourceId: sourceId, destId: destId, distance: distance)
 
@@ -94,7 +93,7 @@ class JumpPathFinder {
         jumpConnections[sourceId]?.append(connection)
     }
 
-    // 检查星系是否满足安全等级要求
+    /// 检查星系是否满足安全等级要求
     private func isSystemSecurityValid(systemId: Int, isStartPoint: Bool = false) -> Bool {
         // 如果是起点，允许任何安全等级
         if isStartPoint {
@@ -111,7 +110,7 @@ class JumpPathFinder {
         return security < 0.5
     }
 
-    // 使用A*算法寻找最佳路径
+    /// 使用A*算法寻找最佳路径
     func findPath(
         from startSystemId: Int,
         to destinationSystemIds: [Int],
@@ -177,7 +176,8 @@ class JumpPathFinder {
             // 如果找到路径，将当前节点更新为最后到达的节点
             if !path.isEmpty {
                 allPaths.append(
-                    PathResult(path: path, segments: segments, totalDistance: totalDistance))
+                    PathResult(path: path, segments: segments, totalDistance: totalDistance)
+                )
                 currentSystemId = destinationId // 下次从当前终点继续寻路
 
                 // 记录找到的路径
@@ -188,14 +188,15 @@ class JumpPathFinder {
                 let startName = systemIdToName[currentSystemId] ?? "未知起点"
                 let destName = systemIdToName[destinationId] ?? "未知终点"
                 Logger.error(
-                    "无法找到从 \(startName)(\(currentSystemId)) 到 \(destName)(\(destinationId)) 的路径")
+                    "无法找到从 \(startName)(\(currentSystemId)) 到 \(destName)(\(destinationId)) 的路径"
+                )
             }
         }
 
         return allPaths
     }
 
-    // 根据飞船类型和技能等级计算最大跳跃范围
+    /// 根据飞船类型和技能等级计算最大跳跃范围
     private func calculateMaxJumpRange(shipTypeId: Int, skillLevel: Int) -> Double {
         // 从数据库查询飞船基础跳跃范围 (attribute_id 867 表示跳跃范围)
         var baseRange = 5.0 // 默认值为5光年
@@ -224,7 +225,7 @@ class JumpPathFinder {
         return baseRange * skillMultiplier
     }
 
-    // A*算法核心实现
+    /// A*算法核心实现
     private func aStarSearch(
         from startSystemId: Int,
         to destinationSystemId: Int,
@@ -356,7 +357,7 @@ class JumpPathFinder {
         return ([], [], 0.0)
     }
 
-    // 估计从当前节点到目标节点的跳跃次数
+    /// 估计从当前节点到目标节点的跳跃次数
     private func estimateJumps(from sourceId: Int, to destId: Int) -> Double {
         // 如果有直接连接，返回1
         if let connections = jumpConnections[sourceId],
@@ -368,7 +369,7 @@ class JumpPathFinder {
         return 2 // 假设至少需要2跳
     }
 
-    // 估计从当前节点到目标节点的距离
+    /// 估计从当前节点到目标节点的距离
     private func estimateDistance(from sourceId: Int, to destId: Int) -> Double {
         // 如果有直接连接，返回实际距离
         if let connections = jumpConnections[sourceId],
@@ -380,7 +381,7 @@ class JumpPathFinder {
         return 1.0 // 假设距离很短
     }
 
-    // 使用距离信息重建路径
+    /// 使用距离信息重建路径
     private func reconstructPathWithDistances(
         cameFrom: [Int: Int],
         end: Int,

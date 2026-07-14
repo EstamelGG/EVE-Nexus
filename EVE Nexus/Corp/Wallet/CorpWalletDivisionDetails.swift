@@ -55,7 +55,8 @@ struct CorpWalletDivisionDetails: View {
                 characterId: characterId,
                 division: division,
                 databaseManager: DatabaseManager.shared
-            ))
+            )
+        )
     }
 
     var body: some View {

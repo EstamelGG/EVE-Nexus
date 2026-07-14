@@ -7,7 +7,7 @@ import CoreData
 import Combine
 import Pulse
 
-/// Keeps track of hosts, paths, etc.
+// Keeps track of hosts, paths, etc.
 package final class LoggerStoreIndex: ObservableObject {
     @Published private(set) package var labels: Set<String> = []
     @Published private(set) package var files: Set<String> = []

@@ -4,8 +4,8 @@
 
 import Foundation
 
-/// A custom `URLProtocol` that enables Pulse network debugging features such
-/// as mocking of the network responses.
+// A custom `URLProtocol` that enables Pulse network debugging features such
+// as mocking of the network responses.
 public final class MockingURLProtocol: URLProtocol, @unchecked Sendable {
     public override func startLoading() {
         guard let mock = NetworkDebugger.shared.getMock(for: request) else {
@@ -61,7 +61,7 @@ public final class MockingURLProtocol: URLProtocol, @unchecked Sendable {
 // MARK: - MockingURLProtocol (Automatic Registration)
 
 extension MockingURLProtocol {
-    /// Inject the protocol in every `URLSession` instance created by the app.
+    // Inject the protocol in every `URLSession` instance created by the app.
     @MainActor
     public static func enableAutomaticRegistration() {
         if let lhs = class_getClassMethod(URLSession.self, #selector(URLSession.init(configuration:delegate:delegateQueue:))),

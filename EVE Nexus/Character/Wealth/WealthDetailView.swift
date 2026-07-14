@@ -51,7 +51,7 @@ struct WealthDetailView: View {
         return nil
     }
 
-    // 初始化数据加载方法
+    /// 初始化数据加载方法
     private func loadInitialDataIfNeeded() {
         guard !hasInitialized else { return }
 
@@ -254,7 +254,6 @@ struct WealthDetailView: View {
         }
     }
 
-    @ViewBuilder
     private var noPriceItemsSection: some View {
         Section(header: Text(NSLocalizedString("Wealth_Detail_NoPrice", comment: ""))) {
             ForEach(

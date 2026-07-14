@@ -5,7 +5,7 @@
 import SwiftUI
 
 #if os(iOS) || os(tvOS) || os(visionOS)
-/// A simple text view for rendering attributed strings.
+// A simple text view for rendering attributed strings.
 struct TextView: UIViewRepresentable {
     let string: NSAttributedString
 

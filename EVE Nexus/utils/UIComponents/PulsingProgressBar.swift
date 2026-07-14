@@ -71,7 +71,7 @@ struct PulsingProgressBar: View {
         }
     }
 
-    // 计算光斑偏移量（基于动画相位）
+    /// 计算光斑偏移量（基于动画相位）
     private func calculateShimmerOffset(progressWidth: CGFloat, phase: Double) -> CGFloat {
         let shimmerWidth = progressWidth * 0.4
         let startOffset = -shimmerWidth
@@ -79,7 +79,7 @@ struct PulsingProgressBar: View {
         return startOffset + (endOffset - startOffset) * CGFloat(phase)
     }
 
-    // 开始闪烁动画循环
+    /// 开始闪烁动画循环
     private func startShimmerAnimation() {
         // 重置到起始位置（相位为0）
         shimmerPhase = 0

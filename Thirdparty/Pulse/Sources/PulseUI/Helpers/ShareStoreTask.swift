@@ -36,7 +36,7 @@ final class ShareStoreTask {
         }
     }
 
-    /// - warning: For testing purposes only.
+    // - warning: For testing purposes only.
     func share() -> ShareItems {
         ShareService.share(renderAsAttributedString(), as: output)
     }

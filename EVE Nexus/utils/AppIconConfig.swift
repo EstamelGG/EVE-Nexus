@@ -3,10 +3,10 @@ import UIKit
 
 /// 应用图标配置
 enum AppIconConfig {
-    // 硬编码的图标列表
+    /// 硬编码的图标列表
     static let iconList = ["Tritanium_basic", "Tritanium", "TriDB", "OverseerBox", "HyperCore"]
 
-    // 硬编码的角标列表
+    /// 硬编码的角标列表
     static let badgeList = ["T1", "T2", "T3", "Factions", "Deadspace", "Officers"]
 
     // UserDefaults 键

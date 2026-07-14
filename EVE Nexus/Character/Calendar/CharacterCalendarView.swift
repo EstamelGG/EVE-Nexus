@@ -74,7 +74,7 @@ struct CalendarGridView: View {
     @State private var selectedDate = Date()
     @State private var currentMonth = Date()
 
-    // 按日期分组事件
+    /// 按日期分组事件
     private var eventsByDate: [String: [CalendarEvent]] {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
@@ -570,7 +570,7 @@ class CalendarViewModel: ObservableObject {
         }
     }
 
-    // 当月份变化时，检查是否需要加载更多数据
+    /// 当月份变化时，检查是否需要加载更多数据
     func checkDataForMonth(_ month: Date) async {
         let calendar = Calendar.current
         _ = calendar.dateInterval(of: .month, for: month)?.start ?? month

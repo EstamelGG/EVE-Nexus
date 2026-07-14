@@ -168,7 +168,8 @@ struct ESIStatusView: View {
             do {
                 // 获取数据
                 let status = try await ESIStatusAPI.shared.fetchESIStatus(
-                    forceRefresh: forceRefresh)
+                    forceRefresh: forceRefresh
+                )
 
                 // 获取缓存时间戳
                 // 无论是否强制刷新，都使用缓存创建的时间
@@ -232,29 +233,7 @@ struct ESIStatusView: View {
     }
 
     private func timeAgoString(from date: Date) -> String {
-        let timeInterval = Date().timeIntervalSince(date)
-
-        let days = Int(timeInterval / (24 * 3600))
-        if days > 0 {
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Days_Ago_short", comment: ""), days)
-        }
-
-        let hours = Int(timeInterval / 3600)
-        if hours > 0 {
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Hours_Ago_short", comment: ""), hours)
-        }
-
-        let minutes = Int(timeInterval / 60)
-        if minutes > 0 {
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Minutes_Ago_short", comment: ""), minutes)
-        }
-
-        let seconds = Int(timeInterval)
-        if seconds > 0 {
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Seconds_Ago_short", comment: ""), seconds)
-        }
-
-        return NSLocalizedString("Time_Just_Now", comment: "")
+        return FormatUtil.formatRelativeAgoShort(since: date)
     }
 }
 

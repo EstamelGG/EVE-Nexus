@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 全局头像加载器
+/// 全局头像加载器
 @MainActor
 class CharacterPortraitLoader: ObservableObject {
     static let shared = CharacterPortraitLoader()
@@ -67,7 +67,7 @@ class CharacterPortraitLoader: ObservableObject {
     }
 }
 
-// 头像视图（懒加载：占位图 + .task 按需加载，视图消失时自动取消）
+/// 头像视图（懒加载：占位图 + .task 按需加载，视图消失时自动取消）
 struct CharacterPortrait: View {
     let characterId: Int
     let size: CGFloat
@@ -122,6 +122,58 @@ class CharacterMailListViewModel: ObservableObject {
     @Published var hasMoreMails = true
     @Published var initialLoadDone = false
 
+    /// 邮件时间解析器（ISO8601）
+    private static let dateFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
+
+    /// 近期邮件的时间界限：14 天
+    private static let recentCutoff: TimeInterval = 14 * 24 * 3600
+
+    /// 近期邮件（7 天内）
+    var recentMails: [EVEMail] {
+        let cutoff = Date().addingTimeInterval(-Self.recentCutoff)
+        return mails.filter { mail in
+            guard let date = Self.dateFormatter.date(from: mail.timestamp) else { return false }
+            return date > cutoff
+        }
+    }
+
+    /// 其他邮件（7 天前及更早）
+    var olderMails: [EVEMail] {
+        let cutoff = Date().addingTimeInterval(-Self.recentCutoff)
+        return mails.filter { mail in
+            guard let date = Self.dateFormatter.date(from: mail.timestamp) else { return true }
+            return date <= cutoff
+        }
+    }
+
+    /// 从 API 获取邮件并按邮件列表过滤（fetchMails 和 loadMoreMails 共享逻辑）
+    /// - Returns: 过滤后的邮件数组
+    private func fetchMailsFromAPI(
+        characterId: Int, labelId: Int?, lastMailId: Int?
+    ) async throws -> [EVEMail] {
+        if let listId = labelId, isMailingList(listId) {
+            // 邮件列表：获取全量后按收件人过滤
+            let allMails = try await CharacterMailAPI.shared.fetchLatestMails(
+                characterId: characterId, lastMailId: lastMailId
+            )
+            return allMails.filter { mail in
+                mail.recipients.contains { recipient in
+                    recipient.recipient_id == listId
+                        && recipient.recipient_type == "mailing_list"
+                }
+            }
+        } else {
+            // 系统邮箱（收件箱、已发送等）
+            return try await CharacterMailAPI.shared.fetchLatestMails(
+                characterId: characterId, labelId: labelId, lastMailId: lastMailId
+            )
+        }
+    }
+
     func fetchMails(characterId: Int, labelId: Int? = nil, forceRefresh: Bool = false) async {
         // 如果已经加载过且不是强制刷新，则跳过
         if initialLoadDone, !forceRefresh {
@@ -140,35 +192,13 @@ class CharacterMailListViewModel: ObservableObject {
         }
 
         do {
-            let newMails: [EVEMail]
-            if let listId = labelId, isMailingList(listId) {
-                // 如果是邮件列表，获取全量邮件并过滤
-                newMails = try await CharacterMailAPI.shared.fetchLatestMails(
-                    characterId: characterId)
-                let filteredMails = newMails.filter { mail in
-                    mail.recipients.contains { recipient in
-                        recipient.recipient_id == listId
-                            && recipient.recipient_type == "mailing_list"
-                    }
-                }
-                // 先加载发件人信息
-                await loadSenderNames(for: filteredMails)
-                // 然后一次性更新UI数据
-                mails = filteredMails
-            } else {
-                // 其他情况（收件箱等）使用原有逻辑
-                newMails = try await CharacterMailAPI.shared.fetchLatestMails(
-                    characterId: characterId, labelId: labelId
-                )
-                // 先加载发件人信息
-                await loadSenderNames(for: newMails)
-                // 然后一次性更新UI数据
-                mails = newMails
-            }
-
+            let newMails = try await fetchMailsFromAPI(
+                characterId: characterId, labelId: labelId, lastMailId: nil
+            )
+            await loadSenderNames(for: newMails)
+            mails = newMails
             hasMoreMails = !mails.isEmpty
             initialLoadDone = true
-
         } catch {
             Logger.error("获取邮件失败: \(error)")
             self.error = error
@@ -182,59 +212,26 @@ class CharacterMailListViewModel: ObservableObject {
         defer { isLoadingMore = false }
 
         do {
-            let olderMails: [EVEMail]
-            if let listId = labelId, isMailingList(listId) {
-                // 如果是邮件列表，获取全量邮件并过滤
-                olderMails = try await CharacterMailAPI.shared.fetchLatestMails(
-                    characterId: characterId,
-                    lastMailId: lastMail.mail_id
-                )
-                let filteredMails = olderMails.filter { mail in
-                    mail.recipients.contains { recipient in
-                        recipient.recipient_id == listId
-                            && recipient.recipient_type == "mailing_list"
-                    }
-                }
+            let olderMails = try await fetchMailsFromAPI(
+                characterId: characterId, labelId: labelId, lastMailId: lastMail.mail_id
+            )
 
-                if !filteredMails.isEmpty {
-                    // 先加载发件人信息
-                    await loadSenderNames(for: filteredMails)
-                    // 然后一次性更新UI数据
-                    mails.append(contentsOf: filteredMails)
-                    hasMoreMails = true
-                    Logger.success("成功加载 \(filteredMails.count) 封更老的邮件")
-                } else {
-                    hasMoreMails = false
-                    Logger.info("没有更多邮件了")
-                }
+            if olderMails.isEmpty {
+                hasMoreMails = false
+                Logger.info("没有更多邮件了")
             } else {
-                // 其他情况（收件箱等）使用原有逻辑
-                olderMails = try await CharacterMailAPI.shared.fetchLatestMails(
-                    characterId: characterId,
-                    labelId: labelId,
-                    lastMailId: lastMail.mail_id
-                )
-
-                if !olderMails.isEmpty {
-                    // 先加载发件人信息
-                    await loadSenderNames(for: olderMails)
-                    // 然后一次性更新UI数据
-                    mails.append(contentsOf: olderMails)
-                    hasMoreMails = true
-                    Logger.success("成功加载 \(olderMails.count) 封更老的邮件")
-                } else {
-                    hasMoreMails = false
-                    Logger.info("没有更多邮件了")
-                }
+                await loadSenderNames(for: olderMails)
+                mails.append(contentsOf: olderMails)
+                hasMoreMails = true
+                Logger.success("成功加载 \(olderMails.count) 封更老的邮件")
             }
-
         } catch {
             Logger.error("加载更多邮件失败: \(error)")
             self.error = error
         }
     }
 
-    // 判断是否是邮件列表ID
+    /// 判断是否是邮件列表ID
     private func isMailingList(_ id: Int) -> Bool {
         // 系统预定义的标签ID都很小，邮件列表ID通常很大
         return id > 100_000
@@ -277,7 +274,7 @@ class CharacterMailListViewModel: ObservableObject {
     }
 }
 
-// 邮件列表项视图
+/// 邮件列表项视图
 private struct MailListItemView: View {
     let characterId: Int
     let mail: EVEMail
@@ -298,7 +295,6 @@ private struct MailListItemView: View {
                 // 邮件主题
                 Text(mail.subject)
                     .font(.headline)
-                    // .foregroundColor(mail.is_read == true ? .secondary : .primary)
                     .lineLimit(1)
 
                 // 发件人名称
@@ -314,44 +310,22 @@ private struct MailListItemView: View {
             }
 
             Spacer()
-
-            // 未读标记
-            //            if mail.is_read != true {
-            //                Circle()
-            //                    .fill(Color.blue)
-            //                    .frame(width: 8, height: 8)
-            //            }
         }
         .padding(.vertical, 2)
     }
 }
 
-// 加载指示器视图
-private struct LoadingIndicatorView: View {
+/// 邮件加载指示器（初始加载和加载更多共用）
+private struct MailLoadingIndicator: View {
     var body: some View {
         HStack {
             Spacer()
-            VStack {
+            VStack(spacing: 8) {
                 ProgressView()
                 Text(NSLocalizedString("Main_EVE_Mail_Loading", comment: ""))
                     .foregroundColor(.secondary)
                     .font(.subheadline)
-                    .padding(.top, 8)
             }
-            Spacer()
-        }
-    }
-}
-
-// 加载更多指示器视图
-private struct LoadMoreIndicatorView: View {
-    var body: some View {
-        HStack {
-            Spacer()
-            ProgressView()
-            Text(NSLocalizedString("Main_EVE_Mail_Loading", comment: ""))
-                .foregroundColor(.secondary)
-                .font(.subheadline)
             Spacer()
         }
         .padding(.vertical, 8)
@@ -364,7 +338,6 @@ struct CharacterMailListView: View {
     let title: String
 
     @StateObject private var viewModel = CharacterMailListViewModel()
-    @State private var scrollPosition: Int?
     @State private var composeMailData: ComposeMailData?
     @State private var hasInitialized = false // 追踪是否已执行初始化
 
@@ -379,7 +352,7 @@ struct CharacterMailListView: View {
         self.title = title ?? NSLocalizedString("Main_EVE_Mail_All", comment: "")
     }
 
-    // 初始化数据加载方法
+    /// 初始化数据加载方法
     private func loadInitialDataIfNeeded() {
         guard !hasInitialized else { return }
 
@@ -391,65 +364,83 @@ struct CharacterMailListView: View {
     }
 
     var body: some View {
-        ScrollViewReader { _ in
-            List {
-                if viewModel.isLoading && viewModel.mails.isEmpty {
-                    LoadingIndicatorView()
-                }
-
-                ForEach(viewModel.mails, id: \.mail_id) { mail in
-                    NavigationLink(
-                        destination: CharacterMailDetailView(characterId: characterId, mail: mail)
-                    ) {
-                        MailListItemView(characterId: characterId, mail: mail, viewModel: viewModel)
-                            .id(mail.mail_id)
-                    }
-                    .onAppear {
-                        if mail.mail_id == viewModel.mails.last?.mail_id {
-                            Task {
-                                await viewModel.loadMoreMails(
-                                    characterId: characterId, labelId: labelId
-                                )
-                            }
-                        }
-                        // 记录当前滚动位置
-                        scrollPosition = mail.mail_id
-                    }
-                }
-
-                if viewModel.isLoadingMore {
-                    LoadMoreIndicatorView()
+        List {
+            if viewModel.isLoading && viewModel.mails.isEmpty {
+                ForEach(0 ..< 8, id: \.self) { _ in
+                    ListSkeletonRow.mail
                 }
             }
-            .refreshable {
-                await viewModel.fetchMails(
-                    characterId: characterId, labelId: labelId, forceRefresh: true
+
+            // 近期邮件（7 天内）
+            if !viewModel.recentMails.isEmpty {
+                Section(header: Text("近期邮件")) {
+                    ForEach(viewModel.recentMails, id: \.mail_id) { mail in
+                        mailRow(mail)
+                    }
+                }
+            }
+
+            // 其他邮件（7 天前及更早）
+            if !viewModel.olderMails.isEmpty {
+                Section(header: Text("其他邮件")) {
+                    ForEach(viewModel.olderMails, id: \.mail_id) { mail in
+                        mailRow(mail)
+                    }
+                }
+            }
+
+            if viewModel.isLoadingMore {
+                MailLoadingIndicator()
+            }
+        }
+        .refreshable {
+            await viewModel.fetchMails(
+                characterId: characterId, labelId: labelId, forceRefresh: true
+            )
+        }
+        .navigationTitle(title)
+        .toolbar {
+            // 只在军团邮箱页面显示编辑按钮
+            if labelId == MailboxType.corporation.labelId {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        // 先获取军团信息，再显示编辑页面
+                        getCorpInfoAndShowCompose()
+                    } label: {
+                        Image(systemName: "square.and.pencil")
+                    }
+                }
+            }
+        }
+        .sheet(item: $composeMailData) { data in
+            NavigationStack {
+                CharacterComposeMailView(
+                    characterId: characterId,
+                    initialRecipients: data.recipients
                 )
             }
-            .navigationTitle(title)
-            .toolbar {
-                // 只在军团邮箱页面显示编辑按钮
-                if labelId == MailboxType.corporation.labelId {
-                    ToolbarItem(placement: .navigationBarTrailing) {
-                        Button {
-                            // 先获取军团信息，再显示编辑页面
-                            getCorpInfoAndShowCompose()
-                        } label: {
-                            Image(systemName: "square.and.pencil")
-                        }
-                    }
-                }
-            }
-            .sheet(item: $composeMailData) { data in
-                NavigationStack {
-                    CharacterComposeMailView(
-                        characterId: characterId,
-                        initialRecipients: data.recipients
+        }
+        .onAppear {
+            loadInitialDataIfNeeded()
+        }
+    }
+
+    /// 邮件行视图（含触底加载更多逻辑）
+    private func mailRow(_ mail: EVEMail) -> some View {
+        NavigationLink(
+            destination: CharacterMailDetailView(characterId: characterId, mail: mail)
+        ) {
+            MailListItemView(characterId: characterId, mail: mail, viewModel: viewModel)
+                .id(mail.mail_id)
+        }
+        .onAppear {
+            // 触底加载：最后一封邮件出现时触发
+            if mail.mail_id == viewModel.mails.last?.mail_id {
+                Task {
+                    await viewModel.loadMoreMails(
+                        characterId: characterId, labelId: labelId
                     )
                 }
-            }
-            .onAppear {
-                loadInitialDataIfNeeded()
             }
         }
     }
@@ -492,7 +483,7 @@ struct CharacterMailListView: View {
     }
 }
 
-// 使用FormatUtil进行日期格式化
+/// 使用FormatUtil进行日期格式化
 extension String {
     func formatDate() -> String {
         return FormatUtil.formatUTCToLocalTime(self)

@@ -1,126 +1,93 @@
 import Foundation
 
-// 属性显示规则配置
+/// 属性显示规则配置
 enum AttributeDisplayConfig {
-    // 转换结果类型
+    /// 转换结果类型
     enum TransformResult {
         case number(Double, String?) // 数值和可选单位
         case text(String) // 纯文本
         case resistance([Double]) // 抗性显示（EM, Thermal, Kinetic, Explosive）
     }
 
-    // 特殊值映射类型
+    /// 特殊值映射类型
     private enum SpecialValueType {
-        case boolean // 布尔值 (True/False)
-        case size // 尺寸 (Small/Medium/Large)
-        case gender // 性别 (Male/Unisex/Female)
+        case boolean
+        case size
+        case gender
+
+        private static let sizeLabels = [1: "Small", 2: "Medium", 3: "Large", 4: "X-large"]
+        private static let genderLabels = [1: "Male", 2: "Unisex", 3: "Female"]
 
         func transform(_ value: Double) -> String {
             switch self {
             case .boolean:
                 return value == 1 ? "True" : "False"
             case .size:
-                switch Int(value) {
-                case 1: return "Small"
-                case 2: return "Medium"
-                case 3: return "Large"
-                case 4: return "X-large"
-                default: return NSLocalizedString("Unknown", comment: "")
-                }
+                return Self.sizeLabels[Int(value)] ?? NSLocalizedString("Unknown", comment: "")
             case .gender:
-                switch Int(value) {
-                case 1: return "Male"
-                case 2: return "Unisex"
-                case 3: return "Female"
-                default: return NSLocalizedString("Unknown", comment: "")
-                }
+                return Self.genderLabels[Int(value)] ?? NSLocalizedString("Unknown", comment: "")
             }
         }
     }
 
-    // 特殊值映射配置
-    private static let specialValueMappings: [Int: SpecialValueType] = [
-        // 尺寸映射
-        128: .size,
-        1031: .size,
-        1547: .size,
+    /// 特殊值映射配置
+    private static let specialValueMappings: [Int: SpecialValueType] = {
+        var map = Dictionary(uniqueKeysWithValues: [128, 1031, 1547].map { ($0, SpecialValueType.size) })
+        map[1773] = .gender
+        for id in [
+            786, 854, 861, 1014, 1074, 1158, 1167, 1245, 1252,
+            1785, 1798, 1806, 1854, 1890, 1916, 1920, 1927, 1945,
+            1958, 1970, 2343, 2354, 2395, 2453, 2454, 2791, 2826,
+            2827, 3117, 3123, 5206, 5425, 5426, 5561, 5700,
+        ] {
+            map[id] = .boolean
+        }
+        return map
+    }()
 
-        // 性别映射
-        1773: .gender,
-
-        // 布尔值映射
-        786: .boolean,
-        854: .boolean,
-        861: .boolean,
-        1014: .boolean,
-        1074: .boolean,
-        1158: .boolean,
-        1167: .boolean,
-        1245: .boolean,
-        1252: .boolean,
-        1785: .boolean,
-        1798: .boolean,
-        1806: .boolean,
-        1854: .boolean,
-        1890: .boolean,
-        1916: .boolean,
-        1920: .boolean,
-        1927: .boolean,
-        1945: .boolean,
-        1958: .boolean,
-        1970: .boolean,
-        2343: .boolean,
-        2354: .boolean,
-        2395: .boolean,
-        2453: .boolean,
-        2454: .boolean,
-        2791: .boolean,
-        2826: .boolean,
-        2827: .boolean,
-        3117: .boolean,
-        3123: .boolean,
-        5206: .boolean,
-        5425: .boolean,
-        5426: .boolean,
-        5561: .boolean,
-        5700: .boolean,
-    ]
-
-    // 抗性属性组定义
+    /// 抗性属性组定义
     struct ResistanceGroup {
         let groupID: Int
-        let emIDs: [Int] // 改为数组
-        let thermalIDs: [Int] // 改为数组
-        let kineticIDs: [Int] // 改为数组
-        let explosiveIDs: [Int] // 改为数组
+        let emIDs: [Int]
+        let thermalIDs: [Int]
+        let kineticIDs: [Int]
+        let explosiveIDs: [Int]
+
+        var allIDs: [Int] {
+            emIDs + thermalIDs + kineticIDs + explosiveIDs
+        }
     }
 
-    // 定义抗性属性组
+    /// 定义抗性属性组
     private static let resistanceGroups: [ResistanceGroup] = [
-        ResistanceGroup(
+        ResistanceGroup( // 护盾抗性
             groupID: 2,
             emIDs: [271, 1423, 2118],
             thermalIDs: [274, 1425, 2119],
             kineticIDs: [273, 1424, 2120],
             explosiveIDs: [272, 1422, 2121]
-        ), // 护盾抗性
-        ResistanceGroup(
+        ),
+        ResistanceGroup( // 装甲抗性
             groupID: 3,
             emIDs: [267, 1418],
             thermalIDs: [270, 1419],
             kineticIDs: [269, 1420],
             explosiveIDs: [268, 1421]
-        ), // 装甲抗性
-        ResistanceGroup(
+        ),
+        ResistanceGroup( // 结构抗性
             groupID: 4,
             emIDs: [113, 974, 1426],
             thermalIDs: [110, 977, 1429],
             kineticIDs: [109, 976, 1428],
             explosiveIDs: [111, 975, 1427]
-        ), // 结构抗性
+        ),
     ]
 
-    // 运算符类型
+    private static let resistanceAttributeIDs: Set<Int> = Set(
+        resistanceGroups.flatMap(\.allIDs)
+    )
+
+    /// 运算符类型
     enum Operation: String {
         case add = "+"
         case subtract = "-"
@@ -137,98 +104,76 @@ enum AttributeDisplayConfig {
         }
     }
 
-    // 属性值计算配置
+    /// 属性值计算配置
     struct AttributeCalculation {
-        let sourceAttribute1: Int // 第一个源属性ID
-        let sourceAttribute2: Int // 第二个源属性ID
-        let operation: Operation // 算符
+        let sourceAttribute1: Int
+        let sourceAttribute2: Int
+        let operation: Operation
     }
 
-    // 默认配置
-    private static let defaultGroupOrder: [Int: Int] = [:] // [categoryId: order] 自定义展示分组的顺序
-    private static let defaultHiddenGroups: Set<Int> = [9, 52] // 要隐藏的属性分组id
+    private static let defaultGroupOrder: [Int: Int] = [:]
+    private static let defaultHiddenGroups: Set<Int> = [9, 52]
     private static let defaultHiddenAttributes: Set<Int> = [
         3, 15, 600, 715, 716, 1137, 1336, 1547,
-    ] // 要隐藏的属性id
-
-    // 属性组内属性的默认排序配置 [groupId: [attributeId: order]]
+    ]
     private static let defaultAttributeOrder: [Int: [Int: Int]] = [:]
-    // [
-    // 装备属性组
-    //        1: [
-    //            141: 1,  // 数量
-    //            120: 2,  // 点数
-    //            283: 3   // 体积
-    //        ],
-    // ]
 
-    // 属性单位
+    /// 属性单位
     private static var attributeUnits: [Int: String] = [:]
 
-    // 属性组内属性的自定义排序配置
+    /// 属性组内属性的自定义排序配置
     private static var customAttributeOrder: [Int: [Int: Int]]?
 
-    // 获取实际使用的属性排序配置
     private static var activeAttributeOrder: [Int: [Int: Int]] {
         customAttributeOrder ?? defaultAttributeOrder
     }
 
-    // 属性值计算规则
+    /// 属性值计算规则
     private static var attributeCalculations: [Int: AttributeCalculation] = [
-        // 示例：属性ID 1 的值 = 属性ID 2 的值 + 属性ID 3 的值
-        // operation: .add,.subtract,.multiply,.divide (+-*/)
         1281: AttributeCalculation(
             sourceAttribute1: 1281, sourceAttribute2: 600, operation: .multiply
         ),
     ]
 
-    // 基于 Attribute_id 的值转换规则
+    /// 基于 Attribute_id 的值转换规则
     private static let valueTransformRules: [Int: (Double) -> Double] = [:]
 
-    // 基于 unitID 的值转换规则，转换规则参考 https://sde.hoboleaks.space/tq/dogmaunits.json
+    /// 基于 unitID 的值转换规则，参考 https://sde.hoboleaks.space/tq/dogmaunits.json
     private static let unitTransformRules: [Int: (Double) -> Double] = [
-        108: { value in (1 - value) * 100 }, // 百分比转换
-        111: { value in (1 - value) * 100 }, // 百分比转换
-        127: { value in value * 100 }, // 百分比转换
+        108: { (1 - $0) * 100 },
+        111: { (1 - $0) * 100 },
+        127: { $0 * 100 },
     ]
 
-    // 基于 unitID 的值格式化规则，转换规则参考 https://sde.hoboleaks.space/tq/dogmaunits.json
+    /// 基于 unitID 的值格式化规则，参考 https://sde.hoboleaks.space/tq/dogmaunits.json
     private static let unitFormatRules: [Int: (Double, String?) -> String] = [
         109: { value, _ in
             let diff = value - 1
             return diff > 0
                 ? "+\(FormatUtil.format(diff * 100))%" : "\(FormatUtil.format(diff * 100))%"
         },
-        3: { value, _ in
-            FormatUtil.formatTimeWithPrecision(value)
-        },
-        101: { value, _ in
-            FormatUtil.formatTimeWithMillisecondPrecision(value)
-        },
+        3: { value, _ in FormatUtil.formatTimeWithPrecision(value) },
+        101: { value, _ in FormatUtil.formatTimeWithMillisecondPrecision(value) },
     ]
 
-    // 布尔值转换规则
-    private static let booleanTransformRules: Set<Int> = [
-        188, // immune
-        861, // true/false
-    ]
+    /// 免疫等特殊布尔文案（与 specialValueMappings 中的 True/False 区分）
+    private static let immuneAttributeID = 188
 
-    // 自定义配置 - 可以根据需要设置，不设置则使用默认值
+    // 自定义配置 - 不设置则使用默认值
     static var customGroupOrder: [Int: Int]?
     static var customHiddenGroups: Set<Int>?
     static var customHiddenAttributes: Set<Int>?
 
-    // 只显示重要属性（有displayName的属性）
+    /// 只显示重要属性（有 displayName 的属性）
     static var showImportantOnly: Bool {
         get {
-            return UserDefaults.standard.object(forKey: "ShowImportantOnly") as? Bool ?? true
+            UserDefaults.standard.object(forKey: "ShowImportantOnly") as? Bool ?? true
         }
         set {
             UserDefaults.standard.set(newValue, forKey: "ShowImportantOnly")
         }
     }
 
-    // 获取实际使用的配置
     static var activeGroupOrder: [Int: Int] {
         customGroupOrder ?? defaultGroupOrder
     }
@@ -241,82 +186,48 @@ enum AttributeDisplayConfig {
         customHiddenAttributes ?? defaultHiddenAttributes
     }
 
-    // 初始化属性单位
     static func initializeUnits(with units: [Int: String]) {
         attributeUnits = units
     }
 
-    // 判断属性组是否应该显示
+    /// 判断属性组是否应该显示
     static func shouldShowGroup(_ groupId: Int) -> Bool {
-        // categoryID 为 0 的"其他"分类只在关闭"只展示重要属性"时显示
-        if groupId == 0 {
-            return !showImportantOnly
-        }
-
-        // 首先检查组是否被显式隐藏
-        if activeHiddenGroups.contains(groupId) && showImportantOnly {
-            return false
-        }
+        // categoryID 为 0 的「其他」分类只在关闭「只展示重要属性」时显示
+        if groupId == 0 { return !showImportantOnly }
+        if activeHiddenGroups.contains(groupId) && showImportantOnly { return false }
         return true
     }
 
-    // 判断具体属性是否应该显示
-    static func shouldShowAttribute(
-        _ attributeID: Int, attribute: DogmaAttribute
-    ) -> Bool {
-        // 如果是抗性属性，不单独显示
-        if isResistanceAttribute(attributeID) {
-            // Logger.info("是抗性属性，不单独显示")
-            return false
-        }
-
-        // 如果属性在隐藏列表中，且开启了仅显示重要属性模式，则不显示
-        if activeHiddenAttributes.contains(attributeID) && showImportantOnly {
-            // Logger.info("属性在隐藏列表中，且开启了仅显示重要属性模式，则不显示")
-            return false
-        }
-
-        // 如果开启了仅显示重要属性模式，则只显示有displayName的属性
-        if showImportantOnly {
-            // Logger.info("开启了仅显示重要属性模式，则只显示有displayName的属性")
-            return attribute.displayName != nil && !attribute.name.isEmpty
-        }
-
-        // 在完整模式下，显示所有有name的属性
-        // Logger.info("完整模式下，显示所有有name的属性:\(attribute.name)")
+    /// 判断具体属性是否应该显示
+    static func shouldShowAttribute(_ attributeID: Int, attribute: DogmaAttribute) -> Bool {
+        if resistanceAttributeIDs.contains(attributeID) { return false }
+        if activeHiddenAttributes.contains(attributeID) && showImportantOnly { return false }
+        if showImportantOnly { return attribute.localizedDisplayName != nil }
         return !attribute.name.isEmpty
     }
 
-    // 获取属性组的排序权重
+    /// 获取属性组的排序权重
     static func getGroupOrder(_ groupId: Int) -> Int {
-        // categoryID 为 0 的"其他"分类始终放在最后
-        if groupId == 0 {
-            return 9999
-        }
-        return activeGroupOrder[groupId] ?? 999 // 未定义顺序的组放到最后
+        groupId == 0 ? 9999 : (activeGroupOrder[groupId] ?? 999)
     }
 
-    // 计算属性值
+    /// 计算属性值
     private static func calculateValue(for attributeID: Int, in allAttributes: [Int: Double])
         -> Double
     {
-        // 如果有计算规则
         if let calc = attributeCalculations[attributeID],
            let value1 = allAttributes[calc.sourceAttribute1],
            let value2 = allAttributes[calc.sourceAttribute2]
         {
             return calc.operation.calculate(value1, value2)
         }
-        // 如果没有计算规则，返回原始值
         return allAttributes[attributeID] ?? 0
     }
 
-    // 检查是否是抗性属性组
     private static func findResistanceGroup(for groupID: Int) -> ResistanceGroup? {
-        return resistanceGroups.first { $0.groupID == groupID }
+        resistanceGroups.first { $0.groupID == groupID }
     }
 
-    // 定义一个结构来存储命中的抗性属性ID
     struct ResistanceHits {
         let emID: Int?
         let thermalID: Int?
@@ -324,117 +235,74 @@ enum AttributeDisplayConfig {
         let explosiveID: Int?
 
         var hasAnyResistance: Bool {
-            return emID != nil || thermalID != nil || kineticID != nil || explosiveID != nil
+            emID != nil || thermalID != nil || kineticID != nil || explosiveID != nil
         }
     }
 
-    // 修改检查方法，返回命中的属性ID
     private static func findResistanceAttributes(groupID: Int, in allAttributes: [Int: Double])
         -> ResistanceHits?
     {
         guard let group = findResistanceGroup(for: groupID) else { return nil }
 
-        // 查找每种类型中第一个存在的属性ID
-        let emID = group.emIDs.first { allAttributes[$0] != nil }
-        let thermalID = group.thermalIDs.first { allAttributes[$0] != nil }
-        let kineticID = group.kineticIDs.first { allAttributes[$0] != nil }
-        let explosiveID = group.explosiveIDs.first { allAttributes[$0] != nil }
-
         let hits = ResistanceHits(
-            emID: emID,
-            thermalID: thermalID,
-            kineticID: kineticID,
-            explosiveID: explosiveID
+            emID: group.emIDs.first { allAttributes[$0] != nil },
+            thermalID: group.thermalIDs.first { allAttributes[$0] != nil },
+            kineticID: group.kineticIDs.first { allAttributes[$0] != nil },
+            explosiveID: group.explosiveIDs.first { allAttributes[$0] != nil }
         )
-
         return hits.hasAnyResistance ? hits : nil
     }
 
-    // 修改获取抗性值的方法
     static func getResistanceValues(groupID: Int, from allAttributes: [Int: Double]) -> [Double]? {
         guard let hits = findResistanceAttributes(groupID: groupID, in: allAttributes) else {
             return nil
         }
-
-        // 使用命中的属性ID获取值，如果没有则使用默认值1.0
-        let emValue = hits.emID.flatMap { allAttributes[$0] } ?? 1.0
-        let thermalValue = hits.thermalID.flatMap { allAttributes[$0] } ?? 1.0
-        let kineticValue = hits.kineticID.flatMap { allAttributes[$0] } ?? 1.0
-        let explosiveValue = hits.explosiveID.flatMap { allAttributes[$0] } ?? 1.0
-
-        return [
-            (1 - emValue) * 100,
-            (1 - thermalValue) * 100,
-            (1 - kineticValue) * 100,
-            (1 - explosiveValue) * 100,
-        ]
-    }
-
-    // 检查是否是抗性属性
-    private static func isResistanceAttribute(_ attributeID: Int) -> Bool {
-        for group in resistanceGroups {
-            if group.emIDs.contains(attributeID) || group.thermalIDs.contains(attributeID)
-                || group.kineticIDs.contains(attributeID)
-                || group.explosiveIDs.contains(attributeID)
-            {
-                return true
-            }
+        func percent(_ id: Int?) -> Double {
+            (1 - (id.flatMap { allAttributes[$0] } ?? 1.0)) * 100
         }
-        return false
+        return [percent(hits.emID), percent(hits.thermalID), percent(hits.kineticID), percent(hits.explosiveID)]
     }
 
-    // 转换属性值，将数值与单位拼接
+    /// 转换属性值，将数值与单位拼接
     static func transformValue(_ attributeID: Int, allAttributes: [Int: Double], unitID: Int?)
         -> TransformResult
     {
         let value = calculateValue(for: attributeID, in: allAttributes)
 
-        // 检查是否有特殊值映射
         if let specialType = specialValueMappings[attributeID] {
             return .text(specialType.transform(value))
         }
 
-        // 处理布尔值
-        if booleanTransformRules.contains(attributeID) {
-            if attributeID == 188 {
-                return value == 1
-                    ? .text(NSLocalizedString("Main_Database_Item_info_Immune", comment: ""))
-                    : .text(NSLocalizedString("Main_Database_Item_info_NonImmune", comment: ""))
+        if attributeID == immuneAttributeID {
+            if value == 1 {
+                return .text(NSLocalizedString("Main_Database_Item_info_Immune", comment: ""))
+            } else {
+                return .text(NSLocalizedString("Main_Database_Item_info_NonImmune", comment: ""))
             }
         }
 
         var transformedValue = value
 
-        // 1. 首先应用基于 attribute_id 的转换规则
         if let transformRule = valueTransformRules[attributeID] {
             transformedValue = transformRule(transformedValue)
         }
 
-        // 2. 然后应用基于 unitID 的转换规则
-        if let unitID = unitID,
-           let unitTransform = unitTransformRules[unitID]
-        {
+        if let unitID, let unitTransform = unitTransformRules[unitID] {
             transformedValue = unitTransform(transformedValue)
         }
 
-        // 3. 应用基于 unitID 的格式化规则
-        if let unitID = unitID,
-           let formatRule = unitFormatRules[unitID]
-        {
-            let unit = attributeUnits[attributeID]
-            return .text(formatRule(transformedValue, unit))
+        if let unitID, let formatRule = unitFormatRules[unitID] {
+            return .text(formatRule(transformedValue, attributeUnits[attributeID]))
         }
 
-        // 4. 默认格式化
         if let unit = attributeUnits[attributeID] {
-            // 百分号不添加空格，其他单位添加空格
             return .number(transformedValue, unit == "%" ? unit : " " + unit)
         }
         return .number(transformedValue, nil)
     }
 
-    // 获取属性在组内的排序权重
+    /// 获取属性在组内的排序权重
     static func getAttributeOrder(attributeID: Int, in groupID: Int) -> Int {
-        activeAttributeOrder[groupID]?[attributeID] ?? 999 // 未定义顺序的属性放到最后
+        activeAttributeOrder[groupID]?[attributeID] ?? 999
     }
 }

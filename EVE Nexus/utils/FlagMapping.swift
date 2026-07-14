@@ -5,7 +5,7 @@ import Foundation
 // 用于替代数据库查询，提供flagID到名称的静态映射
 
 enum FlagMapping {
-    // 静态的flagID到名称映射
+    /// 静态的flagID到名称映射
     private static let flagNames: [Int: String] = [
         0: "None",
         1: "Wallet",

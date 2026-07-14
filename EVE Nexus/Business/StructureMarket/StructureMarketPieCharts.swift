@@ -146,10 +146,18 @@ struct CategoryPieSliceView: View {
     let slice: CategoryPieSlice
     let size: CGFloat
 
-    // 内圆半径比例，设置为外圆半径的40%，形成圆环
-    private var innerRadiusRatio: CGFloat { 0.4 }
-    private var outerRadius: CGFloat { size / 2 }
-    private var innerRadius: CGFloat { outerRadius * innerRadiusRatio }
+    /// 内圆半径比例，设置为外圆半径的40%，形成圆环
+    private var innerRadiusRatio: CGFloat {
+        0.4
+    }
+
+    private var outerRadius: CGFloat {
+        size / 2
+    }
+
+    private var innerRadius: CGFloat {
+        outerRadius * innerRadiusRatio
+    }
 
     var path: Path {
         var path = Path()
@@ -235,7 +243,7 @@ struct GroupPieChartView: View {
                     id: -1, // 使用-1作为"其他"的ID
                     name: NSLocalizedString("Structure_Market_Other", comment: "其他"),
                     orderCount: otherTotalCount,
-                    iconFileName: DatabaseConfig.defaultIcon
+                    iconFileName: IconManager.defaultIcon
                 ),
                 percentage: otherPercentage
             ))
@@ -351,10 +359,18 @@ struct GroupPieSliceView: View {
     let slice: GroupPieSlice
     let size: CGFloat
 
-    // 内圆半径比例，设置为外圆半径的40%，形成圆环
-    private var innerRadiusRatio: CGFloat { 0.4 }
-    private var outerRadius: CGFloat { size / 2 }
-    private var innerRadius: CGFloat { outerRadius * innerRadiusRatio }
+    /// 内圆半径比例，设置为外圆半径的40%，形成圆环
+    private var innerRadiusRatio: CGFloat {
+        0.4
+    }
+
+    private var outerRadius: CGFloat {
+        size / 2
+    }
+
+    private var innerRadius: CGFloat {
+        outerRadius * innerRadiusRatio
+    }
 
     var path: Path {
         var path = Path()

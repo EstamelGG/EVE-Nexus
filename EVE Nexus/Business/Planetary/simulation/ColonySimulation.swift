@@ -158,9 +158,6 @@ class ColonySimulation {
             }
         }
 
-        // 打印殖民地模拟详细信息
-        printColonySimulationDetails(colony: simulatedColony)
-
         return simulatedColony
     }
 
@@ -374,7 +371,12 @@ class ColonySimulation {
         }
 
         // 按时间排序事件队列
-        eventQueue.sort { event1, event2 in
+        sortEventQueue(&eventQueue)
+    }
+
+    /// 按日期与 pinId 对事件队列排序
+    private static func sortEventQueue(_ queue: inout [(date: Date, pinId: Int64)]) {
+        queue.sort { event1, event2 in
             if event1.date == event2.date {
                 return event1.pinId < event2.pinId
             }
@@ -779,23 +781,13 @@ class ColonySimulation {
                         eventQueue.remove(at: index)
                         eventQueue.append((nextTime, pin.id))
                         // 重新排序队列
-                        eventQueue.sort { event1, event2 in
-                            if event1.date == event2.date {
-                                return event1.pinId < event2.pinId
-                            }
-                            return event1.date < event2.date
-                        }
+                        sortEventQueue(&eventQueue)
                     }
                 } else {
                     // 添加新事件到队列
                     eventQueue.append((nextTime, pin.id))
                     // 重新排序队列
-                    eventQueue.sort { event1, event2 in
-                        if event1.date == event2.date {
-                            return event1.pinId < event2.pinId
-                        }
-                        return event1.date < event2.date
-                    }
+                    sortEventQueue(&eventQueue)
                 }
 
                 return
@@ -824,35 +816,20 @@ class ColonySimulation {
                 eventQueue.remove(at: index)
                 eventQueue.append((scheduleTime, pin.id))
                 // 重新排序队列
-                eventQueue.sort { event1, event2 in
-                    if event1.date == event2.date {
-                        return event1.pinId < event2.pinId
-                    }
-                    return event1.date < event2.date
-                }
+                sortEventQueue(&eventQueue)
             } else if scheduleTime > eventQueue[index].date {
                 // 如果新的运行时间更晚，也更新事件（避免使用过时的时间）
                 eventQueue.remove(at: index)
                 eventQueue.append((scheduleTime, pin.id))
                 // 重新排序队列
-                eventQueue.sort { event1, event2 in
-                    if event1.date == event2.date {
-                        return event1.pinId < event2.pinId
-                    }
-                    return event1.date < event2.date
-                }
+                sortEventQueue(&eventQueue)
             }
             // 如果时间相同，不需要更新
         } else {
             // 添加新事件到队列
             eventQueue.append((scheduleTime, pin.id))
             // 重新排序队列
-            eventQueue.sort { event1, event2 in
-                if event1.date == event2.date {
-                    return event1.pinId < event2.pinId
-                }
-                return event1.date < event2.date
-            }
+            sortEventQueue(&eventQueue)
         }
     }
 
@@ -1280,7 +1257,8 @@ class ColonySimulation {
                     (
                         sortingKey: inputBufferState, destinationId: route.destinationPinId,
                         commodityType: route.type, quantity: route.quantity
-                    ))
+                    )
+                )
             } else if isStorage(pin: destinationPin) {
                 // 存储路由，使用剩余空间作为排序键
                 let freeSpace = getCapacityRemaining(pin: destinationPin)
@@ -1288,7 +1266,8 @@ class ColonySimulation {
                     (
                         sortingKey: freeSpace, destinationId: route.destinationPinId,
                         commodityType: route.type, quantity: route.quantity
-                    ))
+                    )
+                )
             }
         }
 
@@ -1447,12 +1426,6 @@ class ColonySimulation {
         default:
             return nil
         }
-    }
-
-    /// 打印殖民地模拟详细信息
-    /// - Parameter colony: 模拟后的殖民地
-    static func printColonySimulationDetails(colony _: Colony) {
-        // 此函数已移除所有日志输出
     }
 
     /// 从仓储设施重新填充工厂缓冲区
@@ -1617,9 +1590,7 @@ class ColonySimulationManager {
         }
 
         // 使用最短周期的1/2作为采样间隔（转换为小时）
-        let samplingInterval = minCycleTime / 2.0 / 3600.0 // 秒转小时
-
-        return samplingInterval
+        return minCycleTime / 2.0 / 3600.0 // 秒转小时
     }
 
     /// 生成每小时快照（从当前时间开始，直到停工或30天）

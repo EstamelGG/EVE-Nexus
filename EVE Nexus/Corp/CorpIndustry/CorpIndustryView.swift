@@ -2,7 +2,7 @@ import SwiftUI
 
 typealias CorpIndustryJob = CorpIndustryAPI.CorpIndustryJob
 
-// 军团工业项目倒计时组件 - 使用SwiftUI原生TimelineView
+/// 军团工业项目倒计时组件 - 使用SwiftUI原生TimelineView
 struct CorpIndustryCountdownView: View {
     let endDate: Date
 
@@ -65,7 +65,7 @@ struct CorpIndustryCountdownView: View {
     }
 }
 
-// 军团工业项目实时进度条组件
+/// 军团工业项目实时进度条组件
 struct CorpIndustryProgressView: View {
     let job: CorpIndustryJob
 
@@ -128,7 +128,7 @@ struct CorpIndustryProgressView: View {
 
 @MainActor
 class CorpIndustryViewModel: ObservableObject {
-    // 配置常量
+    /// 配置常量
     private let soonCompleteThreshold: TimeInterval = 8 * 3600 // 即将完成阈值：8小时
 
     @Published var jobs: [CorpIndustryJob] = []
@@ -146,7 +146,7 @@ class CorpIndustryViewModel: ObservableObject {
     @Published var installerNames: [Int: String] = [:]
     @Published var installerImages: [Int: UIImage] = [:]
 
-    // 过滤设置
+    /// 过滤设置
     @Published var hideCompletedAndCancelled = false {
         didSet {
             UserDefaults.standard.set(
@@ -165,13 +165,13 @@ class CorpIndustryViewModel: ObservableObject {
     @Published var selectedInstallers: Set<Int> = []
     @Published var selectedSolarSystems: Set<String> = []
 
-    // 可用的活动类型
+    /// 可用的活动类型
     let availableActivityTypes = [1, 3, 4, 5, 8, 9] // 制造、ME研究、TE研究、复制、发明、反应
 
-    // 可用的发起人列表
+    /// 可用的发起人列表
     @Published var availableInstallers: [Int] = []
 
-    // 可用的星系列表
+    /// 可用的星系列表
     @Published var availableSolarSystems: [String] = []
 
     private let characterId: Int
@@ -185,10 +185,11 @@ class CorpIndustryViewModel: ObservableObject {
 
         // 从 UserDefaults 读取全局设置
         hideCompletedAndCancelled = UserDefaults.standard.bool(
-            forKey: "hideCompletedAndCancelled_global")
+            forKey: "hideCompletedAndCancelled_global"
+        )
     }
 
-    // 将工作项目按状态分组
+    /// 将工作项目按状态分组
     private func groupJobsByStatus() {
         var grouped = [String: [CorpIndustryJob]]()
         let currentTime = Date()
@@ -308,7 +309,7 @@ class CorpIndustryViewModel: ObservableObject {
         }
     }
 
-    // 封装获取数据逻辑，处理缓存
+    /// 封装获取数据逻辑，处理缓存
     private func fetchJobs(forceRefresh: Bool = false) async throws -> [CorpIndustryJob] {
         // 如果不是强制刷新且有缓存，直接返回缓存
         if !forceRefresh, let cached = cachedJobs {
@@ -393,7 +394,7 @@ class CorpIndustryViewModel: ObservableObject {
         locationInfoCache = await locationLoader.loadLocationInfo(locationIds: locationIds)
     }
 
-    // 加载发起人信息
+    /// 加载发起人信息
     private func loadInstallerInfo() async {
         var installerIds = Set<Int>()
         for job in jobs {
@@ -444,7 +445,7 @@ class CorpIndustryViewModel: ObservableObject {
         Logger.debug("完成加载发起人信息 - 成功: \(successCount)个, 失败: \(failureCount)个")
     }
 
-    // 过滤后的分组数据
+    /// 过滤后的分组数据
     var filteredGroupedJobs: [String: [CorpIndustryJob]] {
         var filtered = [String: [CorpIndustryJob]]()
 
@@ -467,7 +468,8 @@ class CorpIndustryViewModel: ObservableObject {
                 if !selectedSolarSystems.isEmpty {
                     if let locationInfo = locationInfoCache[job.location_id] {
                         solarSystemMatches = selectedSolarSystems.contains(
-                            locationInfo.solarSystemName)
+                            locationInfo.solarSystemName
+                        )
                     } else {
                         solarSystemMatches = false
                     }
@@ -484,7 +486,7 @@ class CorpIndustryViewModel: ObservableObject {
         return filtered
     }
 
-    // 更新过滤选项
+    /// 更新过滤选项
     private func updateFilterOptions() {
         // 更新可用的发起人列表，按人物名称排序
         let installerIds = Array(Set(jobs.map { $0.installer_id }))
@@ -530,7 +532,7 @@ class CorpIndustryViewModel: ObservableObject {
         }
     }
 
-    // 获取星系的安全等级信息
+    /// 获取星系的安全等级信息
     func getSolarSystemSecurity(_ systemName: String) -> Double? {
         // 从locationInfoCache中查找该星系的安全等级
         for (_, locationInfo) in locationInfoCache {
@@ -556,7 +558,7 @@ struct CorpIndustryView: View {
         _viewModel = StateObject(wrappedValue: vm)
     }
 
-    // 格式化状态组标题
+    /// 格式化状态组标题
     private func formatStatusGroupHeader(_ statusKey: String) -> String {
         switch statusKey {
         case "ready":
@@ -713,7 +715,6 @@ struct CorpIndustryView: View {
                         let totalJobsCount = viewModel.groupedJobs.values.reduce(0) {
                             $0 + $1.count
                         }
-                        let _ = viewModel.filteredGroupedJobs.values.reduce(0) { $0 + $1.count }
 
                         HStack {
                             Spacer()
@@ -827,13 +828,13 @@ struct CorpIndustryJobRow: View {
     @StateObject private var databaseManager = DatabaseManager()
     @Environment(\.colorScheme) private var colorScheme
 
-    // 带颜色的状态文本结构体
+    /// 带颜色的状态文本结构体
     struct StatusText {
         let text: String
         let color: Color
     }
 
-    // 修改时间显示格式
+    /// 修改时间显示格式
     private func getTimeDisplay() -> String {
         let currentTime = Date()
         let dateStr = formatDate(job.end_date)
@@ -845,13 +846,13 @@ struct CorpIndustryJobRow: View {
 
         // 如果是活动状态，添加剩余时间
         if job.status == "active" {
-            return "\(dateStr)"
+            return dateStr
         }
 
         return dateStr
     }
 
-    // 获取活动状态文本和颜色
+    /// 获取活动状态文本和颜色
     private func getActivityStatus() -> StatusText {
         // 先检查特殊状态
         switch job.status {
@@ -944,7 +945,7 @@ struct CorpIndustryJobRow: View {
         }
     }
 
-    // 格式化日期
+    /// 格式化日期
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateStyle = .short
@@ -953,7 +954,7 @@ struct CorpIndustryJobRow: View {
         return formatter.string(from: date)
     }
 
-    // 获取活动类型文本
+    /// 获取活动类型文本
     private func getActivityTypeText() -> String {
         switch job.activity_id {
         case 1:
@@ -1169,7 +1170,7 @@ struct CorpIndustryFilterSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
 
-    // 获取活动类型的本地化名称
+    /// 获取活动类型的本地化名称
     private func getActivityTypeName(_ activityId: Int) -> String {
         switch activityId {
         case 1:
@@ -1189,7 +1190,7 @@ struct CorpIndustryFilterSheet: View {
         }
     }
 
-    // 获取活动类型对应的颜色
+    /// 获取活动类型对应的颜色
     private func getActivityTypeColor(_ activityId: Int) -> Color {
         switch activityId {
         case 1: // 制造
@@ -1203,7 +1204,7 @@ struct CorpIndustryFilterSheet: View {
         }
     }
 
-    // 获取活动类型对应的图标文件名
+    /// 获取活动类型对应的图标文件名
     private func getActivityTypeIcon(_ activityId: Int) -> String {
         switch activityId {
         case 1: // 制造
@@ -1233,7 +1234,8 @@ struct CorpIndustryFilterSheet: View {
                             Text(
                                 NSLocalizedString(
                                     "Industry_Filter_Hide_Completed", comment: "隐藏已交付和已取消的项目"
-                                ))
+                                )
+                            )
                             Text(
                                 NSLocalizedString(
                                     "Industry_Filter_Hide_Completed_Description",
@@ -1302,7 +1304,8 @@ struct CorpIndustryFilterSheet: View {
                                 viewModel.selectedActivityTypes = []
                             } else {
                                 viewModel.selectedActivityTypes = Set(
-                                    viewModel.availableActivityTypes)
+                                    viewModel.availableActivityTypes
+                                )
                             }
                         }) {
                             HStack(spacing: 4) {
@@ -1371,7 +1374,8 @@ struct CorpIndustryFilterSheet: View {
                                     viewModel.selectedInstallers = []
                                 } else {
                                     viewModel.selectedInstallers = Set(
-                                        viewModel.availableInstallers)
+                                        viewModel.availableInstallers
+                                    )
                                 }
                             }) {
                                 HStack(spacing: 4) {
@@ -1443,7 +1447,8 @@ struct CorpIndustryFilterSheet: View {
                                     viewModel.selectedSolarSystems = []
                                 } else {
                                     viewModel.selectedSolarSystems = Set(
-                                        viewModel.availableSolarSystems)
+                                        viewModel.availableSolarSystems
+                                    )
                                 }
                             }) {
                                 HStack(spacing: 4) {

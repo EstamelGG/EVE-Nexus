@@ -1,13 +1,13 @@
 import Foundation
 import SwiftUI
 
-// 定义 CharacterSkills 结构体
+/// 定义 CharacterSkills 结构体
 struct CharacterSkills {
     let total_sp: Int
     let unallocated_sp: Int
 }
 
-// 定义 QueuedSkill 结构体
+/// 定义 QueuedSkill 结构体
 struct QueuedSkill {
     let skill_id: Int
     let skillLevel: Int
@@ -16,7 +16,7 @@ struct QueuedSkill {
     let isCurrentlyTraining: Bool
 }
 
-// 定义 CharacterStats 结构体
+/// 定义 CharacterStats 结构体
 struct CharacterStats {
     var skillPoints: String = "--"
     var queueStatus: String = "--"
@@ -87,7 +87,7 @@ class MainViewModel: ObservableObject {
     private var cachedCloneCooldownPeriod: TimeInterval?
     private var lastCloneCooldownCalculation: Date?
     private let cloneCooldownCacheTimeout: TimeInterval = 300 // 5分钟缓存
-    // 刷新任务去重：防止多个刷新任务同时运行
+    /// 刷新任务去重：防止多个刷新任务同时运行
     private var refreshTask: Task<Void, Never>?
 
     private var cloneCooldownPeriod: TimeInterval {
@@ -104,7 +104,7 @@ class MainViewModel: ObservableObject {
         return Constants.baseCloneCooldown
     }
 
-    // 异步计算克隆冷却时间
+    /// 异步计算克隆冷却时间
     private func calculateCloneCooldownPeriod() async {
         guard let character = selectedCharacter else { return }
 
@@ -253,9 +253,7 @@ class MainViewModel: ObservableObject {
         let totalSPForLevel = levelEndSp - trainingStartSp
 
         // 计算已经获得的技能点数
-        let trainedSP = Int(Double(totalSPForLevel) * timeProgress)
-
-        return trainedSP
+        return Int(Double(totalSPForLevel) * timeProgress)
     }
 
     private func processSkillInfo(skillsResponse: CharacterSkillsResponse, queue: [SkillQueueItem]) {
@@ -321,7 +319,8 @@ class MainViewModel: ObservableObject {
                 retryCount += 1
                 if retryCount < maxRetries {
                     Logger.warning(
-                        "操作失败: \(operationName) (尝试 \(retryCount)/\(maxRetries)) - 错误: \(error)")
+                        "操作失败: \(operationName) (尝试 \(retryCount)/\(maxRetries)) - 错误: \(error)"
+                    )
                     try await Task.sleep(nanoseconds: UInt64(Constants.retryDelay * 1_000_000_000))
                 }
             }
@@ -403,79 +402,42 @@ class MainViewModel: ObservableObject {
                     }
                 }
 
-                // 加载角色公共信息 - 在后台线程执行，避免阻塞UI
+                // 加载角色公共信息及关联的军团/联盟/势力信息
+                // 策略：先用缓存（哪怕过期）的 publicInfo 启动关联信息加载并刷新 UI，
+                //       再拉取最新 publicInfo；若关联 ID 变化，用新 ID 重新加载并刷新。
                 Task.detached(priority: .userInitiated) { [weak self] in
                     guard let self = self else { return }
+
+                    let cachedInfo = CharacterAPI.shared.loadCachedCharacterInfo(
+                        characterId: character.CharacterID
+                    )
+
+                    // 1. 用缓存 ID 先加载关联信息并刷新 UI（失败不影响后续最新数据加载）
+                    if let cached = cachedInfo {
+                        do {
+                            try await self.loadAffiliations(from: cached)
+                        } catch {
+                            Logger.error("用缓存加载关联信息失败: \(error)")
+                        }
+                    }
+
+                    // 2. 拉取最新 publicInfo
                     do {
                         Logger.info("正在刷新人物公共信息")
-                        let publicInfo = try await self.retryOperation(named: "获取角色公共信息") {
+                        let freshInfo = try await self.retryOperation(named: "获取角色公共信息") {
                             try await CharacterAPI.shared.fetchCharacterPublicInfo(
                                 characterId: character.CharacterID, forceRefresh: forceRefresh
                             )
                         }
 
-                        // 获取军团信息
-                        async let corpInfoTask = CorporationAPI.shared.fetchCorporationInfo(
-                            corporationId: publicInfo.corporation_id)
-                        async let corpLogoTask = CorporationAPI.shared.fetchCorporationLogo(
-                            corporationId: publicInfo.corporation_id)
+                        // 3. 若无缓存或关联 ID 变化，用新数据重新加载
+                        let needsReload = cachedInfo == nil
+                            || cachedInfo?.corporation_id != freshInfo.corporation_id
+                            || cachedInfo?.alliance_id != freshInfo.alliance_id
+                            || cachedInfo?.faction_id != freshInfo.faction_id
 
-                        let (corpInfo, corpLogo) = try await (corpInfoTask, corpLogoTask)
-
-                        // 获取联盟信息
-                        let (alliInfo, alliLogo): (AllianceInfo?, UIImage?)
-                        if let allianceId = publicInfo.alliance_id {
-                            async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(
-                                allianceId: allianceId)
-                            async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(
-                                allianceID: allianceId)
-                            let (info, logo) = try await (allianceInfoTask, allianceLogoTask)
-                            alliInfo = info
-                            alliLogo = logo
-                        } else {
-                            alliInfo = nil
-                            alliLogo = nil
-                        }
-
-                        // 获取势力信息
-                        let (factionInfo, factionLogo): (FactionInfo?, UIImage?)
-                        if let faction_id = publicInfo.faction_id {
-                            // 从数据库查询势力信息
-                            let query = "SELECT name, iconName FROM factions WHERE id = ?"
-                            if case let .success(rows) = DatabaseManager.shared.executeQuery(
-                                query, parameters: [faction_id]
-                            ),
-                                let row = rows.first,
-                                let name = row["name"] as? String,
-                                let iconName = row["iconName"] as? String
-                            {
-                                let info = FactionInfo(
-                                    id: faction_id,
-                                    name: name,
-                                    iconName: iconName
-                                )
-                                // 加载势力图标 - 在后台线程加载
-                                let logo = IconManager.shared.loadUIImage(for: iconName)
-                                factionInfo = info
-                                factionLogo = logo
-                            } else {
-                                Logger.error("查询势力信息失败: faction_id=\(faction_id)")
-                                factionInfo = nil
-                                factionLogo = nil
-                            }
-                        } else {
-                            factionInfo = nil
-                            factionLogo = nil
-                        }
-
-                        // 批量更新所有UI，减少重绘次数
-                        await MainActor.run {
-                            self.corporationInfo = corpInfo
-                            self.corporationLogo = corpLogo
-                            self.allianceInfo = alliInfo
-                            self.allianceLogo = alliLogo
-                            self.factionInfo = factionInfo
-                            self.factionLogo = factionLogo
+                        if needsReload {
+                            try await self.loadAffiliations(from: freshInfo)
                         }
                     } catch {
                         Logger.error("获取角色公共信息失败: \(error)")
@@ -564,7 +526,67 @@ class MainViewModel: ObservableObject {
         await refreshTask?.value
     }
 
-    // 加载保存的角色信息
+    /// 根据 publicInfo 并行加载军团/联盟/势力信息并刷新 UI。
+    /// 军团 info+logo 与联盟 info+logo 全部并行（async let 声明即启动），势力为本地 SDE 查询（瞬时）。
+    private func loadAffiliations(from publicInfo: CharacterPublicInfo) async throws {
+        // 军团 info + logo（async let 声明即启动，与下方联盟任务并行）
+        async let corpInfoTask = CorporationAPI.shared.fetchCorporationInfo(
+            corporationId: publicInfo.corporation_id
+        )
+        async let corpLogoTask = CorporationAPI.shared.fetchCorporationLogo(
+            corporationId: publicInfo.corporation_id
+        )
+
+        // 联盟 info + logo（与军团并行）
+        let (alliInfo, alliLogo): (AllianceInfo?, UIImage?)
+        if let allianceId = publicInfo.alliance_id {
+            async let allianceInfoTask = AllianceAPI.shared.fetchAllianceInfo(
+                allianceId: allianceId
+            )
+            async let allianceLogoTask = AllianceAPI.shared.fetchAllianceLogo(
+                allianceID: allianceId
+            )
+            let (info, logo) = try await (allianceInfoTask, allianceLogoTask)
+            alliInfo = info
+            alliLogo = logo
+        } else {
+            alliInfo = nil
+            alliLogo = nil
+        }
+
+        let (corpInfo, corpLogo) = try await (corpInfoTask, corpLogoTask)
+
+        // 势力信息（本地 SDE，瞬时）
+        let (factionInfo, factionLogo): (FactionInfo?, UIImage?)
+        if let factionId = publicInfo.faction_id,
+           let stored = SDEMemoryStore.faction(for: factionId)
+        {
+            factionInfo = FactionInfo(
+                id: factionId,
+                name: stored.name,
+                iconName: stored.iconName
+            )
+            factionLogo = IconManager.shared.loadUIImage(for: stored.iconName)
+        } else {
+            if let factionId = publicInfo.faction_id {
+                Logger.error("查询势力信息失败: faction_id=\(factionId)")
+            }
+            factionInfo = nil
+            factionLogo = nil
+        }
+
+        // 批量更新所有UI，减少重绘次数
+        await MainActor.run {
+            self.corporationInfo = corpInfo
+            self.corporationLogo = corpLogo
+            self.allianceInfo = alliInfo
+            self.allianceLogo = alliLogo
+            self.factionInfo = factionInfo
+            self.factionLogo = factionLogo
+        }
+    }
+
+    /// 加载保存的角色信息
     private func loadSavedCharacter() {
         Logger.info("正在加载保存的角色信息...")
         Logger.info("当前保存的所选角色ID: \(currentCharacterId)")
@@ -580,7 +602,7 @@ class MainViewModel: ObservableObject {
         }
     }
 
-    // 重置角色信息
+    /// 重置角色信息
     func resetCharacterInfo() {
         characterStats = CharacterStats()
         selectedCharacter = nil
@@ -597,7 +619,7 @@ class MainViewModel: ObservableObject {
         cloneJumpStatus = NSLocalizedString("Main_Jump_Clones_Available", comment: "")
     }
 
-    // 从本地快速更新数据（缓存+数据库）
+    /// 从本地快速更新数据（缓存+数据库）
     func quickRefreshFromLocal() async {
         guard let character = selectedCharacter else { return }
         let service = CharacterDataService.shared

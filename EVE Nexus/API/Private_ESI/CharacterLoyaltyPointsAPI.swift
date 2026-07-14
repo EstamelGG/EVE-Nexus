@@ -10,7 +10,7 @@ public class CharacterLoyaltyPointsAPI {
 
     private init() {}
 
-    // 获取忠诚点缓存文件路径
+    /// 获取忠诚点缓存文件路径
     private func getLoyaltyPointsCacheFilePath(characterId: Int) -> URL {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
             .first!
@@ -24,7 +24,7 @@ public class CharacterLoyaltyPointsAPI {
         return characterSkillsPath.appendingPathComponent("\(characterId)_loyalty_points.json")
     }
 
-    // 保存忠诚点数据到本地文件
+    /// 保存忠诚点数据到本地文件
     private func saveLoyaltyPointsToCache(characterId: Int, points: [LoyaltyPoint]) -> Bool {
         do {
             let encoder = JSONEncoder()
@@ -41,7 +41,7 @@ public class CharacterLoyaltyPointsAPI {
         }
     }
 
-    // 从本地文件读取忠诚点数据
+    /// 从本地文件读取忠诚点数据
     private func loadLoyaltyPointsFromCache(characterId: Int) -> [LoyaltyPoint]? {
         let filePath = getLoyaltyPointsCacheFilePath(characterId: characterId)
 

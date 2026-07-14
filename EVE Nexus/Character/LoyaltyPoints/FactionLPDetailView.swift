@@ -38,25 +38,25 @@ struct LPOfferSupplier {
 
 struct Faction: Identifiable {
     let id: Int
-    let name: String
-    let enName: String
-    let zhName: String
+    let names: LocalizedText
     let iconName: String
     var corporations: [Corporation]
 
-    init?(from row: [String: Any], corporations: [Corporation] = []) {
-        guard let id = row["faction_id"] as? Int,
-              let name = row["faction_name"] as? String,
-              let enName = row["faction_en_name"] as? String,
-              let zhName = row["faction_zh_name"] as? String,
-              let iconName = row["faction_icon"] as? String
-        else {
-            return nil
-        }
+    var name: String {
+        names.resolved()
+    }
+
+    var enName: String {
+        names.en
+    }
+
+    func matches(_ query: String) -> Bool {
+        names.matchesSearch(query)
+    }
+
+    init(id: Int, names: LocalizedText, iconName: String, corporations: [Corporation] = []) {
         self.id = id
-        self.name = name
-        self.enName = enName
-        self.zhName = zhName
+        self.names = names
         self.iconName = iconName
         self.corporations = corporations
     }
@@ -64,32 +64,17 @@ struct Faction: Identifiable {
 
 struct Corporation: Identifiable {
     let id: Int
-    let name: String
-    let enName: String
-    let zhName: String
+    let names: LocalizedText
     let factionId: Int
     let iconFileName: String
     let militiaFaction: Int?
 
-    init?(from row: [String: Any]) {
-        guard let corporationId = row["corporation_id"] as? Int,
-              let name = row["corp_name"] as? String,
-              let enName = row["corp_en_name"] as? String,
-              let zhName = row["corp_zh_name"] as? String,
-              let factionId = row["faction_id"] as? Int
-        else {
-            return nil
-        }
+    var name: String {
+        names.resolved()
+    }
 
-        id = corporationId
-        self.name = name
-        self.enName = enName
-        self.zhName = zhName
-        self.factionId = factionId
-        iconFileName =
-            (row["icon_filename"] as? String)?.isEmpty == true
-                ? "corporations_default" : (row["icon_filename"] as? String ?? "corporations_default")
-        militiaFaction = row["militia_faction"] as? Int
+    var enName: String {
+        names.en
     }
 
     var isMilitia: Bool {
@@ -97,6 +82,24 @@ struct Corporation: Identifiable {
             return true
         }
         return false
+    }
+
+    func matches(_ query: String) -> Bool {
+        names.matchesSearch(query)
+    }
+
+    init(
+        id: Int,
+        names: LocalizedText,
+        factionId: Int,
+        iconFileName: String,
+        militiaFaction: Int?
+    ) {
+        self.id = id
+        self.names = names
+        self.factionId = factionId
+        self.iconFileName = iconFileName.isEmpty ? "corporations_default" : iconFileName
+        self.militiaFaction = militiaFaction
     }
 }
 
@@ -112,11 +115,7 @@ struct FactionLPDetailView: View {
         if debouncedSearchText.isEmpty {
             return faction.corporations
         } else {
-            return faction.corporations.filter { corporation in
-                corporation.name.localizedCaseInsensitiveContains(debouncedSearchText)
-                    || corporation.enName.localizedCaseInsensitiveContains(debouncedSearchText)
-                    || corporation.zhName.localizedCaseInsensitiveContains(debouncedSearchText)
-            }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+            return faction.corporations.filter { $0.matches(debouncedSearchText) }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
         }
     }
 
@@ -220,12 +219,6 @@ struct FactionLPDetailView: View {
             }
         }
         .navigationTitle(faction.name)
-        // 移除嵌套的搜索功能，避免与主搜索页面冲突
-        // .searchable(
-        //     text: $searchText,
-        //     placement: .navigationBarDrawer(displayMode: .always),
-        //     prompt: NSLocalizedString("Main_Search_Placeholder", comment: "")
-        // )
         .onChange(of: searchText) { _, newValue in
             searchTask?.cancel()
 
@@ -259,25 +252,26 @@ struct FactionLPDetailView: View {
 
         Task {
             do {
-                // 1. 从 SDE 数据库搜索该势力下的物品
+                // 1. 从 SDE 数据库搜索该势力下的物品（全语种名称）
                 let itemSearchQuery = """
                     SELECT DISTINCT
                         loo.type_id,
                         lo.offer_id,
                         nc.faction_id,
-                        lo.corporation_id,
-                        t.name,
-                        t.zh_name,
-                        t.en_name
+                        lo.corporation_id
                     FROM loyalty_offers lo
                     JOIN loyalty_offer_outputs loo ON lo.offer_id = loo.offer_id
                     LEFT JOIN npcCorporations nc ON lo.corporation_id = nc.corporation_id
                     LEFT JOIN types t ON loo.type_id = t.type_id
-                    WHERE nc.faction_id = \(factionId)
-                    AND (t.zh_name LIKE '%\(searchText)%' OR t.en_name LIKE '%\(searchText)%')
+                    WHERE nc.faction_id = ?
+                    AND \(LocalizedText.typeLangNameLikeSQL)
                 """
+                var nameParams: [Any] = [factionId]
+                nameParams.append(contentsOf: LocalizedText.typeLangNameLikeParams(searchText))
 
-                let itemResult = DatabaseManager.shared.executeQuery(itemSearchQuery)
+                let itemResult = DatabaseManager.shared.executeQuery(
+                    itemSearchQuery, parameters: nameParams
+                )
                 guard case let .success(itemRows) = itemResult else {
                     await MainActor.run {
                         isSearchingItems = false
@@ -311,7 +305,8 @@ struct FactionLPDetailView: View {
                             offerId: offerId,
                             factionId: searchFactionId,
                             corporationId: corporationId
-                        ))
+                        )
+                    )
                 }
 
                 if typeIds.isEmpty {
@@ -344,11 +339,11 @@ struct FactionLPDetailView: View {
                 for row in typeRows {
                     guard let typeId = row["type_id"] as? Int,
                           let name = row["name"] as? String,
-                          let iconFileName = row["icon_filename"] as? String,
                           let categoryId = row["categoryID"] as? Int
                     else {
                         continue
                     }
+                    let iconFileName = row["icon_filename"] as? String ?? ""
 
                     typeInfos[typeId] = (
                         name, iconFileName.isEmpty ? "not_found" : iconFileName, categoryId
@@ -366,15 +361,15 @@ struct FactionLPDetailView: View {
                     """
 
                     if case let .success(categoryRows) = DatabaseManager.shared.executeQuery(
-                        categoryQuery)
-                    {
+                        categoryQuery
+                    ) {
                         for row in categoryRows {
                             guard let categoryId = row["category_id"] as? Int,
-                                  let name = row["name"] as? String,
-                                  let iconFileName = row["icon_filename"] as? String
+                                  let name = row["name"] as? String
                             else {
                                 continue
                             }
+                            let iconFileName = row["icon_filename"] as? String ?? ""
 
                             categoryInfos[categoryId] = (
                                 name, iconFileName.isEmpty ? "not_found" : iconFileName
@@ -501,12 +496,6 @@ struct LPSearchCategoryView: View {
             }
         }
         .navigationTitle(categoryName)
-        // 移除嵌套的搜索功能，避免与主搜索页面冲突
-        // .searchable(
-        //     text: $searchText,
-        //     placement: .navigationBarDrawer(displayMode: .always),
-        //     prompt: NSLocalizedString("Main_Search_Placeholder", comment: "")
-        // )
     }
 }
 
@@ -565,9 +554,13 @@ struct LPItemSuppliersView: View {
                                     corporationName: supplier.corporationName,
                                     targetTypeId: offer.typeId,
                                     itemInfo: LPStoreItemInfo(
-                                        name: offer.typeName,
-                                        enName: offer.typeName,
-                                        zhName: offer.typeName,
+                                        names: SDEMemoryStore.type(for: offer.typeId)?.names
+                                            ?? LocalizedText(
+                                                de: offer.typeName, en: offer.typeName,
+                                                es: offer.typeName, fr: offer.typeName,
+                                                ja: offer.typeName, ko: offer.typeName,
+                                                ru: offer.typeName, zh: offer.typeName
+                                            ),
                                         iconFileName: offer.typeIcon,
                                         categoryName: "",
                                         categoryId: 0
@@ -715,8 +708,8 @@ struct LPItemSuppliersView: View {
                     """
 
                     if case let .success(factionRows) = DatabaseManager.shared.executeQuery(
-                        factionQuery)
-                    {
+                        factionQuery
+                    ) {
                         for row in factionRows {
                             guard let factionId = row["id"] as? Int,
                                   let name = row["name"] as? String
@@ -841,42 +834,17 @@ struct SpecificItemOfferView: View {
 
             // 4. 如果有所需物品，查询它们的信息
             if !requiredTypeIds.isEmpty {
-                let query = """
-                    SELECT type_id, name, en_name, zh_name, icon_filename, bpc_icon_filename, category_name, categoryID
-                    FROM types
-                    WHERE type_id IN (\(requiredTypeIds.sorted().map { String($0) }.joined(separator: ",")))
-                """
-
-                if case let .success(rows) = DatabaseManager.shared.executeQuery(query) {
-                    for row in rows {
-                        if let typeId = row["type_id"] as? Int,
-                           let name = row["name"] as? String,
-                           let enName = row["en_name"] as? String,
-                           let zhName = row["zh_name"] as? String,
-                           let iconFileName = row["icon_filename"] as? String,
-                           let categoryName = row["category_name"] as? String,
-                           let categoryId = row["categoryID"] as? Int
-                        {
-                            let bpcIconFileName = row["bpc_icon_filename"] as? String
-                            let finalIconFileName: String
-
-                            if let bpcIcon = bpcIconFileName, !bpcIcon.isEmpty {
-                                finalIconFileName = bpcIcon
-                            } else {
-                                finalIconFileName =
-                                    iconFileName.isEmpty ? "not_found" : iconFileName
-                            }
-
-                            infos[typeId] = LPStoreItemInfo(
-                                name: name,
-                                enName: enName,
-                                zhName: zhName,
-                                iconFileName: finalIconFileName,
-                                categoryName: categoryName,
-                                categoryId: categoryId
-                            )
-                        }
-                    }
+                for typeId in requiredTypeIds {
+                    guard let info = SDEMemoryStore.type(for: typeId),
+                          let category = SDEMemoryStore.category(for: info.categoryID)
+                    else { continue }
+                    let icon = info.bpcIconFilename ?? info.iconFilename
+                    infos[typeId] = LPStoreItemInfo(
+                        names: info.names,
+                        iconFileName: icon.isEmpty ? "not_found" : icon,
+                        categoryName: category.name,
+                        categoryId: info.categoryID
+                    )
                 }
             }
 

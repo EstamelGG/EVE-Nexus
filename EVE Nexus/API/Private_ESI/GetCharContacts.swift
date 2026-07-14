@@ -1,6 +1,6 @@
 import Foundation
 
-// 联系人数据结构
+/// 联系人数据结构
 struct ContactInfo: Codable {
     let contact_id: Int
     let contact_type: String
@@ -10,7 +10,7 @@ struct ContactInfo: Codable {
     let standing: Double
 }
 
-// 缓存数据结构
+/// 缓存数据结构
 struct CachedContactsData: Codable {
     let contacts: [ContactInfo]
     let timestamp: Date
@@ -22,7 +22,7 @@ class GetCharContacts {
 
     private init() {}
 
-    // 获取缓存文件路径
+    /// 获取缓存文件路径
     private func getCacheFilePath(characterId: Int) -> URL {
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         let contactsCacheDir = paths[0].appendingPathComponent("ContactsCache", isDirectory: true)
@@ -37,7 +37,7 @@ class GetCharContacts {
         return contactsCacheDir.appendingPathComponent("\(characterId)_contacts.json")
     }
 
-    // 从缓存加载数据
+    /// 从缓存加载数据
     private func loadFromCache(characterId: Int) -> [ContactInfo]? {
         let cacheFile = getCacheFilePath(characterId: characterId)
 
@@ -67,7 +67,7 @@ class GetCharContacts {
         }
     }
 
-    // 保存数据到缓存
+    /// 保存数据到缓存
     private func saveToCache(contacts: [ContactInfo], characterId: Int) {
         let cacheFile = getCacheFilePath(characterId: characterId)
         let cachedData = CachedContactsData(contacts: contacts, timestamp: Date())
@@ -83,7 +83,7 @@ class GetCharContacts {
         }
     }
 
-    // 获取所有联系人数据
+    /// 获取所有联系人数据
     func fetchContacts(characterId: Int, forceRefresh: Bool = false) async throws
         -> [ContactInfo]
     {

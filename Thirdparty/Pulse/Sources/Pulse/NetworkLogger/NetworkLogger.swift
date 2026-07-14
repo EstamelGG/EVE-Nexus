@@ -5,10 +5,9 @@
 import AVFoundation
 import Foundation
 
-/// A wrapper on top of ``LoggerStore`` that simplifies logging of network requests.
-///
-/// - note: ``NetworkLogger`` is used internally by ``URLSessionProxyDelegate`` and
-/// should generally not be used directly.
+// A wrapper on top of ``LoggerStore`` that simplifies logging of network requests.
+// // - note: ``NetworkLogger`` is used internally by ``URLSessionProxyDelegate`` and
+// should generally not be used directly.
 public final class NetworkLogger: @unchecked Sendable {
     private let configuration: Configuration
     private var store: LoggerStore { _store ?? .shared }
@@ -26,100 +25,89 @@ public final class NetworkLogger: @unchecked Sendable {
     private var isFilteringNeeded = false
     private let lock = NSLock()
 
-    /// A shared network logger.
-    ///
-    /// You can configure a logger by creating a new instance and setting it as
-    /// a shared logger:
-    ///
-    /// ```swift
-    /// NetworkLogger.shared = NetworkLogger {
-    ///     $0.excludedHosts = ["github.com"]
-    /// }
-    /// ```
-    ///
-    /// The best place to do it is at the app launch.
+    // A shared network logger.
+    //     // You can configure a logger by creating a new instance and setting it as
+    // a shared logger:
+    //     // ```swift
+    // NetworkLogger.shared = NetworkLogger {
+    //     $0.excludedHosts = ["github.com"]
+    // }
+    // ```
+    //     // The best place to do it is at the app launch.
     public static var shared: NetworkLogger {
         get { _shared.value }
         set { _shared.value = newValue }
     }
     private static let _shared = Mutex(NetworkLogger())
 
-    /// The logger configuration.
+    // The logger configuration.
     public struct Configuration: Sendable {
-        /// A custom label to associated with stored messages.
+        // A custom label to associated with stored messages.
         public var label: String?
 
-        /// If enabled, the requests are not marked as completed until the decoding
-        /// is done (see ``NetworkLogger/logTask(_:didFinishDecodingWithError:)``.
-        /// If the request itself fails, the task completes immediately.
+        // If enabled, the requests are not marked as completed until the decoding
+        // is done (see ``NetworkLogger/logTask(_:didFinishDecodingWithError:)``.
+        // If the request itself fails, the task completes immediately.
         public var isWaitingForDecoding = false
 
-        /// Store logs only for the included hosts.
-        ///
-        /// - note: Supports wildcards, e.g. `*.example.com`, and full regex
-        /// when ``isRegexEnabled`` option is enabled.
+        // Store logs only for the included hosts.
+        //         // - note: Supports wildcards, e.g. `*.example.com`, and full regex
+        // when ``isRegexEnabled`` option is enabled.
         public var includedHosts: Set<String> = []
 
-        /// Store logs only for the included URLs.
-        ///
-        /// - note: Supports wildcards, e.g. `*.example.com`, and full regex
-        /// when ``isRegexEnabled`` option is enabled.
+        // Store logs only for the included URLs.
+        //         // - note: Supports wildcards, e.g. `*.example.com`, and full regex
+        // when ``isRegexEnabled`` option is enabled.
         public var includedURLs: Set<String> = []
 
-        /// Exclude the given hosts from the logs.
-        ///
-        /// - note: Supports wildcards, e.g. `*.example.com`, and full regex
-        /// when ``isRegexEnabled`` option is enabled.
+        // Exclude the given hosts from the logs.
+        //         // - note: Supports wildcards, e.g. `*.example.com`, and full regex
+        // when ``isRegexEnabled`` option is enabled.
         public var excludedHosts: Set<String> = []
 
-        /// Exclude the given URLs from the logs.
-        ///
-        /// - note: Supports wildcards, e.g. `*.example.com`, and full regex
-        /// when ``isRegexEnabled`` option is enabled.
+        // Exclude the given URLs from the logs.
+        //         // - note: Supports wildcards, e.g. `*.example.com`, and full regex
+        // when ``isRegexEnabled`` option is enabled.
         public var excludedURLs: Set<String> = []
 
-        /// Redact the given HTTP headers from the logged requests and responses.
-        ///
-        /// - note: Supports wildcards, e.g. `X-*`, and full regex
-        /// when ``isRegexEnabled`` option is enabled.
+        // Redact the given HTTP headers from the logged requests and responses.
+        //         // - note: Supports wildcards, e.g. `X-*`, and full regex
+        // when ``isRegexEnabled`` option is enabled.
         public var sensitiveHeaders: Set<String> = []
 
-        /// Redact the given query items from the URLs.
-        ///
-        /// - note: Supports only plain strings. Case-sensitive.
+        // Redact the given query items from the URLs.
+        //         // - note: Supports only plain strings. Case-sensitive.
         public var sensitiveQueryItems: Set<String> = []
 
-        /// Redact the given JSON fields from the logged requests and responses bodies.
-        ///
-        /// - note: Supports only plain strings. Case-sensitive.
+        // Redact the given JSON fields from the logged requests and responses bodies.
+        //         // - note: Supports only plain strings. Case-sensitive.
         public var sensitiveDataFields: Set<String> = []
 
-        /// If enabled, processes `include` and `exclude` patterns using regex.
-        /// By default, patterns support only basic wildcard syntax: `*.example.com`.
+        // If enabled, processes `include` and `exclude` patterns using regex.
+        // By default, patterns support only basic wildcard syntax: `*.example.com`.
         public var isRegexEnabled = false
 
-        /// Gets called when the logger receives an event. You can use it to
-        /// modify the event before it is stored in order, for example, filter
-        /// out some sensitive information. If you return `nil`, the event
-        /// is ignored completely.
+        // Gets called when the logger receives an event. You can use it to
+        // modify the event before it is stored in order, for example, filter
+        // out some sensitive information. If you return `nil`, the event
+        // is ignored completely.
         public var willHandleEvent: @Sendable (LoggerStore.Event) -> LoggerStore.Event? = { $0 }
 
-        /// Initializes the default configuration.
+        // Initializes the default configuration.
         public init() {}
     }
 
-    /// Initializes the network logger.
-    ///
-    /// - parameters:
-    ///   - store: The target store for network requests.
-    ///   - configuration: The store configuration.
+    // Initializes the network logger.
+    //     // - parameters:
+    //   - store: The target store for network requests.
+    //   - configuration: The store configuration.
     public init(store: LoggerStore? = nil, configuration: Configuration = .init()) {
         self._store = store
         self.configuration = configuration
         self.processPatterns()
     }
 
-    /// Initializes and configures the network logger.
+    // Initializes and configures the network logger.
     public convenience init(store: LoggerStore? = nil, _ configure: (inout Configuration) -> Void) {
         var configuration = Configuration()
         configure(&configuration)
@@ -158,7 +146,7 @@ public final class NetworkLogger: @unchecked Sendable {
 
     // MARK: Logging
 
-    /// Logs the task creation (optional).
+    // Logs the task creation (optional).
     public func logTaskCreated(_ task: URLSessionTask) {
         lock.lock()
         guard tasks[TaskKey(task: task)] == nil else {
@@ -183,7 +171,7 @@ public final class NetworkLogger: @unchecked Sendable {
         )))
     }
 
-    /// Logs the task data that gets appended to the previously received chunks (required).
+    // Logs the task data that gets appended to the previously received chunks (required).
     public func logDataTask(_ dataTask: URLSessionDataTask, didReceive data: Data) {
         lock.lock()
         let context = self.context(for: dataTask)
@@ -204,20 +192,20 @@ public final class NetworkLogger: @unchecked Sendable {
         )))
     }
 
-    /// Logs the task completion (required).
+    // Logs the task completion (required).
     public func logTask(_ task: URLSessionTask, didCompleteWithError error: Error?) {
         guard error != nil || !configuration.isWaitingForDecoding else { return }
         _logTask(task, didCompleteWithError: error)
     }
 
-    /// Logs the task metrics (optional).
+    // Logs the task metrics (optional).
     public func logTask(_ task: URLSessionTask, didFinishCollecting metrics: URLSessionTaskMetrics) {
         lock.lock()
         context(for: task).metrics = NetworkLogger.Metrics(metrics: metrics)
         lock.unlock()
     }
 
-    /// Logs the task metrics (optional).
+    // Logs the task metrics (optional).
     public func logTask(_ task: URLSessionTask, didFinishCollecting metrics: NetworkLogger.Metrics) {
         lock.lock()
         context(for: task).metrics = metrics
@@ -268,7 +256,7 @@ public final class NetworkLogger: @unchecked Sendable {
         store.handle(event)
     }
 
-    /// Check if the events can be stored (included and not excluded).
+    // Check if the events can be stored (included and not excluded).
     private func filter(_ event: LoggerStore.Event) -> Bool {
         guard let url = event.url else {
             return false // Should never happen

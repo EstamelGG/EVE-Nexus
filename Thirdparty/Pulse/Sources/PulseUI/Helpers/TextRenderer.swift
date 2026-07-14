@@ -11,7 +11,7 @@ import SwiftUI
 import PDFKit
 #endif
 
-/// Low-level attributed string creation API.
+// Low-level attributed string creation API.
 package final class TextRenderer {
     package struct Options {
         package var color: ColorMode
@@ -33,7 +33,7 @@ package final class TextRenderer {
 
     let helper: TextHelper
 
-    /// LoggerBlobHandleEntity.objectID: string
+    // LoggerBlobHandleEntity.objectID: string
     var renderedBodies: [NSManagedObjectID: NSAttributedString] = [:]
     private var string = NSMutableAttributedString()
 
@@ -501,7 +501,7 @@ package struct NetworkContent: OptionSet {
     ]
 }
 
-/// Uncomment to run performance tests in the release mode.
+// Uncomment to run performance tests in the release mode.
 // public enum TextRendererTests {
 //    public static func share(_ entities: [NSManagedObject], store: LoggerStore, _ completion: @escaping () -> Void) {
 //       // TODO: rewrite using new convenience API for testing

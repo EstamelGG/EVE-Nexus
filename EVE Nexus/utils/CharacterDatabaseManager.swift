@@ -416,6 +416,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                 race_id INTEGER NOT NULL,
                 security_status REAL,
                 title TEXT,
+                description TEXT,
                 last_updated TEXT DEFAULT CURRENT_TIMESTAMP
             );
             CREATE INDEX IF NOT EXISTS idx_character_info_last_updated ON character_info(last_updated);
@@ -455,6 +456,40 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                 if case let .error(error) = executeQuery(trimmed) {
                     Logger.error("创建表失败: \(error)\nSQL: \(trimmed)")
                 }
+            }
+        }
+
+        // 执行数据库迁移（为已存在的表添加新列）
+        migrateSchema()
+    }
+
+    /// 数据库迁移：为已存在的表添加新列
+    /// 使用 PRAGMA table_info 检查列是否存在，不存在则执行 ALTER TABLE ADD COLUMN
+    private func migrateSchema() {
+        // character_info 表添加 description 列
+        addColumnIfNotExists(table: "character_info", column: "description", type: "TEXT")
+    }
+
+    /// 检查并添加列（如果列不存在）
+    private func addColumnIfNotExists(table: String, column: String, type: String) {
+        // 查询表的列信息
+        let pragmaQuery = "PRAGMA table_info(\(table))"
+        guard case let .success(rows) = executeQuery(pragmaQuery) else {
+            Logger.error("查询表 \(table) 列信息失败")
+            return
+        }
+
+        // 检查列是否已存在
+        let columnExists = rows.contains { row in
+            (row["name"] as? String) == column
+        }
+
+        if !columnExists {
+            let alterQuery = "ALTER TABLE \(table) ADD COLUMN \(column) \(type)"
+            if case let .error(error) = executeQuery(alterQuery) {
+                Logger.error("添加列 \(table).\(column) 失败: \(error)")
+            } else {
+                Logger.info("成功添加列 \(table).\(column)")
             }
         }
     }
@@ -567,7 +602,7 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
 
     // MARK: - Contract Methods
 
-    // 获取角色所在的军团ID
+    /// 获取角色所在的军团ID
     func getCharacterCorporationId(characterId: Int) async throws -> Int? {
         return try await withCheckedThrowingContinuation { continuation in
             dbQueue.async {
@@ -580,7 +615,8 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                             throwing: NSError(
                                 domain: "EVENexus", code: -1,
                                 userInfo: [NSLocalizedDescriptionKey: "数据库未打开"]
-                            ))
+                            )
+                        )
                         return
                     }
 
@@ -590,7 +626,8 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
                             throwing: NSError(
                                 domain: "EVENexus", code: -1,
                                 userInfo: [NSLocalizedDescriptionKey: errmsg]
-                            ))
+                            )
+                        )
                         return
                     }
 

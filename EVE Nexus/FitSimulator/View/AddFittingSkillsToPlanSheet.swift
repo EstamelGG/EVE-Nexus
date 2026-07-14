@@ -36,13 +36,9 @@ enum AddFittingSkillsToPlanSheet {
             skillsToAdd.append(contentsOf: collected)
         }
 
-        let correctedSkills = SkillQueueCorrector(databaseManager: databaseManager)
-            .correctSkillQueue(inputSkills: skillsToAdd.map { ($0.skillId, $0.level) })
-
-        // 待训练技能
-        var plannedSkills = correctedSkills.map { skill -> PlannedSkill in
-            let skillName = SkillTreeManager.shared.getSkillName(for: skill.skillId)
-                ?? "Unknown (\(skill.skillId))"
+        // 待训练技能（保存时统一修正队列）
+        var plannedSkills = skillsToAdd.map { skill -> PlannedSkill in
+            let skillName = skill.skillName
             return PlannedSkill(
                 id: UUID(),
                 skillID: skill.skillId,
@@ -88,7 +84,9 @@ enum AddFittingSkillsToPlanSheet {
             lastUpdated: Date()
         )
 
-        SkillPlanFileManager.shared.saveSkillPlan(characterId: characterId, plan: newPlan)
+        _ = SkillPlanFileManager.shared.saveSkillPlan(
+            characterId: characterId, plan: newPlan, databaseManager: databaseManager
+        )
         return name
     }
 

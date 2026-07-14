@@ -34,7 +34,7 @@ public final class NetworkTaskEntity: NSManagedObject {
     @NSManaged public var session: UUID
     @NSManaged public var taskId: UUID
 
-    /// Returns task type
+    // Returns task type
     public var type: NetworkLogger.TaskType? {
         NetworkLogger.TaskType(rawValue: taskType)
     }
@@ -49,11 +49,11 @@ public final class NetworkTaskEntity: NSManagedObject {
     // MARK: Response
 
     @NSManaged public var statusCode: Int32
-    /// Response content-type.
+    // Response content-type.
     @NSManaged public var responseContentType: String?
-    /// Returns `true` if the response was returned from the local cache.
+    // Returns `true` if the response was returned from the local cache.
     @NSManaged public var isFromCache: Bool
-    /// Returns `true` if the request is mocked
+    // Returns `true` if the request is mocked
     @NSManaged public var isMocked: Bool
 
     // MARK: Error
@@ -61,20 +61,19 @@ public final class NetworkTaskEntity: NSManagedObject {
     @NSManaged public var errorCode: Int32
     @NSManaged public var errorDomain: String?
     @NSManaged public var errorDebugDescription: String?
-    /// JSON-encoded underlying error
+    // JSON-encoded underlying error
     @NSManaged public var underlyingError: Data?
 
     // MARK: State
 
-    /// Contains ``State-swift.enum`` raw value.
+    // Contains ``State-swift.enum`` raw value.
     @NSManaged public var requestState: Int16
-    /// Request progress.
-    ///
-    /// - note: The entity is created lazily when the first progress report
-    /// is delivered. If no progress updates are delivered, it's never created.
+    // Request progress.
+    //     // - note: The entity is created lazily when the first progress report
+    // is delivered. If no progress updates are delivered, it's never created.
     @NSManaged public var progress: NetworkTaskProgressEntity?
 
-    /// Total request duration end date.
+    // Total request duration end date.
     @NSManaged public var duration: Double
     @NSManaged public var startDate: Date?
     @NSManaged public var redirectCount: Int16
@@ -87,24 +86,24 @@ public final class NetworkTaskEntity: NSManagedObject {
     @NSManaged public var transactions: Set<NetworkTransactionMetricsEntity>
     @NSManaged var rawMetadata: String?
 
-    /// The request body handle.
+    // The request body handle.
     @NSManaged public var requestBody: LoggerBlobHandleEntity?
-    /// The response body handle.
+    // The response body handle.
     @NSManaged public var responseBody: LoggerBlobHandleEntity?
-    /// The size of the request body.
+    // The size of the request body.
     @NSManaged public var requestBodySize: Int64
-    /// The size of the response body.
+    // The size of the response body.
     @NSManaged public var responseBodySize: Int64
-    /// The `taskDescription` value of `URLSessionTask`.
+    // The `taskDescription` value of `URLSessionTask`.
     @NSManaged public var taskDescription: String?
-    /// Associated (technical) message.
+    // Associated (technical) message.
     @NSManaged public var message: LoggerMessageEntity?
 
     // MARK: Helpers
 
     public lazy var metadata = { rawMetadata.map(KeyValueEncoding.decodeKeyValuePairs) }()
 
-    /// Returns request state.
+    // Returns request state.
     public var state: State {
         State(rawValue: requestState) ?? .pending
     }
@@ -144,11 +143,11 @@ public final class NetworkTaskEntity: NSManagedObject {
     }
 }
 
-/// Indicates current download or upload progress.
+// Indicates current download or upload progress.
 public final class NetworkTaskProgressEntity: NSManagedObject {
-    /// Indicates current download or upload progress.
+    // Indicates current download or upload progress.
     @NSManaged public var completedUnitCount: Int64
-    /// Indicates current download or upload progress.
+    // Indicates current download or upload progress.
     @NSManaged public var totalUnitCount: Int64
 }
 
@@ -271,48 +270,45 @@ public final class NetworkResponseEntity: NSManagedObject {
     public lazy var headers: [String: String] = { KeyValueEncoding.decodeKeyValuePairs(httpHeaders) }()
 }
 
-/// Doesn't contain any data, just the key and some additional payload.
+// Doesn't contain any data, just the key and some additional payload.
 public final class LoggerBlobHandleEntity: NSManagedObject {
-    /// A blob hash (sha1, stored in a binary format).
+    // A blob hash (sha1, stored in a binary format).
     @NSManaged public var key: Data
 
-    /// A blob size.
+    // A blob size.
     @NSManaged public var size: Int32
 
-    /// A decompressed blob size.
+    // A decompressed blob size.
     @NSManaged public var decompressedSize: Int32
 
     @NSManaged package var isUncompressed: Bool
 
     @NSManaged package var rawContentType: String?
 
-    /// A blob content type.
+    // A blob content type.
     public var contentType: NetworkLogger.ContentType? {
         rawContentType.flatMap(NetworkLogger.ContentType.init)
     }
 
-    /// A number of requests referencing it.
+    // A number of requests referencing it.
     @NSManaged var linkCount: Int32
 
-    /// The logger inlines small blobs in a separate table in the database which
-    /// significantly [reduces](https://www.sqlite.org/intern-v-extern-blob.html)
-    /// the total allocated size for these files and improves the overall performance.
-    ///
-    /// The larger blobs are stored in an file system. And when you export a Pulse
-    /// document, the larger blobs are read from the created archive on-demand,
-    /// significantly reducing the speed with this the documents are opened and
-    /// reducing space usage.
-    ///
-    /// To access data, use the convenience ``data`` property.
+    // The logger inlines small blobs in a separate table in the database which
+    // significantly [reduces](https://www.sqlite.org/intern-v-extern-blob.html)
+    // the total allocated size for these files and improves the overall performance.
+    //     // The larger blobs are stored in an file system. And when you export a Pulse
+    // document, the larger blobs are read from the created archive on-demand,
+    // significantly reducing the speed with this the documents are opened and
+    // reducing space usage.
+    //     // To access data, use the convenience ``data`` property.
     @NSManaged public var inlineData: Data?
 
-    /// Returns the associated data.
-    ///
-    /// - important: This property only works with `NSManagedObjectContext` instances
-    /// created by the ``LoggerStore``. If you are reading the database manually,
-    /// you'll need to access the files directly by using the associated ``key``
-    /// that matches the name o the file in the `/blobs` directly in the store
-    /// directory.
+    // Returns the associated data.
+    //     // - important: This property only works with `NSManagedObjectContext` instances
+    // created by the ``LoggerStore``. If you are reading the database manually,
+    // you'll need to access the files directly by using the associated ``key``
+    // that matches the name o the file in the `/blobs` directly in the store
+    // directory.
     public var data: Data? {
         guard let store = managedObjectContext?.userInfo[LoggerBlogDataStore.loggerStoreKey] as? LoggerBlogDataStore else {
             return nil // Should never happen unless the object was created outside of the LoggerStore moc
@@ -320,10 +316,9 @@ public final class LoggerBlobHandleEntity: NSManagedObject {
         return store.getDecompressedData(self)
     }
 
-    /// Returns a closure to fetch the entity's data that can be executed
-    /// on any thread.
-    ///
-    /// - warning: Not meant to be used outside of the framework.
+    // Returns a closure to fetch the entity's data that can be executed
+    // on any thread.
+    //     // - warning: Not meant to be used outside of the framework.
     public static func getData(for entity: LoggerBlobHandleEntity, store: LoggerStore) -> () -> Data? {
         let inlineData = entity.inlineData
         let key = entity.key

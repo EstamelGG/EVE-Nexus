@@ -118,13 +118,15 @@ struct AboutView: View {
     }
 }
 
-// 数据库版本显示组件
+/// 数据库版本显示组件
 struct DatabaseVersionRow: View {
     let versionInfo: AppConfiguration.Database.VersionInfo?
     @Binding var showingUpdateSheet: Bool
 
-    // 使用 @StateObject 并限定在此组件内
     @StateObject private var updateChecker = SDEUpdateChecker.shared
+    @State private var statusBounce = 0
+    @State private var justConfirmedLatest = false
+    @State private var successHaptic = 0
 
     private var hasUpdate: Bool {
         updateChecker.updateStatus == .hasUpdate
@@ -164,8 +166,16 @@ struct DatabaseVersionRow: View {
                         Text(NSLocalizedString("Main_About_Database_Update_Available", comment: ""))
                             .font(.system(size: 13))
                             .foregroundColor(.orange)
+                            .transition(.scale.combined(with: .opacity))
+                    } else if justConfirmedLatest {
+                        Text(NSLocalizedString("SDE_Already_Latest", comment: ""))
+                            .font(.system(size: 13))
+                            .foregroundColor(.green)
+                            .transition(.scale.combined(with: .opacity))
                     }
                 }
+                .animation(.spring(response: 0.35, dampingFraction: 0.75), value: hasUpdate)
+                .animation(.spring(response: 0.35, dampingFraction: 0.75), value: justConfirmedLatest)
 
                 if let info = versionInfo {
                     Text("\(NSLocalizedString("Main_About_Build_Number", comment: "")): \(info.fullVersion)")
@@ -186,42 +196,58 @@ struct DatabaseVersionRow: View {
 
             Spacer()
 
-            if isChecking {
-                ProgressView()
-                    .scaleEffect(0.8)
-            } else if updateChecker.updateStatus == .checkFailed {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 18))
-                    .foregroundColor(.red)
-            } else if hasUpdate {
-                Image(systemName: "info.circle.fill")
-                    .font(.system(size: 18))
-                    .foregroundColor(.orange)
-            } else if updateChecker.updateStatus == .noUpdate {
-                Image(systemName: "checkmark.circle.fill")
-                    .font(.system(size: 18))
-                    .foregroundColor(.green)
+            Group {
+                if isChecking {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                } else if hasUpdate {
+                    Image(systemName: "arrow.down.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(.orange)
+                        .symbolEffect(.bounce, value: statusBounce)
+                } else if updateChecker.updateStatus == .noUpdate {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 18))
+                        .foregroundColor(.green)
+                        .symbolEffect(.bounce, value: statusBounce)
+                        .scaleEffect(justConfirmedLatest ? 1.12 : 1)
+                }
             }
+            .animation(.spring(response: 0.34, dampingFraction: 0.65), value: justConfirmedLatest)
+            .animation(.easeInOut(duration: 0.2), value: isChecking)
         }
         .padding(.vertical, 6)
         .contentShape(Rectangle())
         .onTapGesture {
             if hasUpdate {
-                // 有更新：打开更新 sheet
                 showingUpdateSheet = true
             } else if !isChecking {
-                // 已是最新或其他状态：强制重新检查更新
-                Task.detached(priority: .background) {
-                    await updateChecker.forceCheckForUpdates()
-                }
+                Task { await recheckUpdates() }
             }
         }
+        .sensoryFeedback(.success, trigger: successHaptic)
         .onAppear {
-            // 在组件出现时检查更新
             Task.detached(priority: .background) {
-                await updateChecker.checkForUpdates()
+                await SDEUpdateChecker.shared.checkForUpdates()
             }
         }
+    }
+
+    private func recheckUpdates() async {
+        await updateChecker.forceCheckForUpdates()
+        statusBounce += 1
+        guard updateChecker.updateStatus == .hasUpdate else {
+            successHaptic += 1
+            withAnimation(.spring(response: 0.4, dampingFraction: 0.68)) {
+                justConfirmedLatest = true
+            }
+            try? await Task.sleep(nanoseconds: 2_000_000_000)
+            withAnimation(.easeInOut(duration: 0.25)) {
+                justConfirmedLatest = false
+            }
+            return
+        }
+        showingUpdateSheet = true
     }
 }
 
@@ -303,7 +329,8 @@ struct AboutItemRow: View {
             if let characterId = item.characterId {
                 do {
                     portrait = try await CharacterAPI.shared.fetchCharacterPortrait(
-                        characterId: characterId)
+                        characterId: characterId
+                    )
                 } catch {
                     Logger.error("加载角色头像失败: \(error)")
                 }

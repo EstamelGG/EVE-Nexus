@@ -7,7 +7,7 @@ enum NPCBrowserLevel {
     case items
 }
 
-// 基础NPC视图
+/// 基础NPC视图
 struct NPCBaseView<Content: View>: View {
     @ObservedObject var databaseManager: DatabaseManager
     let title: String
@@ -22,7 +22,7 @@ struct NPCBaseView<Content: View>: View {
     @State private var isShowingSearchResults = false
     @StateObject private var searchController = SearchController()
 
-    // 搜索结果分组
+    /// 搜索结果分组
     var groupedSearchResults: [(id: Int, name: String, items: [NPCItem])] {
         guard !items.isEmpty else { return [] }
 
@@ -123,7 +123,7 @@ struct NPCBaseView<Content: View>: View {
         .searchable(
             text: $searchText,
             isPresented: $isSearchActive,
-            placement: .navigationBarDrawer(displayMode: .always),
+            // placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
         )
         .onChange(of: searchText) { _, newValue in
@@ -199,17 +199,17 @@ struct NPCBaseView<Content: View>: View {
             items = rows.compactMap { row in
                 guard let typeID = row["type_id"] as? Int,
                       let name = row["name"] as? String,
-                      let enName = row["en_name"] as? String,
-                      let iconFileName = row["icon_filename"] as? String
+                      let enName = row["en_name"] as? String
                 else {
                     return nil
                 }
+                let iconFileName = row["icon_filename"] as? String ?? ""
                 return NPCItem(
                     typeID: typeID,
                     name: name,
                     enName: enName,
                     iconFileName: iconFileName.isEmpty
-                        ? DatabaseConfig.defaultItemIcon : iconFileName
+                        ? IconManager.defaultItemIcon : iconFileName
                 )
             }
             isShowingSearchResults = true
@@ -278,8 +278,8 @@ struct NPCBrowserView: View {
                             ) {
                                 HStack {
                                     if let iconFileName = databaseManager.getNPCFactionIcon(
-                                        for: faction)
-                                    {
+                                        for: faction
+                                    ) {
                                         IconManager.shared.loadImage(for: iconFileName)
                                             .resizable()
                                             .frame(width: 32, height: 32)
@@ -384,33 +384,34 @@ struct NPCBrowserView: View {
                 switch level {
                 case .scene:
                     return
-                        "t.npc_ship_scene IS NOT NULL AND t.npc_ship_scene IN (SELECT DISTINCT npc_ship_scene FROM types WHERE npc_ship_scene IS NOT NULL) AND (t.name LIKE ? OR t.en_name LIKE ? OR t.type_id = ?)"
+                        "t.npc_ship_scene IS NOT NULL AND t.npc_ship_scene IN (SELECT DISTINCT npc_ship_scene FROM types WHERE npc_ship_scene IS NOT NULL) AND (\(LocalizedText.typeLangNameLikeSQL) OR t.type_id = ?)"
                 case .faction:
                     return
-                        "t.npc_ship_scene = ? AND t.npc_ship_faction IN (SELECT DISTINCT npc_ship_faction FROM types WHERE npc_ship_scene = ?) AND (t.name LIKE ? OR t.en_name LIKE ? OR t.type_id = ?)"
+                        "t.npc_ship_scene = ? AND t.npc_ship_faction IN (SELECT DISTINCT npc_ship_faction FROM types WHERE npc_ship_scene = ?) AND (\(LocalizedText.typeLangNameLikeSQL) OR t.type_id = ?)"
                 case .type:
                     return
-                        "t.npc_ship_scene = ? AND t.npc_ship_faction = ? AND t.npc_ship_type IN (SELECT DISTINCT npc_ship_type FROM types WHERE npc_ship_scene = ? AND npc_ship_faction = ?) AND (t.name LIKE ? OR t.en_name LIKE ? OR t.type_id = ?)"
+                        "t.npc_ship_scene = ? AND t.npc_ship_faction = ? AND t.npc_ship_type IN (SELECT DISTINCT npc_ship_type FROM types WHERE npc_ship_scene = ? AND npc_ship_faction = ?) AND (\(LocalizedText.typeLangNameLikeSQL) OR t.type_id = ?)"
                 case .items:
                     return
-                        "t.npc_ship_scene = ? AND t.npc_ship_faction = ? AND t.npc_ship_type = ? AND (t.name LIKE ? OR t.en_name LIKE ? OR t.type_id = ?)"
+                        "t.npc_ship_scene = ? AND t.npc_ship_faction = ? AND t.npc_ship_type = ? AND (\(LocalizedText.typeLangNameLikeSQL) OR t.type_id = ?)"
                 }
             },
             searchParameters: { text in
+                let nameParams = LocalizedText.typeLangNameLikeParams(text) + ["\(text)"]
                 switch level {
                 case .scene:
-                    return ["%\(text)%", "%\(text)%", "\(text)"]
+                    return nameParams
                 case .faction:
                     guard let scene = scene else { return [] }
-                    return [scene, scene, "%\(text)%", "%\(text)%", "\(text)"]
+                    return [scene, scene] + nameParams
                 case .type:
                     guard let scene = scene, let faction = faction else { return [] }
-                    return [scene, faction, scene, faction, "%\(text)%", "%\(text)%", "\(text)"]
+                    return [scene, faction, scene, faction] + nameParams
                 case .items:
                     guard let scene = scene, let faction = faction, let type = type else {
                         return []
                     }
-                    return [scene, faction, type, "%\(text)%", "%\(text)%", "\(text)"]
+                    return [scene, faction, type] + nameParams
                 }
             }
         )

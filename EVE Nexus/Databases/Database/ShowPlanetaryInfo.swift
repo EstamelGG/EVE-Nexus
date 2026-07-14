@@ -1,39 +1,34 @@
 import SwiftUI
 
 struct ShowPlanetaryInfo: View {
+    private typealias TypeRef = (typeID: Int, name: String, iconFileName: String)
+
     let itemID: Int
     @ObservedObject var databaseManager: DatabaseManager
 
-    // 基础信息
     @State private var itemDetails: ItemDetails?
-
-    // 行星开发数据
-    @State private var inputs: [(typeID: Int, name: String, iconFileName: String, quantity: Int)] =
-        []
+    @State private var inputs: [(typeID: Int, name: String, iconFileName: String, quantity: Int)] = []
     @State private var output: (outputValue: Int, cycleTime: Int)?
-    @State private var uses: [(typeID: Int, name: String, iconFileName: String)] = []
+    @State private var uses: [TypeRef] = []
+    @State private var facilities: [TypeRef] = []
+    @State private var harvestSources: [TypeRef] = []
 
-    // 添加设施状态
-    @State private var facilities: [(typeID: Int, name: String, iconFileName: String)] = []
-
-    // 添加收获来源状态
-    @State private var harvestSources: [(typeID: Int, name: String, iconFileName: String)] = []
+    private let rowInsets = EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18)
 
     var body: some View {
         List {
-            // 基础信息部分
-            if let itemDetails = itemDetails {
+            if let itemDetails {
                 ItemBasicInfoView(
-                    itemDetails: itemDetails, databaseManager: databaseManager,
+                    itemDetails: itemDetails,
+                    databaseManager: databaseManager,
                     modifiedAttributes: nil
                 )
             }
 
-            // 输入材料部分
             if !inputs.isEmpty {
                 Section(
-                    header: Text(NSLocalizedString("Planetary_Input_Materials", comment: "")).font(
-                        .headline)
+                    header: Text(NSLocalizedString("Planetary_Input_Materials", comment: ""))
+                        .font(.headline)
                 ) {
                     ForEach(inputs, id: \.typeID) { input in
                         NavigationLink {
@@ -43,16 +38,10 @@ struct ShowPlanetaryInfo: View {
                             )
                         } label: {
                             HStack {
-                                IconManager.shared.loadImage(for: input.iconFileName)
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                    .cornerRadius(4)
-
+                                typeIcon(input.iconFileName)
                                 Text(input.name)
                                     .font(.body)
-
                                 Spacer()
-
                                 Text(
                                     "\(input.quantity) \(NSLocalizedString("Misc_number_item", comment: ""))"
                                 )
@@ -61,15 +50,14 @@ struct ShowPlanetaryInfo: View {
                             }
                         }
                     }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                    .listRowInsets(rowInsets)
                 }
             }
 
-            // 输出信息部分
-            if let output = output {
+            if let output {
                 Section(
-                    header: Text(NSLocalizedString("Planetary_Output_Info", comment: "")).font(
-                        .headline)
+                    header: Text(NSLocalizedString("Planetary_Output_Info", comment: ""))
+                        .font(.headline)
                 ) {
                     HStack {
                         Text(NSLocalizedString("Planetary_Output_Quantity", comment: ""))
@@ -84,97 +72,30 @@ struct ShowPlanetaryInfo: View {
                     HStack {
                         Text(NSLocalizedString("Planetary_Cycle_Time", comment: ""))
                         Spacer()
-                        Text(formatTime(output.cycleTime))
+                        Text(FormatUtil.formatBlueprintDuration(output.cycleTime))
                             .foregroundColor(.secondary)
                             .frame(alignment: .trailing)
                     }
                 }
             }
 
-            // 用途部分
-            if !uses.isEmpty {
-                Section(
-                    header: Text(NSLocalizedString("Planetary_Uses", comment: "")).font(.headline)
-                ) {
-                    ForEach(uses, id: \.typeID) { use in
-                        NavigationLink {
-                            ItemInfoMap.getItemInfoView(
-                                itemID: use.typeID,
-                                databaseManager: databaseManager
-                            )
-                        } label: {
-                            HStack {
-                                IconManager.shared.loadImage(for: use.iconFileName)
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                    .cornerRadius(4)
+            typeLinkSection(
+                title: NSLocalizedString("Planetary_Uses", comment: ""),
+                items: uses
+            )
+            typeLinkSection(
+                title: NSLocalizedString("Planetary_Facilities", comment: ""),
+                items: facilities
+            )
+            typeLinkSection(
+                title: NSLocalizedString("Planetary_Harvest_from", comment: ""),
+                items: harvestSources
+            )
 
-                                Text(use.name)
-                                    .font(.body)
-                            }
-                        }
-                    }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                }
-            }
-
-            // 设施部分
-            if !facilities.isEmpty {
-                Section(
-                    header: Text(NSLocalizedString("Planetary_Facilities", comment: "")).font(
-                        .headline)
-                ) {
-                    ForEach(facilities, id: \.typeID) { facility in
-                        NavigationLink {
-                            ItemInfoMap.getItemInfoView(
-                                itemID: facility.typeID,
-                                databaseManager: databaseManager
-                            )
-                        } label: {
-                            HStack {
-                                IconManager.shared.loadImage(for: facility.iconFileName)
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                    .cornerRadius(4)
-
-                                Text(facility.name)
-                                    .font(.body)
-                            }
-                        }
-                    }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                }
-            }
-
-            // 添加收获来源部分
-            if !harvestSources.isEmpty {
-                Section(
-                    header: Text(NSLocalizedString("Planetary_Harvest_from", comment: "")).font(
-                        .headline)
-                ) {
-                    ForEach(harvestSources, id: \.typeID) { source in
-                        NavigationLink {
-                            ItemInfoMap.getItemInfoView(
-                                itemID: source.typeID,
-                                databaseManager: databaseManager
-                            )
-                        } label: {
-                            HStack {
-                                IconManager.shared.loadImage(for: source.iconFileName)
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                    .cornerRadius(4)
-
-                                Text(source.name)
-                                    .font(.body)
-                            }
-                        }
-                    }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                }
-            }
             IndustrySection(
-                itemID: itemID, databaseManager: databaseManager, itemDetails: itemDetails
+                itemID: itemID,
+                databaseManager: databaseManager,
+                itemDetails: itemDetails
             )
         }
         .listStyle(.insetGrouped)
@@ -186,6 +107,38 @@ struct ShowPlanetaryInfo: View {
         }
     }
 
+    @ViewBuilder
+    private func typeLinkSection(title: String, items: [TypeRef]) -> some View {
+        if !items.isEmpty {
+            Section(
+                header: Text(title).font(.headline)
+            ) {
+                ForEach(items, id: \.typeID) { item in
+                    NavigationLink {
+                        ItemInfoMap.getItemInfoView(
+                            itemID: item.typeID,
+                            databaseManager: databaseManager
+                        )
+                    } label: {
+                        HStack {
+                            typeIcon(item.iconFileName)
+                            Text(item.name)
+                                .font(.body)
+                        }
+                    }
+                }
+                .listRowInsets(rowInsets)
+            }
+        }
+    }
+
+    private func typeIcon(_ iconFileName: String) -> some View {
+        IconManager.shared.loadImage(for: iconFileName)
+            .resizable()
+            .frame(width: 32, height: 32)
+            .cornerRadius(4)
+    }
+
     private func loadPlanetaryData() {
         loadInputs()
         loadOutput()
@@ -195,112 +148,104 @@ struct ShowPlanetaryInfo: View {
 
     private func loadInputs() {
         let query = """
-        SELECT input_typeid, input_value 
-        FROM planetSchematics 
-        WHERE output_typeid = ?
+            SELECT input_typeid, input_value
+            FROM planetSchematics
+            WHERE output_typeid = ?
         """
-        let result = databaseManager.executeQuery(query, parameters: [itemID])
+        guard case let .success(rows) = databaseManager.executeQuery(query, parameters: [itemID]),
+              let row = rows.first,
+              let inputTypeIDs = row["input_typeid"] as? String,
+              let inputValues = row["input_value"] as? String
+        else { return }
 
-        if case let .success(rows) = result, let row = rows.first {
-            if let inputTypeIDs = row["input_typeid"] as? String,
-               let inputValues = row["input_value"] as? String
-            {
-                let typeIDs = inputTypeIDs.split(separator: ",").compactMap { Int($0) }
-                let values = inputValues.split(separator: ",").compactMap { Int($0) }
+        let typeIDs = inputTypeIDs.split(separator: ",").compactMap { Int($0) }
+        let values = inputValues.split(separator: ",").compactMap { Int($0) }
 
-                inputs = zip(typeIDs, values).compactMap { typeID, quantity in
-                    guard let details = databaseManager.getItemDetails(for: typeID) else {
-                        return nil
-                    }
-                    return (
-                        typeID: typeID, name: details.name, iconFileName: details.iconFileName,
-                        quantity: quantity
-                    )
-                }
-            }
+        inputs = zip(typeIDs, values).compactMap { typeID, quantity in
+            guard let details = databaseManager.getItemDetails(for: typeID) else { return nil }
+            return (
+                typeID: typeID,
+                name: details.name,
+                iconFileName: details.iconFileName,
+                quantity: quantity
+            )
         }
     }
 
     private func loadOutput() {
         let query = """
-        SELECT output_value, cycle_time 
-        FROM planetSchematics 
-        WHERE output_typeid = ?
+            SELECT output_value, cycle_time
+            FROM planetSchematics
+            WHERE output_typeid = ?
         """
-        let result = databaseManager.executeQuery(query, parameters: [itemID])
+        guard case let .success(rows) = databaseManager.executeQuery(query, parameters: [itemID]),
+              let row = rows.first,
+              let outputValue = row["output_value"] as? Int,
+              let cycleTime = row["cycle_time"] as? Int
+        else { return }
 
-        if case let .success(rows) = result, let row = rows.first {
-            if let outputValue = row["output_value"] as? Int,
-               let cycleTime = row["cycle_time"] as? Int
-            {
-                output = (outputValue: outputValue, cycleTime: cycleTime)
-            }
-        }
+        output = (outputValue: outputValue, cycleTime: cycleTime)
     }
 
     private func loadUses() {
         let query = """
-        SELECT output_typeid 
-        FROM planetSchematics 
-        WHERE instr(',' || input_typeid || ',', ',\(itemID),') > 0
+            SELECT output_typeid
+            FROM planetSchematics
+            WHERE instr(',' || input_typeid || ',', ',\(itemID),') > 0
         """
-        let result = databaseManager.executeQuery(query)
+        guard case let .success(rows) = databaseManager.executeQuery(query) else { return }
 
-        if case let .success(rows) = result {
-            uses = rows.compactMap { row in
-                guard let typeID = row["output_typeid"] as? Int,
-                      let details = databaseManager.getItemDetails(for: typeID)
-                else { return nil }
-                return (typeID: typeID, name: details.name, iconFileName: details.iconFileName)
-            }
+        uses = rows.compactMap { row in
+            guard let typeID = row["output_typeid"] as? Int,
+                  let details = databaseManager.getItemDetails(for: typeID)
+            else { return nil }
+            return (typeID: typeID, name: details.name, iconFileName: details.iconFileName)
         }
     }
 
-    // 添加设施加载方法
     private func loadFacilities() {
         let query = """
-        SELECT facilitys 
-        FROM planetSchematics 
-        WHERE output_typeid = ?
+            SELECT facilitys
+            FROM planetSchematics
+            WHERE output_typeid = ?
         """
-        let result = databaseManager.executeQuery(query, parameters: [itemID])
+        guard case let .success(rows) = databaseManager.executeQuery(query, parameters: [itemID]),
+              let row = rows.first,
+              let facilityIDs = row["facilitys"] as? String
+        else { return }
 
-        if case let .success(rows) = result, let row = rows.first {
-            if let facilityIDs = row["facilitys"] as? String {
-                facilities = facilityIDs.split(separator: ",")
-                    .compactMap { Int($0) }
-                    .compactMap { facilityID in
-                        guard let details = databaseManager.getItemDetails(for: facilityID) else {
-                            return nil
-                        }
-                        return (
-                            typeID: facilityID,
-                            name: details.name,
-                            iconFileName: details.iconFileName
-                        )
-                    }
-            }
-        }
-    }
-
-    // 添加收获来源加载方法
-    private func loadHarvestSources() {
-        let query = """
-        SELECT harvest_typeid 
-        FROM planetResourceHarvest 
-        WHERE typeid = ?
-        """
-        let result = databaseManager.executeQuery(query, parameters: [itemID])
-
-        if case let .success(rows) = result {
-            harvestSources = rows.compactMap { row in
-                guard let harvestTypeID = row["harvest_typeid"] as? Int,
-                      let details = databaseManager.getItemDetails(for: harvestTypeID)
-                else { return nil }
+        facilities = facilityIDs.split(separator: ",")
+            .compactMap { Int($0) }
+            .compactMap { facilityID in
+                guard let details = databaseManager.getItemDetails(for: facilityID) else {
+                    return nil
+                }
                 return (
-                    typeID: harvestTypeID, name: details.name, iconFileName: details.iconFileName
+                    typeID: facilityID,
+                    name: details.name,
+                    iconFileName: details.iconFileName
                 )
             }
+    }
+
+    private func loadHarvestSources() {
+        let query = """
+            SELECT harvest_typeid
+            FROM planetResourceHarvest
+            WHERE typeid = ?
+        """
+        guard case let .success(rows) = databaseManager.executeQuery(query, parameters: [itemID])
+        else { return }
+
+        harvestSources = rows.compactMap { row in
+            guard let harvestTypeID = row["harvest_typeid"] as? Int,
+                  let details = databaseManager.getItemDetails(for: harvestTypeID)
+            else { return nil }
+            return (
+                typeID: harvestTypeID,
+                name: details.name,
+                iconFileName: details.iconFileName
+            )
         }
     }
 }

@@ -1,11 +1,11 @@
 import SwiftUI
 
-// 共用的图标尺寸常量
+/// 共用的图标尺寸常量
 private enum IconSize {
     static let location: CGFloat = 36
 }
 
-// 位置行视图
+/// 位置行视图
 private struct LocationRowView: View {
     let location: AssetTreeNode
     @EnvironmentObject private var viewModel: CorporationAssetsViewModel
@@ -13,8 +13,13 @@ private struct LocationRowView: View {
     var body: some View {
         HStack {
             // 位置图标
-            if let iconFileName = location.icon_name {
-                AssetIconView(iconName: iconFileName, size: IconSize.location)
+            if location.type_id > 0 {
+                AssetIconView(
+                    iconName: location.resolvedIconName(
+                        itemInfo: viewModel.itemInfoCache[location.type_id]
+                    ),
+                    size: IconSize.location
+                )
             } else if location.name == nil {
                 // 位置未知时显示默认图标（ID为0）
                 Image("not_found")
@@ -45,7 +50,7 @@ private struct LocationRowView: View {
     }
 }
 
-// 位置名称视图
+/// 位置名称视图
 private struct LocationNameView: View {
     let location: AssetTreeNode
     @EnvironmentObject private var viewModel: CorporationAssetsViewModel
@@ -63,7 +68,7 @@ private struct LocationNameView: View {
         )
     }
 
-    // 获取星系名称，优先使用缓存
+    /// 获取星系名称，优先使用缓存
     private func getSolarSystemName() -> String? {
         if let systemId = location.system_id,
            let name = viewModel.solarSystemNameCache[systemId]
@@ -74,58 +79,18 @@ private struct LocationNameView: View {
     }
 }
 
-// 数据加载时间视图
+/// 数据加载时间视图
 private struct DataLoadTimeView: View {
     let loadTime: Date
 
     var body: some View {
-        Text(formatDate(loadTime))
+        Text(FormatUtil.formatLoadTimestamp(loadTime))
             .font(.caption2)
             .foregroundColor(.secondary)
     }
-
-    private func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "MM/dd HH:mm"
-        formatter.locale = Locale.current
-        return formatter.string(from: date)
-    }
 }
 
-// 搜索结果行视图
-private struct SearchResultRowView: View {
-    let result: AssetSearchResult
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                // 物品图标
-                AssetIconView(iconName: result.itemInfo.iconFileName)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    // 物品名称和数量
-                    HStack(spacing: 4) {
-                        Text(result.itemInfo.name)
-
-                        // 显示数量（如果大于1）
-                        if result.totalQuantity > 1 {
-                            Text("×\(result.totalQuantity)")
-                                .foregroundColor(.secondary)
-                        }
-                    }
-
-                    // 完整位置路径
-                    Text(result.formattedPath)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
-                }
-            }
-        }
-    }
-}
-
-// 包装视图，用于获取军团ID
+/// 包装视图，用于获取军团ID
 struct CorporationAssetsViewWrapper: View {
     let characterId: Int
     @State private var corporationId: Int?
@@ -191,6 +156,7 @@ struct CorporationAssetsViewWrapper: View {
 struct CorporationAssetsView: View {
     @StateObject private var viewModel: CorporationAssetsViewModel
     @State private var searchText = ""
+    @State private var searchTask: Task<Void, Never>?
     @State private var isSearching = false
     @State private var isRefreshing = false
     @AppStorage("enableLogging") private var enableLogging: Bool = false
@@ -265,13 +231,14 @@ struct CorporationAssetsView: View {
             }
 
             // 搜索结果为空的提示
-            if !searchText.isEmpty && viewModel.searchResults.isEmpty && !viewModel.isLoading {
+            if !searchText.isEmpty, !isSearching, viewModel.searchItemGroups.isEmpty, !viewModel.isLoading {
                 Section {
                     NoDataSection()
                 }
             }
             // 显示错误信息
             else if let error = viewModel.error,
+                    searchText.isEmpty,
                     !viewModel.isLoading && viewModel.assetLocations.isEmpty
             {
                 Section {
@@ -309,18 +276,21 @@ struct CorporationAssetsView: View {
             }
             // 搜索结果
             else if !searchText.isEmpty {
-                ForEach(viewModel.searchResults) { result in
-                    NavigationLink(
-                        destination: LocationAssetsView(
-                            location: result.containerNode,
-                            preloadedItemInfo: viewModel.itemInfoCache,
-                            stationNameCache: viewModel.stationNameCache,
-                            solarSystemNameCache: viewModel.solarSystemNameCache
-                        )
-                    ) {
-                        SearchResultRowView(result: result)
-                    }
-                }
+                AssetSearchResultsList(
+                    groups: viewModel.searchItemGroups,
+                    isSearching: isSearching,
+                    context: AssetSearchNavigationContext(
+                        itemInfoCache: viewModel.itemInfoCache,
+                        stationNameCache: viewModel.stationNameCache,
+                        solarSystemNameCache: viewModel.solarSystemNameCache,
+                        dynamicResultingTypeIds: [],
+                        databaseManager: DatabaseManager(),
+                        multiCharacterMode: false,
+                        ownerName: { _ in nil },
+                        ownerPortrait: { _ in nil },
+                        typeFilterContext: .inactive
+                    )
+                )
             }
             // 正常的资产列表
             else if !viewModel.isLoading && !viewModel.assetLocations.isEmpty {
@@ -421,12 +391,17 @@ struct CorporationAssetsView: View {
         .listStyle(.insetGrouped)
         .searchable(
             text: $searchText,
-            placement: .navigationBarDrawer(displayMode: .always),
+            // placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
         )
         .onChange(of: searchText) { _, newValue in
-            Task {
-                isSearching = true
+            searchTask?.cancel()
+            searchTask = Task {
+                if !newValue.isEmpty {
+                    isSearching = true
+                }
+                try? await Task.sleep(nanoseconds: 300_000_000)
+                guard !Task.isCancelled else { return }
                 await viewModel.searchAssets(query: newValue)
                 isSearching = false
             }
@@ -436,7 +411,11 @@ struct CorporationAssetsView: View {
                 await viewModel.loadAssets(forceRefresh: true)
             }
         }
-        .navigationTitle(NSLocalizedString("Main_Corporation_Assets", comment: ""))
+        .navigationTitle(
+            searchText.isEmpty
+                ? NSLocalizedString("Main_Corporation_Assets", comment: "")
+                : NSLocalizedString("Main_Search_Results", comment: "")
+        )
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button(action: {

@@ -2,7 +2,7 @@ import Foundation
 import Pulse
 import SwiftUI
 
-// 修改缓存包装类为泛型
+/// 修改缓存包装类为泛型
 class CachedData<T> {
     let data: T
     let timestamp: Date
@@ -13,7 +13,7 @@ class CachedData<T> {
     }
 }
 
-// 频率限制信息结构
+/// 频率限制信息结构
 struct RateLimitInfo {
     let group: String?
     let limit: String?
@@ -46,7 +46,7 @@ struct RateLimitInfo {
 private let rateLimitTriggeredAtKey = "RateLimit_TriggeredAt"
 private let rateLimitCooldownSeconds: TimeInterval = 60
 
-// 全局 API 频率限制弹窗管理器
+/// 全局 API 频率限制弹窗管理器
 @MainActor
 final class RateLimitAlertManager: ObservableObject {
     static let shared = RateLimitAlertManager()
@@ -79,7 +79,7 @@ private func checkRateLimitCooldown() throws {
     }
 }
 
-// 修改类定义，继承自NSObject
+/// 修改类定义，继承自NSObject
 @globalActor actor NetworkManagerActor {
     static let shared = NetworkManagerActor()
 }
@@ -99,7 +99,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
     private let imageCache = NSCache<NSString, CachedData<UIImage>>()
     private var imageCacheKeys = Set<String>() // 跟踪图片缓存的键
 
-    // 添加并发控制信号量
+    /// 添加并发控制信号量
     private let concurrentSemaphore = DispatchSemaphore(value: 8)
 
     override private init() {
@@ -199,7 +199,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         )
     }
 
-    // 通用的数据获取函数
+    /// 通用的数据获取函数
     func fetchData(
         from url: URL,
         method: String = "GET",
@@ -230,12 +230,16 @@ class NetworkManager: NSObject, @unchecked Sendable {
     ) async throws -> (Data, HTTPURLResponse) {
         return try await retrier.execute(noRetryKeywords: noRetryKeywords, timeouts: timeouts) {
             try await Task.detached(priority: .userInitiated) {
+                let sendTime = Date()
                 let (data, response) = try await self.session.data(for: request)
 
                 guard let httpResponse = response as? HTTPURLResponse else {
                     Logger.error("无效的HTTP响应 - URL: \(url.absoluteString)")
                     throw NetworkError.invalidResponse
                 }
+
+                // 有限流头即记录（含 429），用于设置页网络限流监视器
+                ESIRateLimitInterceptor.intercept(url: url, response: httpResponse, sendTime: sendTime)
 
                 // 检查成功状态码（200 OK, 201 Created, 204 No Content）
                 guard [200, 201, 204].contains(httpResponse.statusCode) else {
@@ -277,7 +281,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         }
     }
 
-    // 清除所有缓存
+    /// 清除所有缓存
     func clearAllCaches() async {
         await withCheckedContinuation { continuation in
             Task { @NetworkManagerActor in
@@ -326,7 +330,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         }
     }
 
-    // 专门用于需访问令牌的请求
+    /// 专门用于需访问令牌的请求
     func fetchDataWithToken(
         from url: URL,
         characterId: Int,
@@ -360,7 +364,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         )
     }
 
-    // POST请求带Token的方法
+    /// POST请求带Token的方法
     func postDataWithToken(
         to url: URL,
         body: Data,
@@ -394,7 +398,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         )
     }
 
-    // DELETE请求带Token的方法
+    /// DELETE请求带Token的方法
     func deleteDataWithToken(
         from url: URL,
         characterId: Int,
@@ -425,7 +429,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
         )
     }
 
-    // 专门用于需访问令牌的请求，并返回响应头中的页数信息
+    /// 专门用于需访问令牌的请求，并返回响应头中的页数信息
     func fetchDataWithTokenAndPages(
         from url: URL,
         characterId: Int,
@@ -462,6 +466,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
             Logger.info("HTTP GET Request to: \(url)")
 
             return try await Task.detached(priority: .userInitiated) {
+                let sendTime = Date()
                 let (data, response) = try await self.session.data(for: request)
 
                 guard let httpResponse = response as? HTTPURLResponse else {
@@ -469,7 +474,17 @@ class NetworkManager: NSObject, @unchecked Sendable {
                     throw NetworkError.invalidResponse
                 }
 
+                ESIRateLimitInterceptor.intercept(url: url, response: httpResponse, sendTime: sendTime)
+
                 guard httpResponse.statusCode == 200 else {
+                    if httpResponse.statusCode == 429 {
+                        let rateLimitInfo = RateLimitInfo(from: httpResponse)
+                        if (rateLimitInfo.remaining ?? 1) <= 0 {
+                            Task { @MainActor in
+                                RateLimitAlertManager.shared.showRateLimitAlert()
+                            }
+                        }
+                    }
                     if let responseBody = String(data: data, encoding: .utf8) {
                         Logger.error("HTTP请求失败 - URL: \(url.absoluteString)")
                         Logger.error("状态码: \(httpResponse.statusCode)")
@@ -645,7 +660,7 @@ class NetworkManager: NSObject, @unchecked Sendable {
     }
 }
 
-// 网络错误枚举
+/// 网络错误枚举
 enum NetworkError: LocalizedError {
     case invalidURL
     case invalidResponse
@@ -716,7 +731,7 @@ extension NetworkManager: NSCacheDelegate {
     }
 }
 
-// 添加 RequestRetrier 类
+/// 添加 RequestRetrier 类
 class RequestRetrier {
     private let defaultTimeouts: [TimeInterval]
     private let retryDelay: TimeInterval
@@ -793,12 +808,10 @@ class RequestRetrier {
 
             // 等待第一个完成的任务
             do {
-                let result =
-                    try await group.next()
-                        ?? {
-                            throw NetworkError.httpError(statusCode: 408, message: "请求超时")
-                        }()
-                return result
+                return try await group.next()
+                    ?? {
+                        throw NetworkError.httpError(statusCode: 408, message: "请求超时")
+                    }()
             } catch {
                 // 取消所有任务并抛出错误
                 group.cancelAll()
@@ -825,7 +838,7 @@ class RequestRetrier {
     }
 }
 
-// 添加 RateLimiter 类
+/// 添加 RateLimiter 类
 actor RateLimiter {
     private var tokens: Int
     private let maxTokens: Int

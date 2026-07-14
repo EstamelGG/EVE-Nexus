@@ -8,9 +8,9 @@ import SwiftUI
 import CoreData
 
 package enum LoggerEntity {
-    /// Regular log, not task attached.
+    // Regular log, not task attached.
     case message(LoggerMessageEntity)
-    /// Either a log with an attached task, or a task itself.
+    // Either a log with an attached task, or a task itself.
     case task(NetworkTaskEntity)
 
     package init(_ entity: NSManagedObject) {

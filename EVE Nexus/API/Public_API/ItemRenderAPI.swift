@@ -15,7 +15,7 @@ class ItemRenderAPI {
         // 使用 ImageCacheManager，无需初始化配置
     }
 
-    // 获取物品渲染图URL
+    /// 获取物品渲染图URL
     private func getRenderURL(typeId: Int, size: Int = 64) -> URL {
         var components = URLComponents(string: "https://images.evetech.net/types/\(typeId)/render")!
         components.queryItems = [

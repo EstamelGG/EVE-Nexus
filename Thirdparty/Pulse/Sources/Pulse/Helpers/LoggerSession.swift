@@ -14,7 +14,7 @@ extension LoggerStore {
             self.startDate = startDate
         }
 
-        /// Returns current log session.
+        // Returns current log session.
         public static let current = Session()
     }
 }

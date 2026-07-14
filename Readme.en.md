@@ -1,4 +1,6 @@
-# EVE Nexus
+# EVE Tritanium
+
+![img.png](img.webp)
 
 [中文](Readme.md) | [English](Readme.en.md)
 
@@ -27,4 +29,7 @@ periphery scan | grep -v "/Thirdparty/" > log.txt
 
 # Get App
 
-iOS / iPadOS / macOS: [Tritanium on the App Store](https://apps.apple.com/us/app/tritanium/id6739530875)
+iOS / iPadOS / macOS: 
+
+- [Tritanium on the App Store](https://apps.apple.com/us/app/tritanium/id6739530875)
+- [三钛合金(App Store)](https://apps.apple.com/cn/app/%E4%B8%89%E9%92%9B%E5%90%88%E9%87%91/id6739530875)

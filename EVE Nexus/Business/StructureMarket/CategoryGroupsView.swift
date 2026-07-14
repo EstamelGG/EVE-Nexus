@@ -97,7 +97,7 @@ struct CategoryGroupsView: View {
         }
     }
 
-    // 计算指定目录下所有分组的订单数
+    /// 计算指定目录下所有分组的订单数
     private func calculateCategoryGroups(orders: [StructureMarketOrder], categoryID: Int) async -> [GroupOrderData] {
         guard !orders.isEmpty else {
             return []
@@ -189,16 +189,16 @@ struct CategoryGroupsView: View {
                         continue
                     }
 
-                    groupIconMap[groupID] = iconFileName.isEmpty ? DatabaseConfig.defaultIcon : iconFileName
+                    groupIconMap[groupID] = iconFileName.isEmpty ? IconManager.defaultIcon : iconFileName
                 }
             }
         }
 
         // 转换为数组并排序
-        let groups = groupOrderCount.values
+        return groupOrderCount.values
             .sorted { $0.orderCount > $1.orderCount }
             .map { groupInfo in
-                let iconFileName = groupIconMap[groupInfo.groupID] ?? DatabaseConfig.defaultIcon
+                let iconFileName = groupIconMap[groupInfo.groupID] ?? IconManager.defaultIcon
                 return GroupOrderData(
                     id: groupInfo.groupID,
                     name: groupInfo.groupName,
@@ -206,7 +206,5 @@ struct CategoryGroupsView: View {
                     iconFileName: iconFileName
                 )
             }
-
-        return groups
     }
 }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 行星类型汇总视图
+/// 行星类型汇总视图
 struct PlanetTypesSummaryView: View {
     let systemIds: [Int]
     @State private var planetTypeSummary:
@@ -99,8 +99,8 @@ struct PlanetTypesSummaryView: View {
                 var typeIdToName: [Int: (name: String, iconFileName: String)] = [:]
 
                 if case let .success(typeRows) = DatabaseManager.shared.executeQuery(
-                    planetTypeQuery)
-                {
+                    planetTypeQuery
+                ) {
                     for typeRow in typeRows {
                         if let typeId = typeRow["type_id"] as? Int,
                            let name = typeRow["name"] as? String,
@@ -128,7 +128,8 @@ struct PlanetTypesSummaryView: View {
                                 name: typeInfo.name,
                                 count: count,
                                 iconFileName: typeInfo.iconFileName
-                            ))
+                            )
+                        )
                     }
                 }
 

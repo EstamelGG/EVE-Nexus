@@ -14,7 +14,7 @@ struct PlanetaryProduct: Identifiable {
 
 // SovereigntyInfo 现在定义在 SovereigntyModels.swift 中
 
-// 主权选择视图
+/// 主权选择视图
 struct SovereigntySelectorView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @Environment(\.dismiss) private var dismiss
@@ -102,7 +102,7 @@ struct SovereigntySelectorView: View {
         .searchable(
             text: $searchText,
             isPresented: $isSearchActive,
-            placement: .navigationBarDrawer(displayMode: .always),
+            // placement: .navigationBarDrawer(displayMode: .always),
             prompt: NSLocalizedString("Sovereignty_Search_Placeholder", comment: "搜索主权势力...")
         )
         .navigationTitle(NSLocalizedString("Sovereignty_Search_Title", comment: "选择主权"))
@@ -114,20 +114,16 @@ struct SovereigntySelectorView: View {
         }
     }
 
-    // 过滤后的主权列表
+    /// 过滤后的主权列表
     private var filteredSovereignties: [SovereigntyInfo] {
         if searchText.isEmpty {
             return sovereignties
         } else {
-            return sovereignties.filter { sovereignty in
-                sovereignty.name.localizedCaseInsensitiveContains(searchText)
-                    || sovereignty.en_name.localizedCaseInsensitiveContains(searchText)
-                    || sovereignty.zh_name.localizedCaseInsensitiveContains(searchText)
-            }
+            return sovereignties.filter { $0.matches(searchText) }
         }
     }
 
-    // 加载主权数据
+    /// 加载主权数据
     private func loadSovereigntyData() {
         isLoading = true
 
@@ -135,7 +131,8 @@ struct SovereigntySelectorView: View {
             do {
                 // 获取主权数据
                 let sovereigntyData = try await SovereigntyDataAPI.shared.fetchSovereigntyData(
-                    forceRefresh: false)
+                    forceRefresh: false
+                )
 
                 // 处理主权数据
                 var allianceToSystems: [Int: Int] = [:] // 联盟ID -> 星系数量
@@ -158,7 +155,8 @@ struct SovereigntySelectorView: View {
                 // 获取联盟名称
                 allianceIds = Array(allianceToSystems.keys)
                 let allianceNamesWithCategories = try await UniverseAPI.shared.getNamesWithFallback(
-                    ids: allianceIds)
+                    ids: allianceIds
+                )
 
                 // 添加联盟信息（暂无图标）
                 for (allianceId, systemCount) in allianceToSystems {
@@ -166,46 +164,28 @@ struct SovereigntySelectorView: View {
                         tempSovereignties.append(
                             SovereigntyInfo(
                                 id: allianceId,
-                                name: allianceName,
-                                en_name: allianceName,
-                                zh_name: allianceName,
+                                names: LocalizedText.filled(with: allianceName),
                                 icon: nil,
                                 systemCount: systemCount,
                                 isAlliance: true
-                            ))
+                            )
+                        )
                     }
                 }
 
-                // 加载派系信息
-                let factionQuery = """
-                    SELECT id, iconName, name, en_name, zh_name 
-                    FROM factions 
-                    WHERE id IN (\(factionToSystems.keys.map { String($0) }.joined(separator: ",")))
-                """
-
-                if case let .success(rows) = databaseManager.executeQuery(factionQuery) {
-                    for row in rows {
-                        if let factionId = row["id"] as? Int,
-                           let iconName = row["iconName"] as? String,
-                           let name = row["name"] as? String,
-                           let systemCount = factionToSystems[factionId]
-                        {
-                            let icon = IconManager.shared.loadImage(for: iconName)
-                            let en_name = row["en_name"] as? String ?? name
-                            let zh_name = row["zh_name"] as? String ?? name
-
-                            tempSovereignties.append(
-                                SovereigntyInfo(
-                                    id: factionId,
-                                    name: name,
-                                    en_name: en_name,
-                                    zh_name: zh_name,
-                                    icon: icon,
-                                    systemCount: systemCount,
-                                    isAlliance: false
-                                ))
-                        }
-                    }
+                // 加载派系信息（名称走内存全语种）
+                for (factionId, systemCount) in factionToSystems {
+                    guard let faction = SDEMemoryStore.faction(for: factionId) else { continue }
+                    let icon = IconManager.shared.loadImage(for: faction.iconName)
+                    tempSovereignties.append(
+                        SovereigntyInfo(
+                            id: factionId,
+                            names: faction.names,
+                            icon: icon,
+                            systemCount: systemCount,
+                            isAlliance: false
+                        )
+                    )
                 }
 
                 // 按星系数量排序
@@ -230,7 +210,7 @@ struct SovereigntySelectorView: View {
     }
 }
 
-// 星系搜索结果
+/// 星系搜索结果
 struct SystemSearchResult: Identifiable {
     let id: Int
     let systemId: Int
@@ -268,10 +248,11 @@ struct PlanetarySiteFinder: View {
     init(characterId: Int?) {
         self.characterId = characterId
         resourceCalculator = PlanetaryResourceCalculator(
-            databaseManager: DatabaseManager.shared)
+            databaseManager: DatabaseManager.shared
+        )
     }
 
-    // 判断是否可以开始计算
+    /// 判断是否可以开始计算
     private var isCalculationEnabled: Bool {
         // 如果正在计算中，按钮不可用
         if isCalculating {
@@ -533,17 +514,19 @@ struct PlanetarySiteFinder: View {
         if !baseResources.isEmpty {
             // 查找每种资源可用的行星类型
             let resourcePlanets = resourceCalculator.findResourcePlanets(
-                for: baseResources.map { $0.typeId })
+                for: baseResources.map { $0.typeId }
+            )
 
-            // 加载星图数据
-            guard let path = Bundle.main.path(forResource: "neighbors_data", ofType: "json") else {
+            // 加载星图数据（SDE maps，经 StaticResourceManager）
+            guard let url = StaticResourceManager.shared.getMapDataURL(filename: "neighbors_data")
+            else {
                 Logger.error("无法找到星图文件路径")
                 isCalculating = false
                 return
             }
 
             do {
-                let data = try Data(contentsOf: URL(fileURLWithPath: path))
+                let data = try Data(contentsOf: url)
                 guard let starMap = try JSONSerialization.jsonObject(with: data) as? [String: [Int]]
                 else {
                     Logger.error("解析星图数据失败：数据格式不正确")
@@ -563,7 +546,8 @@ struct PlanetarySiteFinder: View {
                         let systemsInRegion = Set(
                             rows.compactMap { row in
                                 row["solarsystem_id"] as? Int
-                            })
+                            }
+                        )
                         filteredSystems = filteredSystems.intersection(systemsInRegion)
                     }
                 }
@@ -585,7 +569,8 @@ struct PlanetarySiteFinder: View {
                                         return data.systemId
                                     }
                                     return nil
-                                })
+                                }
+                            )
 
                             filteredSystems = filteredSystems.intersection(systemsUnderSovereignty)
 
@@ -626,7 +611,8 @@ struct PlanetarySiteFinder: View {
                                         additionalResources: system.additionalResources,
                                         missingResources: system.missingResources,
                                         coverage: coverage
-                                    ))
+                                    )
+                                )
                             }
 
                             // 更新UI
@@ -678,7 +664,8 @@ struct PlanetarySiteFinder: View {
                                 additionalResources: system.additionalResources,
                                 missingResources: system.missingResources,
                                 coverage: coverage
-                            ))
+                            )
+                        )
                     }
 
                     // 更新UI

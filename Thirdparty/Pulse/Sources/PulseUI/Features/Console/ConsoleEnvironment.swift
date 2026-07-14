@@ -7,10 +7,9 @@ import Pulse
 import Combine
 import SwiftUI
 
-/// Contains every dependency that the console views have.
-///
-/// - warning: It's marked with `ObservableObject` to make it possible to be used
-/// with `@StateObject` and `@EnvironmentObject`, but it never changes.
+// Contains every dependency that the console views have.
+// // - warning: It's marked with `ObservableObject` to make it possible to be used
+// with `@StateObject` and `@EnvironmentObject`, but it never changes.
 final class ConsoleEnvironment: ObservableObject {
     let title: String
     let store: LoggerStore
@@ -109,12 +108,12 @@ final class ConsoleEnvironment: ObservableObject {
 }
 
 public enum ConsoleMode: String {
-    /// Displays both messages and network tasks with the ability
-    /// to switch between the two modes.
+    // Displays both messages and network tasks with the ability
+    // to switch between the two modes.
     case all
-    /// Displays only regular messages.
+    // Displays only regular messages.
     case logs
-    /// Displays only network tasks.
+    // Displays only network tasks.
     case network
 
     package var hasLogs: Bool { self == .all || self == .logs }

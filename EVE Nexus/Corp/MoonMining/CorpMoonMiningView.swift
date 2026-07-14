@@ -212,7 +212,7 @@ struct MoonExtractionRow: View {
     }
 }
 
-// ViewModel
+/// ViewModel
 @MainActor
 class CorpMoonMiningViewModel: ObservableObject {
     @Published var moonExtractions: [MoonExtractionInfo] = []
@@ -222,7 +222,7 @@ class CorpMoonMiningViewModel: ObservableObject {
     @Published var selectedMonth: MonthFilter = .all
     private let characterId: Int
 
-    // 月份筛选枚举
+    /// 月份筛选枚举
     enum MonthFilter: Identifiable, CaseIterable, Equatable {
         case all
         case month(Date)
@@ -254,7 +254,7 @@ class CorpMoonMiningViewModel: ObservableObject {
         }
     }
 
-    // 获取可用的月份列表（不包含"全部"选项）
+    /// 获取可用的月份列表（不包含"全部"选项）
     var availableMonths: [MonthFilter] {
         let calendar = Calendar.current
         var months: [MonthFilter] = []
@@ -288,7 +288,7 @@ class CorpMoonMiningViewModel: ObservableObject {
         }
     }
 
-    // 根据选中的月份过滤数据
+    /// 根据选中的月份过滤数据
     var filteredExtractions: [MoonExtractionInfo] {
         guard case let .month(selectedDate) = selectedMonth else {
             // 如果没有选中月份，返回空数组
@@ -308,7 +308,7 @@ class CorpMoonMiningViewModel: ObservableObject {
         }
     }
 
-    // 当前选中月份的header文本
+    /// 当前选中月份的header文本
     var selectedMonthHeader: String {
         guard case let .month(selectedDate) = selectedMonth else {
             return ""
@@ -352,22 +352,9 @@ class CorpMoonMiningViewModel: ObservableObject {
 
             // 如果有数据，批量获取月球名称
             if !moonExtractions.isEmpty {
-                // 对moon_id去重
-                let uniqueMoonIds = Set(moonExtractions.map { Int($0.moon_id) })
-                let moonIds = uniqueMoonIds.sorted().map { String($0) }.joined(separator: ",")
-                let query = "SELECT itemID, itemName FROM celestialNames WHERE itemID IN (\(moonIds))"
-
-                if case let .success(rows) = DatabaseManager.shared.executeQuery(query) {
-                    var names: [Int: String] = [:]
-                    for row in rows {
-                        if let itemId = row["itemID"] as? Int,
-                           let name = row["itemName"] as? String
-                        {
-                            names[itemId] = name
-                        }
-                    }
-                    moonNames = names
-                }
+                moonNames = DatabaseManager.shared.getCelestialNames(
+                    itemIDs: moonExtractions.map { Int($0.moon_id) }
+                )
 
                 // 自动选择第一个月份
                 let calendar = Calendar.current
@@ -404,7 +391,7 @@ class CorpMoonMiningViewModel: ObservableObject {
     }
 }
 
-// 使用FormatUtil进行日期转换
+/// 使用FormatUtil进行日期转换
 extension String {
     func toLocalTime() -> String {
         return FormatUtil.formatUTCToLocalTimeWithWeekday(self)

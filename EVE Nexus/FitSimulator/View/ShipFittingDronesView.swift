@@ -1,8 +1,11 @@
 import SwiftUI
 
-// 用于无人机设置的状态类，包装 Int 使其符合 Identifiable
+/// 用于无人机设置的状态类，包装 Int 使其符合 Identifiable
 class DroneState: ObservableObject, Identifiable {
-    var id: Int { droneTypeId ?? 0 }
+    var id: Int {
+        droneTypeId ?? 0
+    }
+
     @Published var droneTypeId: Int?
 }
 
@@ -12,7 +15,7 @@ struct ShipFittingDronesView: View {
     @State private var showingDroneSettings = false
     @StateObject private var selectedDrone = DroneState()
 
-    // 获取无人机的计算后属性
+    /// 获取无人机的计算后属性
     private func getDroneOutput(typeId: Int) -> SimDroneOutput? {
         guard let outputDrones = viewModel.simulationOutput?.drones else {
             return nil
@@ -22,8 +25,8 @@ struct ShipFittingDronesView: View {
         return outputDrones.first(where: { $0.typeId == typeId })
     }
 
-    // 格式化距离显示（与装备模块页面保持一致）
-    // 大于1000km时显示完整数字，不使用k km缩写
+    /// 格式化距离显示（与装备模块页面保持一致）
+    /// 大于1000km时显示完整数字，不使用k km缩写
     private func formatDistance(_ distance: Double) -> String {
         let formatter = NumberFormatter()
         formatter.minimumFractionDigits = 0
@@ -43,7 +46,7 @@ struct ShipFittingDronesView: View {
         }
     }
 
-    // 格式化速度显示
+    /// 格式化速度显示
     private func formatSpeed(_ speed: Double) -> String {
         let formatter = NumberFormatter()
         formatter.minimumFractionDigits = 0
@@ -52,7 +55,7 @@ struct ShipFittingDronesView: View {
         return formatter.string(from: NSNumber(value: speed)) ?? "0"
     }
 
-    // 获取无人机的最大射程（从多个射程属性中取最大值）
+    /// 获取无人机的最大射程（从多个射程属性中取最大值）
     private func getDroneMaxRange(_ droneOutput: SimDroneOutput) -> Double {
         let rangeAttributes = [
             "maxRange",
@@ -77,8 +80,8 @@ struct ShipFittingDronesView: View {
 
             // 无人机列表
             List {
-                // 使用simulationOutput中的无人机数据
-                ForEach(viewModel.simulationOutput?.drones ?? [], id: \.typeId) { drone in
+                // 使用simulationInput中的实时无人机数据，计算后属性通过getDroneOutput获取
+                ForEach(viewModel.simulationInput.drones, id: \.typeId) { drone in
                     HStack {
                         // 无人机图标（优先使用突变后的图标）
                         if let iconFileName = drone.mutatedIconFileName ?? drone.iconFileName {
@@ -246,7 +249,8 @@ struct ShipFittingDronesView: View {
                     HStack {
                         Image(systemName: "plus.circle.fill")
                             .foregroundColor(
-                                viewModel.droneAttributes.capacity.total > 0 ? .blue : .gray)
+                                viewModel.droneAttributes.capacity.total > 0 ? .blue : .gray
+                            )
                         Text(NSLocalizedString("Fitting_Add_Drones", comment: ""))
                     }
                 }
@@ -291,7 +295,7 @@ struct ShipFittingDronesView: View {
         }
     }
 
-    // 添加无人机
+    /// 添加无人机
     private func addDrone(_ droneItem: DatabaseListItem) {
         // 获取无人机信息
         let droneInfo = viewModel.getDroneInfo(typeId: droneItem.id)
@@ -327,7 +331,7 @@ struct ShipFittingDronesView: View {
         )
     }
 
-    // 计算可激活的无人机数量
+    /// 计算可激活的无人机数量
     private func calculateActivableDrones(typeId: Int, quantity: Int) -> Int {
         // 获取当前激活的无人机总数
         let totalActive = viewModel.droneAttributes.activeDronesCount
@@ -359,7 +363,7 @@ struct ShipFittingDronesView: View {
     }
 }
 
-// 无人机属性条视图
+/// 无人机属性条视图
 struct DroneAttributesView: View {
     @ObservedObject var viewModel: FittingEditorViewModel
 

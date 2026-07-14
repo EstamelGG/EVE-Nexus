@@ -13,7 +13,8 @@ struct ShipCapacitorStatsView: View {
 
             // 计算电容稳定性
             let (isCapStable, stableLevel, lastsTime, delta) = calculateCapacitorStability(
-                ship: ship)
+                ship: ship
+            )
 
             Section {
                 HStack {
@@ -27,7 +28,8 @@ struct ShipCapacitorStatsView: View {
                         VStack(alignment: .leading) {
                             HStack {
                                 Text(
-                                    NSLocalizedString("Fitting_cap_capacity", comment: "总容量") + ":")
+                                    NSLocalizedString("Fitting_cap_capacity", comment: "总容量") + ":"
+                                )
                                 Text(formatCapacitor(capCapacity, unit: "GJ"))
                             }
                             Divider()
@@ -35,7 +37,8 @@ struct ShipCapacitorStatsView: View {
                                 if isCapStable {
                                     Text(
                                         NSLocalizedString("Fitting_cap_stable", comment: "稳定在")
-                                            + ":")
+                                            + ":"
+                                    )
                                     Text(FormatUtil.formatForUI(stableLevel * 100) + "%")
                                         .foregroundColor(.green)
                                 } else {
@@ -63,7 +66,8 @@ struct ShipCapacitorStatsView: View {
                             HStack {
                                 Text(
                                     NSLocalizedString("Fitting_cap_resistance", comment: "电容抗性")
-                                        + ":")
+                                        + ":"
+                                )
                                 Text(FormatUtil.formatForUI(energyWarfareResistance) + "%")
                             }
                         }
@@ -85,7 +89,7 @@ struct ShipCapacitorStatsView: View {
         }
     }
 
-    // 计算电容稳定性
+    /// 计算电容稳定性
     private func calculateCapacitorStability(ship: SimShipOutput) -> (
         isStable: Bool, stableLevel: Double, lastsTime: Double, delta: Double
     ) {
@@ -97,7 +101,8 @@ struct ShipCapacitorStatsView: View {
         let capRechargeTime = capRechargeTimeMs / 1000.0
 
         Logger.info(
-            "【电容计算】飞船电容量: \(capCapacity) GJ, 充能时间: \(capRechargeTimeMs) ms (\(capRechargeTime) s)")
+            "【电容计算】飞船电容量: \(capCapacity) GJ, 充能时间: \(capRechargeTimeMs) ms (\(capRechargeTime) s)"
+        )
 
         // 计算模块的电容使用量
         var moduleData: [(cycleTime: Double, capNeed: Double, powerTransferAmount: Double)] = []
@@ -176,7 +181,8 @@ struct ShipCapacitorStatsView: View {
                         (
                             cycleTime: fullCycleTime, capNeed: capNeed,
                             powerTransferAmount: selfPowerTransferAmount
-                        ))
+                        )
+                    )
                     Logger.info(
                         "  模块 \(index + 1): \(module.name) - 单次消耗: \(capNeed) GJ, 能量转移: \(selfPowerTransferAmount) GJ, 净变化: \(selfPowerTransferAmount - capNeed) GJ, 周期: \(module_round_speed) ms (\(duration) s), 重激活延迟: \(reactivationDelayMs) ms (\(reactivationDelay) s), 每秒净变化: \(netCapChangePerSecond) GJ/s"
                     )
@@ -231,7 +237,7 @@ struct ShipCapacitorStatsView: View {
         return (isStable, stableLevel, lastsTime, delta)
     }
 
-    // 补丁函数，处理电容回充装置
+    /// 补丁函数，处理电容回充装置
     private func setCapRebooster(module: SimModuleOutput) -> Double {
         guard let charge = module.charge else { return 0 }
 
@@ -268,16 +274,15 @@ struct ShipCapacitorStatsView: View {
         return boostRate
     }
 
-    // 计算电容充能率（使用EVE真实公式）
+    /// 计算电容充能率（使用EVE真实公式）
     private func calculateCapRecharge(
         capacity: Double, rechargeTime: Double, percent: Double = 0.25
     ) -> Double {
         // EVE电容充能公式：GJ/s = 10 * capacity / rechargeTime * sqrt(percent) * (1 - sqrt(percent))
-        let recharge = 10.0 * capacity / rechargeTime * sqrt(percent) * (1.0 - sqrt(percent))
-        return recharge
+        return 10.0 * capacity / rechargeTime * sqrt(percent) * (1.0 - sqrt(percent))
     }
 
-    // 使用二分法查找稳定的电容水平
+    /// 使用二分法查找稳定的电容水平
     private func findStableCapLevel(capacity: Double, rechargeTime: Double, capUse: Double)
         -> Double
     {
@@ -317,7 +322,7 @@ struct ShipCapacitorStatsView: View {
         return result
     }
 
-    // 参考Pyfa CapSimulator的电容模拟实现
+    /// 参考Pyfa CapSimulator的电容模拟实现
     private func simulateCapacitorDepletion(
         capacity: Double, rechargeTime: Double,
         moduleData: [(cycleTime: Double, capNeed: Double, powerTransferAmount: Double)],
@@ -355,7 +360,8 @@ struct ShipCapacitorStatsView: View {
                     shot: 0,
                     moduleIndex: index,
                     powerTransferAmount: module.powerTransferAmount
-                ))
+                )
+            )
         }
 
         // 按时间排序（优先队列）
@@ -470,12 +476,12 @@ struct ShipCapacitorStatsView: View {
         return capLowest > 0 ? Double.infinity : lastTime / 1000.0
     }
 
-    // 格式化电容值
+    /// 格式化电容值
     private func formatCapacitor(_ value: Double, unit: String) -> String {
         return FormatUtil.formatForUI(value, maxFractionDigits: 2) + " " + unit
     }
 
-    // 格式化时间
+    /// 格式化时间
     private func formatTime(_ seconds: Double) -> String {
         if seconds == Double.infinity {
             return "∞"

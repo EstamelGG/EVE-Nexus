@@ -45,7 +45,8 @@ final class SovereigntyViewModel: ObservableObject {
             do {
                 Logger.info("开始获取主权争夺数据")
                 let campaigns = try await SovereigntyCampaignsAPI.shared.fetchSovereigntyCampaigns(
-                    forceRefresh: forceRefresh)
+                    forceRefresh: forceRefresh
+                )
 
                 if Task.isCancelled { return }
 
@@ -138,7 +139,8 @@ final class SovereigntyViewModel: ObservableObject {
                     do {
                         Logger.debug("开始加载联盟图标: \(allianceId)，影响 \(campaigns.count) 个战役")
                         let uiImage = try await AllianceAPI.shared.fetchAllianceLogo(
-                            allianceID: allianceId)
+                            allianceID: allianceId
+                        )
 
                         if Task.isCancelled { return }
 
@@ -266,7 +268,8 @@ struct SovereigntyView: View {
 
     init(databaseManager: DatabaseManager) {
         _viewModel = StateObject(
-            wrappedValue: SovereigntyViewModel(databaseManager: databaseManager))
+            wrappedValue: SovereigntyViewModel(databaseManager: databaseManager)
+        )
     }
 
     var body: some View {

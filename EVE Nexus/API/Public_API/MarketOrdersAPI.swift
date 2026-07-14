@@ -139,9 +139,18 @@ class MarketOrdersAPI {
     {
         var actualRegionID = regionID
 
-        // PLEX 特殊处理
-        if typeID == 44992 {
+        // PLEX 特殊处理：订单走全球市场
+        if typeID == MarketManager.plexTypeID {
             actualRegionID = 19_000_001
+        }
+
+        // 统一强制刷新限流：5 分钟内的重复强制刷新降级为使用缓存
+        var forceRefresh = forceRefresh
+        if forceRefresh, await !ForceRefreshThrottle.shared.request(
+            key: "orders-\(typeID)-\(actualRegionID)"
+        ) {
+            Logger.info("强制刷新过于频繁，降级使用缓存: \(typeID)")
+            forceRefresh = false
         }
 
         // 如果不是强制刷新，尝试从缓存获取

@@ -33,25 +33,18 @@ public struct SovereigntyData: Codable {
 
 // MARK: - 主权势力信息模型
 
-public struct SovereigntyInfo: Identifiable {
-    public let id: Int
-    public let name: String
-    public let en_name: String
-    public let zh_name: String
-    public let icon: Image?
-    public let systemCount: Int
-    public let isAlliance: Bool // true为联盟，false为派系
+struct SovereigntyInfo: Identifiable {
+    let id: Int
+    let names: LocalizedText
+    let icon: Image?
+    let systemCount: Int
+    let isAlliance: Bool // true为联盟，false为派系
 
-    public init(
-        id: Int, name: String, en_name: String, zh_name: String, icon: Image?, systemCount: Int,
-        isAlliance: Bool
-    ) {
-        self.id = id
-        self.name = name
-        self.en_name = en_name
-        self.zh_name = zh_name
-        self.icon = icon
-        self.systemCount = systemCount
-        self.isAlliance = isAlliance
+    var name: String {
+        names.resolved()
+    }
+
+    func matches(_ query: String) -> Bool {
+        names.matchesSearch(query)
     }
 }

@@ -3,10 +3,6 @@ import SwiftUI
 struct ShipRepairStatsView: View {
     @ObservedObject var viewModel: FittingEditorViewModel
 
-    init(viewModel: FittingEditorViewModel) {
-        self.viewModel = viewModel
-    }
-
     private func formatValue(_ value: Double) -> String {
         return FormatUtil.formatForUI(value)
     }
@@ -16,7 +12,7 @@ struct ShipRepairStatsView: View {
         return maxRange > 0
     }
 
-    // 补丁函数，获取模块的维修量，处理特殊情况
+    /// 补丁函数，获取模块的维修量，处理特殊情况
     private func getModuleRepair(module: SimModuleOutput) -> (
         shield: Double, armor: Double, hull: Double
     ) {
@@ -38,7 +34,7 @@ struct ShipRepairStatsView: View {
         return (shieldBonus, armorBonus, hullBonus)
     }
 
-    // 计算坦克数据
+    /// 计算坦克数据
     private func calculateTankData(ship: SimShipOutput) -> TankData {
         // 护盾被动恢复
         let shieldRechargeRate = ship.attributesByName["shieldRechargeRate"] ?? 0
@@ -109,13 +105,13 @@ struct ShipRepairStatsView: View {
         )
     }
 
-    // 计算护盾充能率
+    /// 计算护盾充能率
     private func calculateShieldRecharge(capacity: Double, rechargeRate: Double) -> Double {
         // 使用EVE公式：最大充能率 = 2.5 * capacity / rechargeRate
         return 2.5 * capacity / rechargeRate
     }
 
-    // 计算抗性
+    /// 计算抗性
     private func calculateResistances(ship: SimShipOutput) -> (
         shield: Double, armor: Double, hull: Double
     ) {
@@ -213,7 +209,7 @@ struct ShipRepairStatsView: View {
     }
 }
 
-// 坦克数据结构
+/// 坦克数据结构
 struct TankData {
     let passiveShield: Double
     let shieldRepair: Double
@@ -224,7 +220,7 @@ struct TankData {
     let hullResist: Double
 }
 
-// 图标组件
+/// 图标组件
 struct Icon: View {
     let image: String
 

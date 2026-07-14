@@ -2,7 +2,7 @@ import Combine
 import Foundation
 import SwiftUI
 
-// 突变属性数据结构
+/// 突变属性数据结构
 struct MutationAttribute: Identifiable {
     let id: Int // attributeID
     let attributeID: Int
@@ -22,7 +22,9 @@ enum ModuleStatus: Int, CaseIterable, Identifiable {
     case active = 2 // 启动
     case overload = 3 // 超载
 
-    var id: Int { rawValue }
+    var id: Int {
+        rawValue
+    }
 
     var name: String {
         switch self {
@@ -66,19 +68,19 @@ enum ModuleStatus: Int, CaseIterable, Identifiable {
 
 /// 模块状态选择视图
 struct ModuleStatusView: View {
-    // 可用的状态列表
+    /// 可用的状态列表
     let availableStates: [Int]
 
-    // 当前选中的状态
+    /// 当前选中的状态
     @Binding var selectedState: Int
 
-    // 是否在编辑模式下
+    /// 是否在编辑模式下
     let isEditable: Bool
 
-    // 状态变化时的回调
+    /// 状态变化时的回调
     var onStateChanged: ((Int) -> Void)?
 
-    // 过滤后的状态列表
+    /// 过滤后的状态列表
     private var moduleStates: [ModuleStatus] {
         // 根据可用状态筛选枚举值
         return ModuleStatus.allCases.filter { availableStates.contains($0.rawValue) }
@@ -130,13 +132,13 @@ struct ModuleSettingsView: View {
     let databaseManager: DatabaseManager
     let viewModel: FittingEditorViewModel
     let slotFlag: FittingFlag
-    let relatedModules: [SimModule] // 新增：相关模块列表（用于批量操作）
+    let relatedModules: [SimModule]
 
     // 回调函数
     var onDelete: () -> Void
     var onReplaceModule: (Int) -> Void
 
-    // 环境变量
+    /// 环境变量
     @Environment(\.dismiss) var dismiss
 
     // 状态变量
@@ -157,7 +159,7 @@ struct ModuleSettingsView: View {
     @State private var isValidInput: Bool = false // 输入是否合法
     @State private var debounceTask: Task<Void, Never>? = nil // 防抖任务
 
-    // 计算属性：是否为批量操作模式
+    /// 计算属性：是否为批量操作模式
     private var isBatchMode: Bool {
         // 如果装备有突变（已设置了突变属性值），不应该进入批量模式（因为每个有突变的装备都是独立的）
         // 注意：只有 mutatedAttributes 不为空才认为真正应用了突变
@@ -169,17 +171,17 @@ struct ModuleSettingsView: View {
         return relatedModules.count > 1
     }
 
-    // 计算属性：是否已应用突变（即是否有突变属性值）
+    /// 计算属性：是否已应用突变（即是否有突变属性值）
     private var hasAppliedMutation: Bool {
         return !module.mutatedAttributes.isEmpty
     }
 
-    // 计算属性：是否有临时选择的突变质体（但未设置属性值）
+    /// 计算属性：是否有临时选择的突变质体（但未设置属性值）
     private var hasTemporaryMutationSelection: Bool {
         return selectedMutaplasmidID != nil && mutaplasmidAttributes.allSatisfy { $0.currentValue == nil }
     }
 
-    // 计算属性：获取当前模块的弹药信息（从viewModel中直接获取，避免SQL查询）
+    /// 计算属性：获取当前模块的弹药信息（从viewModel中直接获取，避免SQL查询）
     private var currentModuleCharge: SimCharge? {
         if let currentModule = viewModel.simulationInput.modules.first(where: {
             $0.flag == slotFlag
@@ -189,13 +191,13 @@ struct ModuleSettingsView: View {
         return nil
     }
 
-    // 初始化方法
+    /// 初始化方法
     init(
         module: SimModule,
         slotFlag: FittingFlag,
         databaseManager: DatabaseManager,
         viewModel: FittingEditorViewModel,
-        relatedModules: [SimModule] = [], // 新增参数，默认为空数组
+        relatedModules: [SimModule] = [],
         onDelete: @escaping () -> Void = {},
         onReplaceModule: @escaping (Int) -> Void = { _ in }
     ) {
@@ -248,7 +250,8 @@ struct ModuleSettingsView: View {
                         Spacer()
                         if !isLoading, moduleDetails != nil {
                             let currentModule = viewModel.simulationOutput?.modules.first(
-                                where: { $0.flag == slotFlag })
+                                where: { $0.flag == slotFlag }
+                            )
                             NavigationLink(
                                 destination: ShowItemInfo(
                                     databaseManager: databaseManager, itemID: currentModuleID,
@@ -446,7 +449,8 @@ struct ModuleSettingsView: View {
                                 let flags = relatedModules.compactMap { $0.flag }
                                 viewModel.batchUpdateModuleStatus(flags: flags, newStatus: newState)
                                 Logger.info(
-                                    "批量更新模块状态: \(relatedModules.count) 个模块状态设置为 \(newState)")
+                                    "批量更新模块状态: \(relatedModules.count) 个模块状态设置为 \(newState)"
+                                )
                             } else {
                                 // 单个模块更新
                                 viewModel.updateModuleStatus(flag: slotFlag, newStatus: newState)
@@ -758,13 +762,13 @@ struct ModuleSettingsView: View {
         .presentationDragIndicator(.visible) // 显示拖动指示器
     }
 
-    // 判断模块是否可以装载弹药
+    /// 判断模块是否可以装载弹药
     private func canLoadCharge() -> Bool {
         // 检查是否有已加载的弹药组
         return !chargeGroupIDs.isEmpty
     }
 
-    // 加载模块详细信息
+    /// 加载模块详细信息
     private func loadModuleDetails() {
         Logger.info("加载物品:\(currentModuleID)的详细信息")
         isLoading = true
@@ -782,16 +786,15 @@ struct ModuleSettingsView: View {
         isLoading = false
     }
 
-    // 检查是否有变体
+    /// 检查是否有变体
     private func checkVariations() {
         variationsCount = databaseManager.getVariationsCount(for: currentModuleID)
     }
 
-    // 更新可用的模块状态
+    /// 更新可用的模块状态
     private func updateAvailableStates() {
         // 获取当前槽位的实际模块数据
-        if let actualModule = viewModel.simulationInput.modules.first(where: { $0.flag == slotFlag }
-        ) {
+        if let actualModule = viewModel.simulationInput.modules.first(where: { $0.flag == slotFlag }) {
             // 使用实际模块的效果和属性
             availableModuleStates = getAvailableStatuses(
                 itemEffects: actualModule.effects,
@@ -810,13 +813,12 @@ struct ModuleSettingsView: View {
         // 不自动重置状态，让调用者决定如何处理
     }
 
-    // 加载模块可装载的弹药组
+    /// 加载模块可装载的弹药组
     private func loadChargeGroups() {
         chargeGroupIDs = []
 
         // 优先从当前槽位的实际模块获取弹药组信息
-        if let actualModule = viewModel.simulationInput.modules.first(where: { $0.flag == slotFlag }
-        ) {
+        if let actualModule = viewModel.simulationInput.modules.first(where: { $0.flag == slotFlag }) {
             // 直接从模块的attributesByName中获取弹药组
             for (name, value) in actualModule.attributesByName {
                 if name.hasPrefix("chargeGroup"), value > 0 {
@@ -850,7 +852,7 @@ struct ModuleSettingsView: View {
         }
     }
 
-    // 加载突变质体信息
+    /// 加载突变质体信息
     private func loadMutaplasmidInfo(mutaplasmidID: Int) {
         // 获取突变质体的基本信息
         let mutaplasmids = databaseManager.getRequiredMutaplasmids(for: currentModuleID)
@@ -920,7 +922,7 @@ struct ModuleSettingsView: View {
         }
     }
 
-    // 取消编辑
+    /// 取消编辑
     private func cancelEditing() {
         debounceTask?.cancel()
         editingAttributeID = nil
@@ -929,7 +931,7 @@ struct ModuleSettingsView: View {
         isValidInput = false
     }
 
-    // 防抖验证输入
+    /// 防抖验证输入
     private func validateInputDebounced(_ value: String) {
         // 取消之前的防抖任务
         debounceTask?.cancel()
@@ -946,7 +948,7 @@ struct ModuleSettingsView: View {
         }
     }
 
-    // 验证输入
+    /// 验证输入
     private func validateInput(_ value: String) {
         guard let attributeID = editingAttributeID,
               let attribute = mutaplasmidAttributes.first(where: { $0.attributeID == attributeID })
@@ -1020,7 +1022,7 @@ struct ModuleSettingsView: View {
         isValidInput = true
     }
 
-    // 确认突变数值
+    /// 确认突变数值
     private func confirmMutationValue() {
         guard isValidInput,
               let attributeID = editingAttributeID,
@@ -1060,7 +1062,7 @@ struct ModuleSettingsView: View {
         cancelEditing()
     }
 
-    // 格式化突变数值（用于输入框）
+    /// 格式化突变数值（用于输入框）
     private func formatMutationValueForInput(_ percentage: Double) -> String {
         let formatter = NumberFormatter()
         formatter.minimumFractionDigits = 0
@@ -1073,7 +1075,7 @@ struct ModuleSettingsView: View {
         return String(format: "%.2f", percentage)
     }
 
-    // 格式化百分比（用于提示信息）
+    /// 格式化百分比（用于提示信息）
     private func formatPercentage(_ value: Double) -> String {
         let formatter = NumberFormatter()
         formatter.minimumFractionDigits = 0
@@ -1091,7 +1093,7 @@ struct ModuleSettingsView: View {
     }
 }
 
-// 突变属性行视图
+/// 突变属性行视图
 struct MutationAttributeRowView: View {
     let attribute: MutationAttribute
     let onTap: () -> Void
@@ -1141,7 +1143,7 @@ struct MutationAttributeRowView: View {
         .buttonStyle(PlainButtonStyle())
     }
 
-    // 格式化突变数值（用于显示）
+    /// 格式化突变数值（用于显示）
     private func formatMutationValue(_ value: Double) -> String {
         let percentage = (value - 1) * 100
         let formatter = NumberFormatter()
@@ -1150,16 +1152,12 @@ struct MutationAttributeRowView: View {
         formatter.numberStyle = .decimal
 
         if let formatted = formatter.string(from: NSNumber(value: percentage)) {
-            if percentage >= 0 {
-                return "\(formatted)%" // 正数不显示加号
-            } else {
-                return "\(formatted)%" // 负数已经包含负号
-            }
+            return "\(formatted)%"
         }
         return String(format: "%.2f%%", percentage)
     }
 
-    // 获取数值颜色（与 MutationProgressBarView 逻辑一致，需考虑 originalValueIsNegative）
+    /// 获取数值颜色（与 MutationProgressBarView 逻辑一致，需考虑 originalValueIsNegative）
     private func getValueColor(_ value: Double) -> Color {
         if abs(value - 1) < 0.0001 { return .secondary }
         let originalValueIsNegative = (attribute.originalValue ?? 0) < 0
@@ -1169,7 +1167,7 @@ struct MutationAttributeRowView: View {
     }
 }
 
-// 突变进度条视图
+/// 突变进度条视图
 struct MutationProgressBarView: View {
     let currentValue: Double?
     let minValue: Double
@@ -1241,7 +1239,7 @@ struct MutationProgressBarView: View {
         .frame(height: 6)
     }
 
-    // 计算进度、颜色和方向
+    /// 计算进度、颜色和方向
     private func calculateProgress(
         currentValue: Double?,
         minValue: Double,
@@ -1323,7 +1321,7 @@ struct MutationProgressBarView: View {
     }
 }
 
-// 模块状态选择器
+/// 模块状态选择器
 struct ModuleStatusSelector: View {
     @Binding var selectedState: Int
     let availableStates: [Int]
@@ -1339,7 +1337,7 @@ struct ModuleStatusSelector: View {
     }
 }
 
-// 弹药选择视图
+/// 弹药选择视图
 struct ChargeSelectionView: View {
     let databaseManager: DatabaseManager
     let chargeGroupIDs: [Int]
@@ -1347,7 +1345,7 @@ struct ChargeSelectionView: View {
     let slotFlag: FittingFlag
     let viewModel: FittingEditorViewModel
     let module: SimModule
-    let relatedModules: [SimModule] // 新增：相关模块列表（用于批量操作）
+    let relatedModules: [SimModule]
 
     // 自定义回调函数
     var onChargeSelected: (Int, String, String?) -> Void
@@ -1359,7 +1357,7 @@ struct ChargeSelectionView: View {
     @State private var isLoading = true
     @Environment(\.dismiss) var dismiss
 
-    // 使用原始viewModel初始化，但提供符合参考代码的回调方式
+    /// 使用原始viewModel初始化，但提供符合参考代码的回调方式
     init(
         databaseManager: DatabaseManager,
         chargeGroupIDs: [Int],
@@ -1663,7 +1661,7 @@ struct ChargeSelectionView: View {
     }
 }
 
-// 模块变体选择视图
+/// 模块变体选择视图
 struct ModuleVariationsView: View {
     let databaseManager: DatabaseManager
     let typeID: Int

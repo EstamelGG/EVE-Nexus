@@ -6,38 +6,37 @@ import Foundation
 import CoreData
 import Combine
 
-/// Persistently stores logs, network requests, and response blobs.
+// Persistently stores logs, network requests, and response blobs.
 public final class LoggerStore: @unchecked Sendable, Identifiable {
     public var id: ObjectIdentifier { ObjectIdentifier(self) }
 
-    /// The URL the store was initialized with.
+    // The URL the store was initialized with.
     public let storeURL: URL
 
-    /// The options with which the store was opened with.
+    // The options with which the store was opened with.
     public let options: Options
 
-    /// The configuration with which the store was initialized with.
-    ///
-    /// - warning: This property is not thread-safe. Make sure to change it at
-    /// the app launch before sending any logs.
+    // The configuration with which the store was initialized with.
+    //     // - warning: This property is not thread-safe. Make sure to change it at
+    // the app launch before sending any logs.
     public var configuration: Configuration
 
-    /// Current session or the latest session in case of an archive.
+    // Current session or the latest session in case of an archive.
     private(set) public var session: Session = .current
 
-    /// Returns the Core Data container associated with the store.
+    // Returns the Core Data container associated with the store.
     public let container: NSPersistentContainer
 
-    /// Returns the view context for accessing entities on the main thread.
+    // Returns the view context for accessing entities on the main thread.
     public var viewContext: NSManagedObjectContext { container.viewContext }
 
-    /// Returns the background managed object context used for all write operations.
+    // Returns the background managed object context used for all write operations.
     public let backgroundContext: NSManagedObjectContext
 
-    /// Re-transmits events processed by the store.
+    // Re-transmits events processed by the store.
     public let events = PassthroughSubject<Event, Never>()
 
-    /// The store version.
+    // The store version.
     public var version: Version { manifest.version }
 
     private var isSaveScheduled = false
@@ -57,16 +56,15 @@ public final class LoggerStore: @unchecked Sendable, Identifiable {
     private var requestsCache: [NetworkLogger.Request: NetworkRequestEntity] = [:]
     private var responsesCache: [NetworkLogger.Response: NetworkResponseEntity] = [:]
 
-    /// For testing purposes.
+    // For testing purposes.
     var makeCurrentDate: () -> Date = { Date() }
 
     // MARK: Shared
 
-    /// Returns the shared store.
-    ///
-    /// You can replace the default store with a custom one. If you replace the
-    /// shared store, it automatically gets registered as the default store
-    /// for ``RemoteLogger``.
+    // Returns the shared store.
+    //     // You can replace the default store with a custom one. If you replace the
+    // shared store, it automatically gets registered as the default store
+    // for ``RemoteLogger``.
     public static var shared: LoggerStore {
         get { _shared.value }
         set {
@@ -104,18 +102,16 @@ public final class LoggerStore: @unchecked Sendable, Identifiable {
 
     // MARK: Initialization
 
-    /// Initializes the store with the given URL. The store needs to be
-    ///
-    /// The ``LoggerStore/shared`` store is a package optimized for writing. When
-    /// you are ready to share the store, create a Pulse document using ``export(to:options:)``
-    /// method. The document format is optimized to use the least amount of space possible.
-    ///
-    /// - parameters:
-    ///   - storeURL: The store URL that points to a package (directory)
-    ///   with a Pulse database.
-    ///   - options: By default, contains ``LoggerStore/Options-swift.struct/create``
-    ///   and ``LoggerStore/Options-swift.struct/sweep`` options.
-    ///   - configuration: The store configuration specifying size limit, etc.
+    // Initializes the store with the given URL. The store needs to be
+    //     // The ``LoggerStore/shared`` store is a package optimized for writing. When
+    // you are ready to share the store, create a Pulse document using ``export(to:options:)``
+    // method. The document format is optimized to use the least amount of space possible.
+    //     // - parameters:
+    //   - storeURL: The store URL that points to a package (directory)
+    //   with a Pulse database.
+    //   - options: By default, contains ``LoggerStore/Options-swift.struct/create``
+    //   and ``LoggerStore/Options-swift.struct/sweep`` options.
+    //   - configuration: The store configuration specifying size limit, etc.
     public init(storeURL: URL, options: Options = [.create, .sweep], configuration: Configuration = .init()) throws {
         if !options.contains(.inMemory) {
             var isDirectory: ObjCBool = ObjCBool(false)
@@ -205,7 +201,7 @@ public final class LoggerStore: @unchecked Sendable, Identifiable {
         }
     }
 
-    /// - warning: Make sure it doesn't block the main thread
+    // - warning: Make sure it doesn't block the main thread
     private func initializeViewContext(createSession: Bool) {
         viewContext.automaticallyMergesChangesFromParent = true
         viewContext.mergePolicy = NSMergePolicy.mergeByPropertyObjectTrump
@@ -221,7 +217,7 @@ public final class LoggerStore: @unchecked Sendable, Identifiable {
         }
     }
 
-    /// Creates a new background context.
+    // Creates a new background context.
     public func newBackgroundContext() -> NSManagedObjectContext {
         let context = container.newBackgroundContext()
         context.performAndWait {
@@ -230,7 +226,7 @@ public final class LoggerStore: @unchecked Sendable, Identifiable {
         return context
     }
 
-    /// This is a safe fallback for the initialization of the shared store.
+    // This is a safe fallback for the initialization of the shared store.
     init(inMemoryStore storeURL: URL) {
         self.storeURL = storeURL
         self.blobsURL = storeURL.appending(directory: blobsDirectoryName)
@@ -278,7 +274,7 @@ public final class LoggerStore: @unchecked Sendable, Identifiable {
 // MARK: - LoggerStore (Storing Messages)
 
 extension LoggerStore {
-    /// Stores the given message.
+    // Stores the given message.
     public func storeMessage(
         createdAt: Date? = nil,
         label: String,
@@ -301,10 +297,9 @@ extension LoggerStore {
         )))
     }
 
-    /// Stores the network request.
-    ///
-    /// - note: If you want to store incremental updates to the task, use
-    /// `NetworkLogger` instead.
+    // Stores the network request.
+    //     // - note: If you want to store incremental updates to the task, use
+    // `NetworkLogger` instead.
     public func storeRequest(
         _ request: URLRequest,
         response: URLResponse?,
@@ -330,7 +325,7 @@ extension LoggerStore {
         )))
     }
 
-    /// Handles event created by the current store and dispatches it to observers.
+    // Handles event created by the current store and dispatches it to observers.
     func handle(_ event: Event) {
         guard let event = configuration.willHandleEvent(event) else {
             return
@@ -341,7 +336,7 @@ extension LoggerStore {
         events.send(event)
     }
 
-    /// Handles event emitted by the external store.
+    // Handles event emitted by the external store.
     package func handleExternalEvent(_ event: Event) {
         perform { _ in self._handle(event) }
     }
@@ -756,14 +751,12 @@ extension LoggerStore {
 // MARK: - LoggerStore (Accessing Messages)
 
 extension LoggerStore {
-    /// Returns messages stored in the logger.
-    ///
-    /// - note: The result includes log messages with associated tasks. If you
-    /// want to exclude them, pass `NSPredicate(format: "task == NULL")` as a predicate
-    ///
-    /// - parameter sortDescriptors: Sort descriptors. By default, sort by
-    /// ``NetworkTaskEntity/createdAt`` in the chronological order.
-    /// - parameter predicate: By default, `nil`.
+    // Returns messages stored in the logger.
+    //     // - note: The result includes log messages with associated tasks. If you
+    // want to exclude them, pass `NSPredicate(format: "task == NULL")` as a predicate
+    //     // - parameter sortDescriptors: Sort descriptors. By default, sort by
+    // ``NetworkTaskEntity/createdAt`` in the chronological order.
+    // - parameter predicate: By default, `nil`.
     public func messages(
         sortDescriptors: [SortDescriptor<LoggerMessageEntity>] = [SortDescriptor(\.createdAt, order: .forward)],
         predicate: NSPredicate? = nil,
@@ -775,11 +768,10 @@ extension LoggerStore {
         }
     }
 
-    /// Returns tasks stored in the logger.
-    ///
-    /// - parameter sortDescriptors: Sort descriptors. By default, sort by
-    /// ``NetworkTaskEntity/createdAt`` in the chronological order.
-    /// - parameter predicate: By default, `nil`.
+    // Returns tasks stored in the logger.
+    //     // - parameter sortDescriptors: Sort descriptors. By default, sort by
+    // ``NetworkTaskEntity/createdAt`` in the chronological order.
+    // - parameter predicate: By default, `nil`.
     public func tasks(
         sortDescriptors: [SortDescriptor<NetworkTaskEntity>] = [SortDescriptor(\.createdAt, order: .forward)],
         predicate: NSPredicate? = nil,
@@ -791,19 +783,19 @@ extension LoggerStore {
         }
     }
 
-    /// Deprecated in Pulse 5.1.
+    // Deprecated in Pulse 5.1.
     @available(*, deprecated, message: "Replaced with `message(sortDescriptors:predicate)`")
     public func allMessages() throws -> [LoggerMessageEntity] {
         try viewContext.fetch(LoggerMessageEntity.self, sortedBy: \.createdAt)
     }
 
-    /// Deprecated in Pulse 5.1.
+    // Deprecated in Pulse 5.1.
     @available(*, deprecated, message: "Replaced with `tasks(sortDescriptors:predicate)`")
     public func allTasks() throws -> [NetworkTaskEntity] {
         try viewContext.fetch(NetworkTaskEntity.self, sortedBy: \.createdAt)
     }
 
-    /// Removes sessions with the given IDs.
+    // Removes sessions with the given IDs.
     public func removeSessions(withIDs sessionIDs: Set<UUID>) {
         perform { _ in
             try? self._removeSessions(withIDs: sessionIDs)
@@ -835,7 +827,7 @@ extension LoggerStore {
         clearMemoryCaches()
     }
 
-    /// Removes all of the previously recorded messages.
+    // Removes all of the previously recorded messages.
     public func removeAll() {
         perform { _ in
             self._removeAll()
@@ -860,9 +852,8 @@ extension LoggerStore {
         responsesCache.removeAll()
     }
 
-    /// Safely closes the database and removes all information from the store.
-    ///
-    /// - note: After the store is destroyed, you can't write any new messages to it.
+    // Safely closes the database and removes all information from the store.
+    //     // - note: After the store is destroyed, you can't write any new messages to it.
     public func destroy() throws {
         let coordinator = container.persistentStoreCoordinator
         for store in coordinator.persistentStores {
@@ -873,7 +864,7 @@ extension LoggerStore {
         try Files.removeItem(at: storeURL)
     }
 
-    /// Safely closes the database.
+    // Safely closes the database.
     public func close() throws {
         for store in container.persistentStoreCoordinator.persistentStores {
             try container.persistentStoreCoordinator.remove(store)
@@ -884,27 +875,26 @@ extension LoggerStore {
 // MARK: - LoggerStore (Export)
 
 extension LoggerStore {
-    /// Store export options.
+    // Store export options.
     public struct ExportOptions: @unchecked Sendable {
-        /// A predicate describing which messages (``LoggerMessageEntity``) to export.
+        // A predicate describing which messages (``LoggerMessageEntity``) to export.
         public var predicate: NSPredicate?
-        /// A list of sessions to export.
+        // A list of sessions to export.
         public var sessions: Set<UUID>?
 
-        /// Initializes the store with the given options.
+        // Initializes the store with the given options.
         public init(predicate: NSPredicate? = nil, sessions: Set<UUID>? = nil) {
             self.predicate = predicate
             self.sessions = sessions
         }
     }
 
-    /// Creates a copy of the current store at the given URL. The created copy
-    /// has `.pulse` extension.
-    ///
-    /// - parameters:
-    ///   - targetURL: The destination directory must already exist. If the
-    ///   file at the destination URL already exists, throws an error.
-    ///   - options: The other sharing options.
+    // Creates a copy of the current store at the given URL. The created copy
+    // has `.pulse` extension.
+    //     // - parameters:
+    //   - targetURL: The destination directory must already exist. If the
+    //   file at the destination URL already exists, throws an error.
+    //   - options: The other sharing options.
     public func export(to targetURL: URL, options: ExportOptions = .init()) async throws {
         try await _export(to: targetURL, options: options)
     }
@@ -948,11 +938,10 @@ extension LoggerStore {
         try Files.moveItem(at: temporary.url, to: targetURL)
     }
 
-    /// Removes any content that doesn't match the given options.
-    ///
-    /// - note: It was the simpler option to implement than copying entities
-    /// one by one. The performance is acceptable for a rare operation like this,
-    /// but there might be better ways to implement this.
+    // Removes any content that doesn't match the given options.
+    //     // - note: It was the simpler option to implement than copying entities
+    // one by one. The performance is acceptable for a rare operation like this,
+    // but there might be better ways to implement this.
     private func _removeUnwantedExportableContent(for options: ExportOptions) throws {
         // Remove sessions based on the options
         if let sessions = options.sessions {
@@ -967,8 +956,8 @@ extension LoggerStore {
         }
     }
 
-    /// Moves the blobs from the source store to the `target` store, keeping
-    /// only the entities present in the `target` store.
+    // Moves the blobs from the source store to the `target` store, keeping
+    // only the entities present in the `target` store.
     private func _exportBlobs(to target: LoggerStore) throws {
         let blobs = try target.backgroundContext.fetch(LoggerBlobHandleEntity.self) {
             $0.predicate = NSPredicate(format: "inlineData = nil")
@@ -1184,9 +1173,8 @@ extension LoggerStore {
 // MARK: - LoggerStore (Info)
 
 extension LoggerStore {
-    /// Returns the current store's info.
-    ///
-    /// - important Thread-safe. But must NOT be called inside the `backgroundContext` queue.
+    // Returns the current store's info.
+    //     // - important Thread-safe. But must NOT be called inside the `backgroundContext` queue.
     public func info() async throws -> Info {
         let deviceInfo = await LoggerStore.Info.DeviceInfo.current
         return try await container.performBackgroundTask { context in

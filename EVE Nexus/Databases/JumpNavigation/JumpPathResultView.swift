@@ -10,7 +10,7 @@ struct JumpPathResultView: View {
     let avoidSystemIds: [Int]
     let avoidIncursions: Bool
 
-    // 内部计算的映射，按需使用
+    /// 内部计算的映射，按需使用
     private var systemIdToName: [Int: String] {
         JumpSystemData.getSystemIdToNameMap(from: allJumpSystems)
     }
@@ -19,18 +19,14 @@ struct JumpPathResultView: View {
         JumpSystemData.getSystemIdToSecurityMap(from: allJumpSystems)
     }
 
-    private var systemIdToEnName: [Int: String] {
-        JumpSystemData.getSystemIdToEnNameMap(from: allJumpSystems)
-    }
-
     // 添加入侵星系缓存
     @State private var incursionSystems: Set<Int> = []
     @State private var isLoadingIncursions: Bool = false
 
-    // 添加一个状态变量存储计算好的URL
+    /// 添加一个状态变量存储计算好的URL
     @State private var dotlanUrl: String? = nil
 
-    // ViewModel 用于处理数据加载和缓存
+    /// ViewModel 用于处理数据加载和缓存
     @StateObject private var viewModel = JumpResultViewModel()
 
     var body: some View {
@@ -73,7 +69,8 @@ struct JumpPathResultView: View {
                         String(
                             format: NSLocalizedString("Jump_Navigation_Jump_Format", comment: ""),
                             index + 1, String(format: "%.2f", segment.range)
-                        ))
+                        )
+                    )
                 ) {
                     // 起点星系
                     SystemJumpRow(
@@ -113,7 +110,7 @@ struct JumpPathResultView: View {
         }
     }
 
-    // 加载入侵星系数据
+    /// 加载入侵星系数据
     private func loadIncursionSystems() {
         if isLoadingIncursions { return }
         isLoadingIncursions = true
@@ -143,7 +140,7 @@ struct JumpPathResultView: View {
         }
     }
 
-    // 收集所有路径中涉及的星系ID
+    /// 收集所有路径中涉及的星系ID
     private func getAllSystemIds() -> [Int] {
         var systemIds: [Int] = []
 
@@ -157,14 +154,14 @@ struct JumpPathResultView: View {
         return Array(Set(systemIds))
     }
 
-    // 生成DOTLAN URL
+    /// 生成DOTLAN URL
     private func generateDotlanUrl() -> String? {
         // 获取所有路径点的英文名称
         var waypointNames: [String] = []
 
         // 添加起点
         if let startId = startPointId {
-            if let name = systemIdToEnName[startId] {
+            if let name = SDEMemoryStore.solarSystemNames[startId]?.en, !name.isEmpty {
                 let encodedName = name.replacingOccurrences(of: " ", with: "_")
                 waypointNames.append(encodedName)
                 Logger.info("添加起点到DOTLAN URL: \(encodedName)")
@@ -175,7 +172,7 @@ struct JumpPathResultView: View {
 
         // 添加用户选择的路径点
         for waypointId in waypointIds {
-            if let name = systemIdToEnName[waypointId] {
+            if let name = SDEMemoryStore.solarSystemNames[waypointId]?.en, !name.isEmpty {
                 let encodedName = name.replacingOccurrences(of: " ", with: "_")
                 waypointNames.append(encodedName)
                 Logger.info("添加路径点到DOTLAN URL: \(encodedName)")
@@ -193,7 +190,7 @@ struct JumpPathResultView: View {
         // 添加规避星系
         var avoidNames: [String] = []
         for avoidId in avoidSystemIds {
-            if let name = systemIdToEnName[avoidId] {
+            if let name = SDEMemoryStore.solarSystemNames[avoidId]?.en, !name.isEmpty {
                 let encodedName = "-\(name.replacingOccurrences(of: " ", with: "_"))"
                 avoidNames.append(encodedName)
                 Logger.info("添加规避点到DOTLAN URL: \(encodedName)")
@@ -224,7 +221,7 @@ struct JumpPathResultView: View {
     }
 }
 
-// 管理跳跃结果所需数据的ViewModel
+/// 管理跳跃结果所需数据的ViewModel
 class JumpResultViewModel: ObservableObject {
     @Published var sovereigntyData: [SovereigntyData] = []
     @Published var isLoadingSovereignty: Bool = false
@@ -235,14 +232,14 @@ class JumpResultViewModel: ObservableObject {
     @Published var allianceNames: [Int: String] = [:]
     @Published var factionNames: [Int: String] = [:]
 
-    // 跟踪正在加载的星系
+    /// 跟踪正在加载的星系
     @Published var loadingSystemIcons: Set<Int> = []
 
     // 主权映射
     private var allianceToSystems: [Int: [Int]] = [:]
     private var factionToSystems: [Int: [Int]] = [:]
 
-    // 加载任务管理
+    /// 加载任务管理
     private var loadingTasks: [Int: Task<Void, Never>] = [:]
 
     func loadSovereigntyData(forSystemIds systemIds: [Int]) {
@@ -252,7 +249,8 @@ class JumpResultViewModel: ObservableObject {
             do {
                 // 获取主权数据
                 let data = try await SovereigntyDataAPI.shared.fetchSovereigntyData(
-                    forceRefresh: false)
+                    forceRefresh: false
+                )
 
                 // 确保在主线程更新UI
                 sovereigntyData = data
@@ -399,17 +397,17 @@ class JumpResultViewModel: ObservableObject {
         }
     }
 
-    // 获取星系的主权信息
+    /// 获取星系的主权信息
     func getSovereigntyForSystem(_ systemId: Int) -> SovereigntyData? {
         return sovereigntyData.first(where: { $0.systemId == systemId })
     }
 
-    // 检查星系是否正在加载图标
+    /// 检查星系是否正在加载图标
     func isLoadingIconForSystem(_ systemId: Int) -> Bool {
         return loadingSystemIcons.contains(systemId)
     }
 
-    // 获取星系的图标
+    /// 获取星系的图标
     func getIconForSystem(_ systemId: Int) -> Image? {
         if let sovereignty = getSovereigntyForSystem(systemId) {
             if let allianceId = sovereignty.allianceId {
@@ -421,7 +419,7 @@ class JumpResultViewModel: ObservableObject {
         return nil
     }
 
-    // 获取星系的拥有者名称
+    /// 获取星系的拥有者名称
     func getOwnerNameForSystem(_ systemId: Int) -> String? {
         if let sovereignty = getSovereigntyForSystem(systemId) {
             if let allianceId = sovereignty.allianceId {
@@ -440,7 +438,7 @@ class JumpResultViewModel: ObservableObject {
     }
 }
 
-// 自定义星系跳跃行视图组件
+/// 自定义星系跳跃行视图组件
 struct SystemJumpRow: View {
     let systemId: Int
     let systemName: String

@@ -5,7 +5,7 @@
 import Foundation
 
 extension LoggerStore {
-    /// The events used for syncing data between stores.
+    // The events used for syncing data between stores.
     @frozen public enum Event: Sendable {
         case messageStored(MessageCreated)
         case networkTaskCreated(NetworkTaskCreated)

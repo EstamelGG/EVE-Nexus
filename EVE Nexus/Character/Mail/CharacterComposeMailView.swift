@@ -19,7 +19,7 @@ struct CharacterComposeMailView: View {
     @State private var hudSuccess = true
     @State private var hudMessage = ""
 
-    // 使用枚举来管理 sheet 状态
+    /// 使用枚举来管理 sheet 状态
     private enum SheetType: Identifiable {
         case recipientPicker
         case mailListPicker
@@ -71,7 +71,7 @@ struct CharacterComposeMailView: View {
                             }
                             VStack(alignment: .leading) {
                                 Text(recipient.name)
-                                Text(recipient.type.rawValue)
+                                Text(recipient.type.displayName)
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -185,7 +185,8 @@ struct CharacterComposeMailView: View {
                                         id: mailList.mailing_list_id,
                                         name: mailList.name,
                                         type: .mailingList
-                                    ))
+                                    )
+                                )
                             }
                             activeSheet = nil
                         }
@@ -203,30 +204,31 @@ struct CharacterComposeMailView: View {
     }
 }
 
-// 邮件收件人数据结构
+/// 邮件收件人数据结构
 struct MailRecipient: Identifiable, Hashable {
     let id: Int
     let name: String
     let type: RecipientType
 
-    // 实现 Hashable 协议
+    /// 实现 Hashable 协议
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
         hasher.combine(type)
     }
 
-    // 实现相等性比较
+    /// 实现相等性比较
     static func == (lhs: MailRecipient, rhs: MailRecipient) -> Bool {
         return lhs.id == rhs.id && lhs.type == rhs.type
     }
 
-    enum RecipientType: String {
+    enum RecipientType {
         case character
         case corporation
         case alliance
         case mailingList
 
-        var rawValue: String {
+        /// 本地化显示名称（UI 使用）
+        var displayName: String {
             switch self {
             case .character:
                 return NSLocalizedString("Main_EVE_Mail_Recipient_Character", comment: "")
@@ -236,6 +238,16 @@ struct MailRecipient: Identifiable, Hashable {
                 return NSLocalizedString("Main_EVE_Mail_Recipient_Alliance", comment: "")
             case .mailingList:
                 return NSLocalizedString("Main_EVE_Mail_Recipient_Mailing_List", comment: "")
+            }
+        }
+
+        /// ESI API 字符串（网络请求使用）
+        var apiValue: String {
+            switch self {
+            case .character: return "character"
+            case .corporation: return "corporation"
+            case .alliance: return "alliance"
+            case .mailingList: return "mailing_list"
             }
         }
     }
@@ -341,7 +353,7 @@ struct RecipientPickerView: View {
     }
 }
 
-// 快速选择行视图
+/// 快速选择行视图
 private struct QuickSelectRow: View {
     let recipient: RecipientPickerViewModel.SearchResult
     let onSelect: (MailRecipient) -> Void
@@ -370,7 +382,7 @@ private struct QuickSelectRow: View {
                             .foregroundColor(.secondary)
                         }
                     } else {
-                        Text(recipient.type.rawValue)
+                        Text(recipient.type.displayName)
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
@@ -382,7 +394,7 @@ private struct QuickSelectRow: View {
     }
 }
 
-// 邮件列表选择视图
+/// 邮件列表选择视图
 struct MailListPickerView: View {
     let characterId: Int
     let onSelect: (EVEMailList) -> Void
@@ -471,7 +483,7 @@ class MailListPickerViewModel: ObservableObject {
     }
 }
 
-// 搜索响应数据结构
+/// 搜索响应数据结构
 private struct SearchResponse: Codable {
     let character: [Int]?
     let corporation: [Int]?
@@ -502,7 +514,7 @@ class RecipientPickerViewModel: ObservableObject {
         var allianceName: String?
     }
 
-    // 加载快速选择收件人
+    /// 加载快速选择收件人
     func loadQuickSelectRecipients(characterId: Int) async {
         isLoadingQuickSelect = true
         defer { isLoadingQuickSelect = false }
@@ -510,14 +522,15 @@ class RecipientPickerViewModel: ObservableObject {
         do {
             // 获取最近的邮件
             let recentMails = try await CharacterMailAPI.shared.fetchLatestMails(
-                characterId: characterId)
+                characterId: characterId
+            )
 
             // 创建一个字典来存储每个联系人的最近邮件时间
             var recipientLastContact: [Int: Date] = [:]
 
             // 收集联系人ID和他们最近的联系时间
             for mail in recentMails {
-                guard let mailDate = mail.timestamp.toDate() else { continue }
+                guard let mailDate = FormatUtil.parseUTCDate(mail.timestamp) else { continue }
 
                 // 处理发件人
                 if mail.from != characterId {
@@ -548,7 +561,8 @@ class RecipientPickerViewModel: ObservableObject {
 
             // 获取这些ID的名称信息
             let names = try await UniverseAPI.shared.getNamesWithFallback(
-                ids: Array(topRecipientIds))
+                ids: Array(topRecipientIds)
+            )
 
             // 转换为SearchResult数组，保持时间排序
             recentRecipients = topRecipientIds.compactMap { id in
@@ -689,7 +703,8 @@ class RecipientPickerViewModel: ObservableObject {
                     contentsOf: corporations.compactMap { id in
                         guard let info = names[id] else { return nil }
                         return SearchResult(id: id, name: info.name, type: .corporation)
-                    })
+                    }
+                )
             }
 
             // 处理联盟搜索结果
@@ -698,7 +713,8 @@ class RecipientPickerViewModel: ObservableObject {
                     contentsOf: alliances.compactMap { id in
                         guard let info = names[id] else { return nil }
                         return SearchResult(id: id, name: info.name, type: .alliance)
-                    })
+                    }
+                )
             }
 
             if Task.isCancelled { return }
@@ -737,11 +753,7 @@ class CharacterComposeMailViewModel: ObservableObject {
             let recipientsList = recipients.map { recipient in
                 EVEMailRecipient(
                     recipient_id: recipient.id,
-                    recipient_type: recipient.type == .mailingList
-                        ? "mailing_list"
-                        : recipient.type == .character
-                        ? "character"
-                        : recipient.type == .corporation ? "corporation" : "alliance"
+                    recipient_type: recipient.type.apiValue
                 )
             }
 
@@ -761,7 +773,7 @@ class CharacterComposeMailViewModel: ObservableObject {
     }
 }
 
-// 邮件发送HUD视图
+/// 邮件发送HUD视图
 struct MailSendHUDView: View {
     let success: Bool
     let message: String
@@ -783,16 +795,5 @@ struct MailSendHUDView: View {
         .shadow(radius: 20)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color.black.opacity(0.2))
-    }
-}
-
-// 日期转换扩展
-extension String {
-    func toDate() -> Date? {
-        let dateFormatter = DateFormatter()
-        dateFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
-        dateFormatter.timeZone = TimeZone(identifier: "UTC")
-        dateFormatter.locale = Locale(identifier: "en_US_POSIX")
-        return dateFormatter.date(from: self)
     }
 }

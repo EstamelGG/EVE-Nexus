@@ -72,7 +72,7 @@ class ServerStatusAPI {
 
     private init() {}
 
-    // 检查是否在维护时间窗口内
+    /// 检查是否在维护时间窗口内
     private func isInMaintenanceWindow(_ date: Date = Date()) -> Bool {
         let calendar = Calendar.current
         let utc = TimeZone(identifier: "UTC")!
@@ -82,7 +82,7 @@ class ServerStatusAPI {
         return hour >= 11 && hour < 24 // 11AM - 12AM UTC
     }
 
-    // 检查是否需要刷新缓存
+    /// 检查是否需要刷新缓存
     private func shouldRefreshCache() -> Bool {
         guard let lastFetch = lastFetchTime else { return true }
 

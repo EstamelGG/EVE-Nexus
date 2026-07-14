@@ -5,19 +5,15 @@
 import Foundation
 
 extension URLSessionProxyDelegate {
-    /// Enables automatic logging and remote debugging of network requests using
-    /// `URLSessionProxyDelegate`.
-    ///
-    /// - note: This method works by swizzling `URLSession` init and adding
-    /// `URLSessionProxyDelegate` to the delegate chain and adding
-    /// `RemoteLoggerURLProtocol` to the list of session protocol classes.
-    ///
-    /// - warning: This logging method works only with delegate-based `URLSession`
-    /// instances.
-    ///
-    /// - parameter logger: The network logger to be used for recording the requests. By default, uses shared logger.
-    ///
-    /// - warning: This method is soft-deprecated in Pulse 5.0.
+    // Enables automatic logging and remote debugging of network requests using
+    // `URLSessionProxyDelegate`.
+    //     // - note: This method works by swizzling `URLSession` init and adding
+    // `URLSessionProxyDelegate` to the delegate chain and adding
+    // `RemoteLoggerURLProtocol` to the list of session protocol classes.
+    //     // - warning: This logging method works only with delegate-based `URLSession`
+    // instances.
+    //     // - parameter logger: The network logger to be used for recording the requests. By default, uses shared logger.
+    //     // - warning: This method is soft-deprecated in Pulse 5.0.
     public static func enableAutomaticRegistration(logger: NetworkLogger? = nil) {
         guard Thread.isMainThread else {
             return DispatchQueue.main.async { _enableAutomaticRegistration(logger: logger) }
@@ -39,8 +35,8 @@ extension URLSessionProxyDelegate {
     }
 }
 
-/// Returns `true` if automatic logging was already enabled using one of the
-/// existing mechanisms provided by Pulse.
+// Returns `true` if automatic logging was already enabled using one of the
+// existing mechanisms provided by Pulse.
 @MainActor
 var isAutomaticNetworkLoggingEnabled: Bool {
     guard sharedNetworkLogger == nil else {

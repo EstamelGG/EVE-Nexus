@@ -47,7 +47,8 @@ class AllInOneSystemCalculator {
         }
 
         Logger.info(
-            "分析结果：共享行星类型 \(sharedPlanetTypes.count) 个，专用行星类型 \(dedicatedPlanetTypes.count) 个")
+            "分析结果：共享行星类型 \(sharedPlanetTypes.count) 个，专用行星类型 \(dedicatedPlanetTypes.count) 个"
+        )
 
         let conflictResolution = ConflictResolution(
             sharedPlanetTypes: sharedPlanetTypes,
@@ -97,23 +98,19 @@ class AllInOneSystemCalculator {
         let systemIdsString = systemIds.map { String($0) }.joined(separator: ",")
         let query = """
             SELECT 
-                s.solarsystem_id,
-                s.region_id,
-                r.regionName as region_name,
-                s.system_security,
-                s.temperate,
-                s.barren,
-                s.oceanic,
-                s.ice,
-                s.gas,
-                s.lava,
-                s.storm,
-                s.plasma,
-                ss.solarSystemName as system_name
-            FROM universe s
-            JOIN regions r ON r.regionID = s.region_id
-            JOIN solarsystems ss ON ss.solarSystemID = s.solarsystem_id
-            WHERE s.solarsystem_id IN (\(systemIdsString))
+                solarsystem_id,
+                region_id,
+                system_security,
+                temperate,
+                barren,
+                oceanic,
+                ice,
+                gas,
+                lava,
+                storm,
+                plasma
+            FROM universe
+            WHERE solarsystem_id IN (\(systemIdsString))
         """
 
         var systemsData: [SystemData] = []
@@ -132,8 +129,6 @@ class AllInOneSystemCalculator {
     private func parseSystemData(from row: [String: Any]) -> SystemData? {
         guard let systemId = row["solarsystem_id"] as? Int,
               let regionId = row["region_id"] as? Int,
-              let regionName = row["region_name"] as? String,
-              let systemName = row["system_name"] as? String,
               let security = row["system_security"] as? Double
         else {
             return nil
@@ -150,9 +145,7 @@ class AllInOneSystemCalculator {
 
         return SystemData(
             systemId: systemId,
-            systemName: systemName,
             regionId: regionId,
-            regionName: regionName,
             security: security,
             planetCounts: planetCounts
         )
@@ -162,7 +155,7 @@ class AllInOneSystemCalculator {
         systemData: SystemData,
         requirement: MultiProductRequirement
     ) -> AllInOneSystemResult? {
-        Logger.debug("评估星系：\(systemData.systemName) (ID: \(systemData.systemId))")
+        Logger.debug("评估星系：\(SDEMemoryStore.solarSystemName(for: systemData.systemId) ?? "System \(systemData.systemId)") (ID: \(systemData.systemId))")
 
         // 检查每个产品是否可以在该星系中生产
         var productSupport: [Int: ProductSupportInfo] = [:]
@@ -184,7 +177,7 @@ class AllInOneSystemCalculator {
 
         // 如果不能支持所有产品，跳过该星系
         guard canSupportAllProducts else {
-            Logger.debug("星系 \(systemData.systemName) 不能支持所有产品，跳过")
+            Logger.debug("星系 \(SDEMemoryStore.solarSystemName(for: systemData.systemId) ?? "System \(systemData.systemId)") 不能支持所有产品，跳过")
             return nil
         }
 
@@ -201,14 +194,12 @@ class AllInOneSystemCalculator {
             requirement: requirement
         )
 
-        Logger.debug("星系 \(systemData.systemName) 评分：\(String(format: "%.2f", score))")
+        Logger.debug("星系 \(SDEMemoryStore.solarSystemName(for: systemData.systemId) ?? "System \(systemData.systemId)") 评分：\(String(format: "%.2f", score))")
 
         return AllInOneSystemResult(
             id: systemData.systemId,
             systemId: systemData.systemId,
-            systemName: systemData.systemName,
             regionId: systemData.regionId,
-            regionName: systemData.regionName,
             security: systemData.security,
             score: score,
             productSupport: productSupport,
@@ -342,7 +333,8 @@ class AllInOneSystemCalculator {
                     iconFileName: typeInfo?.iconFileName ?? "not_found",
                     count: count,
                     usedByProducts: usedByProducts
-                ))
+                )
+            )
         }
 
         // 按行星数量降序排序
@@ -387,9 +379,7 @@ class AllInOneSystemCalculator {
 
 private struct SystemData {
     let systemId: Int
-    let systemName: String
     let regionId: Int
-    let regionName: String
     let security: Double
     let planetCounts: [Int: Int] // [planetTypeId: count]
 }

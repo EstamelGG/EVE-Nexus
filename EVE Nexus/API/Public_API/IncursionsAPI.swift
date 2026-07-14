@@ -40,7 +40,7 @@ class IncursionsAPI {
     static let shared = IncursionsAPI()
     private init() {}
 
-    // 缓存相关常量
+    /// 缓存相关常量
     private let cacheDuration: TimeInterval = 30 * 60 // 30 分钟缓存
 
     struct CachedData: Codable {

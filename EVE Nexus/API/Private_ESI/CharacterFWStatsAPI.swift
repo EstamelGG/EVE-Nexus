@@ -26,7 +26,7 @@ public struct FWVictoryPoints: Codable {
     public let yesterday: Int
 }
 
-// 缓存数据结构
+/// 缓存数据结构
 private struct FWStatsCacheData: Codable {
     let data: CharacterFWStats
     let timestamp: Date

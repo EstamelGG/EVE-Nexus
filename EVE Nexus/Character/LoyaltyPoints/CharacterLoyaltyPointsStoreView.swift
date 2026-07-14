@@ -21,21 +21,14 @@ struct CharacterLoyaltyPointsStoreView: View {
         var matchedFactions: [Faction] = []
         var matchedCorporations: [Corporation] = []
 
-        // 搜索势力名称和军团名称
+        // 搜索势力和军团名称（全语种）
         for faction in factions {
-            if faction.name.localizedCaseInsensitiveContains(debouncedSearchText)
-                || faction.enName.localizedCaseInsensitiveContains(debouncedSearchText)
-                || faction.zhName.localizedCaseInsensitiveContains(debouncedSearchText)
-            {
+            if faction.matches(debouncedSearchText) {
                 matchedFactions.append(faction)
             }
 
-            // 检查军团名称
             for corporation in faction.corporations {
-                if corporation.name.localizedCaseInsensitiveContains(debouncedSearchText)
-                    || corporation.enName.localizedCaseInsensitiveContains(debouncedSearchText)
-                    || corporation.zhName.localizedCaseInsensitiveContains(debouncedSearchText)
-                {
+                if corporation.matches(debouncedSearchText) {
                     matchedCorporations.append(corporation)
                 }
             }
@@ -117,7 +110,7 @@ struct CharacterLoyaltyPointsStoreView: View {
         .navigationTitle(NSLocalizedString("Main_LP_Store", comment: ""))
         .searchable(
             text: $searchText,
-            placement: .navigationBarDrawer(displayMode: .always),
+            // placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text(NSLocalizedString("Main_Search_Placeholder", comment: ""))
         )
         .onSubmit(of: .search) {
@@ -127,7 +120,6 @@ struct CharacterLoyaltyPointsStoreView: View {
                 shouldExecuteSearch = true
             }
         }
-        // 移除onChange监听器，现在使用专门的搜索按钮
         .onAppear {
             if !hasLoadedData {
                 loadFactions()
@@ -156,24 +148,10 @@ struct CharacterLoyaltyPointsStoreView: View {
 
         Task {
             do {
-                // 直接从 LP 商店表查询有数据的军团和势力
+                // 直接从 LP 商店表查询有数据的军团，名称走内存全语种索引
                 let query = """
-                    SELECT DISTINCT
-                        lo.corporation_id,
-                        nc.name as corp_name,
-                        nc.en_name as corp_en_name,
-                        nc.zh_name as corp_zh_name,
-                        nc.faction_id,
-                        nc.militia_faction,
-                        nc.icon_filename,
-                        f.name as faction_name,
-                        f.en_name as faction_en_name,
-                        f.zh_name as faction_zh_name,
-                        f.iconName as faction_icon
+                    SELECT DISTINCT lo.corporation_id
                     FROM loyalty_offers lo
-                    INNER JOIN npcCorporations nc ON lo.corporation_id = nc.corporation_id
-                    LEFT JOIN factions f ON nc.faction_id = f.id
-                    ORDER BY f.name, nc.name
                 """
 
                 guard case let .success(rows) = DatabaseManager.shared.executeQuery(query) else {
@@ -188,67 +166,52 @@ struct CharacterLoyaltyPointsStoreView: View {
                     return
                 }
 
-                // 构建势力和军团的映射
-                var factionDict: [Int: (
-                    name: String, enName: String, zhName: String, iconName: String,
-                    corporations: [Corporation]
-                )] = [:]
+                var factionDict: [Int: (names: LocalizedText, iconName: String, corporations: [Corporation])] = [:]
 
                 for row in rows {
                     guard let corporationId = row["corporation_id"] as? Int,
-                          let corpName = row["corp_name"] as? String,
-                          let corpEnName = row["corp_en_name"] as? String,
-                          let corpZhName = row["corp_zh_name"] as? String,
-                          let iconFileName = row["icon_filename"] as? String
-                    else {
-                        continue
-                    }
+                          let corp = SDEMemoryStore.npcCorporation(for: corporationId)
+                    else { continue }
 
-                    // 有些军团可能没有势力
-                    let factionId = row["faction_id"] as? Int ?? 0
-                    let factionName = row["faction_name"] as? String ?? NSLocalizedString("Main_LP_Unknown_Faction", comment: "")
-                    let factionEnName = row["faction_en_name"] as? String ?? "Unknown Faction"
-                    let factionZhName = row["faction_zh_name"] as? String ?? "未知势力"
-                    let factionIcon = row["faction_icon"] as? String ?? "not_found"
-                    let militiaFaction = row["militia_faction"] as? Int
-
-                    // 初始化势力
-                    if factionDict[factionId] == nil {
-                        factionDict[factionId] = (
-                            factionName, factionEnName, factionZhName, factionIcon, []
+                    let factionId = corp.factionID ?? 0
+                    let factionInfo = SDEMemoryStore.faction(for: factionId)
+                    let factionNames = factionInfo?.names
+                        ?? LocalizedText(
+                            de: "Unknown Faction", en: "Unknown Faction", es: "Unknown Faction",
+                            fr: "Unknown Faction", ja: "Unknown Faction", ko: "Unknown Faction",
+                            ru: "Unknown Faction",
+                            zh: NSLocalizedString("Main_LP_Unknown_Faction", comment: "")
                         )
+                    let factionIcon = factionInfo?.iconName ?? "not_found"
+
+                    if factionDict[factionId] == nil {
+                        factionDict[factionId] = (factionNames, factionIcon, [])
                     }
 
-                    // 添加军团
-                    let corporation = Corporation(from: [
-                        "corporation_id": corporationId,
-                        "corp_name": corpName,
-                        "corp_en_name": corpEnName,
-                        "corp_zh_name": corpZhName,
-                        "faction_id": factionId,
-                        "militia_faction": militiaFaction as Any,
-                        "icon_filename": iconFileName,
-                    ])
-                    if let corp = corporation {
-                        factionDict[factionId]?.corporations.append(corp)
-                    }
+                    factionDict[factionId]?.corporations.append(
+                        Corporation(
+                            id: corporationId,
+                            names: corp.names,
+                            factionId: factionId,
+                            iconFileName: corp.iconFilename,
+                            militiaFaction: corp.militiaFaction
+                        )
+                    )
                 }
 
-                // 转换为 Faction 数组
                 let loadedFactions = factionDict.compactMap { id, data -> Faction? in
                     guard !data.corporations.isEmpty else { return nil }
+                    let corps = data.corporations.sorted {
+                        $0.name.localizedStandardCompare($1.name) == .orderedAscending
+                    }
                     return Faction(
-                        from: [
-                            "faction_id": id,
-                            "faction_name": data.name,
-                            "faction_en_name": data.enName,
-                            "faction_zh_name": data.zhName,
-                            "faction_icon": data.iconName,
-                        ], corporations: data.corporations
+                        id: id,
+                        names: data.names,
+                        iconName: data.iconName,
+                        corporations: corps
                     )
                 }.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
 
-                // 更新UI
                 await MainActor.run {
                     self.factions = loadedFactions
                     isLoading = false
@@ -265,24 +228,23 @@ struct CharacterLoyaltyPointsStoreView: View {
 
         Task {
             do {
-                // 1. 从 SDE 数据库搜索物品
                 let itemSearchQuery = """
                     SELECT DISTINCT
                         loo.type_id,
                         lo.offer_id,
                         nc.faction_id,
-                        lo.corporation_id,
-                        t.name,
-                        t.zh_name,
-                        t.en_name
+                        lo.corporation_id
                     FROM loyalty_offers lo
                     JOIN loyalty_offer_outputs loo ON lo.offer_id = loo.offer_id
                     LEFT JOIN npcCorporations nc ON lo.corporation_id = nc.corporation_id
                     LEFT JOIN types t ON loo.type_id = t.type_id
-                    WHERE t.zh_name LIKE '%\(searchText)%' OR t.en_name LIKE '%\(searchText)%'
+                    WHERE \(LocalizedText.typeLangNameLikeSQL)
                 """
+                let nameParams = LocalizedText.typeLangNameLikeParams(searchText)
 
-                let itemResult = DatabaseManager.shared.executeQuery(itemSearchQuery)
+                let itemResult = DatabaseManager.shared.executeQuery(
+                    itemSearchQuery, parameters: nameParams
+                )
                 guard case let .success(itemRows) = itemResult else {
                     await MainActor.run {
                         isSearchingItems = false
@@ -316,7 +278,8 @@ struct CharacterLoyaltyPointsStoreView: View {
                             offerId: offerId,
                             factionId: factionId,
                             corporationId: corporationId
-                        ))
+                        )
+                    )
                 }
 
                 if typeIds.isEmpty {
@@ -349,11 +312,11 @@ struct CharacterLoyaltyPointsStoreView: View {
                 for row in typeRows {
                     guard let typeId = row["type_id"] as? Int,
                           let name = row["name"] as? String,
-                          let iconFileName = row["icon_filename"] as? String,
                           let categoryId = row["categoryID"] as? Int
                     else {
                         continue
                     }
+                    let iconFileName = row["icon_filename"] as? String ?? ""
 
                     typeInfos[typeId] = (
                         name, iconFileName.isEmpty ? "not_found" : iconFileName, categoryId
@@ -371,15 +334,15 @@ struct CharacterLoyaltyPointsStoreView: View {
                     """
 
                     if case let .success(categoryRows) = DatabaseManager.shared.executeQuery(
-                        categoryQuery)
-                    {
+                        categoryQuery
+                    ) {
                         for row in categoryRows {
                             guard let categoryId = row["category_id"] as? Int,
-                                  let name = row["name"] as? String,
-                                  let iconFileName = row["icon_filename"] as? String
+                                  let name = row["name"] as? String
                             else {
                                 continue
                             }
+                            let iconFileName = row["icon_filename"] as? String ?? ""
 
                             categoryInfos[categoryId] = (
                                 name, iconFileName.isEmpty ? "not_found" : iconFileName

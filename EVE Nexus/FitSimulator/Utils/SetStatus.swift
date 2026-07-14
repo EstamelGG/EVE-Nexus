@@ -36,7 +36,8 @@ func setStatus(
         - maxGroupActive: \(maxGroupActive)
         - 当前状态: \(currentStatus)
         - 最大可用状态: \(maxStatus)
-        """)
+        """
+    )
 
     // 使用ModuleGroupManager验证状态
     let validatedStatus = ModuleGroupManager.validateStatus(

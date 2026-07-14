@@ -10,7 +10,7 @@ class WalletTransactionsAPI {
 
     // MARK: - UserDefaults 管理
 
-    // 获取/设置交易记录上次更新时间
+    /// 获取/设置交易记录上次更新时间
     private func getTransactionsLastUpdateTime(characterId: Int) -> Date? {
         let key = transactionsLastUpdatePrefix + String(characterId)
         if let timestamp = UserDefaults.standard.object(forKey: key) as? Date {
@@ -27,7 +27,7 @@ class WalletTransactionsAPI {
 
     // MARK: - 数据库操作
 
-    // 从数据库获取某角色的所有交易记录数据
+    /// 从数据库获取某角色的所有交易记录数据
     private func getWalletTransactionsFromDatabase(characterId: Int) -> [[String: Any]]? {
         let query = """
             SELECT transaction_id, character_id, client_id, date, is_buy, is_personal,
@@ -83,7 +83,7 @@ class WalletTransactionsAPI {
         return nil
     }
 
-    // 获取某角色的最大交易记录ID
+    /// 获取某角色的最大交易记录ID
     private func getMaxTransactionId(characterId: Int) -> Int64? {
         let query = """
             SELECT MAX(transaction_id) as max_id FROM char_wallet_transactions
@@ -103,7 +103,7 @@ class WalletTransactionsAPI {
         return nil
     }
 
-    // 批量插入交易记录到数据库（增量更新）
+    /// 批量插入交易记录到数据库（增量更新）
     private func saveWalletTransactionsToDatabase(characterId: Int, entries: [[String: Any]]) -> Bool {
         Logger.info("开始保存钱包交易记录到数据库（增量更新） - 角色ID: \(characterId), 记录数量: \(entries.count)")
 
@@ -220,7 +220,7 @@ class WalletTransactionsAPI {
 
     // MARK: - 缓存检查
 
-    // 检查交易记录缓存是否过期（基于数据库和UserDefaults）
+    /// 检查交易记录缓存是否过期（基于数据库和UserDefaults）
     private func isTransactionsCacheExpired(characterId: Int) -> Bool {
         // 检查UserDefaults中的最后更新时间
         if let lastUpdate = getTransactionsLastUpdateTime(characterId: characterId) {
@@ -247,7 +247,7 @@ class WalletTransactionsAPI {
 
     // MARK: - 网络请求
 
-    // 从服务器获取交易记录
+    /// 从服务器获取交易记录
     private func fetchTransactionsFromServer(characterId: Int) async throws -> [[String: Any]] {
         let urlString =
             "https://esi.evetech.net/characters/\(characterId)/wallet/transactions/"
@@ -271,7 +271,7 @@ class WalletTransactionsAPI {
 
     // MARK: - 公开接口
 
-    // 获取钱包交易记录
+    /// 获取钱包交易记录
     func getWalletTransactions(characterId: Int, forceRefresh: Bool = false) async throws -> String? {
         Logger.info("开始获取钱包交易记录 - 角色ID: \(characterId), 强制刷新: \(forceRefresh)")
 
@@ -317,7 +317,7 @@ class WalletTransactionsAPI {
         return nil
     }
 
-    // 使缓存失效
+    /// 使缓存失效
     func invalidateCache(characterId: Int) {
         let transactionsLastUpdateKey = transactionsLastUpdatePrefix + String(characterId)
         UserDefaults.standard.removeObject(forKey: transactionsLastUpdateKey)

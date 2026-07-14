@@ -1,29 +1,26 @@
 import Foundation
 
-/// A decoding error due to a malformed JWT.
+// A decoding error due to a malformed JWT.
 public enum JWTDecodeError: LocalizedError, CustomDebugStringConvertible, Sendable {
-    /// When either the header or body parts cannot be Base64URL-decoded.
+    // When either the header or body parts cannot be Base64URL-decoded.
     case invalidBase64URL(String)
 
-    /// When either the decoded header or body is not a valid JSON object.
+    // When either the decoded header or body is not a valid JSON object.
     case invalidJSON(String)
 
-    /// When the JWT doesn't have the required amount of parts (header, body, and signature).
+    // When the JWT doesn't have the required amount of parts (header, body, and signature).
     case invalidPartCount(String, Int)
 
-    /// Description of the error.
-    ///
-    /// - Important: You should avoid displaying the error description to the user, it's meant for **debugging** only.
+    // Description of the error.
+    //     // - Important: You should avoid displaying the error description to the user, it's meant for **debugging** only.
     public var localizedDescription: String { return self.debugDescription }
 
-    /// Description of the error.
-    ///
-    /// - Important: You should avoid displaying the error description to the user, it's meant for **debugging** only.
+    // Description of the error.
+    //     // - Important: You should avoid displaying the error description to the user, it's meant for **debugging** only.
     public var errorDescription: String? { return self.debugDescription }
 
-    /// Description of the error.
-    ///
-    /// - Important: You should avoid displaying the error description to the user, it's meant for **debugging** only.
+    // Description of the error.
+    //     // - Important: You should avoid displaying the error description to the user, it's meant for **debugging** only.
     public var debugDescription: String {
         switch self {
         case .invalidJSON(let value):

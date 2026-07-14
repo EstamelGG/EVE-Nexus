@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 军团钱包流水条目模型
+/// 军团钱包流水条目模型
 struct CorpWalletJournalEntry: Codable, Identifiable {
     let id: Int64
     let amount: Double
@@ -15,14 +15,14 @@ struct CorpWalletJournalEntry: Codable, Identifiable {
     let context_id_type: String?
 }
 
-// 按日期分组的钱包流水
+/// 按日期分组的钱包流水
 struct CorpWalletJournalGroup: Identifiable {
     let id = UUID()
     let date: Date
     var entries: [CorpWalletJournalEntry]
 }
 
-// 加载进度枚举
+/// 加载进度枚举
 public enum WalletLoadingProgress {
     case loading(page: Int) // 正在加载特定页面
     case completed // 加载完成
@@ -86,7 +86,7 @@ final class CorpWalletJournalViewModel: ObservableObject {
         }.filter { !$0.entries.isEmpty }
     }
 
-    // 获取所有可用的 ref_type，按交易次数排序
+    /// 获取所有可用的 ref_type，按交易次数排序
     var availableRefTypes: [String] {
         let allTypes = journalGroups.flatMap { $0.entries }.map { $0.ref_type }
 
@@ -108,7 +108,7 @@ final class CorpWalletJournalViewModel: ObservableObject {
         }
     }
 
-    // 获取交易类型的本地化名称
+    /// 获取交易类型的本地化名称
     func getLocalizedRefType(_ refType: String) -> String {
         return LocalizationManager.shared.processEntryTypeName(
             for: refType.lowercased(),
@@ -162,7 +162,7 @@ final class CorpWalletJournalViewModel: ObservableObject {
         loadingTask?.cancel()
     }
 
-    // 计算总收支
+    /// 计算总收支
     private func calculateTotals(from entries: [CorpWalletJournalEntry]) {
         var income: Double = 0
         var expense: Double = 0
@@ -198,7 +198,7 @@ final class CorpWalletJournalViewModel: ObservableObject {
         totalExpense = expense
     }
 
-    // 只更新总收支
+    /// 只更新总收支
     func updateTotals() {
         let allEntries = journalGroups.flatMap { $0.entries }
         calculateTotals(from: allEntries)
@@ -335,7 +335,7 @@ final class CorpWalletJournalViewModel: ObservableObject {
     }
 }
 
-// 特定日期的军团钱包流水详情视图
+/// 特定日期的军团钱包流水详情视图
 struct CorpWalletJournalDayDetailView: View {
     let group: CorpWalletJournalGroup
     @State private var displayedEntries: [CorpWalletJournalEntry] = []
@@ -621,12 +621,7 @@ struct CorpWalletJournalView: View {
             }
 
             if viewModel.isLoading {
-                HStack {
-                    Spacer()
-                    ProgressView()
-                        .progressViewStyle(.circular)
-                    Spacer()
-                }
+                WalletJournalSkeleton()
             } else if viewModel.journalGroups.isEmpty {
                 Section {
                     NoDataSection()
@@ -673,7 +668,8 @@ struct CorpWalletJournalView: View {
                                     .font(.caption)
                                     .foregroundColor(
                                         dayNetIncome > 0
-                                            ? .green : dayNetIncome < 0 ? .red : .secondary)
+                                            ? .green : dayNetIncome < 0 ? .red : .secondary
+                                    )
                                 }
                                 .padding(.vertical, 4)
                             }
@@ -727,7 +723,7 @@ struct CorpWalletJournalView: View {
     }
 }
 
-// 钱包流水条目行视图
+/// 钱包流水条目行视图
 struct CorpWalletJournalEntryRow: View {
     let entry: CorpWalletJournalEntry
 

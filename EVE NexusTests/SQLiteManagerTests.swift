@@ -39,7 +39,7 @@ final class SQLiteManagerTests: XCTestCase {
     
     // MARK: - 测试用例
     
-    /// 测试无参数查询 - 多次反复执行（重点测试）
+    // 测试无参数查询 - 多次反复执行（重点测试）
     func testExecuteQueryWithoutParametersRepeatedly() {
         guard expectedRowCount > 0 else {
             return
@@ -78,7 +78,7 @@ final class SQLiteManagerTests: XCTestCase {
         print("[+] 无参数查询反复执行测试通过：1000 次迭代，无崩溃")
     }
     
-    /// 测试数据库未打开时的查询（应该返回错误而不是崩溃）
+    // 测试数据库未打开时的查询（应该返回错误而不是崩溃）
     func testExecuteQueryWhenDatabaseNotOpen() {
         // 确保数据库未打开（不清除缓存，但确保 db 为 nil）
         // 由于 SQLiteManager 是单例，我们需要测试在未打开数据库时执行查询的情况
@@ -101,7 +101,7 @@ final class SQLiteManagerTests: XCTestCase {
         }
     }
     
-    /// 测试并发执行无参数查询
+    // 测试并发执行无参数查询
     func testConcurrentExecuteQueryWithoutParameters() {
         guard expectedRowCount > 0 else {
             return
@@ -132,7 +132,7 @@ final class SQLiteManagerTests: XCTestCase {
         print("[+] 并发查询测试通过：50 个并发查询，无崩溃")
     }
     
-    /// 测试查询缓存功能
+    // 测试查询缓存功能
     func testQueryCache() {
         guard expectedRowCount > 0 else {
             return
@@ -160,7 +160,7 @@ final class SQLiteManagerTests: XCTestCase {
         print("[+] 查询缓存测试通过：两次查询结果一致（\(firstCount) 条记录）")
     }
     
-    /// 测试边界情况：带 WHERE 条件的查询返回空结果集
+    // 测试边界情况：带 WHERE 条件的查询返回空结果集
     func testExecuteQueryWithEmptyResult() {
         guard expectedRowCount > 0 else {
             return
@@ -179,7 +179,7 @@ final class SQLiteManagerTests: XCTestCase {
         }
     }
     
-    /// 测试带参数的查询
+    // 测试带参数的查询
     func testExecuteQueryWithParameters() {
         guard expectedRowCount > 0 else {
             return
@@ -216,7 +216,7 @@ final class SQLiteManagerTests: XCTestCase {
         }
     }
     
-    /// 测试混合场景：多次执行不同类型的查询
+    // 测试混合场景：多次执行不同类型的查询
     func testMixedQueryScenarios() {
         guard expectedRowCount > 0 else {
             return
@@ -251,7 +251,7 @@ final class SQLiteManagerTests: XCTestCase {
     
     // MARK: - 高强度并发测试场景
     
-    /// 测试高强度并发查询（大量线程同时执行）
+    // 测试高强度并发查询（大量线程同时执行）
     func testHighIntensityConcurrentQueries() {
         guard expectedRowCount > 0 else {
             return
@@ -300,7 +300,7 @@ final class SQLiteManagerTests: XCTestCase {
         XCTAssertEqual(successCount, concurrentCount, "所有查询都应该成功")
     }
     
-    /// 测试混合查询类型的并发执行
+    // 测试混合查询类型的并发执行
     func testMixedQueryTypesConcurrent() {
         guard expectedRowCount > 0 else {
             return
@@ -356,7 +356,7 @@ final class SQLiteManagerTests: XCTestCase {
         XCTAssertEqual(successCount, totalQueries, "所有查询都应该成功")
     }
     
-    /// 测试持续压力并发查询（长时间运行）
+    // 测试持续压力并发查询（长时间运行）
     func testSustainedPressureConcurrentQueries() {
         guard expectedRowCount > 0 else {
             return
@@ -452,7 +452,7 @@ final class SQLiteManagerTests: XCTestCase {
         XCTAssertEqual(successCount, completedCount, "所有已完成的查询都应该成功")
     }
     
-    /// 测试并发查询与缓存交互
+    // 测试并发查询与缓存交互
     func testConcurrentQueriesWithCache() {
         guard expectedRowCount > 0 else {
             return
@@ -508,7 +508,7 @@ final class SQLiteManagerTests: XCTestCase {
         XCTAssertEqual(successCount, concurrentCount, "所有查询都应该成功")
     }
     
-    /// 测试并发查询与数据库重连（极端场景）
+    // 测试并发查询与数据库重连（极端场景）
     func testConcurrentQueriesWithReconnection() {
         guard expectedRowCount > 0 else {
             return

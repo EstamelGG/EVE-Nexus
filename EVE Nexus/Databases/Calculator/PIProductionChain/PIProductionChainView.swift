@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 生产链条目
+/// 生产链条目
 struct ProductionChainItem: Identifiable {
     let id: Int
     let typeId: Int
@@ -10,7 +10,7 @@ struct ProductionChainItem: Identifiable {
     let level: Int
 }
 
-// 生产链段落
+/// 生产链段落
 struct ProductionChainSection: Identifiable {
     let id: Int
     let title: String
@@ -91,7 +91,8 @@ final class PIProductionChainViewModel: ObservableObject {
                         if index < schematic.inputValues.count {
                             let inputQuantity = Double(schematic.inputValues[index])
                             let requiredQuantity = Int(
-                                ceil(Double(itemInfo.quantity) * inputQuantity / outputQuantity))
+                                ceil(Double(itemInfo.quantity) * inputQuantity / outputQuantity)
+                            )
 
                             if let inputInfo = resourceCache.getResourceInfo(for: inputTypeId) {
                                 let existingQuantity = nextLevelItems[inputTypeId]?.quantity ?? 0

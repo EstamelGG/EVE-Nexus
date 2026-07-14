@@ -234,7 +234,7 @@ struct ImplantSettingsView: View {
         }
     }
 
-    // 加载槽位数据
+    /// 加载槽位数据
     private func loadSlotData() {
         isLoading = true
 
@@ -294,7 +294,7 @@ struct ImplantSettingsView: View {
         }
     }
 
-    // 加载现有的植入体和增效剂
+    /// 加载现有的植入体和增效剂
     private func loadExistingImplants() {
         // 遍历当前配置中的植入体和增效剂
         for implant in viewModel.simulationInput.implants {
@@ -305,25 +305,7 @@ struct ImplantSettingsView: View {
                 enName: nil,
                 iconFileName: implant.iconFileName ?? "",
                 published: true,
-                categoryID: 0,
-                groupID: nil,
-                groupName: nil,
-                pgNeed: nil,
-                cpuNeed: nil,
-                rigCost: nil,
-                emDamage: nil,
-                themDamage: nil,
-                kinDamage: nil,
-                expDamage: nil,
-                highSlot: nil,
-                midSlot: nil,
-                lowSlot: nil,
-                rigSlot: nil,
-                gunSlot: nil,
-                missSlot: nil,
-                metaGroupID: nil,
-                marketGroupID: nil,
-                navigationDestination: AnyView(EmptyView())
+                categoryID: 0
             )
 
             // 检查是植入体还是增效剂
@@ -341,7 +323,7 @@ struct ImplantSettingsView: View {
         }
     }
 
-    // 保存植入体和增效剂到配置
+    /// 保存植入体和增效剂到配置
     private func saveImplantsToConfiguration() {
         // 收集所有需要查询的植入体和增效剂ID
         var implantIds: [Int] = []
@@ -441,31 +423,6 @@ struct ImplantSettingsView: View {
             }
         }
 
-        // 查询效果
-        let effectQuery = """
-            SELECT type_id, effect_id 
-            FROM typeEffects 
-            WHERE type_id IN (\(placeholders))
-        """
-
-        var typeEffects: [Int: [Int]] = [:]
-
-        if case let .success(rows) = databaseManager.executeQuery(effectQuery, parameters: allIds) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let effectId = row["effect_id"] as? Int
-                {
-                    // 初始化数组
-                    if typeEffects[typeId] == nil {
-                        typeEffects[typeId] = []
-                    }
-
-                    // 添加效果
-                    typeEffects[typeId]?.append(effectId)
-                }
-            }
-        }
-
         // 创建新的植入体列表
         var newImplants: [SimImplant] = []
 
@@ -474,7 +431,7 @@ struct ImplantSettingsView: View {
             if let attributes = typeAttributes[item.id],
                let attributesByName = typeAttributesByName[item.id]
             {
-                let effects = typeEffects[item.id] ?? []
+                let effects = SDEMemoryStore.effectIDs(forType: item.id)
 
                 // 创建植入体对象
                 let groupID = typeGroupIDs[item.id] ?? 0
@@ -499,7 +456,7 @@ struct ImplantSettingsView: View {
             if let attributes = typeAttributes[item.id],
                let attributesByName = typeAttributesByName[item.id]
             {
-                let effects = typeEffects[item.id] ?? []
+                let effects = SDEMemoryStore.effectIDs(forType: item.id)
 
                 // 创建增效剂对象
                 let groupID = typeGroupIDs[item.id] ?? 0
@@ -545,7 +502,7 @@ struct ImplantSettingsView: View {
         return String.localizedStringWithFormat(NSLocalizedString("Booster_Slot_Num", comment: "增效剂槽位 %d"), slot)
     }
 
-    // 获取清空提示消息
+    /// 获取清空提示消息
     private func getClearedMessage() -> String {
         var parts: [String] = []
 
@@ -574,7 +531,7 @@ struct ImplantSettingsView: View {
         }
     }
 
-    // 应用植入体预设
+    /// 应用植入体预设
     private func applyImplantPreset(_ typeIds: [Int]) {
         // 首先清空现有植入体
         clearAllImplantsAndBoosters()
@@ -603,15 +560,18 @@ struct ImplantSettingsView: View {
             for row in rows {
                 if let typeId = row["type_id"] as? Int,
                    let name = row["name"] as? String,
-                   let iconFile = row["icon_filename"] as? String,
                    let attributeId = row["attribute_id"] as? Int,
                    let value = row["value"] as? Double
                 {
+                    let iconFile = row["icon_filename"] as? String ?? ""
                     let slotNumber = Int(value)
                     let isImplant = attributeId == 331 // 331是植入体槽位属性ID
 
                     implantInfo[typeId] = (
-                        name: name, iconFile: iconFile, slotNumber: slotNumber, isImplant: isImplant
+                        name: name,
+                        iconFile: iconFile.isEmpty ? IconManager.defaultItemIcon : iconFile,
+                        slotNumber: slotNumber,
+                        isImplant: isImplant
                     )
                 }
             }
@@ -624,25 +584,7 @@ struct ImplantSettingsView: View {
                     enName: nil,
                     iconFileName: info.iconFile,
                     published: true,
-                    categoryID: 0,
-                    groupID: nil,
-                    groupName: nil,
-                    pgNeed: nil,
-                    cpuNeed: nil,
-                    rigCost: nil,
-                    emDamage: nil,
-                    themDamage: nil,
-                    kinDamage: nil,
-                    expDamage: nil,
-                    highSlot: nil,
-                    midSlot: nil,
-                    lowSlot: nil,
-                    rigSlot: nil,
-                    gunSlot: nil,
-                    missSlot: nil,
-                    metaGroupID: nil,
-                    marketGroupID: nil,
-                    navigationDestination: AnyView(EmptyView())
+                    categoryID: 0
                 )
 
                 if info.isImplant {
@@ -660,7 +602,7 @@ struct ImplantSettingsView: View {
         }
     }
 
-    // 处理植入体选择
+    /// 处理植入体选择
     private func handleImplantSelection(item: DatabaseListItem, slotNumber: Int) {
         if let proxy = implantRows[slotNumber] {
             proxy.selectedImplant = item
@@ -668,7 +610,7 @@ struct ImplantSettingsView: View {
         }
     }
 
-    // 处理增效剂选择
+    /// 处理增效剂选择
     private func handleBoosterSelection(item: DatabaseListItem, slotNumber: Int) {
         if let proxy = boosterRows[slotNumber] {
             proxy.selectedBooster = item
@@ -676,7 +618,7 @@ struct ImplantSettingsView: View {
         }
     }
 
-    // 检查是否有任何植入体或增效剂
+    /// 检查是否有任何植入体或增效剂
     private func hasAnyImplantsOrBoosters() -> Bool {
         // 检查是否有植入体
         for (_, proxy) in implantRows {
@@ -695,7 +637,7 @@ struct ImplantSettingsView: View {
         return false
     }
 
-    // 收集当前配置的所有 typeId
+    /// 收集当前配置的所有 typeId
     private func collectCurrentTypeIds() -> [Int] {
         var typeIds: [Int] = []
 
@@ -716,7 +658,7 @@ struct ImplantSettingsView: View {
         return typeIds
     }
 
-    // 检查是否有完全相同的配置
+    /// 检查是否有完全相同的配置
     private func findDuplicatePreset(typeIds: [Int]) -> CustomImplantPreset? {
         let existingPresets = CustomImplantPresetManager.shared.loadPresets()
         let sortedTypeIds = typeIds.sorted()
@@ -734,7 +676,7 @@ struct ImplantSettingsView: View {
         return nil
     }
 
-    // 保存当前配置为自定义预设
+    /// 保存当前配置为自定义预设
     private func saveCurrentConfigurationAsPreset() {
         let trimmedName = presetName.trimmingCharacters(in: .whitespaces)
         guard !trimmedName.isEmpty else {
@@ -767,17 +709,17 @@ struct ImplantSettingsView: View {
     }
 }
 
-// 植入体行代理类
+/// 植入体行代理类
 class ImplantSlotRowProxy: ObservableObject {
     @Published var selectedImplant: DatabaseListItem?
 }
 
-// 增效剂行代理类
+/// 增效剂行代理类
 class BoosterSlotRowProxy: ObservableObject {
     @Published var selectedBooster: DatabaseListItem?
 }
 
-// 植入体插槽行组件
+/// 植入体插槽行组件
 struct ImplantSlotRow: View {
     @ObservedObject var proxy: ImplantSlotRowProxy
     let slotNumber: Int
@@ -846,7 +788,7 @@ struct ImplantSlotRow: View {
     }
 }
 
-// 增效剂插槽行组件
+/// 增效剂插槽行组件
 struct BoosterSlotRow: View {
     @ObservedObject var proxy: BoosterSlotRowProxy
     let slotNumber: Int

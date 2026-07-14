@@ -29,7 +29,8 @@ struct StructureSelectorView: View {
 
             Section(
                 header: Text(
-                    NSLocalizedString("Structure_Selector_Preset_Structures", comment: "预设建筑"))
+                    NSLocalizedString("Structure_Selector_Preset_Structures", comment: "预设建筑")
+                )
             ) {
                 if isLoading {
                     ProgressView()
@@ -56,7 +57,8 @@ struct StructureSelectorView: View {
             if !customStructures.isEmpty {
                 Section(
                     header: Text(
-                        NSLocalizedString("Structure_Selector_Custom_Structures", comment: "自定义建筑"))
+                        NSLocalizedString("Structure_Selector_Custom_Structures", comment: "自定义建筑")
+                    )
                 ) {
                     ForEach(customStructures) { structure in
                         StructureInfoRow(structure: structure) {
@@ -113,55 +115,39 @@ struct StructureSelectorView: View {
         let allTypeIds = configs.map { $0.structure_typeid } + configs.flatMap { $0.rigs }
 
         // 一次性查询所有type_id的信息
-        let placeholders = String(repeating: "?,", count: allTypeIds.count).dropLast()
-        let query =
-            "SELECT type_id, name, icon_filename FROM types WHERE type_id IN (\(placeholders))"
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: allTypeIds) {
-            // 创建type_id到信息的映射
-            var typeInfoMap: [Int: (name: String, iconFileName: String)] = [:]
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let iconFileName = row["icon_filename"] as? String
-                {
-                    typeInfoMap[typeId] = (
-                        name: name, iconFileName: iconFileName.isEmpty ? "not_found" : iconFileName
-                    )
-                }
-            }
-
-            // 构建建筑信息
-            var structures: [IndustryFacilityInfo] = []
-            for config in configs {
-                if let typeInfo = typeInfoMap[config.structure_typeid] {
-                    // 构建插件信息
-                    let rigInfos = config.rigs.compactMap { rigId in
-                        typeInfoMap[rigId].map {
-                            (id: rigId, name: $0.name, iconFileName: $0.iconFileName)
-                        }
-                    }
-
-                    let structure = IndustryFacilityInfo(
-                        id: config.id,
-                        typeId: config.structure_typeid,
-                        name: typeInfo.name,
-                        iconFileName: typeInfo.iconFileName,
-                        customName: config.name.isEmpty ? nil : config.name,
-                        isDefault: config.is_default == 1,
-                        rigs: config.rigs,
-                        rigInfos: rigInfos,
-                        systemId: config.system_id
-                    )
-                    structures.append(structure)
-                }
-            }
-
-            defaultStructures = structures
-        } else {
-            Logger.error("查询建筑信息失败")
+        var typeInfoMap: [Int: (name: String, iconFileName: String)] = [:]
+        for typeId in allTypeIds {
+            guard let info = ItemInfoMap.typeInfo(for: typeId), !info.name.isEmpty else { continue }
+            typeInfoMap[typeId] = (name: info.name, iconFileName: info.iconFilename)
         }
 
+        // 构建建筑信息
+        var structures: [IndustryFacilityInfo] = []
+        for config in configs {
+            if let typeInfo = typeInfoMap[config.structure_typeid] {
+                // 构建插件信息
+                let rigInfos = config.rigs.compactMap { rigId in
+                    typeInfoMap[rigId].map {
+                        (id: rigId, name: $0.name, iconFileName: $0.iconFileName)
+                    }
+                }
+
+                let structure = IndustryFacilityInfo(
+                    id: config.id,
+                    typeId: config.structure_typeid,
+                    name: typeInfo.name,
+                    iconFileName: typeInfo.iconFileName,
+                    customName: config.name.isEmpty ? nil : config.name,
+                    isDefault: config.is_default == 1,
+                    rigs: config.rigs,
+                    rigInfos: rigInfos,
+                    systemId: config.system_id
+                )
+                structures.append(structure)
+            }
+        }
+
+        defaultStructures = structures
         isLoading = false
     }
 
@@ -197,46 +183,33 @@ struct StructureSelectorView: View {
                 {
                     // 查询建筑信息
                     let allTypeIds = [config.structure_typeid] + config.rigs
-                    let placeholders = String(repeating: "?,", count: allTypeIds.count).dropLast()
-                    let query =
-                        "SELECT type_id, name, icon_filename FROM types WHERE type_id IN (\(placeholders))"
+                    var typeInfoMap: [Int: (name: String, iconFileName: String)] = [:]
+                    for typeId in allTypeIds {
+                        guard let info = ItemInfoMap.typeInfo(for: typeId), !info.name.isEmpty else {
+                            continue
+                        }
+                        typeInfoMap[typeId] = (name: info.name, iconFileName: info.iconFilename)
+                    }
 
-                    if case let .success(rows) = databaseManager.executeQuery(
-                        query, parameters: allTypeIds
-                    ) {
-                        var typeInfoMap: [Int: (name: String, iconFileName: String)] = [:]
-                        for row in rows {
-                            if let typeId = row["type_id"] as? Int,
-                               let name = row["name"] as? String,
-                               let iconFileName = row["icon_filename"] as? String
-                            {
-                                typeInfoMap[typeId] = (
-                                    name: name,
-                                    iconFileName: iconFileName.isEmpty ? "not_found" : iconFileName
-                                )
+                    if let typeInfo = typeInfoMap[config.structure_typeid] {
+                        let rigInfos = config.rigs.compactMap { rigId in
+                            typeInfoMap[rigId].map {
+                                (id: rigId, name: $0.name, iconFileName: $0.iconFileName)
                             }
                         }
 
-                        if let typeInfo = typeInfoMap[config.structure_typeid] {
-                            let rigInfos = config.rigs.compactMap { rigId in
-                                typeInfoMap[rigId].map {
-                                    (id: rigId, name: $0.name, iconFileName: $0.iconFileName)
-                                }
-                            }
-
-                            let structure = IndustryFacilityInfo(
-                                id: config.id,
-                                typeId: config.structure_typeid,
-                                name: typeInfo.name,
-                                iconFileName: typeInfo.iconFileName,
-                                customName: config.name.isEmpty ? nil : config.name,
-                                isDefault: false,
-                                rigs: config.rigs,
-                                rigInfos: rigInfos,
-                                systemId: config.system_id
-                            )
-                            structures.append(structure)
-                        }
+                        let structure = IndustryFacilityInfo(
+                            id: config.id,
+                            typeId: config.structure_typeid,
+                            name: typeInfo.name,
+                            iconFileName: typeInfo.iconFileName,
+                            customName: config.name.isEmpty ? nil : config.name,
+                            isDefault: false,
+                            rigs: config.rigs,
+                            rigInfos: rigInfos,
+                            systemId: config.system_id
+                        )
+                        structures.append(structure)
                     }
                 }
             }
@@ -332,7 +305,7 @@ struct StructureSelectorView: View {
     }
 }
 
-// 建筑信息行视图
+/// 建筑信息行视图
 struct StructureInfoRow: View {
     let structure: IndustryFacilityInfo
     let onSelect: () -> Void
@@ -448,7 +421,7 @@ struct StructureInfoRow: View {
     }
 }
 
-// 建筑详细信息视图
+/// 建筑详细信息视图
 struct StructureInfoDetailView: View {
     let structure: IndustryFacilityInfo
     @Environment(\.dismiss) private var dismiss

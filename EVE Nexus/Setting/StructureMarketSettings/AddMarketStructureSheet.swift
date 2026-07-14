@@ -9,19 +9,19 @@ struct AddMarketStructureSheet: View {
     @State private var showingCharacterSelector = false
     @State private var showingStructureSelector = false
 
-    // 获取所有已登录的角色
+    /// 获取所有已登录的角色
     private var availableCharacters: [EVECharacterInfo] {
         let characterAuths = EVELogin.shared.loadCharacters()
         return characterAuths.map { $0.character }
     }
 
-    // 获取当前登录的角色
+    /// 获取当前登录的角色
     private var currentCharacter: EVECharacterInfo? {
         let currentCharacterId = UserDefaults.standard.integer(forKey: "currentCharacterId")
         return availableCharacters.first { $0.CharacterID == currentCharacterId }
     }
 
-    // 检查是否可以完成添加
+    /// 检查是否可以完成添加
     private var canComplete: Bool {
         selectedCharacter != nil && selectedStructure != nil
     }
@@ -32,7 +32,8 @@ struct AddMarketStructureSheet: View {
                 // 选择人物 Section
                 Section(
                     header: Text(
-                        NSLocalizedString("Market_Structure_Select_Character_Section", comment: ""))
+                        NSLocalizedString("Market_Structure_Select_Character_Section", comment: "")
+                    )
                 ) {
                     Button(action: {
                         showingCharacterSelector = true
@@ -89,7 +90,8 @@ struct AddMarketStructureSheet: View {
                 // 选择建筑 Section
                 Section(
                     header: Text(
-                        NSLocalizedString("Market_Structure_Select_Structure_Section", comment: ""))
+                        NSLocalizedString("Market_Structure_Select_Structure_Section", comment: "")
+                    )
                 ) {
                     Button(action: {
                         if selectedCharacter != nil {
@@ -188,64 +190,30 @@ struct AddMarketStructureSheet: View {
             return
         }
 
-        // 通过名称查询获取systemId和regionId
-        let systemId = getSystemId(from: locationInfo.systemName)
-        let regionId = getRegionId(from: locationInfo.regionName)
-
         let marketStructure = MarketStructure(
             structureId: structure.id,
             structureName: structure.name,
             characterId: character.CharacterID,
             characterName: character.CharacterName,
-            systemId: systemId,
-            regionId: regionId,
+            systemId: findId(byName: locationInfo.systemName, in: SDEMemoryStore.solarSystemNames),
+            regionId: findId(byName: locationInfo.regionName, in: SDEMemoryStore.regionNames),
             security: locationInfo.security,
-            iconFilename: structure.typeInfo // 传递图标文件名
+            structureTypeId: structure.typeId
         )
 
         MarketStructureManager.shared.addStructure(marketStructure)
         dismiss()
     }
 
-    // 通过系统名称获取系统ID
-    private func getSystemId(from systemName: String) -> Int {
-        let query = """
-            SELECT solarSystemID
-            FROM solarsystems
-            WHERE solarSystemName = ?
-        """
-
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            query, parameters: [systemName]
-        ),
-            let row = rows.first,
-            let systemId = row["solarSystemID"] as? Int
-        {
-            return systemId
+    /// 通过名称在 ID→名称字典中查找对应的 ID
+    private func findId(byName name: String, in map: [Int: LocalizedText]) -> Int {
+        if let match = map.first(where: {
+            $0.value.resolved().caseInsensitiveCompare(name) == .orderedSame
+                || $0.value.en.caseInsensitiveCompare(name) == .orderedSame
+        }) {
+            return match.key
         }
-
-        Logger.error("无法找到系统ID，系统名称: \(systemName)")
-        return 0
-    }
-
-    // 通过星域名称获取星域ID
-    private func getRegionId(from regionName: String) -> Int {
-        let query = """
-            SELECT regionID
-            FROM regions
-            WHERE regionName = ?
-        """
-
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            query, parameters: [regionName]
-        ),
-            let row = rows.first,
-            let regionId = row["regionID"] as? Int
-        {
-            return regionId
-        }
-
-        Logger.error("无法找到星域ID，星域名称: \(regionName)")
+        Logger.error("无法找到ID，名称: \(name)")
         return 0
     }
 }

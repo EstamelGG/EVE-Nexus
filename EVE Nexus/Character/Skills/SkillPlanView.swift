@@ -42,7 +42,7 @@ class SkillPlanFileManager {
         return paths[0].appendingPathComponent("SkillPlans", isDirectory: true)
     }
 
-    // UUID -> 文件URL的映射缓存
+    /// UUID -> 文件URL的映射缓存
     private var planFileMapping: [UUID: URL] = [:]
 
     private func createSkillPlansDirectory() {
@@ -55,7 +55,15 @@ class SkillPlanFileManager {
         }
     }
 
-    func saveSkillPlan(characterId _: Int, plan: SkillPlan) {
+    @discardableResult
+    func saveSkillPlan(characterId _: Int, plan: SkillPlan, databaseManager _: DatabaseManager) -> SkillPlan {
+        let inputSkills = plan.skills.map { (skillId: $0.skillID, level: $0.targetLevel) }
+        let correctedSkills = SkillQueueCorrector().correctSkillQueue(inputSkills: inputSkills)
+        var correctedPlan = plan
+        correctedPlan.skills = SkillPlanHelper.rebuildSkills(
+            corrected: correctedSkills, existing: plan.skills
+        )
+
         // 优先使用映射中的路径（保留原文件名格式）
         // 如果映射中没有，说明是新建的计划，使用新格式
         let fileURL: URL
@@ -70,6 +78,8 @@ class SkillPlanFileManager {
             Logger.debug("创建新文件: \(fileName)")
         }
 
+        let correctedSkillStrings = correctedSkills.map { "\($0.skillId):\($0.level)" }
+
         // 检查文件是否存在，如果存在则读取当前内容进行对比
         if FileManager.default.fileExists(atPath: fileURL.path) {
             do {
@@ -78,20 +88,12 @@ class SkillPlanFileManager {
                 decoder.dateDecodingStrategy = .formatted(DateFormatter.iso8601Full)
                 let existingPlanData = try decoder.decode(SkillPlanData.self, from: existingData)
 
-                // 创建新的计划数据，但保持原有的lastUpdated
-                let newPlanData = SkillPlanData(
-                    id: plan.id, // 包含 UUID
-                    name: plan.name,
-                    lastUpdated: existingPlanData.lastUpdated, // 保持原有的lastUpdated
-                    skills: plan.skills.map { "\($0.skillID):\($0.targetLevel)" }
-                )
-
                 // 比较内容是否相同（除了lastUpdated）
-                if existingPlanData.name == newPlanData.name,
-                   Set(existingPlanData.skills) == Set(newPlanData.skills)
+                if existingPlanData.name == correctedPlan.name,
+                   Set(existingPlanData.skills) == Set(correctedSkillStrings)
                 {
                     Logger.debug("技能计划内容未变化，跳过保存: \(fileURL.lastPathComponent)")
-                    return
+                    return correctedPlan
                 }
             } catch {
                 Logger.error("读取现有技能计划失败: \(error)")
@@ -100,10 +102,10 @@ class SkillPlanFileManager {
 
         // 如果文件不存在或内容有变化，则创建新的计划数据并保存
         let planData = SkillPlanData(
-            id: plan.id, // 包含 UUID
-            name: plan.name,
-            lastUpdated: Date(), // 只有在内容真正变化时才更新时间
-            skills: plan.skills.map { "\($0.skillID):\($0.targetLevel)" }
+            id: plan.id,
+            name: correctedPlan.name,
+            lastUpdated: Date(),
+            skills: correctedSkillStrings
         )
 
         do {
@@ -115,19 +117,18 @@ class SkillPlanFileManager {
         } catch {
             Logger.error("保存技能计划失败: \(fileURL.lastPathComponent) - \(error)")
         }
+
+        return correctedPlan
     }
 
     func loadSkillPlans(
-        characterId: Int, databaseManager: DatabaseManager,
+        characterId: Int,
         learnedSkills _: [Int: CharacterSkill] = [:]
     ) -> [SkillPlan] {
         let fileManager = FileManager.default
 
         // 清空之前的映射
         planFileMapping.removeAll()
-
-        // 创建技能队列修正器
-        let corrector = SkillQueueCorrector(databaseManager: databaseManager)
 
         do {
             Logger.debug("开始加载技能计划，角色ID: \(characterId)")
@@ -169,8 +170,8 @@ class SkillPlanFileManager {
                     self.planFileMapping[validPlanId] = url
                     Logger.debug("建立文件映射: \(validPlanId) -> \(url.lastPathComponent)")
 
-                    // 1. 将技能字符串转换为 (skillId, level) 列表
-                    let parsedSkills = planData.skills.compactMap { skillString -> (skillId: Int, level: Int)? in
+                    // 将技能字符串转换为 PlannedSkill 列表（文件已在保存时修正）
+                    let skills = planData.skills.compactMap { skillString -> PlannedSkill? in
                         let components = skillString.split(separator: ":")
                         guard components.count == 2,
                               let typeId = Int(components[0]),
@@ -178,46 +179,14 @@ class SkillPlanFileManager {
                         else {
                             return nil
                         }
-                        return (skillId: typeId, level: level)
-                    }
-
-                    // 2. 使用修正函数补齐前置依赖并去重
-                    Logger.debug("[加载文件] 修正前技能数量: \(parsedSkills.count)")
-                    let correctedSkills = corrector.correctSkillQueue(inputSkills: parsedSkills)
-                    Logger.debug("[加载文件] 修正后技能数量: \(correctedSkills.count)")
-
-                    // 3. 如果修正后的技能数量与原数量不同，需要更新文件
-                    if correctedSkills.count != parsedSkills.count {
-                        Logger.debug("[加载文件] 技能队列已修正，将更新文件")
-                        let correctedSkillStrings = correctedSkills.map { "\($0.skillId):\($0.level)" }
-                        let updatedPlanData = SkillPlanData(
-                            id: validPlanId,
-                            name: planData.name,
-                            lastUpdated: Date(), // 更新时间
-                            skills: correctedSkillStrings
-                        )
-
-                        // 保存修正后的文件
-                        do {
-                            let encoder = JSONEncoder()
-                            encoder.dateEncodingStrategy = .formatted(DateFormatter.iso8601Full)
-                            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-                            let updatedData = try encoder.encode(updatedPlanData)
-                            try updatedData.write(to: url)
-                            Logger.debug("[加载文件] 已保存修正后的技能计划到文件")
-                        } catch {
-                            Logger.error("[加载文件] 保存修正后的文件失败: \(error)")
-                        }
-                    }
-
-                    // 4. 创建技能对象（使用修正后的技能列表）
-                    let skills = correctedSkills.map { skill -> PlannedSkill in
-                        PlannedSkill(
+                        let skillName = SkillTreeManager.shared.getSkillName(for: typeId)
+                            ?? "Unknown Skill (\(typeId))"
+                        return PlannedSkill(
                             id: UUID(),
-                            skillID: skill.skillId,
-                            skillName: "Unknown Skill (\(skill.skillId))", // 使用临时名称
-                            currentLevel: 0, // 使用默认值
-                            targetLevel: skill.level,
+                            skillID: typeId,
+                            skillName: skillName,
+                            currentLevel: level - 1,
+                            targetLevel: level,
                             trainingTime: 0,
                             requiredSP: 0,
                             prerequisites: [],
@@ -288,7 +257,7 @@ class SkillPlanFileManager {
         }
     }
 
-    // 预处理文件：迁移旧格式文件，删除无效文件
+    /// 预处理文件：迁移旧格式文件，删除无效文件
     private func preprocessFiles(_ files: [URL]) {
         Logger.debug("[预处理] 开始检查和迁移文件")
 
@@ -396,7 +365,7 @@ struct SkillPlanView: View {
     @State private var renamePlan: SkillPlan?
     @State private var renamePlanName = ""
 
-    // 添加过滤后的计划列表计算属性
+    /// 添加过滤后的计划列表计算属性
     private var filteredPlans: [SkillPlan] {
         if searchText.isEmpty {
             return skillPlans
@@ -471,7 +440,7 @@ struct SkillPlanView: View {
         .navigationTitle(NSLocalizedString("Main_Skills_Plan", comment: ""))
         .searchable(
             text: $searchText,
-            placement: .navigationBarDrawer(displayMode: .always),
+            // placement: .navigationBarDrawer(displayMode: .always),
             prompt: NSLocalizedString("Main_Database_Search", comment: "")
         )
         .toolbar {
@@ -500,9 +469,11 @@ struct SkillPlanView: View {
                         lastUpdated: Date()
                     )
                     skillPlans.append(newPlan)
-                    SkillPlanFileManager.shared.saveSkillPlan(
-                        characterId: characterId, plan: newPlan
-                    )
+                    if let index = skillPlans.indices.last {
+                        skillPlans[index] = SkillPlanFileManager.shared.saveSkillPlan(
+                            characterId: characterId, plan: newPlan, databaseManager: databaseManager
+                        )
+                    }
                     newPlanName = ""
                 }
             }
@@ -521,9 +492,10 @@ struct SkillPlanView: View {
                 if let plan = renamePlan, !renamePlanName.isEmpty {
                     if let index = skillPlans.firstIndex(where: { $0.id == plan.id }) {
                         skillPlans[index].name = renamePlanName
-                        SkillPlanFileManager.shared.saveSkillPlan(
+                        skillPlans[index] = SkillPlanFileManager.shared.saveSkillPlan(
                             characterId: characterId,
-                            plan: skillPlans[index]
+                            plan: skillPlans[index],
+                            databaseManager: databaseManager
                         )
                     }
                 }
@@ -543,8 +515,7 @@ struct SkillPlanView: View {
             // 然后加载已保存的技能计划
             skillPlans = SkillPlanFileManager.shared.loadSkillPlans(
                 characterId: characterId,
-                databaseManager: databaseManager,
-                learnedSkills: learnedSkills // 传入已学习的技能
+                learnedSkills: learnedSkills
             )
         }
     }
@@ -616,7 +587,7 @@ struct SkillPlanView: View {
         }
     }
 
-    // 添加加载已学习技能的方法
+    /// 添加加载已学习技能的方法
     private func loadLearnedSkills() async {
         do {
             // 调用API获取技能数据

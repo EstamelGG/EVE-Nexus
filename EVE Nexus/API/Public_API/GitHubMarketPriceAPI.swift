@@ -13,10 +13,9 @@ typealias GitHubMarketPriceData = [String: MarketPriceValue]
 
 // MARK: - GitHub Market Price API
 
-/// GitHub 市场价格数据 API
-///
-/// 仅从 GitHub Release 获取 Jita 聚合 JSON（及本地文件缓存），**不再**通过 ESI 拉全星域订单在本地构造价表。
-/// 数据来源: https://github.com/EstamelGG/EVE_MarketPrice_Fetch
+// GitHub 市场价格数据 API
+// // 仅从 GitHub Release 获取 Jita 聚合 JSON（及本地文件缓存），**不再**通过 ESI 拉全星域订单在本地构造价表。
+// 数据来源: https://github.com/EstamelGG/EVE_MarketPrice_Fetch
 class GitHubMarketPriceAPI {
     static let shared = GitHubMarketPriceAPI()
 
@@ -26,13 +25,13 @@ class GitHubMarketPriceAPI {
 
     private let cacheTimeoutInterval: TimeInterval = 0.5 * 60 * 60 // 0.5小时缓存有效期（GitHub数据）
 
-    // Documents目录路径
+    /// Documents目录路径
     private var documentsDirectory: URL {
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         return paths[0]
     }
 
-    // 缓存目录路径
+    /// 缓存目录路径
     private var cacheDirectory: URL {
         let directory = documentsDirectory.appendingPathComponent("github_market_cache")
 
@@ -67,8 +66,7 @@ class GitHubMarketPriceAPI {
     }
 
     /// 获取市场价格数据（仅 GitHub Release JSON 或其本地缓存）
-    ///
-    /// - Parameters:
+    ///     // - Parameters:
     ///   - typeIds: 物品ID数组（可选；为 nil 时返回缓存/下载中的全部条目再过滤）
     ///   - forceRefresh: 为 true 时跳过本地缓存，强制重新下载
     /// - Returns: [物品ID: (buy, sell)]

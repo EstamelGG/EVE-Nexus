@@ -100,7 +100,7 @@ struct MarketOrdersVisualizationView: View {
         }
     }
 
-    // 计算订单分布（目录和组）
+    /// 计算订单分布（目录和组）
     private func calculateOrderDistribution(orders: [StructureMarketOrder]) async -> ([CategoryOrderData], [GroupOrderData]) {
         guard !orders.isEmpty else {
             return ([], [])
@@ -210,7 +210,7 @@ struct MarketOrdersVisualizationView: View {
                         continue
                     }
 
-                    categoryIconMap[categoryID] = iconFileName.isEmpty ? DatabaseConfig.defaultIcon : iconFileName
+                    categoryIconMap[categoryID] = iconFileName.isEmpty ? IconManager.defaultIcon : iconFileName
                 }
             }
         }
@@ -240,7 +240,7 @@ struct MarketOrdersVisualizationView: View {
                         continue
                     }
 
-                    groupIconMap[groupID] = iconFileName.isEmpty ? DatabaseConfig.defaultIcon : iconFileName
+                    groupIconMap[groupID] = iconFileName.isEmpty ? IconManager.defaultIcon : iconFileName
                 }
             }
         }
@@ -249,7 +249,7 @@ struct MarketOrdersVisualizationView: View {
         let categories = categoryOrderCount.values
             .sorted { $0.orderCount > $1.orderCount }
             .map { categoryInfo in
-                let iconFileName = categoryIconMap[categoryInfo.categoryID] ?? DatabaseConfig.defaultIcon
+                let iconFileName = categoryIconMap[categoryInfo.categoryID] ?? IconManager.defaultIcon
                 return CategoryOrderData(
                     id: categoryInfo.categoryID,
                     name: categoryInfo.categoryName,
@@ -261,7 +261,7 @@ struct MarketOrdersVisualizationView: View {
         let groups = groupOrderCount.values
             .sorted { $0.orderCount > $1.orderCount }
             .map { groupInfo in
-                let iconFileName = groupIconMap[groupInfo.groupID] ?? DatabaseConfig.defaultIcon
+                let iconFileName = groupIconMap[groupInfo.groupID] ?? IconManager.defaultIcon
                 return GroupOrderData(
                     id: groupInfo.groupID,
                     name: groupInfo.groupName,

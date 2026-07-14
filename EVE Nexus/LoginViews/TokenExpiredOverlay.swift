@@ -10,17 +10,15 @@ struct TokenExpiredOverlay: View {
                 .fill(Color.black.opacity(0.4))
                 .frame(width: 64, height: 64)
 
-            ZStack {
-                // 红色边框三角形
-                Image(systemName: "triangle")
-                    .font(.system(size: 32))
-                    .foregroundColor(.red)
+            // 红色边框三角形
+            Image(systemName: "triangle")
+                .font(.system(size: 32))
+                .foregroundColor(.red)
 
-                // 红色感叹号
-                Image(systemName: "exclamationmark")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.red)
-            }
+            // 红色感叹号
+            Image(systemName: "exclamationmark")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(.red)
         }
     }
 }

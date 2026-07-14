@@ -13,7 +13,7 @@ struct InAppPurchaseView: View {
     private let selectedIconKey = AppIconConfig.selectedIconKey
     private let selectedBadgeKey = AppIconConfig.selectedBadgeKey
 
-    // 选中的图标和角标（从保存的值初始化）
+    /// 选中的图标和角标（从保存的值初始化）
     @State private var selectedIcon: String = {
         if let savedIcon = UserDefaults.standard.string(forKey: "selectedAppIconName"),
            ["Tritanium_basic", "Tritanium", "TriDB", "OverseerBox", "HyperCore"].contains(savedIcon)
@@ -138,17 +138,17 @@ struct InAppPurchaseView: View {
         }
     }
 
-    // 根据选择的图标和角标生成图标ID
+    /// 根据选择的图标和角标生成图标ID
     private func getIconId() -> String? {
         return AppIconConfig.getIconId(icon: selectedIcon, badge: selectedBadge)
     }
 
-    // 从图标ID解析图标名称和角标
+    /// 从图标ID解析图标名称和角标
     private func parseIconId(_ iconId: String?) -> (icon: String, badge: String) {
         return AppIconConfig.parseIconId(iconId)
     }
 
-    // 加载保存的选择
+    /// 加载保存的选择
     private func loadSavedSelection() {
         // 优先从 UserDefaults 读取保存的图标和角标
         if let savedIcon = UserDefaults.standard.string(forKey: selectedIconKey),
@@ -191,7 +191,7 @@ struct InAppPurchaseView: View {
         }
     }
 
-    // 保存当前选择
+    /// 保存当前选择
     private func saveSelection() {
         UserDefaults.standard.set(selectedIcon, forKey: selectedIconKey)
         UserDefaults.standard.set(selectedBadge, forKey: selectedBadgeKey)
@@ -212,7 +212,7 @@ struct InAppPurchaseView: View {
         }
     }
 
-    // 处理购买请求（赞助）
+    /// 处理购买请求（赞助）
     private func handlePurchaseRequest(for badge: String) {
         guard !purchaseManager.isBadgeUnlocked(badge) else {
             // 已解锁，直接选择
@@ -250,7 +250,7 @@ struct InAppPurchaseView: View {
     }
 }
 
-// 图标选择行
+/// 图标选择行
 struct IconSelectionRow: View {
     let iconName: String
     let isSelected: Bool
@@ -298,29 +298,29 @@ struct IconSelectionRow: View {
     }
 }
 
-// 底部固定的角标选择
+/// 底部固定的角标选择
 struct BottomSelectionView: View {
     let badgeList: [String]
     @Binding var selectedBadge: String
     @ObservedObject var purchaseManager: PurchaseManager
     let onPurchaseRequest: (String) -> Void
 
-    // 免费角标列表
+    /// 免费角标列表
     private let freeBadges = ["T1", "T2", "T3"]
-    // 付费角标列表
+    /// 付费角标列表
     private let paidBadges = ["Factions", "Deadspace", "Officers"]
 
-    // 检查是否所有付费角标都已解锁
+    /// 检查是否所有付费角标都已解锁
     private var allPaidBadgesUnlocked: Bool {
         paidBadges.allSatisfy { purchaseManager.isBadgeUnlocked($0) }
     }
 
-    // 获取赞助价格
+    /// 获取赞助价格
     private var sponsorPrice: String? {
         purchaseManager.getPriceString(for: "Factions")
     }
 
-    // 是否正在赞助（检查是否有任何付费角标正在购买）
+    /// 是否正在赞助（检查是否有任何付费角标正在购买）
     private var isSponsoring: Bool {
         if let purchasingBadge = purchaseManager.purchasingBadge {
             return paidBadges.contains(purchasingBadge)
@@ -444,7 +444,7 @@ struct BottomSelectionView: View {
     }
 }
 
-// 角标选择单元格
+/// 角标选择单元格
 struct BadgeSelectionCell: View {
     let badgeName: String
     let isSelected: Bool

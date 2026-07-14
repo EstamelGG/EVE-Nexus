@@ -6,12 +6,18 @@ struct CategoryInfo {
 }
 
 struct LPStoreItemInfo {
-    let name: String
-    let enName: String
-    let zhName: String
+    let names: LocalizedText
     let iconFileName: String
     let categoryName: String
     let categoryId: Int
+
+    var name: String {
+        names.resolved()
+    }
+
+    func matches(_ query: String) -> Bool {
+        names.matchesSearch(query)
+    }
 }
 
 /// Jita 清单不可用时：说明文案 + 右侧刷新重试
@@ -186,7 +192,7 @@ struct LPStoreOfferView: View {
         }
     }
 
-    // 计算所需物品的总价格
+    /// 计算所需物品的总价格
     private func calculateTotalRequiredItemsPrice() -> Double {
         var totalPrice: Double = 0
         for requiredItem in offer.requiredItems {
@@ -214,9 +220,7 @@ struct LPStoreGroupView: View {
         } else {
             return offers.filter { offer in
                 if let itemInfo = itemInfos[offer.typeId] {
-                    return itemInfo.name.localizedCaseInsensitiveContains(searchText)
-                        || itemInfo.enName.localizedCaseInsensitiveContains(searchText)
-                        || itemInfo.zhName.localizedCaseInsensitiveContains(searchText)
+                    return itemInfo.matches(searchText)
                 }
                 return false
             }
@@ -257,7 +261,7 @@ struct LPStoreGroupView: View {
         .navigationTitle(categoryName)
         .searchable(
             text: $searchText,
-            placement: .navigationBarDrawer(displayMode: .always),
+            // placement: .navigationBarDrawer(displayMode: .always),
             prompt: NSLocalizedString("Main_Search_Placeholder", comment: "")
         )
         .task {
@@ -272,7 +276,7 @@ struct LPStoreGroupView: View {
         await loadMarketPrices(forceRefresh: true)
     }
 
-    // 收集所有所需物品并一次性获取价格
+    /// 收集所有所需物品并一次性获取价格
     private func loadMarketPrices(forceRefresh: Bool) async {
         // 如果已经加载过，直接返回
         if hasLoadedPrices {
@@ -353,9 +357,7 @@ struct CorporationLPStoreView: View {
         for category in categoryOffers {
             let filteredOffers = category.offers.filter { offer in
                 if let itemInfo = itemInfos[offer.typeId] {
-                    return itemInfo.name.localizedCaseInsensitiveContains(searchText)
-                        || itemInfo.enName.localizedCaseInsensitiveContains(searchText)
-                        || itemInfo.zhName.localizedCaseInsensitiveContains(searchText)
+                    return itemInfo.matches(searchText)
                 }
                 return false
             }
@@ -471,12 +473,6 @@ struct CorporationLPStoreView: View {
             }
         }
         .navigationTitle(corporationName)
-        // 移除嵌套的搜索功能，避免与主搜索页面冲突
-        // .searchable(
-        //     text: $searchText,
-        //     placement: .navigationBarDrawer(displayMode: .always),
-        //     prompt: NSLocalizedString("Main_Search_Placeholder", comment: "")
-        // )
         .task {
             // 只在首次初始化时加载数据，从子页面返回时不会重新加载
             guard !hasInitialized else { return }
@@ -519,100 +515,62 @@ struct CorporationLPStoreView: View {
             }
 
             // 3. 一次性查询所有物品信息
-            let query = """
-                SELECT type_id, name, en_name, zh_name, icon_filename, bpc_icon_filename, category_name, categoryID
-                FROM types
-                WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
-            """
+            var infos: [Int: LPStoreItemInfo] = [:]
+            var categoryIds = Set<Int>()
+            for typeId in typeIds {
+                guard let info = SDEMemoryStore.type(for: typeId),
+                      let category = SDEMemoryStore.category(for: info.categoryID)
+                else { continue }
+                let icon = info.bpcIconFilename ?? info.iconFilename
+                infos[typeId] = LPStoreItemInfo(
+                    names: info.names,
+                    iconFileName: icon.isEmpty ? "not_found" : icon,
+                    categoryName: category.name,
+                    categoryId: info.categoryID
+                )
+                categoryIds.insert(info.categoryID)
+            }
+            itemInfos = infos
 
-            if case let .success(rows) = DatabaseManager.shared.executeQuery(query) {
-                var infos: [Int: LPStoreItemInfo] = [:]
-                var categoryIds = Set<Int>()
-
-                for row in rows {
-                    if let typeId = row["type_id"] as? Int,
-                       let name = row["name"] as? String,
-                       let enName = row["en_name"] as? String,
-                       let zhName = row["zh_name"] as? String,
-                       let iconFileName = row["icon_filename"] as? String,
-                       let categoryName = row["category_name"] as? String,
-                       let categoryId = row["categoryID"] as? Int
-                    {
-                        let bpcIconFileName = row["bpc_icon_filename"] as? String
-                        let finalIconFileName: String
-
-                        if let bpcIcon = bpcIconFileName, !bpcIcon.isEmpty {
-                            finalIconFileName = bpcIcon
-                        } else {
-                            finalIconFileName = iconFileName.isEmpty ? "not_found" : iconFileName
-                        }
-
-                        infos[typeId] = LPStoreItemInfo(
-                            name: name,
-                            enName: enName,
-                            zhName: zhName,
-                            iconFileName: finalIconFileName,
-                            categoryName: categoryName,
-                            categoryId: categoryId
-                        )
-                        categoryIds.insert(categoryId)
-                    }
-                }
-                itemInfos = infos
-
-                // 4. 获取分类信息
-                if !categoryIds.isEmpty {
-                    let categoryQuery = """
-                        SELECT category_id, name, icon_filename
-                        FROM categories
-                        WHERE category_id IN (\(categoryIds.sorted().map { String($0) }.joined(separator: ",")))
-                    """
-
-                    if case let .success(categoryRows) = DatabaseManager.shared.executeQuery(
-                        categoryQuery)
-                    {
-                        var categories: [Int: CategoryInfo] = [:]
-                        for row in categoryRows {
-                            if let categoryId = row["category_id"] as? Int,
-                               let name = row["name"] as? String,
-                               let iconFileName = row["icon_filename"] as? String
-                            {
-                                categories[categoryId] = CategoryInfo(
-                                    name: name,
-                                    iconFileName: iconFileName.isEmpty ? "not_found" : iconFileName
-                                )
-                            }
-                        }
-                        categoryInfos = categories
-                    }
-                }
-
-                // 5. 按目录组织物品
-                var categoryOffersDict: [Int: [LPStoreOffer]] = [:]
-                for offer in offers {
-                    if let categoryId = itemInfos[offer.typeId]?.categoryId {
-                        categoryOffersDict[categoryId, default: []].append(offer)
-                    }
-                }
-
-                // 6. 转换为数组并排序
-                categoryOffers = categoryOffersDict.compactMap { id, offers in
-                    guard let categoryInfo = categoryInfos[id] else { return nil }
-                    return CategoryOffers(
-                        category: categoryInfo,
-                        offers: offers.sorted { offer1, offer2 in
-                            if let info1 = itemInfos[offer1.typeId],
-                               let info2 = itemInfos[offer2.typeId]
-                            {
-                                return info1.name.localizedStandardCompare(info2.name)
-                                    == .orderedAscending
-                            }
-                            return false
-                        }
+            // 4. 获取分类信息
+            if !categoryIds.isEmpty {
+                var categories: [Int: CategoryInfo] = [:]
+                for categoryId in categoryIds {
+                    guard let category = SDEMemoryStore.category(for: categoryId) else { continue }
+                    categories[categoryId] = CategoryInfo(
+                        name: category.name,
+                        iconFileName: category.iconFilename.isEmpty
+                            ? "not_found" : category.iconFilename
                     )
-                }.sorted {
-                    $0.category.name.localizedStandardCompare($1.category.name) == .orderedAscending
                 }
+                categoryInfos = categories
+            }
+
+            // 5. 按目录组织物品
+            var categoryOffersDict: [Int: [LPStoreOffer]] = [:]
+            for offer in offers {
+                if let categoryId = itemInfos[offer.typeId]?.categoryId {
+                    categoryOffersDict[categoryId, default: []].append(offer)
+                }
+            }
+
+            // 6. 转换为数组并排序
+            categoryOffers = categoryOffersDict.compactMap { id, offers in
+                guard let categoryInfo = categoryInfos[id] else { return nil }
+                return CategoryOffers(
+                    category: categoryInfo,
+                    offers: offers.sorted { offer1, offer2 in
+                        if let info1 = itemInfos[offer1.typeId],
+                           let info2 = itemInfos[offer2.typeId]
+                        {
+                            return info1.name.localizedStandardCompare(info2.name)
+                                == .orderedAscending
+                        }
+                        return false
+                    }
+                )
+            }.sorted {
+                $0.category.name.localizedStandardCompare($1.category.name) == .orderedAscending
             }
 
             isLoading = false
@@ -623,7 +581,7 @@ struct CorporationLPStoreView: View {
         }
     }
 
-    // 收集所有所需物品并一次性获取价格
+    /// 收集所有所需物品并一次性获取价格
     private func loadMarketPrices(forceRefresh: Bool) async {
         // 如果已经加载过，直接返回
         if hasLoadedPrices {

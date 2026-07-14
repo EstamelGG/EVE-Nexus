@@ -1,21 +1,17 @@
 import Foundation
 
-/// Decodes a JWT into an object that holds the decoded body, along with the header and signature.
-///
-/// ```swift
-/// let jwt = try decode(jwt: idToken)
-/// ```
-///
-/// - Parameter jwt: JWT string value to decode.
-/// - Throws: A ``JWTDecodeError`` error if the JWT cannot be decoded.
-/// - Returns: A ``JWT`` value.
-/// - Important: This method doesn't validate the JWT. Any well-formed JWT can be decoded from Base64URL.
-///
-/// ## See Also
-///
-/// - [JWT.io](https://jwt.io)
-/// - [Validate JSON Web Tokens](https://auth0.com/docs/secure/tokens/json-web-tokens/validate-json-web-tokens)
-/// - [Validate ID Tokens](https://auth0.com/docs/secure/tokens/id-tokens/validate-id-tokens)
+// Decodes a JWT into an object that holds the decoded body, along with the header and signature.
+// // ```swift
+// let jwt = try decode(jwt: idToken)
+// ```
+// // - Parameter jwt: JWT string value to decode.
+// - Throws: A ``JWTDecodeError`` error if the JWT cannot be decoded.
+// - Returns: A ``JWT`` value.
+// - Important: This method doesn't validate the JWT. Any well-formed JWT can be decoded from Base64URL.
+// // ## See Also
+// // - [JWT.io](https://jwt.io)
+// - [Validate JSON Web Tokens](https://auth0.com/docs/secure/tokens/json-web-tokens/validate-json-web-tokens)
+// - [Validate ID Tokens](https://auth0.com/docs/secure/tokens/id-tokens/validate-id-tokens)
 public func decode(jwt: String) throws -> JWT {
     return try DecodedJWT(jwt: jwt)
 }
@@ -66,23 +62,23 @@ struct DecodedJWT: JWT {
 
 }
 
-/// A JWT claim.
+// A JWT claim.
 public struct Claim {
 
-    /// Raw claim value.
+    // Raw claim value.
     let value: Any?
 
-    /// Original claim value.
+    // Original claim value.
     public var rawValue: Any? {
         return self.value
     }
 
-    /// Value of the claim as `String`.
+    // Value of the claim as `String`.
     public var string: String? {
         return self.value as? String
     }
 
-     /// Value of the claim as `Bool`.
+     // Value of the claim as `Bool`.
     public var boolean: Bool? {
         // This is necessary because Core Foundation's JSON deserialization turns JSON booleans into CFBoolean values,
         // which get wrapped in NSNumber –a Foundation type. But integers and floats also get wrapped in NSNumber, and
@@ -97,7 +93,7 @@ public struct Claim {
         return nil
     }
 
-    /// Value of the claim as `Double`.
+    // Value of the claim as `Double`.
     public var double: Double? {
         var double: Double?
         if let string = self.string {
@@ -108,7 +104,7 @@ public struct Claim {
         return double
     }
 
-    /// Value of the claim as `Int`.
+    // Value of the claim as `Int`.
     public var integer: Int? {
         var integer: Int?
         if let string = self.string {
@@ -121,13 +117,13 @@ public struct Claim {
         return integer
     }
 
-    /// Value of the claim as `Date`.
+    // Value of the claim as `Date`.
     public var date: Date? {
         guard let timestamp: TimeInterval = self.double else { return nil }
         return Date(timeIntervalSince1970: timestamp)
     }
 
-    /// Value of the claim as `[String]`.
+    // Value of the claim as `[String]`.
     public var array: [String]? {
         if let array = self.value as? [String] {
             return array

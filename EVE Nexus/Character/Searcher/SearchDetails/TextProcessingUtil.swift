@@ -1,21 +1,30 @@
 import Foundation
 
-// HTML和Unicode处理工具
+/// HTML和Unicode处理工具
 class TextProcessingUtil {
-    // 移除HTML标签和处理Unicode编码
+    /// 移除HTML标签和处理Unicode编码
     static func processDescription(_ description: String) -> String {
         // 检查是否为Unicode格式的字符串（u'开头，'结尾）
         if description.hasPrefix("u'") && description.hasSuffix("'") {
             // 先进行Unicode解码，再处理HTML标签
             let decodedString = decodeUnicodeString(description)
-            return processHTMLContent(decodedString)
+            return RichTextProcessor.plainText(from: decodedString)
         }
 
         // 非Unicode格式的字符串直接处理HTML标签
-        return processHTMLContent(description)
+        return RichTextProcessor.plainText(from: description)
     }
 
-    // 解码Unicode字符串的方法
+    /// 解码描述文本中的 Unicode 包装（u'...' 格式），返回原始 HTML 字符串
+    /// 用于将描述传给 RichTextView 等富文本渲染器之前的预处理
+    static func decodeDescription(_ description: String) -> String {
+        if description.hasPrefix("u'") && description.hasSuffix("'") {
+            return decodeUnicodeString(description)
+        }
+        return description
+    }
+
+    /// 解码Unicode字符串的方法
     private static func decodeUnicodeString(_ unicodeString: String) -> String {
         // 移除前缀u'和后缀'
         let unicodeContent = String(unicodeString.dropFirst(2).dropLast())
@@ -61,49 +70,5 @@ class TextProcessingUtil {
         }
 
         return mutableString as String
-    }
-
-    // 处理HTML内容的辅助方法
-    private static func processHTMLContent(_ content: String) -> String {
-        // 使用RichTextProcessor的cleanRichText方法处理基本HTML结构
-        var currentText = RichTextProcessor.cleanRichText(content)
-
-        // 特别处理<br/>和<br />标签，确保换行正确
-        currentText = currentText.replacingOccurrences(of: "<br/>", with: "\n")
-        currentText = currentText.replacingOccurrences(of: "<br />", with: "\n")
-
-        // 移除可能残留的a标签和url标签（它们在cleanRichText中被保留）
-        if let regex = try? NSRegularExpression(pattern: "</?a[^>]*>|</?url[^>]*>", options: []) {
-            let range = NSRange(currentText.startIndex ..< currentText.endIndex, in: currentText)
-            currentText = regex.stringByReplacingMatches(
-                in: currentText, options: [], range: range, withTemplate: ""
-            )
-        }
-
-        // 处理HTML实体
-        let htmlEntities: [String: String] = [
-            "&amp;": "&",
-            "&lt;": "<",
-            "&gt;": ">",
-            "&quot;": "\"",
-            "&#39;": "'",
-            "&nbsp;": " ",
-            "&ndash;": "–",
-            "&mdash;": "—",
-            "&lsquo;": "'",
-            "&rsquo;": "'",
-        ]
-
-        for (entity, character) in htmlEntities {
-            currentText = currentText.replacingOccurrences(of: entity, with: character)
-        }
-
-        // 优化空白和换行
-        currentText = currentText.replacingOccurrences(
-            of: "\n{3,}", with: "\n\n", options: .regularExpression
-        )
-
-        // 清理首尾空白
-        return currentText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 }

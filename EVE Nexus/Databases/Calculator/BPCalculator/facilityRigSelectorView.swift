@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 建筑插件选择器视图
+/// 建筑插件选择器视图
 struct FacilityRigSelectorView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var allowedTypeIDs: [Int] = []
@@ -13,7 +13,7 @@ struct FacilityRigSelectorView: View {
     let facilityTypeID: Int
     let onRigSelected: ((Int) -> Void)?
 
-    // 初始化方法
+    /// 初始化方法
     init(
         databaseManager: DatabaseManager,
         facilityTypeID: Int,
@@ -38,12 +38,11 @@ struct FacilityRigSelectorView: View {
         let tree = builder.buildGroupTree()
         _marketGroupTree = State(initialValue: tree)
 
-        // 获取建筑改装件(ID: 2203)及其所有子组的ID列表
-        let marketGroups = MarketManager.shared.loadMarketGroups(databaseManager: databaseManager)
-        let allowedGroupIDs = MarketManager.shared.getAllSubGroupIDsFromID(
-            marketGroups, startingFrom: 2203
+        // 获取建筑改装件(ID: 2203)及其所有子组的ID列表（通过 MarketTree 索引展开子孙组）
+        let marketTree = MarketManager.shared.buildTree(
+            from: MarketManager.shared.loadMarketGroups(databaseManager: databaseManager)
         )
-        _allowedMarketGroupIDs = State(initialValue: Set(allowedGroupIDs))
+        _allowedMarketGroupIDs = State(initialValue: Set(marketTree.allSubGroupIDs(from: 2203)))
     }
 
     var body: some View {
@@ -67,7 +66,8 @@ struct FacilityRigSelectorView: View {
                     onItemSelected: { item in
                         // 调用回调函数选择插件
                         Logger.info(
-                            "用户选择了插件: \(item.name), ID: \(item.id), 建筑ID: \(facilityTypeID)")
+                            "用户选择了插件: \(item.name), ID: \(item.id), 建筑ID: \(facilityTypeID)"
+                        )
                         onRigSelected?(item.id)
                         dismiss()
                     },
@@ -88,7 +88,7 @@ struct FacilityRigSelectorView: View {
         }
     }
 
-    // 加载建筑支持的插件装备的type_id及名称信息
+    /// 加载建筑支持的插件装备的type_id及名称信息
     private func loadEquipmentData(databaseManager: DatabaseManager, facilityTypeID: Int)
         -> [EquipmentInfo]
     {
@@ -137,7 +137,7 @@ struct FacilityRigSelectorView: View {
     }
 }
 
-// 装备信息结构体
+/// 装备信息结构体
 private struct EquipmentInfo: Identifiable {
     let id: Int
     let typeId: Int

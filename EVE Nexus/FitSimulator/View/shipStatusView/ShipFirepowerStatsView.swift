@@ -8,7 +8,7 @@ struct ShipFirepowerStatsView: View {
         self.viewModel = viewModel
     }
 
-    // 火力专用格式化函数：只有大于100,000时才使用k单位
+    /// 火力专用格式化函数：只有大于100,000时才使用k单位
     private func formatFirepowerValue(_ value: Double) -> String {
         if value == 0 {
             return "0"
@@ -37,14 +37,12 @@ struct ShipFirepowerStatsView: View {
                     ? String(format: "%.0f", formattedValue) : String(format: "%.1f", formattedValue)
             return numberString + "k"
         } else {
-            let numberString =
-                value.truncatingRemainder(dividingBy: 1) == 0
-                    ? String(format: "%.0f", value) : String(format: "%.1f", value)
-            return numberString
+            return value.truncatingRemainder(dividingBy: 1) == 0
+                ? String(format: "%.0f", value) : String(format: "%.1f", value)
         }
     }
 
-    // 投弹伤害结构体
+    /// 投弹伤害结构体
     private struct BombDamage {
         let em: Double
         let explosive: Double
@@ -52,7 +50,7 @@ struct ShipFirepowerStatsView: View {
         let thermal: Double
     }
 
-    // 一次性查询所有投弹伤害属性
+    /// 一次性查询所有投弹伤害属性
     private func getAllBombDamages(bombTypeIds: [Int]) -> [Int: BombDamage] {
         var bombDamageMap: [Int: BombDamage] = [:]
 
@@ -104,7 +102,7 @@ struct ShipFirepowerStatsView: View {
         return bombDamageMap
     }
 
-    // 武器DPS计算结果结构体
+    /// 武器DPS计算结果结构体
     struct WeaponDPSResult {
         let emDamage: Double // 电磁伤害
         let explosiveDamage: Double // 爆炸伤害
@@ -122,7 +120,7 @@ struct ShipFirepowerStatsView: View {
         let thermalDPS: Double // 热能伤害DPS
     }
 
-    // 无人机DPS计算结果结构体
+    /// 无人机DPS计算结果结构体
     struct DroneDPSResult {
         let emDamage: Double // 电磁伤害
         let explosiveDamage: Double // 爆炸伤害
@@ -139,7 +137,7 @@ struct ShipFirepowerStatsView: View {
         let thermalDPS: Double // 热能伤害DPS
     }
 
-    // 舰载机攻击能力结构体
+    /// 舰载机攻击能力结构体
     private struct FighterAbility {
         let emDamage: Double
         let explosiveDamage: Double
@@ -183,7 +181,7 @@ struct ShipFirepowerStatsView: View {
         }
     }
 
-    // 从舰载机计算DPS
+    /// 从舰载机计算DPS
     private func getFighterDPS(fighter: FighterSquadOutput, bombDamageMap: [Int: BombDamage] = [:])
         -> FighterDPSResult
     {
@@ -320,7 +318,7 @@ struct ShipFirepowerStatsView: View {
         )
     }
 
-    // 计算所有舰载机的总DPS
+    /// 计算所有舰载机的总DPS
     private func calculateFightersTotalDPS() -> FighterDPSResult {
         var totalEmDamage: Double = 0
         var totalExplosiveDamage: Double = 0
@@ -410,7 +408,7 @@ struct ShipFirepowerStatsView: View {
         )
     }
 
-    // 舰载机DPS计算结果结构体
+    /// 舰载机DPS计算结果结构体
     struct FighterDPSResult {
         let emDamage: Double // 电磁伤害
         let explosiveDamage: Double // 爆炸伤害
@@ -427,7 +425,7 @@ struct ShipFirepowerStatsView: View {
         let thermalDPS: Double // 热能伤害DPS
     }
 
-    // 从模块计算武器DPS
+    /// 从模块计算武器DPS
     private func getWeaponDPS(module: SimModuleOutput, ship: SimShipOutput) -> WeaponDPSResult {
         // 检查模块是否处于激活状态
         guard module.status > 1 else {
@@ -582,7 +580,7 @@ struct ShipFirepowerStatsView: View {
         )
     }
 
-    // 计算所有武器模块的总DPS
+    /// 计算所有武器模块的总DPS
     private func calculateWeaponsTotalDPS() -> WeaponDPSResult {
         var totalEmDamage: Double = 0
         var totalExplosiveDamage: Double = 0
@@ -642,7 +640,7 @@ struct ShipFirepowerStatsView: View {
         )
     }
 
-    // 从无人机计算DPS
+    /// 从无人机计算DPS
     private func getDroneDPS(drone: SimDroneOutput) -> DroneDPSResult {
         // 仅计算激活的无人机
         guard drone.activeCount > 0 else {
@@ -736,7 +734,7 @@ struct ShipFirepowerStatsView: View {
         )
     }
 
-    // 计算所有无人机的总DPS
+    /// 计算所有无人机的总DPS
     private func calculateDronesTotalDPS() -> DroneDPSResult {
         var totalEmDamage: Double = 0
         var totalExplosiveDamage: Double = 0
@@ -791,7 +789,7 @@ struct ShipFirepowerStatsView: View {
         )
     }
 
-    // 计算火力数据
+    /// 计算火力数据
     private func calculateFirepowerData() -> FirepowerData {
         // 计算武器DPS
         let weaponDPS = calculateWeaponsTotalDPS()
@@ -939,7 +937,7 @@ struct ShipFirepowerStatsView: View {
     }
 }
 
-// 火力数据结构
+/// 火力数据结构
 struct FirepowerData {
     let weaponVolley: Double
     let weaponDPS: Double
@@ -953,7 +951,7 @@ struct FirepowerData {
     let explosiveRatio: Double
 }
 
-// 伤害比例视图
+/// 伤害比例视图
 struct DamageRatioView: View {
     let ratio: Double
     let damageType: String

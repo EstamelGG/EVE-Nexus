@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 添加PIResourcesListView用于显示特定等级的PI资源列表
+/// 添加PIResourcesListView用于显示特定等级的PI资源列表
 struct PIResourcesListView: View {
     let title: String
     let resources: [Any] // 使用Any类型来接受不同类型的资源
@@ -26,7 +26,8 @@ struct PIResourcesListView: View {
                         HStack {
                             Image(
                                 uiImage: IconManager.shared.loadUIImage(
-                                    for: getResourceIcon(from: resource))
+                                    for: getResourceIcon(from: resource)
+                                )
                             )
                             .resizable()
                             .scaledToFit()
@@ -43,7 +44,7 @@ struct PIResourcesListView: View {
         .navigationTitle(title)
     }
 
-    // 辅助函数来获取资源信息
+    /// 辅助函数来获取资源信息
     private func getResourceId(from resource: Any) -> Int {
         switch resource {
         case let p0 as P0ResourceInfo: return p0.resourceId

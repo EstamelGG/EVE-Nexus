@@ -1,6 +1,6 @@
 import Foundation
 
-// 市场组节点
+/// 市场组节点
 struct MarketGroupNode: Identifiable {
     let id: Int
     let name: String
@@ -17,7 +17,7 @@ struct MarketGroupNode: Identifiable {
     }
 }
 
-// 市场组树构建器
+/// 市场组树构建器
 class MarketItemGroupTreeBuilder {
     private let databaseManager: DatabaseManager
     private let allowedTypeIDs: Set<Int>
@@ -29,7 +29,7 @@ class MarketItemGroupTreeBuilder {
         self.parentGroupId = parentGroupId
     }
 
-    // 构建目录树
+    /// 构建目录树
     func buildGroupTree() -> [MarketGroupNode] {
         Logger.info("开始构建市场组目录树")
 
@@ -81,7 +81,7 @@ class MarketItemGroupTreeBuilder {
         }
     }
 
-    // 从数据库获取所有市场组信息
+    /// 从数据库获取所有市场组信息
     private func fetchMarketGroups() -> [MarketGroupNode] {
         let query = """
             SELECT group_id, name, icon_name, parentgroup_id
@@ -115,7 +115,7 @@ class MarketItemGroupTreeBuilder {
         return groups
     }
 
-    // 构建完整的树结构
+    /// 构建完整的树结构
     private func buildFullTree(from groups: [MarketGroupNode]) -> [MarketGroupNode] {
         // 1. 创建ID到节点的映射
         var nodeMap: [Int: MarketGroupNode] = [:]
@@ -146,7 +146,7 @@ class MarketItemGroupTreeBuilder {
             }
         }
 
-        // 4. 递归更新所有节点的子节点
+        /// 4. 递归更新所有节点的子节点
         func updateChildrenRecursively(_ node: MarketGroupNode) -> MarketGroupNode {
             var updatedNode = node
             updatedNode.children = node.children.map { child -> MarketGroupNode in
@@ -165,7 +165,7 @@ class MarketItemGroupTreeBuilder {
         return rootNodes
     }
 
-    // 获取包含有效类型的市场组ID及其所有父节点ID
+    /// 获取包含有效类型的市场组ID及其所有父节点ID
     private func fetchValidMarketGroupIDs() -> Set<Int> {
         // 1. 获取直接包含有效类型的市场组ID
         var directQuery = ""
@@ -259,7 +259,7 @@ class MarketItemGroupTreeBuilder {
         return validGroupIDs
     }
 
-    // 裁剪不含有效类型的分支
+    /// 裁剪不含有效类型的分支
     private func pruneInvalidBranches(_ nodes: [MarketGroupNode], validGroupIDs: Set<Int>)
         -> [MarketGroupNode]
     {
@@ -292,7 +292,7 @@ class MarketItemGroupTreeBuilder {
         return result
     }
 
-    // 根据ID查找节点
+    /// 根据ID查找节点
     private func findNodeById(_ nodes: [MarketGroupNode], id: Int) -> MarketGroupNode? {
         for node in nodes {
             if node.id == id {
@@ -306,7 +306,7 @@ class MarketItemGroupTreeBuilder {
         return nil
     }
 
-    // 仅压缩顶层的单路径分支
+    /// 仅压缩顶层的单路径分支
     private func compressTopLevelOnly(_ nodes: [MarketGroupNode]) -> [MarketGroupNode] {
         Logger.info("压缩顶层单路径: \(nodes.count)个节点 : \(nodes.map { $0.name }.joined(separator: ", "))")
 

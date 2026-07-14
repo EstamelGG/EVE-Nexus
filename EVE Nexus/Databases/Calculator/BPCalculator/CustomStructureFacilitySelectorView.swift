@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 简化的星系选择器Sheet
+/// 简化的星系选择器Sheet
 struct StructureSystemSelectorSheet: View {
     let title: String
     let onSelect: (Int) -> Void // 只接收星系ID
@@ -54,56 +54,41 @@ struct StructureSystemSelectorSheet: View {
         }
     }
 
-    // 加载所有星系数据
+    /// 加载所有星系数据
     private func loadAllSystemsData() {
         DispatchQueue.global(qos: .userInitiated).async {
-            // 查询所有星系，包含中英文名称，不限制跳跃门条件
             let query = """
-                SELECT u.solarsystem_id, s.solarSystemName, s.solarSystemName_en, s.solarSystemName_zh,
-                       u.system_security, r.regionName, u.x, u.y, u.z
-                FROM universe u
-                JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
-                JOIN regions r ON r.regionID = u.region_id
-                ORDER BY s.solarSystemName
+                SELECT solarsystem_id, system_security, region_id, x, y, z
+                FROM universe
             """
 
             var systems: [JumpSystemData] = []
 
             if case let .success(rows) = databaseManager.executeQuery(query) {
                 for row in rows {
-                    if let id = row["solarsystem_id"] as? Int,
-                       let name = row["solarSystemName"] as? String,
-                       let nameEN = row["solarSystemName_en"] as? String,
-                       let security = row["system_security"] as? Double,
-                       let region = row["regionName"] as? String,
-                       let x = row["x"] as? Double,
-                       let y = row["y"] as? Double,
-                       let z = row["z"] as? Double
-                    {
-                        // 获取中文名，如果为nil则使用英文名
-                        let nameZH = (row["solarSystemName_zh"] as? String) ?? nameEN
+                    guard let id = row["solarsystem_id"] as? Int,
+                          let security = row["system_security"] as? Double,
+                          let regionId = row["region_id"] as? Int,
+                          let x = row["x"] as? Double,
+                          let y = row["y"] as? Double,
+                          let z = row["z"] as? Double
+                    else { continue }
 
-                        // 计算显示安全等级
-                        let displaySec = calculateDisplaySecurity(security)
-
-                        systems.append(
-                            JumpSystemData(
-                                id: id,
-                                name: name,
-                                nameEN: nameEN,
-                                nameZH: nameZH,
-                                security: displaySec,
-                                region: region,
-                                x: x,
-                                y: y,
-                                z: z
-                            )
+                    systems.append(
+                        JumpSystemData(
+                            id: id,
+                            security: calculateDisplaySecurity(security),
+                            regionId: regionId,
+                            x: x,
+                            y: y,
+                            z: z
                         )
-                    }
+                    )
                 }
             }
 
-            // 在主线程更新UI
+            systems.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+
             DispatchQueue.main.async {
                 allSystems = systems
                 isLoadingData = false
@@ -126,7 +111,7 @@ struct StructureFacilitySelectorView: View {
     let onStructureDeleted: ((Int) -> Void)? // 新增：删除建筑的回调函数
     let onDismiss: () -> Void
 
-    // 建筑相关的市场组ID
+    /// 建筑相关的市场组ID
     private let allowedMarketGroups: Set<Int> = [2199, 2324, 2327]
 
     var body: some View {
@@ -134,7 +119,8 @@ struct StructureFacilitySelectorView: View {
             List {
                 Section(
                     header: Text(
-                        NSLocalizedString("Structure_Facility_Selector_Structure", comment: "建筑"))
+                        NSLocalizedString("Structure_Facility_Selector_Structure", comment: "建筑")
+                    )
                 ) {
                     // 自定义名称
                     TextField(
@@ -195,7 +181,8 @@ struct StructureFacilitySelectorView: View {
 
                 Section(
                     header: Text(
-                        NSLocalizedString("Structure_Facility_Selector_Rigs", comment: "插件"))
+                        NSLocalizedString("Structure_Facility_Selector_Rigs", comment: "插件")
+                    )
                 ) {
                     Button {
                         showRigSelector = true
@@ -207,7 +194,8 @@ struct StructureFacilitySelectorView: View {
                             Text(
                                 NSLocalizedString(
                                     "Structure_Facility_Selector_Add_Rigs", comment: "添加插件"
-                                ))
+                                )
+                            )
                             Spacer()
                         }
                     }
@@ -236,7 +224,8 @@ struct StructureFacilitySelectorView: View {
 
                 Section(
                     header: Text(
-                        NSLocalizedString("Structure_Facility_Selector_System", comment: "星系"))
+                        NSLocalizedString("Structure_Facility_Selector_System", comment: "星系")
+                    )
                 ) {
                     Button {
                         showSystemSelector = true
@@ -409,45 +398,19 @@ struct StructureFacilitySelectorView: View {
     }
 
     private func getRigInfo(rigId: Int) -> DatabaseListItem? {
-        // 查询插件详细信息
-        let query = "SELECT type_id, name, icon_filename FROM types WHERE type_id = ?"
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [rigId]),
-           let row = rows.first,
-           let typeId = row["type_id"] as? Int,
-           let name = row["name"] as? String,
-           let iconFileName = row["icon_filename"] as? String
-        {
-            return DatabaseListItem(
-                id: typeId,
-                name: name,
-                enName: nil,
-                iconFileName: iconFileName.isEmpty ? "not_found" : iconFileName,
-                published: true,
-                categoryID: 0,
-                groupID: nil,
-                groupName: nil,
-                pgNeed: nil,
-                cpuNeed: nil,
-                rigCost: nil,
-                emDamage: nil,
-                themDamage: nil,
-                kinDamage: nil,
-                expDamage: nil,
-                highSlot: nil,
-                midSlot: nil,
-                lowSlot: nil,
-                rigSlot: nil,
-                gunSlot: nil,
-                missSlot: nil,
-                metaGroupID: nil,
-                marketGroupID: nil,
-                navigationDestination: AnyView(EmptyView())
-            )
-        }
-        return nil
+        guard let info = ItemInfoMap.typeInfo(for: rigId), !info.name.isEmpty else { return nil }
+        return DatabaseListItem(
+            id: rigId,
+            name: info.name,
+            enName: nil,
+            iconFileName: info.iconFilename,
+            published: true,
+            categoryID: info.categoryID,
+            groupID: info.groupID
+        )
     }
 
-    // 检查是否已存在同类型插件（包括衍生型号）
+    /// 检查是否已存在同类型插件（包括衍生型号）
     private func hasSameTypeRig(rigId: Int) -> Bool {
         // 获取要添加插件的父类型ID
         let newRigParentId = getParentTypeId(typeId: rigId)
@@ -465,7 +428,7 @@ struct StructureFacilitySelectorView: View {
         return false
     }
 
-    // 获取物品的父类型ID（用于识别同类型不同衍生版本）
+    /// 获取物品的父类型ID（用于识别同类型不同衍生版本）
     private func getParentTypeId(typeId: Int) -> Int {
         // 使用递归查询获取最顶层的父类型ID
         let parentQuery = """

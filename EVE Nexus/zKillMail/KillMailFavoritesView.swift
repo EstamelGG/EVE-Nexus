@@ -148,18 +148,18 @@ private final class KillMailFavoritesListModel: ObservableObject {
     @Published private(set) var isLoadingMore = false
     @Published private(set) var hasMore = false
     @Published private(set) var errorMessage: String?
-    /// 行级异步 zkill 估值（ESI 用本地 hash，不阻塞在估值请求上）
+    // 行级异步 zkill 估值（ESI 用本地 hash，不阻塞在估值请求上）
     @Published private(set) var asyncISKByKillmailId: [Int: Double] = [:]
     @Published private(set) var iskLoadingKillmailIds: Set<Int> = []
 
     private let databaseManager = DatabaseManager.shared
-    /// 懒加载：每批仅从收藏序列取 10 条做 ESI/展示；估值按行异步补全
+    // 懒加载：每批仅从收藏序列取 10 条做 ESI/展示；估值按行异步补全
     private let pageSize = 10
     private var recordsSnapshot: [FavoriteKillMailRecord] = []
-    /// 已按条Consumed 的 `recordsSnapshot` 前缀长度（含拉取结果为空的收藏条）
+    // 已按条Consumed 的 `recordsSnapshot` 前缀长度（含拉取结果为空的收藏条）
     private var loadedRecordEnd = 0
     private var isPaging = false
-    /// 列表内左划删除时已本地更新，忽略本次 `records` 变化带来的全量重载
+    // 列表内左划删除时已本地更新，忽略本次 `records` 变化带来的全量重载
     private var suppressRecordsChangeReload = false
     private var iskFetchInFlight: Set<Int> = []
 
@@ -213,11 +213,6 @@ private final class KillMailFavoritesListModel: ObservableObject {
                 }
             }
         }
-    }
-
-    /// 系统列表删除 / 左划删除：本地动画更新，不整页重拉
-    func removeFavoriteFromList(killmailId: Int) {
-        removeFavoritesFromList(ids: Set([killmailId]))
     }
 
     func removeFavoritesFromList(ids: Set<Int>) {
@@ -468,8 +463,7 @@ private final class KillMailFavoritesListModel: ObservableObject {
             )
         }
 
-        let sorted = entities.sorted { $0.killmailId > $1.killmailId }
-        return sorted
+        return entities.sorted { $0.killmailId > $1.killmailId }
     }
 
     private func getShipInfo(for typeIds: [Int]) -> [Int: (name: String, iconFileName: String)] {
@@ -588,9 +582,9 @@ struct BRKillMailFavoritesView: View {
     private var favoritesListContents: some View {
         if listModel.isLoading, favoritesStore.records.isEmpty == false, listModel.entries.isEmpty {
             Section {
-                ProgressView()
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(.vertical, 24)
+                ForEach(0 ..< 6, id: \.self) { _ in
+                    ListSkeletonRow.killMail
+                }
             } header: {
                 favoritesCountHeader
             }
@@ -641,7 +635,7 @@ struct BRKillMailFavoritesView: View {
                 format: NSLocalizedString("KillMail_Unknown_Item", comment: ""),
                 entity.shipTypeId
             ),
-            iconFileName: DatabaseConfig.defaultItemIcon
+            iconFileName: IconManager.defaultItemIcon
         )
         return BRKillMailCell(
             entity: entity,

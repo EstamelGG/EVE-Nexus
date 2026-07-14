@@ -63,7 +63,7 @@ struct BlueprintCalculatorView: View {
         self.initParams = initParams
     }
 
-    // 计算是否可以开始计算
+    /// 计算是否可以开始计算
     private var canStartCalculation: Bool {
         guard
             selectedBlueprint != nil && selectedStructure != nil && selectedSystemId != nil
@@ -76,13 +76,13 @@ struct BlueprintCalculatorView: View {
         return isStructureCompatibleWithBlueprint()
     }
 
-    // 检查是否所有必要条件都已满足（不考虑兼容性）
+    /// 检查是否所有必要条件都已满足（不考虑兼容性）
     private var hasAllRequiredSelections: Bool {
         return selectedBlueprint != nil && selectedStructure != nil && selectedSystemId != nil
             && !selectedCharacterSkills.isEmpty
     }
 
-    // 检查建筑与蓝图的兼容性
+    /// 检查建筑与蓝图的兼容性
     private func isStructureCompatibleWithBlueprint() -> Bool {
         guard let blueprint = selectedBlueprint,
               let structure = selectedStructure
@@ -106,7 +106,7 @@ struct BlueprintCalculatorView: View {
         return true
     }
 
-    // 判断是否为反应类型蓝图
+    /// 判断是否为反应类型蓝图
     private func isReactionTypeBlueprint(_ blueprint: DatabaseListItem) -> Bool {
         guard let marketGroupID = blueprint.marketGroupID else {
             return false
@@ -117,13 +117,13 @@ struct BlueprintCalculatorView: View {
         return reactionMarketGroups.contains(marketGroupID)
     }
 
-    // 判断是否为反应建筑
+    /// 判断是否为反应建筑
     private func isReactionStructure(_ structure: IndustryFacilityInfo) -> Bool {
         // 反应建筑类型ID: 35836 (反应堡垒) 或 35835 (反应服务阵列)
         return structure.typeId == 35836 || structure.typeId == 35835
     }
 
-    // 获取市场组1849及其所有子组的ID集合
+    /// 获取市场组1849及其所有子组的ID集合
     private func getReactionMarketGroups() -> Set<Int> {
         let reactionRootGroupId = 1849
         var reactionGroups = Set<Int>()
@@ -161,7 +161,7 @@ struct BlueprintCalculatorView: View {
         return reactionGroups
     }
 
-    // 获取不兼容的原因
+    /// 获取不兼容的原因
     private func getIncompatibilityReason() -> String {
         guard let blueprint = selectedBlueprint,
               let structure = selectedStructure
@@ -185,7 +185,7 @@ struct BlueprintCalculatorView: View {
         return ""
     }
 
-    // 获取按钮背景颜色
+    /// 获取按钮背景颜色
     private func getButtonBackgroundColor() -> Color {
         if isCalculating {
             // 状态4: 计算中 - 浅蓝色
@@ -207,7 +207,8 @@ struct BlueprintCalculatorView: View {
             List {
                 Section(
                     header: Text(
-                        NSLocalizedString("Blueprint_Calculator_Settings", comment: "蓝图设置"))
+                        NSLocalizedString("Blueprint_Calculator_Settings", comment: "蓝图设置")
+                    )
                 ) {
                     // 选择蓝图跳转链接
                     Button {
@@ -282,7 +283,8 @@ struct BlueprintCalculatorView: View {
                         Text(
                             NSLocalizedString(
                                 "Blueprint_Calculator_Material_Efficiency", comment: "材料效率"
-                            ))
+                            )
+                        )
 
                         Spacer()
 
@@ -299,7 +301,8 @@ struct BlueprintCalculatorView: View {
                         Text(
                             NSLocalizedString(
                                 "Blueprint_Calculator_Time_Efficiency", comment: "时间效率"
-                            ))
+                            )
+                        )
 
                         Spacer()
 
@@ -318,7 +321,8 @@ struct BlueprintCalculatorView: View {
                     header: Text(
                         NSLocalizedString(
                             "Blueprint_Calculator_Structure_Settings", comment: "建筑设置"
-                        ))
+                        )
+                    )
                 ) {
                     // 选择建筑跳转链接
                     Button {
@@ -631,7 +635,7 @@ struct BlueprintCalculatorView: View {
         }
     }
 
-    // 应用初始化参数
+    /// 应用初始化参数
     private func applyInitParams() {
         // 首先设置默认值
         if selectedCharacterSkills.isEmpty {
@@ -687,7 +691,7 @@ struct BlueprintCalculatorView: View {
         }
     }
 
-    // 根据蓝图ID加载蓝图信息
+    /// 根据蓝图ID加载蓝图信息
     private func loadBlueprintById(_ blueprintId: Int) {
         let query = """
             SELECT t.type_id, t.name, t.en_name, t.icon_filename, t.published, t.marketGroupID,
@@ -700,9 +704,9 @@ struct BlueprintCalculatorView: View {
            let row = rows.first,
            let typeId = row["type_id"] as? Int,
            let name = row["name"] as? String,
-           let iconFileName = row["icon_filename"] as? String,
            let published = row["published"] as? Int
         {
+            let iconFileName = row["icon_filename"] as? String ?? ""
             let enName = row["en_name"] as? String
             let marketGroupID = row["marketGroupID"] as? Int
             let categoryID = row["categoryID"] as? Int
@@ -713,27 +717,12 @@ struct BlueprintCalculatorView: View {
                 id: typeId,
                 name: name,
                 enName: enName,
-                iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName,
+                iconFileName: iconFileName.isEmpty ? IconManager.defaultItemIcon : iconFileName,
                 published: published == 1,
                 categoryID: categoryID,
                 groupID: groupID,
                 groupName: groupName,
-                pgNeed: nil,
-                cpuNeed: nil,
-                rigCost: nil,
-                emDamage: nil,
-                themDamage: nil,
-                kinDamage: nil,
-                expDamage: nil,
-                highSlot: nil,
-                midSlot: nil,
-                lowSlot: nil,
-                rigSlot: nil,
-                gunSlot: nil,
-                missSlot: nil,
-                metaGroupID: nil,
-                marketGroupID: marketGroupID,
-                navigationDestination: AnyView(EmptyView())
+                marketGroupID: marketGroupID
             )
 
             selectedBlueprint = blueprint
@@ -743,7 +732,7 @@ struct BlueprintCalculatorView: View {
         }
     }
 
-    // 开始计算
+    /// 开始计算
     private func startCalculation() {
         guard let blueprint = selectedBlueprint,
               let structure = selectedStructure,

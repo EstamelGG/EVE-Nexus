@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 移除HTML标签的扩展
+/// 移除HTML标签的扩展
 private extension String {
     func removeHTMLTags() -> String {
         // 移除所有HTML标签
@@ -34,7 +34,9 @@ struct MemberDetailInfo: Identifiable {
     var isLoadingDetails = false
     var isPinned: Bool = false
 
-    var id: Int { member.character_id }
+    var id: Int {
+        member.character_id
+    }
 }
 
 // MARK: - Location Cache Info
@@ -89,7 +91,7 @@ class CorpMemberListViewModel: ObservableObject {
     private var loadingTask: Task<Void, Never>?
     private var initialLoadDone = false
 
-    // 位置信息缓存
+    /// 位置信息缓存
     private var locationCache: [Int64: LocationCacheInfo] = [:]
 
     @Published var pinnedMembers: [MemberDetailInfo] = []
@@ -108,7 +110,7 @@ class CorpMemberListViewModel: ObservableObject {
         }
     }
 
-    // 特别关注成员ID集合
+    /// 特别关注成员ID集合
     private var pinnedMemberIds: Set<Int> {
         get {
             // 使用当前用户角色ID作为缓存key的一部分
@@ -134,7 +136,7 @@ class CorpMemberListViewModel: ObservableObject {
         self.databaseManager = databaseManager
     }
 
-    // 切换成员的置顶状态
+    /// 切换成员的置顶状态
     @MainActor
     func togglePinStatus(for memberId: Int) {
         Task {
@@ -264,25 +266,17 @@ class CorpMemberListViewModel: ObservableObject {
         if let solarSystemIds = groupedIds[.solarSystem] {
             Logger.debug("加载星系信息 - 数量: \(solarSystemIds.count)")
             let query = """
-                SELECT u.solarsystem_id, u.system_security,
-                       s.solarSystemName
-                FROM universe u
-                JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
-                WHERE u.solarsystem_id IN (\(solarSystemIds.sorted().map { String($0) }.joined(separator: ",")))
+                SELECT solarsystem_id, system_security
+                FROM universe
+                WHERE solarsystem_id IN (\(solarSystemIds.sorted().map { String($0) }.joined(separator: ",")))
             """
 
             if case let .success(rows) = databaseManager.executeQuery(query) {
                 Logger.debug("查询到星系数量: \(rows.count)")
                 for row in rows {
-                    // Logger.debug("处理星系数据行: \(row)")
-                    // 先获取原始值
                     let rawSystemId = row["solarsystem_id"]
-                    let rawSystemNameLocal = row["solarSystemName"]
                     let rawSecurity = row["system_security"]
 
-                    // Logger.debug("原始数据类型 - systemId: \(type(of: rawSystemId)), systemName: \(type(of: rawSystemNameLocal)), security: \(type(of: rawSecurity))")
-
-                    // 尝试不同的类型转换
                     let systemId: Int64
                     if let id = rawSystemId as? Int64 {
                         systemId = id
@@ -293,12 +287,7 @@ class CorpMemberListViewModel: ObservableObject {
                         continue
                     }
 
-                    let systemNameLocal: String
-                    if let name = rawSystemNameLocal as? String {
-                        systemNameLocal = name
-                    } else {
-                        Logger.error(
-                            "systemNameLocal 类型转换失败: \(String(describing: rawSystemNameLocal))")
+                    guard let systemName = SDEMemoryStore.solarSystemName(for: Int(systemId)) else {
                         continue
                     }
 
@@ -312,87 +301,33 @@ class CorpMemberListViewModel: ObservableObject {
                         continue
                     }
 
-                    let systemName = systemNameLocal
-
-                    let info = LocationCacheInfo(
+                    locationCache[systemId] = LocationCacheInfo(
                         systemName: systemName,
                         security: security,
                         stationName: nil
                     )
-                    locationCache[systemId] = info
-                    // Logger.success("成功缓存星系信息 - ID: \(systemId), 名称: \(systemName), 安全等级: \(security)")
                 }
             } else {
                 Logger.error("星系查询失败 - SQL: \(query)")
             }
         }
 
-        // 加载空间站信息
+        // 加载空间站信息（名称/安等走内存）
         if let stationIds = groupedIds[.station] {
             Logger.debug("加载空间站信息 - 数量: \(stationIds.count)")
-            let query = """
-                SELECT s.stationID, s.stationName,
-                       ss.solarSystemName, u.system_security
-                FROM stations s
-                JOIN solarsystems ss ON s.solarSystemID = ss.solarSystemID
-                JOIN universe u ON u.solarsystem_id = ss.solarSystemID
-                WHERE s.stationID IN (\(stationIds.map { String($0) }.joined(separator: ",")))
-            """
-
-            if case let .success(rows) = databaseManager.executeQuery(query) {
-                Logger.debug("查询到空间站数量: \(rows.count)")
-                for row in rows {
-                    // Logger.debug("处理空间站数据行: \(row)")
-                    // 先获取原始值
-                    let rawStationId = row["stationID"]
-                    let stationName =
-                        row["stationName"] as? String ?? NSLocalizedString("Unknown", comment: "")
-                    let rawSystemNameLocal = row["solarSystemName"]
-                    let rawSecurity = row["system_security"]
-
-                    // 尝试不同的类型转换
-                    let stationId: Int64
-                    if let id = rawStationId as? Int64 {
-                        stationId = id
-                    } else if let id = rawStationId as? Int {
-                        stationId = Int64(id)
-                    } else {
-                        Logger.error("stationID 类型转换失败: \(String(describing: rawStationId))")
-                        continue
-                    }
-
-                    let systemNameLocal: String
-                    if let name = rawSystemNameLocal as? String {
-                        systemNameLocal = name
-                    } else {
-                        Logger.error(
-                            "systemNameLocal 类型转换失败: \(String(describing: rawSystemNameLocal))")
-                        continue
-                    }
-
-                    let systemName = systemNameLocal
-
-                    let security: Double
-                    if let sec = rawSecurity as? Double {
-                        security = sec
-                    } else if let sec = rawSecurity as? String {
-                        security = Double(sec) ?? 0.0
-                    } else {
-                        Logger.error("security 类型转换失败: \(String(describing: rawSecurity))")
-                        continue
-                    }
-
-                    let info = LocationCacheInfo(
-                        systemName: systemName,
-                        security: security,
-                        stationName: stationName
-                    )
-                    locationCache[stationId] = info
-                    // Logger.success("成功缓存空间站信息 - ID: \(stationId), 名称: \(stationNameLocal), 星系: \(systemName), 安全等级: \(security)")
-                }
-            } else {
-                Logger.error("空间站查询失败 - SQL: \(query)")
+            for rawId in stationIds {
+                let stationId = Int(rawId)
+                guard let station = SDEMemoryStore.station(for: stationId) else { continue }
+                let systemName =
+                    station.solarSystemID.flatMap { SDEMemoryStore.solarSystemName(for: $0) }
+                        ?? NSLocalizedString("Unknown", comment: "")
+                locationCache[rawId] = LocationCacheInfo(
+                    systemName: systemName,
+                    security: station.security ?? 0.0,
+                    stationName: station.name
+                )
             }
+            Logger.debug("查询到空间站数量: \(stationIds.filter { locationCache[$0] != nil }.count)")
         }
 
         Logger.debug("位置信息缓存初始化完成 - 缓存数量: \(locationCache.count)")
@@ -403,7 +338,8 @@ class CorpMemberListViewModel: ObservableObject {
             let type = LocationType.from(id: id)
             Logger.debug(
                 "\(index + 1). ID: \(id) (\(type)) - 星系: \(info.systemName), 安全等级: \(info.security)"
-                    + (info.stationName.map { ", 空间站: \($0)" } ?? ""))
+                    + (info.stationName.map { ", 空间站: \($0)" } ?? "")
+            )
         }
     }
 
@@ -416,22 +352,20 @@ class CorpMemberListViewModel: ObservableObject {
                 characterId: characterId
             )
 
+            let systemId = structureInfo.solar_system_id
             let query = """
-                SELECT s.solarSystemName, u.system_security
-                FROM solarsystems s
-                JOIN universe u ON u.solarsystem_id = s.solarSystemID
-                WHERE s.solarSystemID = ?
+                SELECT system_security
+                FROM universe
+                WHERE solarsystem_id = ?
             """
 
             if case let .success(rows) = databaseManager.executeQuery(
-                query, parameters: [structureInfo.solar_system_id]
+                query, parameters: [systemId]
             ),
                 let row = rows.first,
-                let systemNameLocal = row["solarSystemName"] as? String,
+                let systemName = SDEMemoryStore.solarSystemName(for: systemId),
                 let security = row["system_security"] as? Double
             {
-                let systemName = systemNameLocal
-
                 let locationInfo = LocationCacheInfo(
                     systemName: systemName,
                     security: security,
@@ -477,7 +411,8 @@ class CorpMemberListViewModel: ObservableObject {
 
                 // 3. 批量获取角色名称
                 let characterNames = try await UniverseAPI.shared.getNamesWithFallback(
-                    ids: characterIds)
+                    ids: characterIds
+                )
 
                 if Task.isCancelled { return }
 
@@ -495,10 +430,14 @@ class CorpMemberListViewModel: ObservableObject {
                     if case let .success(rows) = databaseManager.executeQuery(query) {
                         for row in rows {
                             if let typeId = row["type_id"] as? Int,
-                               let typeName = row["name"] as? String,
-                               let iconFilename = row["icon_filename"] as? String
+                               let typeName = row["name"] as? String
                             {
-                                shipInfoMap[typeId] = (name: typeName, iconFilename: iconFilename)
+                                let iconFilename = (row["icon_filename"] as? String) ?? ""
+                                shipInfoMap[typeId] = (
+                                    name: typeName,
+                                    iconFilename: iconFilename.isEmpty
+                                        ? IconManager.defaultItemIcon : iconFilename
+                                )
                             }
                         }
                     }
@@ -532,7 +471,8 @@ class CorpMemberListViewModel: ObservableObject {
                             return Int64(locationId)
                         }
                         return nil
-                    })
+                    }
+                )
                 await initializeBasicLocationInfo(locationIds: locationIds)
 
                 initialLoadDone = true
@@ -621,7 +561,7 @@ class CorpMemberListViewModel: ObservableObject {
         cancelLoading(clearData: true)
     }
 
-    // 仅更新大头针状态
+    /// 仅更新大头针状态
     @MainActor
     func refreshPinStatus() {
         let ids = pinnedMemberIds
@@ -647,7 +587,8 @@ class CorpMemberListViewModel: ObservableObject {
                 // 如果两个都是空，则按人名排序
                 if ship1.isEmpty, ship2.isEmpty {
                     return member1.characterName.localizedCaseInsensitiveCompare(
-                        member2.characterName) == .orderedAscending
+                        member2.characterName
+                    ) == .orderedAscending
                 }
                 // 如果其中一个是空，空的排在后面
                 if ship1.isEmpty { return false }
@@ -672,7 +613,7 @@ class CorpMemberListViewModel: ObservableObject {
         sortMembers()
     }
 
-    // 添加公共方法获取过滤后的成员数量
+    /// 添加公共方法获取过滤后的成员数量
     @MainActor
     func getFilteredMembersCount() -> Int {
         if searchText.isEmpty {
@@ -686,7 +627,7 @@ class CorpMemberListViewModel: ObservableObject {
         }.count
     }
 
-    // 添加公共方法获取过滤后的收藏成员
+    /// 添加公共方法获取过滤后的收藏成员
     @MainActor
     func getFilteredPinnedMembers() -> [MemberDetailInfo] {
         if searchText.isEmpty {
@@ -712,7 +653,7 @@ class CorpMemberListViewModel: ObservableObject {
         }
     }
 
-    // 添加公共方法来获取过滤后的收藏成员数量
+    /// 添加公共方法来获取过滤后的收藏成员数量
     @MainActor
     func getFilteredPinnedMembersCount() -> Int {
         if searchText.isEmpty {
@@ -920,7 +861,8 @@ struct CorpMemberListView: View {
             wrappedValue: CorpMemberListViewModel(
                 characterId: characterId,
                 databaseManager: DatabaseManager.shared
-            ))
+            )
+        )
     }
 
     var body: some View {
@@ -1031,7 +973,8 @@ struct CorpMemberListView: View {
                                     format: NSLocalizedString(
                                         "Main_Corporation_Members_Total", comment: ""
                                     ), totalCount
-                                ))
+                                )
+                            )
                         } else {
                             Text(
                                 String(
@@ -1045,7 +988,8 @@ struct CorpMemberListView: View {
                                             "Main_Corporation_Members_Filtered_Total", comment: ""
                                         ),
                                         filteredCount
-                                    ))
+                                    )
+                            )
                         }
                     }
                 }
@@ -1066,7 +1010,8 @@ struct CorpMemberListView: View {
                     Button(action: { viewModel.nextPage() }) {
                         Image(systemName: "chevron.right")
                             .foregroundColor(
-                                viewModel.currentPage < viewModel.totalPages - 1 ? .blue : .gray)
+                                viewModel.currentPage < viewModel.totalPages - 1 ? .blue : .gray
+                            )
                     }
                     .disabled(viewModel.currentPage == viewModel.totalPages - 1)
                 }
@@ -1077,7 +1022,7 @@ struct CorpMemberListView: View {
         .navigationTitle(NSLocalizedString("Main_Corporation_Members_Title", comment: ""))
         .searchable(
             text: $viewModel.searchText,
-            placement: .navigationBarDrawer(displayMode: .always),
+            // placement: .navigationBarDrawer(displayMode: .always),
             prompt: NSLocalizedString("Main_Corporation_Members_Search_Placeholder", comment: "")
         )
         .refreshable {
@@ -1164,7 +1109,8 @@ struct FavoriteMembersView: View {
                             Text(
                                 NSLocalizedString(
                                     "Main_Corporation_Members_Refresh", comment: ""
-                                ))
+                                )
+                            )
                         }
                         .padding(.top, 4)
                     }
@@ -1212,7 +1158,8 @@ struct FavoriteMembersView: View {
                                     "Main_Corporation_Members_Favorites_Total", comment: ""
                                 ),
                                 totalCount
-                            ))
+                            )
+                        )
                     } else {
                         Text(
                             String(
@@ -1226,7 +1173,8 @@ struct FavoriteMembersView: View {
                                         "Main_Corporation_Members_Filtered_Total", comment: ""
                                     ),
                                     filteredCount
-                                ))
+                                )
+                        )
                     }
                 }
             }
@@ -1234,7 +1182,7 @@ struct FavoriteMembersView: View {
         .navigationTitle(NSLocalizedString("Main_Corporation_Members_Favorites_Title", comment: ""))
         .searchable(
             text: $viewModel.searchText,
-            placement: .navigationBarDrawer(displayMode: .always),
+            // placement: .navigationBarDrawer(displayMode: .always),
             prompt: NSLocalizedString("Main_Corporation_Members_Search_Placeholder", comment: "")
         )
         .refreshable {

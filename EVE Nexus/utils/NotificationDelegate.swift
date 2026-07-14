@@ -8,7 +8,7 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         super.init()
     }
 
-    // 当应用在前台时收到通知的处理
+    /// 当应用在前台时收到通知的处理
     func userNotificationCenter(
         _: UNUserNotificationCenter,
         willPresent notification: UNNotification,
@@ -21,7 +21,7 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         completionHandler([.banner, .sound, .badge])
     }
 
-    // 用户点击通知时的处理
+    /// 用户点击通知时的处理
     func userNotificationCenter(
         _: UNUserNotificationCenter,
         didReceive response: UNNotificationResponse,
@@ -52,7 +52,7 @@ class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
         completionHandler()
     }
 
-    // 通知投递失败时的处理
+    /// 通知投递失败时的处理
     func userNotificationCenter(
         _: UNUserNotificationCenter,
         openSettingsFor _: UNNotification?

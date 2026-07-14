@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 物品选择器 - 选择有技能依赖的物品
+/// 物品选择器 - 选择有技能依赖的物品
 struct ItemSelectorView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var allowedTypeIDs: [Int] = []
@@ -132,11 +132,10 @@ struct ItemSelectorView: View {
         }
     }
 
-    // 加载有技能依赖的物品信息
+    /// 加载有技能依赖的物品信息
     private func loadItemData(databaseManager: DatabaseManager) -> [SkillDependentItem] {
-        // 使用用户提供的SQL查询，增加zh_name用于搜索
         let query = """
-            SELECT DISTINCT ta.type_id, t.name, t.zh_name, t.en_name, t.marketGroupID
+            SELECT DISTINCT ta.type_id, t.marketGroupID
             FROM typeAttributes ta 
             JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id 
             JOIN types t ON ta.type_id = t.type_id 
@@ -151,21 +150,11 @@ struct ItemSelectorView: View {
 
         if case let .success(rows) = databaseManager.executeQuery(query) {
             for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String
-                {
-                    let zhName = row["zh_name"] as? String
-                    let enName = row["en_name"] as? String
+                if let typeId = row["type_id"] as? Int {
                     let marketGroupId = row["marketGroupID"] as? Int
-
-                    let info = SkillDependentItem(
-                        typeId: typeId,
-                        name: name,
-                        zhName: zhName,
-                        enName: enName,
-                        marketGroupId: marketGroupId
+                    itemInfos.append(
+                        SkillDependentItem(typeId: typeId, marketGroupId: marketGroupId)
                     )
-                    itemInfos.append(info)
                 }
             }
             Logger.info("加载了 \(itemInfos.count) 个有技能依赖的物品")
@@ -177,21 +166,15 @@ struct ItemSelectorView: View {
     }
 }
 
-// 有技能依赖的物品信息结构体
+/// 有技能依赖的物品信息结构体
 private struct SkillDependentItem: Identifiable {
     let id: Int
     let typeId: Int
-    let name: String
-    let zhName: String?
-    let enName: String?
     let marketGroupId: Int?
 
-    init(typeId: Int, name: String, zhName: String?, enName: String?, marketGroupId: Int?) {
+    init(typeId: Int, marketGroupId: Int?) {
         id = typeId
         self.typeId = typeId
-        self.name = name
-        self.zhName = zhName
-        self.enName = enName
         self.marketGroupId = marketGroupId
     }
 }

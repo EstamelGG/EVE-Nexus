@@ -3,10 +3,10 @@ import Foundation
 class CharacterIndustryAPI {
     static let shared = CharacterIndustryAPI()
 
-    // 缓存过期时间（1小时）
+    /// 缓存过期时间（1小时）
     private let cacheExpirationInterval: TimeInterval = 3600
 
-    // 工业项目信息模型
+    /// 工业项目信息模型
     struct IndustryJob: Codable, Identifiable, Hashable {
         let activity_id: Int
         let blueprint_id: Int64
@@ -31,9 +31,11 @@ class CharacterIndustryAPI {
         let status: String
         let successful_runs: Int?
 
-        var id: Int { job_id }
+        var id: Int {
+            job_id
+        }
 
-        // 实现 Hashable
+        /// 实现 Hashable
         func hash(into hasher: inout Hasher) {
             hasher.combine(job_id)
         }
@@ -140,7 +142,8 @@ class CharacterIndustryAPI {
             let jobs = try decoder.decode([IndustryJob].self, from: data)
 
             Logger.info(
-                "成功从缓存加载工业项目信息 - 角色ID: \(characterId), 路径: \(cacheFile.path), 数据条数: \(jobs.count)")
+                "成功从缓存加载工业项目信息 - 角色ID: \(characterId), 路径: \(cacheFile.path), 数据条数: \(jobs.count)"
+            )
             return jobs
         } catch {
             Logger.error("读取缓存文件失败 - 角色ID: \(characterId), 路径: \(cacheFile.path), 错误: \(error)")
@@ -162,7 +165,8 @@ class CharacterIndustryAPI {
             let encodedData = try encoder.encode(jobs)
             try encodedData.write(to: cacheFile)
             Logger.info(
-                "工业项目信息已缓存到文件 - 角色ID: \(characterId), 路径: \(cacheFile.path), 数据条数: \(jobs.count)")
+                "工业项目信息已缓存到文件 - 角色ID: \(characterId), 路径: \(cacheFile.path), 数据条数: \(jobs.count)"
+            )
         } catch {
             Logger.error("保存工业项目信息缓存失败 - 角色ID: \(characterId), 路径: \(cacheFile.path), 错误: \(error)")
             try? FileManager.default.removeItem(at: cacheFile)

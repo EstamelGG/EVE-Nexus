@@ -1,6 +1,6 @@
 import Foundation
 
-// 装配槽位flag枚举，支持ESI API返回的所有flag字符串
+/// 装配槽位flag枚举，支持ESI API返回的所有flag字符串
 enum FittingFlag: String, Codable, CaseIterable {
     case cargo = "Cargo"
     case droneBay = "DroneBay"
@@ -50,13 +50,13 @@ enum FittingFlag: String, Codable, CaseIterable {
     case subSystemSlot1 = "SubSystemSlot1"
     case subSystemSlot2 = "SubSystemSlot2"
     case subSystemSlot3 = "SubSystemSlot3"
-    // T3D模式槽
+    /// T3D模式槽
     case t3dModeSlot0 = "T3DModeSlot0"
 
     case invalid = "Invalid"
 }
 
-// 在线配置结构体（与ESI返回结构一致）
+/// 在线配置结构体（与ESI返回结构一致）
 struct FittingItem: Codable {
     let flag: FittingFlag
     let quantity: Int
@@ -71,14 +71,14 @@ struct OnlineFitting: Codable {
     let ship_type_id: Int
 }
 
-// 突变属性数据结构
+/// 突变属性数据结构
 struct MutationData: Codable {
     let mutaplasmid_id: Int // 突变质体ID
     let attribute_id: Int // 突变属性ID
     let value: Double // 突变数值（不带百分号，如15表示15%）
 }
 
-// 本地配置结构体
+/// 本地配置结构体
 struct LocalFittingItem: Codable {
     let flag: FittingFlag
     let quantity: Int
@@ -89,6 +89,26 @@ struct LocalFittingItem: Codable {
     let muta: [MutationData]? // 突变数据（可选）
     /// 完全预热；缺失或为 `nil` 时视为开启（与旧装配文件兼容）
     let spool_up_full: Bool?
+
+    init(
+        flag: FittingFlag,
+        quantity: Int,
+        type_id: Int,
+        status: Int? = nil,
+        charge_type_id: Int? = nil,
+        charge_quantity: Int? = nil,
+        muta: [MutationData]? = nil,
+        spool_up_full: Bool? = nil
+    ) {
+        self.flag = flag
+        self.quantity = quantity
+        self.type_id = type_id
+        self.status = status
+        self.charge_type_id = charge_type_id
+        self.charge_quantity = charge_quantity
+        self.muta = muta
+        self.spool_up_full = spool_up_full
+    }
 }
 
 struct LocalFitting: Codable {
@@ -102,9 +122,33 @@ struct LocalFitting: Codable {
     let cargo: [CargoItem]? // 货舱物品列表
     let implants: [Int]? // 植入体typeId列表
     let environment_type_id: Int? // 环境typeId（可选）
+
+    init(
+        description: String,
+        fitting_id: Int,
+        items: [LocalFittingItem],
+        name: String,
+        ship_type_id: Int,
+        drones: [Drone]? = nil,
+        fighters: [FighterSquad]? = nil,
+        cargo: [CargoItem]? = nil,
+        implants: [Int]? = nil,
+        environment_type_id: Int? = nil
+    ) {
+        self.description = description
+        self.fitting_id = fitting_id
+        self.items = items
+        self.name = name
+        self.ship_type_id = ship_type_id
+        self.drones = drones
+        self.fighters = fighters
+        self.cargo = cargo
+        self.implants = implants
+        self.environment_type_id = environment_type_id
+    }
 }
 
-// 无人机结构体
+/// 无人机结构体
 struct Drone: Codable {
     let type_id: Int // 无人机类型ID
     let quantity: Int // 携带数量
@@ -112,13 +156,13 @@ struct Drone: Codable {
     let muta: [MutationData]? // 突变数据（可选）
 }
 
-// 货舱物品结构体
+/// 货舱物品结构体
 struct CargoItem: Codable {
     let type_id: Int // 物品类型ID
     let quantity: Int // 物品数量
 }
 
-// 舰载机中队结构体
+/// 舰载机中队结构体
 struct FighterSquad: Codable {
     let type_id: Int // 舰载机类型ID
     let quantity: Int // 舰载机数量

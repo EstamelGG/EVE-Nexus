@@ -19,7 +19,7 @@ final class URLSessionManualIntegration {
         session = URLSession(configuration: .default, delegate: delegate, delegateQueue: nil)
     }
 
-    /// Loads data with the given request.
+    // Loads data with the given request.
     func loadData(with request: URLRequest,
                   didReceiveData: @escaping (Data, URLResponse) -> Void,
                   completion: @escaping (Error?) -> Void) -> URLSessionDataTask {
@@ -35,7 +35,7 @@ private final class SessionDelegate: NSObject, URLSessionDataDelegate {
         self.logger = logger
     }
 
-    /// Loads data with the given request.
+    // Loads data with the given request.
     func loadData(with request: URLRequest,
                   session: URLSession,
                   didReceiveData: @escaping (Data, URLResponse) -> Void,

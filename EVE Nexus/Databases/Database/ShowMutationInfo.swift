@@ -4,36 +4,34 @@ struct ShowMutationInfo: View {
     let itemID: Int
     @ObservedObject var databaseManager: DatabaseManager
 
-    // 基础信息
     @State private var itemDetails: ItemDetails?
-
-    // 突变属性
-    @State private var mutationAttributes:
-        [(
-            attributeID: Int, name: String, iconFileName: String?, minValue: Double,
-            maxValue: Double, highIsGood: Bool
-        )] = []
-
-    // 可应用物品
+    @State private var mutationAttributes: [(
+        attributeID: Int,
+        name: String,
+        iconFileName: String?,
+        minValue: Double,
+        maxValue: Double,
+        highIsGood: Bool
+    )] = []
     @State private var applicableItems: [(typeID: Int, name: String, iconFileName: String)] = []
     @State private var resultingItem: (typeID: Int, name: String, iconFileName: String)?
 
     var body: some View {
         List {
-            // 基础信息部分
-            if let itemDetails = itemDetails {
+            if let itemDetails {
                 ItemBasicInfoView(
-                    itemDetails: itemDetails, databaseManager: databaseManager,
+                    itemDetails: itemDetails,
+                    databaseManager: databaseManager,
                     modifiedAttributes: nil
                 )
             }
 
-            // 工业相关部分
             IndustrySection(
-                itemID: itemID, databaseManager: databaseManager, itemDetails: itemDetails
+                itemID: itemID,
+                databaseManager: databaseManager,
+                itemDetails: itemDetails
             )
 
-            // 突变属性部分
             if !mutationAttributes.isEmpty {
                 Section(
                     header: Text(NSLocalizedString("Main_Database_Mutation_Attribute", comment: ""))
@@ -41,26 +39,24 @@ struct ShowMutationInfo: View {
                 ) {
                     ForEach(mutationAttributes, id: \.attributeID) { attribute in
                         HStack {
-                            // 左侧：图标和名称
                             HStack(spacing: 8) {
                                 if let iconFileName = attribute.iconFileName {
                                     IconManager.shared.loadImage(for: iconFileName)
                                         .resizable()
                                         .frame(width: 24, height: 24)
                                 }
-
                                 Text(attribute.name)
                                     .font(.body)
                             }
 
                             Spacer()
 
-                            // 右侧：数值范围
                             HStack(spacing: 4) {
                                 Text(
                                     formatValue(
                                         attribute.highIsGood
-                                            ? attribute.minValue : attribute.maxValue)
+                                            ? attribute.minValue : attribute.maxValue
+                                    )
                                 )
                                 .foregroundColor(.red)
                                 Text("-")
@@ -69,17 +65,17 @@ struct ShowMutationInfo: View {
                                 Text(
                                     formatValue(
                                         attribute.highIsGood
-                                            ? attribute.maxValue : attribute.minValue)
+                                            ? attribute.maxValue : attribute.minValue
+                                    )
                                 )
                                 .foregroundColor(.green)
                             }
                         }
-                        .padding(.vertical, 2)
                     }
+                    .listRowInsets(itemSectionRowInsets)
                 }
             }
 
-            // 可应用物品部分
             if !applicableItems.isEmpty {
                 Section(
                     header: Text(NSLocalizedString("Main_Database_Mutation_Source", comment: ""))
@@ -89,41 +85,31 @@ struct ShowMutationInfo: View {
                         NavigationLink {
                             ShowItemInfo(databaseManager: databaseManager, itemID: item.typeID)
                         } label: {
-                            HStack {
-                                IconManager.shared.loadImage(for: item.iconFileName)
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                    .cornerRadius(4)
-
-                                Text(item.name)
-                                    .font(.body)
-                            }
+                            mutationItemLabel(icon: item.iconFileName, name: item.name)
                         }
                     }
+                    .listRowInsets(itemSectionRowInsets)
                 }
 
-                // 突变结果
-                if let resultingItem = resultingItem {
+                if let resultingItem {
                     Section(
                         header: Text(
                             NSLocalizedString("Main_Database_Mutation_Results", comment: "")
-                        ).font(.headline)
+                        )
+                        .font(.headline)
                     ) {
                         NavigationLink {
                             ShowItemInfo(
-                                databaseManager: databaseManager, itemID: resultingItem.typeID
+                                databaseManager: databaseManager,
+                                itemID: resultingItem.typeID
                             )
                         } label: {
-                            HStack {
-                                IconManager.shared.loadImage(for: resultingItem.iconFileName)
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                    .cornerRadius(4)
-
-                                Text(resultingItem.name)
-                                    .font(.body)
-                            }
+                            mutationItemLabel(
+                                icon: resultingItem.iconFileName,
+                                name: resultingItem.name
+                            )
                         }
+                        .listRowInsets(itemSectionRowInsets)
                     }
                 }
             }
@@ -136,15 +122,24 @@ struct ShowMutationInfo: View {
         }
     }
 
+    private func mutationItemLabel(icon: String, name: String) -> some View {
+        HStack {
+            IconManager.shared.loadImage(for: icon)
+                .resizable()
+                .frame(width: 32, height: 32)
+                .cornerRadius(4)
+            Text(name)
+                .font(.body)
+        }
+    }
+
     private func formatValue(_ value: Double) -> String {
-        let percentage = (value - 1) * 100
-        return String(format: "%+.2f%%", percentage)
+        String(format: "%+.2f%%", (value - 1) * 100)
     }
 
     private func loadMutationData() {
-        // 加载突变属性
         let attributesQuery = """
-            SELECT a.attribute_id, d.display_name, COALESCE(d.icon_filename, '') as icon_filename, 
+            SELECT a.attribute_id, d.display_name, COALESCE(d.icon_filename, '') as icon_filename,
                    a.min_value, a.max_value, d.highIsGood
             FROM dynamic_item_attributes a
             LEFT JOIN dogmaAttributes d ON a.attribute_id = d.attribute_id
@@ -162,11 +157,10 @@ struct ShowMutationInfo: View {
                       let maxValue = row["max_value"] as? Double,
                       let highIsGood = row["highIsGood"] as? Int
                 else { return nil }
-                let iconFileName = row["icon_filename"] as? String
                 return (
                     attributeID: attributeID,
                     name: name,
-                    iconFileName: iconFileName,
+                    iconFileName: row["icon_filename"] as? String,
                     minValue: minValue,
                     maxValue: maxValue,
                     highIsGood: highIsGood == 1
@@ -174,41 +168,30 @@ struct ShowMutationInfo: View {
             }
         }
 
-        // 加载可应用物品和结果
-        let mappingsQuery = """
-            SELECT m.applicable_type, m.resulting_type,
-                   t1.name as applicable_name, t1.icon_filename as applicable_icon, t1.metaGroupID as applicable_meta,
-                   t2.name as resulting_name, t2.icon_filename as resulting_icon
-            FROM dynamic_item_mappings m
-            LEFT JOIN types t1 ON m.applicable_type = t1.type_id
-            LEFT JOIN types t2 ON m.resulting_type = t2.type_id
-            WHERE m.type_id = ?
-            ORDER BY t1.metaGroupID ASC, t1.type_id ASC
-        """
+        // 映射数据从 SDEMemoryStore 获取（已随 SDE 初始化缓存到内存）
+        let mappings = SDEMemoryStore.dynamicMappings(forTypeID: itemID)
+        let sorted = mappings.sorted { lhs, rhs in
+            let lMeta = SDEMemoryStore.type(for: lhs.applicableType)?.metaGroupID ?? 0
+            let rMeta = SDEMemoryStore.type(for: rhs.applicableType)?.metaGroupID ?? 0
+            if lMeta != rMeta { return lMeta < rMeta }
+            return lhs.applicableType < rhs.applicableType
+        }
 
-        if case let .success(rows) = databaseManager.executeQuery(
-            mappingsQuery, parameters: [itemID]
-        ) {
-            // 处理可应用物品
-            var seenTypeIDs = Set<Int>()
-            applicableItems = rows.compactMap { row in
-                guard let typeID = row["applicable_type"] as? Int,
-                      let name = row["applicable_name"] as? String,
-                      let iconFileName = row["applicable_icon"] as? String,
-                      !seenTypeIDs.contains(typeID)
-                else { return nil }
-                seenTypeIDs.insert(typeID)
-                return (typeID: typeID, name: name, iconFileName: iconFileName)
-            }
+        var seenTypeIDs = Set<Int>()
+        applicableItems = sorted.compactMap { mapping in
+            let typeID = mapping.applicableType
+            if seenTypeIDs.contains(typeID) { return nil }
+            seenTypeIDs.insert(typeID)
+            guard let info = SDEMemoryStore.type(for: typeID) else { return nil }
+            return (typeID: typeID, name: info.name, iconFileName: info.iconFilename)
+        }
 
-            // 处理突变结果（取第一行即可，因为对于同一个突变质体，结果都是一样的）
-            if let row = rows.first,
-               let typeID = row["resulting_type"] as? Int,
-               let name = row["resulting_name"] as? String,
-               let iconFileName = row["resulting_icon"] as? String
-            {
-                resultingItem = (typeID: typeID, name: name, iconFileName: iconFileName)
-            }
+        if let first = sorted.first,
+           let info = SDEMemoryStore.type(for: first.resultingType)
+        {
+            resultingItem = (
+                typeID: first.resultingType, name: info.name, iconFileName: info.iconFilename
+            )
         }
     }
 }

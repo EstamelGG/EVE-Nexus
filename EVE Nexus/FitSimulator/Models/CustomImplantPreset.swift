@@ -1,6 +1,6 @@
 import Foundation
 
-// 自定义植入体预设数据模型
+/// 自定义植入体预设数据模型
 struct CustomImplantPreset: Codable, Identifiable {
     let id: UUID
     var name: String
@@ -17,7 +17,7 @@ struct CustomImplantPreset: Codable, Identifiable {
     }
 }
 
-// 自定义预设管理器
+/// 自定义预设管理器
 class CustomImplantPresetManager {
     static let shared = CustomImplantPresetManager()
 
@@ -41,7 +41,7 @@ class CustomImplantPresetManager {
 
     private init() {}
 
-    // 加载所有预设
+    /// 加载所有预设
     func loadPresets() -> [CustomImplantPreset] {
         guard FileManager.default.fileExists(atPath: filePath.path) else {
             Logger.info("自定义预设文件不存在，返回空列表")
@@ -61,7 +61,7 @@ class CustomImplantPresetManager {
         }
     }
 
-    // 保存所有预设
+    /// 保存所有预设
     func savePresets(_ presets: [CustomImplantPreset]) {
         do {
             let encoder = JSONEncoder()
@@ -75,14 +75,14 @@ class CustomImplantPresetManager {
         }
     }
 
-    // 添加预设
+    /// 添加预设
     func addPreset(_ preset: CustomImplantPreset) {
         var presets = loadPresets()
         presets.append(preset)
         savePresets(presets)
     }
 
-    // 删除预设
+    /// 删除预设
     func deletePreset(_ presetId: UUID) {
         var presets = loadPresets()
         presets.removeAll { $0.id == presetId }

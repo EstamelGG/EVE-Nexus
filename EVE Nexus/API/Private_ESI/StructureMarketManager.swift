@@ -1,6 +1,6 @@
 import Foundation
 
-// 建筑物市场订单数据模型
+/// 建筑物市场订单数据模型
 struct StructureMarketOrder: Codable {
     let duration: Int
     let isBuyOrder: Bool
@@ -29,55 +29,52 @@ struct StructureMarketOrder: Codable {
     }
 }
 
-/// 建筑市场订单加载进度
-///
-/// 建筑市场订单需要分页加载，此枚举用于显示加载进度
-///
-/// 使用场景：
-/// - 建筑市场订单批量加载时，在UI显示"第X页/共Y页"
-/// - 提供加载进度反馈，改善用户体验
-///
-/// 示例：
-/// ```swift
-/// let orders = await MarketOrdersUtil.loadOrders(
-///     typeIds: itemIds,
-///     regionID: structureRegionID,
-///     progressCallback: { progress in
-///         Task { @MainActor in
-///             switch progress {
-///             case .loading(let currentPage, let totalPages):
-///                 // 显示: "第2页/共5页"
-///                 print("加载进度: \(currentPage)/\(totalPages)")
-///             case .completed:
-///                 // 加载完成
-///             }
-///         }
-///     }
-/// )
-/// ```
+// 建筑市场订单加载进度
+// // 建筑市场订单需要分页加载，此枚举用于显示加载进度
+// // 使用场景：
+// - 建筑市场订单批量加载时，在UI显示"第X页/共Y页"
+// - 提供加载进度反馈，改善用户体验
+// // 示例：
+// ```swift
+// let orders = await MarketOrdersUtil.loadOrders(
+//     typeIds: itemIds,
+//     regionID: structureRegionID,
+//     progressCallback: { progress in
+//         Task { @MainActor in
+//             switch progress {
+//             case .loading(let currentPage, let totalPages):
+//                 // 显示: "第2页/共5页"
+//                 print("加载进度: \(currentPage)/\(totalPages)")
+//             case .completed:
+//                 // 加载完成
+//             }
+//         }
+//     }
+// )
+// ```
 public enum StructureOrdersProgress {
     case loading(currentPage: Int, totalPages: Int) // 正在加载，包含当前页和总页数
     case completed // 加载完成
 }
 
-// 将StructureMarketManager标记为网络管理器Actor
+/// 将StructureMarketManager标记为网络管理器Actor
+/// 建筑市场订单管理器
 @NetworkManagerActor
-// 建筑市场订单管理器
 class StructureMarketManager {
     static let shared = StructureMarketManager()
     private let networkManager = NetworkManager.shared
     private init() {}
 
-    // 缓存时间：4小时（非隔离静态常量，可在非隔离静态方法中使用）
+    /// 缓存时间：4小时（非隔离静态常量，可在非隔离静态方法中使用）
     nonisolated static let cacheTimeoutInterval: TimeInterval = 4 * 60 * 60 // 4 小时有效期
 
-    // Documents目录路径
+    /// Documents目录路径
     private var documentsDirectory: URL {
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         return paths[0]
     }
 
-    // Structure_Orders目录路径
+    /// Structure_Orders目录路径
     private var structureOrdersDirectory: URL {
         let directory = documentsDirectory.appendingPathComponent("Structure_Orders")
 
@@ -96,21 +93,31 @@ class StructureMarketManager {
         return directory
     }
 
-    // 获取建筑物市场订单文件路径
+    /// 获取建筑物市场订单文件路径
     private func getOrdersFilePath(structureId: Int64) -> URL {
         return structureOrdersDirectory.appendingPathComponent(
-            "structure_orders_\(structureId).json")
+            "structure_orders_\(structureId).json"
+        )
     }
 
     // MARK: - 公共API方法
 
-    // 获取建筑市场订单（带缓存和进度回调）
+    /// 获取建筑市场订单（带缓存和进度回调）
     func getStructureOrders(
         structureId: Int64,
         characterId: Int,
         forceRefresh: Bool = false,
         progressCallback: ((StructureOrdersProgress) -> Void)? = nil
     ) async throws -> [StructureMarketOrder] {
+        // 统一强制刷新限流：5 分钟内的重复强制刷新降级为使用缓存
+        var forceRefresh = forceRefresh
+        if forceRefresh, await !ForceRefreshThrottle.shared.request(
+            key: "structure-orders-\(structureId)"
+        ) {
+            Logger.info("强制刷新过于频繁，降级使用缓存: \(structureId)")
+            forceRefresh = false
+        }
+
         // 如果不是强制刷新，尝试读取有效的本地缓存
         if !forceRefresh {
             if let validOrders = await getValidLocalOrders(structureId: structureId) {
@@ -120,18 +127,22 @@ class StructureMarketManager {
             }
         }
 
-        // 从API获取新数据
+        // 从API获取新数据（同时刷新建筑基本信息：名称、typeId 等）
         Logger.info("从API获取建筑 \(structureId) 的订单数据")
+        async let infoRefresh: Void = MarketStructureManager.shared.refreshStructureInfo(
+            structureId: Int(structureId),
+            characterId: characterId
+        )
         let orders = try await fetchStructureMarketOrdersFromAPI(
             structureId: structureId,
             characterId: characterId,
             progressCallback: progressCallback
         )
-
+        await infoRefresh
         return orders
     }
 
-    // 获取特定物品在建筑中的订单
+    /// 获取特定物品在建筑中的订单
     func getItemOrdersInStructure(
         structureId: Int64,
         characterId: Int,
@@ -168,7 +179,7 @@ class StructureMarketManager {
         }
     }
 
-    // 批量获取多个物品在建筑中的订单（用于关注列表）
+    /// 批量获取多个物品在建筑中的订单（用于关注列表）
     func getBatchItemOrdersInStructure(
         structureId: Int64,
         characterId: Int,
@@ -209,7 +220,7 @@ class StructureMarketManager {
         return result
     }
 
-    // 获取订单统计信息
+    /// 获取订单统计信息
     func getOrdersStatistics(orders: [StructureMarketOrder]) -> (
         buyOrders: Int, sellOrders: Int, totalVolume: Int64
     ) {
@@ -220,13 +231,13 @@ class StructureMarketManager {
         return (buyOrders: buyOrders, sellOrders: sellOrders, totalVolume: totalVolume)
     }
 
-    // 检查本地文件是否存在
+    /// 检查本地文件是否存在
     func hasLocalOrders(structureId: Int64) -> Bool {
         let filePath = getOrdersFilePath(structureId: structureId)
         return FileManager.default.fileExists(atPath: filePath.path)
     }
 
-    // 获取本地文件的修改时间
+    /// 获取本地文件的修改时间
     func getLocalOrdersModificationDate(structureId: Int64) -> Date? {
         let filePath = getOrdersFilePath(structureId: structureId)
 
@@ -238,7 +249,7 @@ class StructureMarketManager {
         }
     }
 
-    // 获取本地文件的修改时间（静态方法，用于非隔离上下文）
+    /// 获取本地文件的修改时间（静态方法，用于非隔离上下文）
     nonisolated static func getLocalOrdersModificationDate(structureId: Int64) -> Date? {
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         let documentsDirectory = paths[0]
@@ -259,9 +270,9 @@ class StructureMarketManager {
         }
     }
 
-    // 尝试读取有效的本地缓存订单数据
-    // 返回nil表示没有有效缓存，需要联网加载
-    // 返回数据表示有有效缓存，无需联网加载
+    /// 尝试读取有效的本地缓存订单数据
+    /// 返回nil表示没有有效缓存，需要联网加载
+    /// 返回数据表示有有效缓存，无需联网加载
     func getValidLocalOrders(structureId: Int64) async -> [StructureMarketOrder]? {
         // 检查本地文件是否存在
         guard hasLocalOrders(structureId: structureId) else {
@@ -286,21 +297,22 @@ class StructureMarketManager {
         }
     }
 
-    // 缓存状态枚举
-    enum CacheStatus {
+    /// 缓存状态枚举
+    enum CacheStatus: Equatable {
         case valid // 有有效缓存
         case expired // 有缓存但已过期
         case noData // 无缓存数据
     }
 
-    // 检查建筑订单的缓存状态（静态方法，用于UI显示）
+    /// 检查建筑订单的缓存状态（静态方法，用于UI显示）
     nonisolated static func getCacheStatus(structureId: Int64) -> CacheStatus {
         // 获取Documents目录路径
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         let documentsDirectory = paths[0]
         let structureOrdersDirectory = documentsDirectory.appendingPathComponent("Structure_Orders")
         let filePath = structureOrdersDirectory.appendingPathComponent(
-            "structure_orders_\(structureId).json")
+            "structure_orders_\(structureId).json"
+        )
 
         // 检查本地文件是否存在
         guard FileManager.default.fileExists(atPath: filePath.path) else {
@@ -323,7 +335,7 @@ class StructureMarketManager {
 
     // MARK: - 私有网络请求方法
 
-    // 从API获取建筑物市场订单数据（支持进度回调）
+    /// 从API获取建筑物市场订单数据（支持进度回调）
     private func fetchStructureMarketOrdersFromAPI(
         structureId: Int64,
         characterId: Int,
@@ -375,7 +387,7 @@ class StructureMarketManager {
 
     // MARK: - 私有文件操作方法
 
-    // 保存订单数据到文件
+    /// 保存订单数据到文件
     private func saveOrdersToFile(orders: [StructureMarketOrder], structureId: Int64) async throws {
         let filePath = getOrdersFilePath(structureId: structureId)
 
@@ -394,7 +406,7 @@ class StructureMarketManager {
         }
     }
 
-    // 从文件加载订单数据
+    /// 从文件加载订单数据
     private func loadOrdersFromFile(structureId: Int64) async throws -> [StructureMarketOrder] {
         let filePath = getOrdersFilePath(structureId: structureId)
 
@@ -416,16 +428,16 @@ class StructureMarketManager {
     }
 }
 
-// 用于根据地区ID判断是星域还是建筑
+/// 用于根据地区ID判断是星域还是建筑
 extension StructureMarketManager {
-    // 判断是否是建筑ID（负数表示建筑）
+    /// 判断是否是建筑ID（负数表示建筑）
+    /// 编码定义见 MarketLocation，此处仅为既有调用点的便捷封装
     nonisolated static func isStructureId(_ regionId: Int) -> Bool {
-        return regionId < 0
+        return MarketLocation(virtualRegionID: regionId).isStructure
     }
 
-    // 从地区ID获取建筑ID
+    /// 从地区ID获取建筑ID
     nonisolated static func getStructureId(from regionId: Int) -> Int64? {
-        guard isStructureId(regionId) else { return nil }
-        return Int64(-regionId)
+        return MarketLocation(virtualRegionID: regionId).structureID
     }
 }

@@ -59,12 +59,21 @@ final class PreparedFWSystem: ObservableObject, Identifiable {
 
     struct LocationInfo {
         let systemId: Int
-        let systemName: String
         let security: Double
         let constellationId: Int
-        let constellationName: String
         let regionId: Int
-        let regionName: String
+
+        var systemName: String {
+            SDEMemoryStore.solarSystemName(for: systemId) ?? "System \(systemId)"
+        }
+
+        var constellationName: String {
+            SDEMemoryStore.constellationName(for: constellationId) ?? "Constellation \(constellationId)"
+        }
+
+        var regionName: String {
+            SDEMemoryStore.regionName(for: regionId) ?? "Region \(regionId)"
+        }
     }
 
     init(system: FWSystem, info: SolarSystemInfo) {
@@ -73,12 +82,9 @@ final class PreparedFWSystem: ObservableObject, Identifiable {
 
         location = LocationInfo(
             systemId: info.systemId,
-            systemName: info.systemName,
             security: info.security,
             constellationId: info.constellationId,
-            constellationName: info.constellationName,
-            regionId: info.regionId,
-            regionName: info.regionName
+            regionId: info.regionId
         )
     }
 }
@@ -92,8 +98,6 @@ final class FactionWarDetailViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var filterType: SystemType = .all
     @Published var searchText = ""
-    @Published private var systemNameCache:
-        [Int: (name: String, name_en: String, name_zh: String)] = [:]
 
     private let faction: FactionInfo
     private let wars: [FWWar]
@@ -125,18 +129,7 @@ final class FactionWarDetailViewModel: ObservableObject {
             if !searchText.isEmpty {
                 // 在内存中搜索匹配的星系
                 relevantSystems.filter { system in
-                    // 检查本地化显示名称
-                    if system.location.systemName.localizedCaseInsensitiveContains(searchText) {
-                        return true
-                    }
-                    // 检查英文名称和中文名称
-                    if let cache = systemNameCache[system.id],
-                       cache.name_en.localizedCaseInsensitiveContains(searchText)
-                       || cache.name_zh.localizedCaseInsensitiveContains(searchText)
-                    {
-                        return true
-                    }
-                    return false
+                    SDEMemoryStore.solarSystemNames[system.id]?.matchesSearch(searchText) == true
                 }
             } else if filterType != .all {
                 relevantSystems.filter { $0.systemType == filterType }
@@ -202,26 +195,6 @@ final class FactionWarDetailViewModel: ObservableObject {
                     databaseManager: databaseManager
                 )
 
-                // 获取星系中英文名称
-                let query =
-                    "SELECT solarSystemID, solarSystemName, solarSystemName_en, solarSystemName_zh FROM solarsystems WHERE solarSystemID IN (\(String(repeating: "?,", count: systemIds.count).dropLast()))"
-                if case let .success(rows) = databaseManager.executeQuery(
-                    query, parameters: systemIds
-                ) {
-                    systemNameCache = Dictionary(
-                        uniqueKeysWithValues: rows.compactMap { row in
-                            guard let id = row["solarSystemID"] as? Int,
-                                  let name = row["solarSystemName"] as? String,
-                                  let nameEn = row["solarSystemName_en"] as? String,
-                                  let nameZh = row["solarSystemName_zh"] as? String
-                            else {
-                                return nil
-                            }
-                            // 使用更简单直观的命名
-                            return (id, (name: name, name_en: nameEn, name_zh: nameZh))
-                        })
-                }
-
                 // 创建PreparedFWSystem对象
                 var prepared: [PreparedFWSystem] = []
 
@@ -234,8 +207,8 @@ final class FactionWarDetailViewModel: ObservableObject {
 
                         // 从state中获取systemType
                         if let state = FWSystemStateManager.shared.getSystemState(
-                            for: system.solar_system_id)
-                        {
+                            for: system.solar_system_id
+                        ) {
                             preparedSystem.systemType = state.systemType
                         }
 
@@ -329,11 +302,6 @@ final class FactionWarDetailViewModel: ObservableObject {
 struct FWSystemCell: View {
     @ObservedObject var system: PreparedFWSystem
     let allFactions: [FactionInfo]
-
-    init(system: PreparedFWSystem, allFactions: [FactionInfo]) {
-        self.system = system
-        self.allFactions = allFactions
-    }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -516,7 +484,8 @@ struct FactionWarDetailView: View {
                 allFactions: allFactions,
                 databaseManager: databaseManager,
                 systemNeighbours: systemNeighbours
-            ))
+            )
+        )
     }
 
     var body: some View {
@@ -559,7 +528,7 @@ struct FactionWarDetailView: View {
         .searchable(
             text: $viewModel.searchText,
             isPresented: $isSearchActive,
-            placement: .navigationBarDrawer(displayMode: .always),
+            // placement: .navigationBarDrawer(displayMode: .always),
             prompt: NSLocalizedString("Main_Database_Search", comment: "")
         )
         .task {

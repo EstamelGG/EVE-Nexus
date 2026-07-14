@@ -8,7 +8,7 @@ class CharacterMiningAPI {
     private let lastMiningQueryKey = "LastMiningLedgerQuery_"
     private let queryInterval: TimeInterval = 3600 // 1小时的查询间隔
 
-    // 挖矿记录数据模型
+    /// 挖矿记录数据模型
     struct MiningLedgerEntry: Codable {
         let date: String
         let quantity: Int
@@ -18,13 +18,13 @@ class CharacterMiningAPI {
 
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd" // 修改为与数据库匹配的格式
+        formatter.dateFormat = "yyyy-MM-dd"
         formatter.timeZone = TimeZone(identifier: "UTC")!
         formatter.locale = Locale(identifier: "en_US_POSIX")
         return formatter
     }()
 
-    // 用于API响应的日期格式化器
+    /// 用于API响应的日期格式化器
     private let apiDateFormatter: DateFormatter = {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss'Z'"
@@ -35,7 +35,7 @@ class CharacterMiningAPI {
 
     private init() {}
 
-    // 获取最后查询时间
+    /// 获取最后查询时间
     private func getLastQueryTime(characterId: Int) -> Date? {
         let key = lastMiningQueryKey + String(characterId)
         let lastQuery = UserDefaults.standard.object(forKey: key) as? Date
@@ -58,13 +58,13 @@ class CharacterMiningAPI {
         return lastQuery
     }
 
-    // 更新最后查询时间
+    /// 更新最后查询时间
     private func updateLastQueryTime(characterId: Int) {
         let key = lastMiningQueryKey + String(characterId)
         UserDefaults.standard.set(Date(), forKey: key)
     }
 
-    // 检查是否需要刷新数据
+    /// 检查是否需要刷新数据
     private func shouldRefreshData(characterId: Int) -> Bool {
         guard let lastQuery = getLastQueryTime(characterId: characterId) else {
             return true
@@ -72,7 +72,7 @@ class CharacterMiningAPI {
         return Date().timeIntervalSince(lastQuery) >= queryInterval
     }
 
-    // 从数据库获取挖矿记录
+    /// 从数据库获取挖矿记录
     private func getMiningLedgerFromDB(characterId: Int) -> [MiningLedgerEntry]? {
         let query = """
             SELECT date, quantity, solar_system_id, type_id
@@ -121,7 +121,7 @@ class CharacterMiningAPI {
         }
     }
 
-    // 保存挖矿记录到数据库
+    /// 保存挖矿记录到数据库
     private func saveMiningLedgerToDB(characterId: Int, entries: [MiningLedgerEntry]) -> Bool {
         let insertSQL = """
             INSERT OR REPLACE INTO mining_ledger (
@@ -152,7 +152,7 @@ class CharacterMiningAPI {
         return true
     }
 
-    // 从服务器获取挖矿记录
+    /// 从服务器获取挖矿记录
     private func fetchFromServer(characterId: Int) async throws -> [MiningLedgerEntry] {
         let baseUrlString =
             "https://esi.evetech.net/characters/\(characterId)/mining/?datasource=tranquility"
@@ -187,7 +187,7 @@ class CharacterMiningAPI {
         return convertedEntries
     }
 
-    // 获取挖矿记录
+    /// 获取挖矿记录
     func getMiningLedger(characterId: Int, forceRefresh: Bool = false) async throws
         -> [MiningLedgerEntry]
     {

@@ -1,13 +1,13 @@
 import Foundation
 
-// 军团钱包数据模型
+/// 军团钱包数据模型
 struct CorpWallet: Codable {
     let division: Int
     let balance: Double
     var name: String?
 }
 
-// 军团部门数据模型
+/// 军团部门数据模型
 struct CorpDivisions: Codable {
     let hangar: [DivisionInfo]
     let wallet: [DivisionInfo]
@@ -26,12 +26,12 @@ struct DivisionInfo: Codable {
 class CorpWalletAPI {
     static let shared = CorpWalletAPI()
 
-    // 军团钱包流水缓存超时时间
+    /// 军团钱包流水缓存超时时间
     private let journalCacheTimeout: TimeInterval = 3600 // 1小时的流水缓存超时时间
 
     private init() {}
 
-    // 获取军团钱包流水缓存目录
+    /// 获取军团钱包流水缓存目录
     private func getCorpWalletJournalCacheDirectory() -> URL {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[
             0
@@ -49,21 +49,23 @@ class CorpWalletAPI {
         return cacheDirectory
     }
 
-    // 获取军团钱包流水缓存文件路径
+    /// 获取军团钱包流水缓存文件路径
     private func getCorpJournalCacheFilePath(corporationId: Int, division: Int) -> URL {
         let cacheDirectory = getCorpWalletJournalCacheDirectory()
         return cacheDirectory.appendingPathComponent(
-            "CorpJournal_\(corporationId)_\(division).json")
+            "CorpJournal_\(corporationId)_\(division).json"
+        )
     }
 
-    // 获取军团钱包交易记录缓存文件路径
+    /// 获取军团钱包交易记录缓存文件路径
     private func getCorpTransactionsCacheFilePath(corporationId: Int, division: Int) -> URL {
         let cacheDirectory = getCorpWalletJournalCacheDirectory()
         return cacheDirectory.appendingPathComponent(
-            "CorpTransactions_\(corporationId)_\(division).json")
+            "CorpTransactions_\(corporationId)_\(division).json"
+        )
     }
 
-    // 检查军团钱包流水缓存是否过期
+    /// 检查军团钱包流水缓存是否过期
     private func isCorpJournalCacheExpired(corporationId: Int, division: Int) -> Bool {
         let filePath = getCorpJournalCacheFilePath(corporationId: corporationId, division: division)
 
@@ -97,7 +99,7 @@ class CorpWalletAPI {
         return true
     }
 
-    // 检查军团钱包交易记录缓存是否过期
+    /// 检查军团钱包交易记录缓存是否过期
     private func isCorpTransactionsCacheExpired(corporationId: Int, division: Int) -> Bool {
         let filePath = getCorpTransactionsCacheFilePath(corporationId: corporationId, division: division)
 
@@ -180,7 +182,8 @@ class CorpWalletAPI {
         // 1. 获取角色的军团ID
         guard
             let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(
-                characterId: characterId)
+                characterId: characterId
+            )
         else {
             throw NetworkError.authenticationError("无法获取军团ID")
         }
@@ -267,7 +270,8 @@ class CorpWalletAPI {
         // 1. 获取角色的军团ID
         guard
             let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(
-                characterId: characterId)
+                characterId: characterId
+            )
         else {
             throw NetworkError.authenticationError("无法获取军团ID")
         }
@@ -418,12 +422,14 @@ class CorpWalletAPI {
 
         guard FileManager.default.fileExists(atPath: filePath.path) else {
             Logger.info(
-                "军团钱包流水缓存文件不存在 - 军团ID: \(corporationId), 部门: \(division), 文件路径: \(filePath.path)")
+                "军团钱包流水缓存文件不存在 - 军团ID: \(corporationId), 部门: \(division), 文件路径: \(filePath.path)"
+            )
             return nil
         }
 
         Logger.info(
-            "开始读取军团钱包流水缓存文件 - 军团ID: \(corporationId), 部门: \(division), 文件路径: \(filePath.path)")
+            "开始读取军团钱包流水缓存文件 - 军团ID: \(corporationId), 部门: \(division), 文件路径: \(filePath.path)"
+        )
 
         do {
             let data = try Data(contentsOf: filePath)
@@ -490,12 +496,14 @@ class CorpWalletAPI {
 
         guard FileManager.default.fileExists(atPath: filePath.path) else {
             Logger.info(
-                "军团钱包交易记录缓存文件不存在 - 军团ID: \(corporationId), 部门: \(division), 文件路径: \(filePath.path)")
+                "军团钱包交易记录缓存文件不存在 - 军团ID: \(corporationId), 部门: \(division), 文件路径: \(filePath.path)"
+            )
             return nil
         }
 
         Logger.info(
-            "开始读取军团钱包交易记录缓存文件 - 军团ID: \(corporationId), 部门: \(division), 文件路径: \(filePath.path)")
+            "开始读取军团钱包交易记录缓存文件 - 军团ID: \(corporationId), 部门: \(division), 文件路径: \(filePath.path)"
+        )
 
         do {
             let data = try Data(contentsOf: filePath)
@@ -508,12 +516,14 @@ class CorpWalletAPI {
                 return transactionEntries
             } else {
                 Logger.error(
-                    "军团钱包交易记录缓存文件格式不正确 - 军团ID: \(corporationId), 部门: \(division), 文件路径: \(filePath.path)")
+                    "军团钱包交易记录缓存文件格式不正确 - 军团ID: \(corporationId), 部门: \(division), 文件路径: \(filePath.path)"
+                )
                 return nil
             }
         } catch {
             Logger.error(
-                "读取军团钱包交易记录缓存文件失败 - 军团ID: \(corporationId), 部门: \(division), 错误: \(error), 文件路径: \(filePath.path)")
+                "读取军团钱包交易记录缓存文件失败 - 军团ID: \(corporationId), 部门: \(division), 错误: \(error), 文件路径: \(filePath.path)"
+            )
             return nil
         }
     }
@@ -530,7 +540,8 @@ class CorpWalletAPI {
         let filePath = getCorpTransactionsCacheFilePath(corporationId: corporationId, division: division)
 
         Logger.info(
-            "开始保存军团钱包交易记录到缓存文件 - 军团ID: \(corporationId), 部门: \(division), 记录数量: \(entries.count), 文件路径: \(filePath.path)")
+            "开始保存军团钱包交易记录到缓存文件 - 军团ID: \(corporationId), 部门: \(division), 记录数量: \(entries.count), 文件路径: \(filePath.path)"
+        )
 
         do {
             let jsonData = try JSONSerialization.data(
@@ -543,7 +554,8 @@ class CorpWalletAPI {
             return true
         } catch {
             Logger.error(
-                "保存军团钱包交易记录到缓存文件失败 - 军团ID: \(corporationId), 部门: \(division), 错误: \(error), 文件路径: \(filePath.path)")
+                "保存军团钱包交易记录到缓存文件失败 - 军团ID: \(corporationId), 部门: \(division), 错误: \(error), 文件路径: \(filePath.path)"
+            )
             return false
         }
     }
@@ -564,7 +576,8 @@ class CorpWalletAPI {
         // 1. 获取军团ID
         guard
             let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(
-                characterId: characterId)
+                characterId: characterId
+            )
         else {
             throw NetworkError.authenticationError("无法获取军团ID")
         }
@@ -623,13 +636,15 @@ class CorpWalletAPI {
         // 1. 获取军团ID
         guard
             let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(
-                characterId: characterId)
+                characterId: characterId
+            )
         else {
             throw NetworkError.authenticationError("无法获取军团ID")
         }
 
         Logger.info(
-            "开始获取军团钱包交易记录 - 角色ID: \(characterId), 军团ID: \(corporationId), 部门: \(division), 强制刷新: \(forceRefresh)")
+            "开始获取军团钱包交易记录 - 角色ID: \(characterId), 军团ID: \(corporationId), 部门: \(division), 强制刷新: \(forceRefresh)"
+        )
 
         // 2. 如果是强制刷新，先使关联缓存失效
         if forceRefresh {
@@ -660,7 +675,8 @@ class CorpWalletAPI {
                 withJSONObject: results, options: [.prettyPrinted, .sortedKeys]
             )
             Logger.info(
-                "军团钱包交易记录数据处理完成 - 军团ID: \(corporationId), 部门: \(division), JSON大小: \(jsonData.count) bytes")
+                "军团钱包交易记录数据处理完成 - 军团ID: \(corporationId), 部门: \(division), JSON大小: \(jsonData.count) bytes"
+            )
             return String(data: jsonData, encoding: .utf8)
         }
 

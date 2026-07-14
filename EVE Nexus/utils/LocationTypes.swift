@@ -1,9 +1,9 @@
-//
+
 //  LocationTypes.swift
 //  EVE Nexus
-//
+
 //  Created by GG Estamel on 2025/3/4.
-//
+
 // 添加位置类型枚举
 
 enum LocationType {

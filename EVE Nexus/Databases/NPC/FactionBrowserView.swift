@@ -1,26 +1,42 @@
 import SwiftUI
 
-// 势力信息数据模型
+/// 势力信息数据模型
 struct FactionItem: Identifiable {
     let id: Int
-    let name: String
-    let enName: String // 添加英文名称
-    let zhName: String // 添加中文名称
+    let names: LocalizedText
     let shortDescription: String
     let description: String
     let iconName: String
+
+    var name: String {
+        names.resolved()
+    }
+
+    var enName: String {
+        names.en
+    }
+
+    func matches(_ query: String) -> Bool {
+        names.matchesSearch(query)
+    }
 }
 
-// 军团信息数据模型
+/// 军团信息数据模型
 struct CorporationItem: Identifiable {
     let id: Int
-    let name: String
-    let enName: String // 添加英文名称
-    let zhName: String // 添加中文名称
+    let names: LocalizedText
     let description: String
     let iconFileName: String
-    let factionId: Int // 添加势力ID字段
-    let militiaFaction: Int? // 添加民兵势力ID字段
+    let factionId: Int
+    let militiaFaction: Int?
+
+    var name: String {
+        names.resolved()
+    }
+
+    var enName: String {
+        names.en
+    }
 
     var isMilitia: Bool {
         if let militia = militiaFaction, militia > 0 {
@@ -28,16 +44,20 @@ struct CorporationItem: Identifiable {
         }
         return false
     }
+
+    func matches(_ query: String) -> Bool {
+        names.matchesSearch(query)
+    }
 }
 
-// 声望数据模型
+/// 声望数据模型
 struct StandingInfo {
     let fromId: Int
     let fromType: String // agent, npc_corp, faction
     let standing: Double
 }
 
-// 根据声望值确定颜色
+/// 根据声望值确定颜色
 func standingColor(_ standing: Double) -> Color {
     switch standing {
     case 0.1...:
@@ -53,7 +73,7 @@ func standingColor(_ standing: Double) -> Color {
     }
 }
 
-// 势力浏览器视图
+/// 势力浏览器视图
 struct FactionBrowserView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let characterId: Int?
@@ -67,28 +87,20 @@ struct FactionBrowserView: View {
     @State private var hasInitialized = false
     @State private var searchText = ""
 
-    // 搜索过滤的势力 - 只匹配名称字段
+    /// 搜索过滤的势力 - 只匹配名称字段
     private var filteredFactions: [FactionItem] {
         if searchText.isEmpty {
             return []
         }
-        return factions.filter { faction in
-            faction.name.localizedCaseInsensitiveContains(searchText)
-                || faction.enName.localizedCaseInsensitiveContains(searchText)
-                || faction.zhName.localizedCaseInsensitiveContains(searchText)
-        }
+        return factions.filter { $0.matches(searchText) }
     }
 
-    // 搜索过滤的军团 - 只匹配名称字段
+    /// 搜索过滤的军团 - 只匹配名称字段
     private var filteredCorporations: [CorporationItem] {
         if searchText.isEmpty {
             return []
         }
-        return allCorporations.filter { corporation in
-            corporation.name.localizedCaseInsensitiveContains(searchText)
-                || corporation.enName.localizedCaseInsensitiveContains(searchText)
-                || corporation.zhName.localizedCaseInsensitiveContains(searchText)
-        }
+        return allCorporations.filter { $0.matches(searchText) }
     }
 
     init(databaseManager: DatabaseManager, characterId: Int? = nil) {
@@ -169,7 +181,8 @@ struct FactionBrowserView: View {
                                                     Text(String(format: "%.2f", standing.standing))
                                                         .font(.caption)
                                                         .foregroundColor(
-                                                            standingColor(standing.standing))
+                                                            standingColor(standing.standing)
+                                                        )
                                                 } else if characterId != nil && isLoadingStandings {
                                                     ProgressView()
                                                         .scaleEffect(0.7)
@@ -347,7 +360,7 @@ struct FactionBrowserView: View {
             .navigationTitle(NSLocalizedString("Main_NPC_Faction", comment: ""))
             .searchable(
                 text: $searchText,
-                placement: .navigationBarDrawer(displayMode: .always),
+                // placement: .navigationBarDrawer(displayMode: .always),
                 prompt: NSLocalizedString("Main_Search_Placeholder", comment: "")
             )
             .onAppear {
@@ -356,7 +369,7 @@ struct FactionBrowserView: View {
         }
     }
 
-    // 仅在需要时加载数据
+    /// 仅在需要时加载数据
     private func loadDataIfNeeded() {
         guard !hasInitialized else { return }
         hasInitialized = true
@@ -366,7 +379,7 @@ struct FactionBrowserView: View {
         }
     }
 
-    // 加载所有数据
+    /// 加载所有数据
     private func loadAllData() async {
         await MainActor.run {
             self.isLoadingData = true
@@ -394,78 +407,71 @@ struct FactionBrowserView: View {
         }
     }
 
-    // 加载所有势力
+    /// 加载所有势力
     private func loadAllFactions() async -> [FactionItem] {
-        let query =
-            "SELECT id, name, en_name, zh_name, shortDescription, description, iconName FROM factions"
+        let query = """
+            SELECT id, shortDescription, description, iconName,
+                   de_name, en_name, es_name, fr_name, ja_name, ko_name, ru_name, zh_name
+            FROM factions
+        """
 
         var factions: [FactionItem] = []
         if case let .success(rows) = databaseManager.executeQuery(query) {
             for row in rows {
-                if let id = row["id"] as? Int,
-                   let name = row["name"] as? String,
-                   let enName = row["en_name"] as? String,
-                   let zhName = row["zh_name"] as? String,
-                   let shortDescription = row["shortDescription"] as? String,
-                   let description = row["description"] as? String,
-                   let iconName = row["iconName"] as? String
-                {
-                    factions.append(
-                        FactionItem(
-                            id: id,
-                            name: name,
-                            enName: enName,
-                            zhName: zhName,
-                            shortDescription: shortDescription,
-                            description: description,
-                            iconName: iconName
-                        ))
-                }
+                guard let id = row["id"] as? Int,
+                      let shortDescription = row["shortDescription"] as? String,
+                      let description = row["description"] as? String,
+                      let iconName = row["iconName"] as? String
+                else { continue }
+                factions.append(
+                    FactionItem(
+                        id: id,
+                        names: LocalizedText.from(row: row),
+                        shortDescription: shortDescription,
+                        description: description,
+                        iconName: iconName
+                    )
+                )
             }
         }
 
-        // 使用本地化比较进行排序
         return factions.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
     }
 
-    // 加载所有军团
+    /// 加载所有军团
     private func loadAllCorporations() async -> [CorporationItem] {
-        let query =
-            "SELECT corporation_id, name, en_name, zh_name, description, icon_filename, faction_id, militia_faction FROM npcCorporations"
+        let query = """
+            SELECT corporation_id, description, icon_filename, faction_id, militia_faction,
+                   de_name, en_name, es_name, fr_name, ja_name, ko_name, ru_name, zh_name
+            FROM npcCorporations
+        """
 
         var corporations: [CorporationItem] = []
         if case let .success(rows) = databaseManager.executeQuery(query) {
             for row in rows {
-                if let corporationId = row["corporation_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let enName = row["en_name"] as? String,
-                   let zhName = row["zh_name"] as? String,
-                   let description = row["description"] as? String,
-                   let iconFileName = row["icon_filename"] as? String,
-                   let factionId = row["faction_id"] as? Int
-                {
-                    let militiaFaction = row["militia_faction"] as? Int
-                    corporations.append(
-                        CorporationItem(
-                            id: corporationId,
-                            name: name,
-                            enName: enName,
-                            zhName: zhName,
-                            description: description,
-                            iconFileName: iconFileName.isEmpty
-                                ? "corporation_default" : iconFileName,
-                            factionId: factionId,
-                            militiaFaction: militiaFaction
-                        ))
-                }
+                guard let corporationId = row["corporation_id"] as? Int,
+                      let description = row["description"] as? String,
+                      let factionId = row["faction_id"] as? Int
+                else { continue }
+                let iconFileName = row["icon_filename"] as? String ?? ""
+                corporations.append(
+                    CorporationItem(
+                        id: corporationId,
+                        names: LocalizedText.from(row: row),
+                        description: description,
+                        iconFileName: iconFileName.isEmpty
+                            ? "corporation_default" : iconFileName,
+                        factionId: factionId,
+                        militiaFaction: row["militia_faction"] as? Int
+                    )
+                )
             }
         }
 
-        // 使用本地化比较进行排序
         return corporations.sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
     }
 
-    // 加载声望数据
+    /// 加载声望数据
     private func loadStandings() async {
         guard let characterId = characterId else { return }
 
@@ -475,7 +481,8 @@ struct FactionBrowserView: View {
 
         do {
             let standingsData = try await CharacterStandingsAPI.shared.fetchStandings(
-                characterId: characterId)
+                characterId: characterId
+            )
 
             // 将声望数据转换为字典，便于查找
             var standingsDict: [Int: StandingInfo] = [:]
@@ -506,7 +513,7 @@ struct FactionBrowserView: View {
     }
 }
 
-// 势力详情页面
+/// 势力详情页面
 struct FactionDetailView: View {
     let faction: FactionItem
     let corporations: [CorporationItem] // 预加载的军团数据
@@ -659,7 +666,7 @@ struct FactionDetailView: View {
         }
     }
 
-    // 仅在需要时加载声望数据
+    /// 仅在需要时加载声望数据
     private func loadStandingsIfNeeded() {
         guard !hasInitialized else { return }
         hasInitialized = true
@@ -669,7 +676,7 @@ struct FactionDetailView: View {
         }
     }
 
-    // 加载声望数据
+    /// 加载声望数据
     private func loadStandings() async {
         guard let characterId = characterId else { return }
 
@@ -679,7 +686,8 @@ struct FactionDetailView: View {
 
         do {
             let standingsData = try await CharacterStandingsAPI.shared.fetchStandings(
-                characterId: characterId)
+                characterId: characterId
+            )
 
             // 将声望数据转换为字典，便于查找
             var standingsDict: [Int: StandingInfo] = [:]
@@ -710,7 +718,7 @@ struct FactionDetailView: View {
     }
 }
 
-// 军团详情页面
+/// 军团详情页面
 struct NPCCorporationDetailView: View {
     let corporation: CorporationItem
     @ObservedObject var databaseManager: DatabaseManager
@@ -822,7 +830,7 @@ struct NPCCorporationDetailView: View {
         }
     }
 
-    // 检查LP商店数据
+    /// 检查LP商店数据
     private func checkLPStoreData() async {
         isLoadingLPStore = true
         lpStoreError = nil

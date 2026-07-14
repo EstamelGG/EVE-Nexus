@@ -5,51 +5,49 @@
 import Foundation
 
 extension LoggerStore {
-    /// The store info.
+    // The store info.
     public struct Info: Codable, Sendable {
         // MARK: Store Info
 
-        /// The id of the store.
-        ///
-        /// - note: If you create a copy of the store for exporting, the copy
-        /// gets its own unique ID.
+        // The id of the store.
+        //         // - note: If you create a copy of the store for exporting, the copy
+        // gets its own unique ID.
         public var storeId: UUID
 
-        /// The internal version of the store.
+        // The internal version of the store.
         public var storeVersion: String
 
         // MARK: Creation Dates
 
-        /// The date the store was originally created.
+        // The date the store was originally created.
         public var creationDate: Date
-        /// The date the store was last modified.
+        // The date the store was last modified.
         public var modifiedDate: Date
 
         // MARK: Usage Statistics
 
-        /// The numbers of recorded messages.
-        ///
-        /// - note: This excludes the technical messages associated with the
-        /// network requests.
+        // The numbers of recorded messages.
+        //         // - note: This excludes the technical messages associated with the
+        // network requests.
         public var messageCount: Int
-        /// The number of recorded network requests.
+        // The number of recorded network requests.
         public var taskCount: Int
-        /// The number of stored network response and requests bodies.
+        // The number of stored network response and requests bodies.
         public var blobCount: Int
-        /// The complete size of the store, including the database and all
-        /// externally stored blobs.
+        // The complete size of the store, including the database and all
+        // externally stored blobs.
         public var totalStoreSize: Int64
-        /// The size of stored network response and requests bodies.
+        // The size of stored network response and requests bodies.
         public var blobsSize: Int64
-        /// The size of compressed stored network response and requests bodies.
-        /// The blobs are compressed by default.
+        // The size of compressed stored network response and requests bodies.
+        // The blobs are compressed by default.
         public var blobsDecompressedSize: Int64
 
         // MARK: App and Device Info
 
-        /// Information about the app which created the store.
+        // Information about the app which created the store.
         public var appInfo: AppInfo
-        /// Information about the device which created the store.
+        // Information about the device which created the store.
         public var deviceInfo: DeviceInfo
 
         public struct AppInfo: Codable, Sendable {
@@ -57,7 +55,7 @@ extension LoggerStore {
             public let name: String?
             public let version: String?
             public let build: String?
-            /// Base64-encoded app icon (32x32 pixels). Added in 3.5.7
+            // Base64-encoded app icon (32x32 pixels). Added in 3.5.7
             public let icon: String?
         }
 

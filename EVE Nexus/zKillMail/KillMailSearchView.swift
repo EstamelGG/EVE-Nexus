@@ -61,16 +61,32 @@ struct BRKillMailSearchView: View {
     @State private var searchFieldText = ""
     @State private var hasSubmittedKeywordSearch = false
     @State private var recentKeywords: [String] = []
-    @State private var killMails: [KillMailListEntity] = []
-    @State private var isLoading = false
     @State private var isLoadingMore = false
-    @State private var shipInfoMap: [Int: (name: String, iconFileName: String)] = [:]
-    @State private var allianceIconMap: [Int: UIImage] = [:]
-    @State private var corporationIconMap: [Int: UIImage] = [:]
     @State private var selectedFilter: KillMailFilter = .all
-    @State private var hasMoreData = true
+    /// 各筛选视角独立缓存的数据集：切换标签时命中缓存则瞬时恢复，无需重载
+    @State private var filterDataCache: [KillMailLoadTrigger: FilterData] = [:]
 
-    // 分页状态
+    /// 有效筛选器：星域/星系搜索仅支持「全部」，自动归一化
+    private var effectiveFilter: KillMailFilter {
+        guard let result = viewModel.selectedResult,
+              result.category == .solar_system || result.category == .region
+        else { return selectedFilter }
+        return .all
+    }
+
+    /// 当前视角标识：选中对象 + 有效筛选器。用作 .task(id:) 触发值与缓存键
+    private var killMailLoadTrigger: KillMailLoadTrigger? {
+        guard let result = viewModel.selectedResult else { return nil }
+        return KillMailLoadTrigger(resultID: result.id, filter: effectiveFilter)
+    }
+
+    /// 当前视角的数据集（未加载过时为 nil）
+    private var currentFilterData: FilterData? {
+        guard let trigger = killMailLoadTrigger else { return nil }
+        return filterDataCache[trigger]
+    }
+
+    /// 分页状态
     private struct SearchPaginationState {
         var currentZKBPage: Int = 1 // 当前 zkillboard API 页码
         var pendingZKBEntries: [ZKBKillMailEntry] = [] // 待转换的原始数据
@@ -78,50 +94,31 @@ struct BRKillMailSearchView: View {
         var hasMore: Bool = true // 是否还有更多数据
     }
 
-    @State private var paginationState = SearchPaginationState()
+    /// 视角标识：搜索结果 ID + 有效筛选器
+    private struct KillMailLoadTrigger: Hashable {
+        let resultID: Int
+        let filter: KillMailFilter
+    }
 
-    // 获取当前角色信息
+    /// 单个筛选视角的完整数据集
+    private struct FilterData {
+        var killMails: [KillMailListEntity] = []
+        var paginationState = SearchPaginationState()
+        var hasMoreData = true
+        var shipInfoMap: [Int: (name: String, iconFileName: String)] = [:]
+        var allianceIconMap: [Int: UIImage] = [:]
+        var corporationIconMap: [Int: UIImage] = [:]
+        /// 初始加载是否完成过（区分「骨架屏加载中」与「无记录」）
+        var isLoaded = false
+    }
+
+    /// 获取当前角色信息
     private var character: EVECharacterInfo? {
         EVELogin.shared.getCharacterByID(characterId)?.character
     }
 
     var body: some View {
         List {
-            Section {
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
-                    TextField(
-                        NSLocalizedString("KillMail_Search_Input_Prompt", comment: ""),
-                        text: $searchFieldText
-                    )
-                    .textFieldStyle(.plain)
-                    .submitLabel(.search)
-                    .onSubmit {
-                        submitKeywordSearch(recordHistory: true)
-                    }
-                    .onChange(of: searchFieldText) { _, newValue in
-                        if newValue.isEmpty {
-                            hasSubmittedKeywordSearch = false
-                            viewModel.resetKeywordSearchResults()
-                        }
-                    }
-
-                    if !searchFieldText.isEmpty {
-                        Button {
-                            searchFieldText = ""
-                            hasSubmittedKeywordSearch = false
-                            viewModel.resetKeywordSearchResults()
-                        } label: {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.gray)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.vertical, 4)
-            }
-
             if viewModel.selectedResult != nil {
                 Section {
                     HStack {
@@ -129,7 +126,7 @@ struct BRKillMailSearchView: View {
                         Spacer()
                         Button {
                             viewModel.selectedResult = nil
-                            killMails = []
+                            filterDataCache = [:]
                             hasSubmittedKeywordSearch = false
                             searchFieldText = ""
                             viewModel.resetKeywordSearchResults()
@@ -153,51 +150,40 @@ struct BRKillMailSearchView: View {
                             selection: $selectedFilter
                         ) {
                             Text(NSLocalizedString("KillMail_Filter_All", comment: "")).tag(
-                                KillMailFilter.all)
+                                KillMailFilter.all
+                            )
                             Text(NSLocalizedString("KillMail_Filter_Kills", comment: "")).tag(
-                                KillMailFilter.kill)
+                                KillMailFilter.kill
+                            )
                             Text(NSLocalizedString("KillMail_Filter_Losses", comment: "")).tag(
-                                KillMailFilter.loss)
+                                KillMailFilter.loss
+                            )
                         }
                         .pickerStyle(.segmented)
                         .padding(.vertical, 2)
-                        .onChange(of: selectedFilter) { _, _ in
-                            Task {
-                                await loadKillMails()
-                            }
-                        }
                     }
 
-                    if isLoading && killMails.isEmpty {
-                        ProgressView()
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding()
-                    } else if killMails.isEmpty {
-                        Text(NSLocalizedString("KillMail_No_Records", comment: ""))
-                            .foregroundColor(.secondary)
-                            .frame(maxWidth: .infinity, alignment: .center)
-                            .padding()
-                    } else {
-                        ForEach(killMails) { entity in
-                            let shipInfo = shipInfoMap[entity.shipTypeId] ?? (
+                    if let data = currentFilterData, !data.killMails.isEmpty {
+                        ForEach(data.killMails) { entity in
+                            let shipInfo = data.shipInfoMap[entity.shipTypeId] ?? (
                                 name: String(
                                     format: NSLocalizedString("KillMail_Unknown_Item", comment: ""),
                                     entity.shipTypeId
                                 ),
-                                iconFileName: DatabaseConfig.defaultItemIcon
+                                iconFileName: IconManager.defaultItemIcon
                             )
                             BRKillMailCell(
                                 entity: entity,
                                 shipInfo: shipInfo,
-                                allianceIcon: entity.allianceId.flatMap { allianceIconMap[$0] },
-                                corporationIcon: corporationIconMap[entity.corporationId],
+                                allianceIcon: entity.allianceId.flatMap { data.allianceIconMap[$0] },
+                                corporationIcon: data.corporationIconMap[entity.corporationId],
                                 characterId: characterId,
                                 searchResult: viewModel.selectedResult,
                                 character: character
                             )
                         }
 
-                        if hasMoreData {
+                        if data.hasMoreData {
                             HStack {
                                 Spacer()
                                 if isLoadingMore {
@@ -216,6 +202,16 @@ struct BRKillMailSearchView: View {
                                 Spacer()
                             }
                             .padding(.vertical, 8)
+                        }
+                    } else if currentFilterData?.isLoaded == true {
+                        Text(NSLocalizedString("KillMail_No_Records", comment: ""))
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding()
+                    } else {
+                        // 该视角尚无数据 = 加载中，展示骨架屏
+                        ForEach(0 ..< 6, id: \.self) { _ in
+                            ListSkeletonRow.killMail
                         }
                     }
                 }
@@ -317,17 +313,40 @@ struct BRKillMailSearchView: View {
             }
         }
         .navigationTitle(NSLocalizedString("KillMail_Search_Title", comment: ""))
+        .searchable(
+            text: $searchFieldText,
+            placement: .navigationBarDrawer(displayMode: .always),
+            prompt: Text(NSLocalizedString("KillMail_Search_Input_Prompt", comment: ""))
+        )
+        .onSubmit(of: .search) {
+            submitKeywordSearch(recordHistory: true)
+        }
+        .onChange(of: searchFieldText) { _, newValue in
+            if newValue.isEmpty {
+                hasSubmittedKeywordSearch = false
+                viewModel.resetKeywordSearchResults()
+            }
+        }
         .onAppear {
             recentKeywords = KillMailKeywordSearchHistory.recentKeywords()
         }
-        .onChange(of: viewModel.selectedResult) { _, newValue in
-            if newValue != nil {
-                if newValue?.category == .solar_system || newValue?.category == .region {
-                    selectedFilter = .all
-                }
-                Task {
-                    await loadKillMails()
-                }
+        .task(id: killMailLoadTrigger) {
+            guard let trigger = killMailLoadTrigger,
+                  viewModel.selectedResult != nil else { return }
+
+            // 保持 @State filter 与归一化后的值同步（星域/星系强制 .all）
+            if selectedFilter != trigger.filter {
+                selectedFilter = trigger.filter
+            }
+
+            // 该视角已有缓存数据：瞬时恢复，无需重载
+            if filterDataCache[trigger]?.isLoaded == true { return }
+
+            await loadKillMails(for: trigger)
+
+            if !Task.isCancelled {
+                // 标记该视角初始加载完成（含失败场景：落入「无记录」而非永久骨架屏）
+                filterDataCache[trigger]?.isLoaded = true
             }
         }
     }
@@ -336,9 +355,8 @@ struct BRKillMailSearchView: View {
         let q = searchFieldText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return }
         hasSubmittedKeywordSearch = true
-        Task {
-            await viewModel.search(characterId: characterId, searchText: q, force: true)
-            if recordHistory, viewModel.hasAnyKeywordSearchResults() {
+        viewModel.search(characterId: characterId, searchText: q, force: true) { hasResults in
+            if recordHistory, hasResults {
                 KillMailKeywordSearchHistory.recordSearchSubmission(q)
                 recentKeywords = KillMailKeywordSearchHistory.recentKeywords()
             }
@@ -348,102 +366,106 @@ struct BRKillMailSearchView: View {
     private func applyHistoryKeyword(_ keyword: String) {
         searchFieldText = keyword
         hasSubmittedKeywordSearch = true
-        Task {
-            await viewModel.search(characterId: characterId, searchText: keyword, force: true)
-        }
+        viewModel.search(characterId: characterId, searchText: keyword, force: true)
     }
 
-    private func loadKillMails() async {
+    private func loadKillMails(for trigger: KillMailLoadTrigger) async {
         guard let selectedResult = viewModel.selectedResult else { return }
 
-        isLoading = true
-        killMails = []
-        shipInfoMap = [:]
-        allianceIconMap = [:]
-        corporationIconMap = [:]
-
-        // 重置分页状态
+        // 重置该视角的数据集
         await MainActor.run {
-            paginationState = SearchPaginationState()
-            hasMoreData = true
+            filterDataCache[trigger] = FilterData()
         }
 
         do {
-            // 加载第一页 zkillboard 数据
+            try Task.checkCancellation()
+
             let zkbEntries = try await zKbToolAPI.shared.fetchZKBKillMailsBySearchResult(
-                result: selectedResult, page: 1, filter: selectedFilter
+                result: selectedResult, page: 1, filter: trigger.filter
             )
 
+            try Task.checkCancellation()
+
             await MainActor.run {
-                paginationState.pendingZKBEntries = zkbEntries
-                paginationState.currentZKBPage = 1
-                paginationState.hasMore = !zkbEntries.isEmpty
+                filterDataCache[trigger]?.paginationState.pendingZKBEntries = zkbEntries
+                filterDataCache[trigger]?.paginationState.currentZKBPage = 1
+                filterDataCache[trigger]?.paginationState.hasMore = !zkbEntries.isEmpty
             }
 
-            // 加载前10个
-            await loadNextBatch()
+            await loadNextBatch(for: trigger)
+        } catch is CancellationError {
+            // .task(id:) 自动取消，静默返回
         } catch {
             Logger.error("加载战斗日志失败: \(error)")
         }
-
-        isLoading = false
     }
 
-    private func loadNextBatch() async {
+    private func loadNextBatch(for trigger: KillMailLoadTrigger) async {
         // 从 pendingZKBEntries 中取10个唯一条目
         let (batch, hasMore): ([ZKBKillMailEntry], Bool) = await MainActor.run {
+            var data = filterDataCache[trigger, default: FilterData()]
             var batch: [ZKBKillMailEntry] = []
             var remainingEntries: [ZKBKillMailEntry] = []
 
-            for entry in paginationState.pendingZKBEntries {
-                if !paginationState.convertedKillmailIds.contains(entry.killmail_id) {
+            for entry in data.paginationState.pendingZKBEntries {
+                if !data.paginationState.convertedKillmailIds.contains(entry.killmail_id) {
                     if batch.count < 10 {
                         batch.append(entry)
-                        paginationState.convertedKillmailIds.insert(entry.killmail_id)
+                        data.paginationState.convertedKillmailIds.insert(entry.killmail_id)
                     } else {
                         remainingEntries.append(entry)
                     }
                 }
             }
-            paginationState.pendingZKBEntries = remainingEntries
+            data.paginationState.pendingZKBEntries = remainingEntries
+            let hasMore = data.paginationState.hasMore
+            filterDataCache[trigger] = data
 
-            return (batch, paginationState.hasMore)
+            return (batch, hasMore)
         }
+
+        if Task.isCancelled { return }
 
         // 如果当前批次不足10个，尝试加载下一页
         var finalBatch = batch
         if finalBatch.count < 10, hasMore {
-            let nextPage = await MainActor.run { paginationState.currentZKBPage + 1 }
+            let nextPage = await MainActor.run {
+                (filterDataCache[trigger]?.paginationState.currentZKBPage ?? 1) + 1
+            }
             guard let selectedResult = viewModel.selectedResult else { return }
+
+            if Task.isCancelled { return }
 
             do {
                 let nextPageEntries = try await zKbToolAPI.shared.fetchZKBKillMailsBySearchResult(
-                    result: selectedResult, page: nextPage, filter: selectedFilter
+                    result: selectedResult, page: nextPage, filter: trigger.filter
                 )
 
                 let updatedBatch: [ZKBKillMailEntry] = await MainActor.run {
-                    paginationState.currentZKBPage = nextPage
-                    paginationState.hasMore = !nextPageEntries.isEmpty
+                    var data = filterDataCache[trigger, default: FilterData()]
+                    data.paginationState.currentZKBPage = nextPage
+                    data.paginationState.hasMore = !nextPageEntries.isEmpty
 
                     var newBatch = finalBatch
                     // 将新页面的数据添加到待处理列表
                     for entry in nextPageEntries {
-                        if !paginationState.convertedKillmailIds.contains(entry.killmail_id) {
+                        if !data.paginationState.convertedKillmailIds.contains(entry.killmail_id) {
                             if newBatch.count < 10 {
                                 newBatch.append(entry)
-                                paginationState.convertedKillmailIds.insert(entry.killmail_id)
+                                data.paginationState.convertedKillmailIds.insert(entry.killmail_id)
                             } else {
-                                paginationState.pendingZKBEntries.append(entry)
+                                data.paginationState.pendingZKBEntries.append(entry)
                             }
                         }
                     }
+                    filterDataCache[trigger] = data
                     return newBatch
                 }
                 finalBatch = updatedBatch
             } catch {
                 Logger.error("加载下一页失败: \(error)")
                 await MainActor.run {
-                    paginationState.hasMore = false
+                    filterDataCache[trigger]?.paginationState.hasMore = false
                 }
             }
         }
@@ -451,29 +473,37 @@ struct BRKillMailSearchView: View {
         // 如果批次为空，说明没有更多数据
         if finalBatch.isEmpty {
             await MainActor.run {
-                hasMoreData = false
-                paginationState.hasMore = false
+                filterDataCache[trigger]?.hasMoreData = false
+                filterDataCache[trigger]?.paginationState.hasMore = false
             }
             return
         }
 
         // 转换数据
+        if Task.isCancelled { return }
+
         do {
             let entities = try await KillMailDataConverter.shared.fetchKillMailListEntities(
                 zkbEntries: finalBatch
             )
 
+            if Task.isCancelled { return }
+
             await MainActor.run {
-                killMails.append(contentsOf: entities)
+                filterDataCache[trigger]?.killMails.append(contentsOf: entities)
             }
 
-            await loadShipInfo(for: entities)
-            await loadOrganizationIcons(for: entities)
+            await loadShipInfo(for: trigger, entities: entities)
+            await loadOrganizationIcons(for: trigger, entities: entities)
+
+            if Task.isCancelled { return }
 
             // 检查是否还有更多数据
             await MainActor.run {
-                if paginationState.pendingZKBEntries.isEmpty, !paginationState.hasMore {
-                    hasMoreData = false
+                if let data = filterDataCache[trigger],
+                   data.paginationState.pendingZKBEntries.isEmpty, !data.paginationState.hasMore
+                {
+                    filterDataCache[trigger]?.hasMoreData = false
                 }
             }
         } catch {
@@ -482,15 +512,16 @@ struct BRKillMailSearchView: View {
     }
 
     private func loadMoreKillMails() async {
-        let canLoadMore = await MainActor.run { hasMoreData }
+        guard let trigger = killMailLoadTrigger else { return }
+        let canLoadMore = await MainActor.run { filterDataCache[trigger]?.hasMoreData ?? false }
         guard !isLoadingMore, canLoadMore else { return }
 
         isLoadingMore = true
-        await loadNextBatch()
+        await loadNextBatch(for: trigger)
         isLoadingMore = false
     }
 
-    private func loadShipInfo(for entities: [KillMailListEntity]) async {
+    private func loadShipInfo(for trigger: KillMailLoadTrigger, entities: [KillMailListEntity]) async {
         let shipIds = entities.map(\.shipTypeId)
         guard !shipIds.isEmpty else { return }
 
@@ -508,27 +539,35 @@ struct BRKillMailSearchView: View {
                    let name = row["name"] as? String,
                    let iconFileName = row["icon_filename"] as? String
                 {
-                    shipInfoMap[typeId] = (name: name, iconFileName: iconFileName)
+                    filterDataCache[trigger]?.shipInfoMap[typeId] = (
+                        name: name, iconFileName: iconFileName
+                    )
                 }
             }
         }
     }
 
-    private func loadOrganizationIcons(for entities: [KillMailListEntity]) async {
+    private func loadOrganizationIcons(
+        for trigger: KillMailLoadTrigger, entities: [KillMailListEntity]
+    ) async {
         for entity in entities {
-            if let allyId = entity.allianceId, allyId > 0, allianceIconMap[allyId] == nil {
+            if let allyId = entity.allianceId, allyId > 0,
+               filterDataCache[trigger]?.allianceIconMap[allyId] == nil
+            {
                 do {
                     let icon = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allyId)
-                    allianceIconMap[allyId] = icon
+                    filterDataCache[trigger]?.allianceIconMap[allyId] = icon
                 } catch {
                     Logger.error("加载联盟图标失败 - 联盟ID: \(allyId), 错误: \(error)")
                 }
-            } else if entity.corporationId > 0, corporationIconMap[entity.corporationId] == nil {
+            } else if entity.corporationId > 0,
+                      filterDataCache[trigger]?.corporationIconMap[entity.corporationId] == nil
+            {
                 do {
                     let icon = try await CorporationAPI.shared.fetchCorporationLogo(
                         corporationId: entity.corporationId
                     )
-                    corporationIconMap[entity.corporationId] = icon
+                    filterDataCache[trigger]?.corporationIconMap[entity.corporationId] = icon
                 } catch {
                     Logger.error("加载军团图标失败 - 军团ID: \(entity.corporationId), 错误: \(error)")
                 }
@@ -541,7 +580,7 @@ struct BRKillMailSearchView: View {
 struct KillMailDirectSearchResultRow: View {
     let entity: KillMailListEntity
     @State private var shipName: String = ""
-    @State private var shipIconFileName: String = DatabaseConfig.defaultItemIcon
+    @State private var shipIconFileName: String = IconManager.defaultItemIcon
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
@@ -592,7 +631,7 @@ struct KillMailDirectSearchResultRow: View {
             return
         }
         let rawIcon = row["icon_filename"] as? String ?? ""
-        let icon = rawIcon.isEmpty ? DatabaseConfig.defaultItemIcon : rawIcon
+        let icon = rawIcon.isEmpty ? IconManager.defaultItemIcon : rawIcon
         await MainActor.run {
             shipName = name
             shipIconFileName = icon
@@ -600,7 +639,7 @@ struct KillMailDirectSearchResultRow: View {
     }
 }
 
-// 搜索结果行视图
+/// 搜索结果行视图
 struct KMSearchResultRow: View {
     let result: SearchResult
     @State private var loadedIcon: UIImage?
@@ -665,7 +704,7 @@ struct KMSearchResultRow: View {
     }
 }
 
-// 搜索结果类别
+/// 搜索结果类别
 enum SearchResultCategory: String {
     case alliance
     case character
@@ -686,7 +725,7 @@ enum SearchResultCategory: String {
     }
 }
 
-// 搜索结果模型
+/// 搜索结果模型
 struct SearchResult: Identifiable, Equatable {
     let id: Int
     let name: String
@@ -706,7 +745,7 @@ class BRKillMailSearchViewModel: ObservableObject {
     @Published var selectedResult: SearchResult?
     /// 关键词为纯数字时，按 killmail ID 解析到的单条记录（展示在列表首段）
     @Published var directKillMailEntity: KillMailListEntity?
-    /// 关键词不足 3 字时未请求 zkill 联网补全，在结果顶部提示
+    // 关键词不足 3 字时未请求 zkill 联网补全，在结果顶部提示
     @Published var skippedOnlineSearchNotice: String?
     private var lastSearchText: String = ""
 
@@ -729,7 +768,14 @@ class BRKillMailSearchViewModel: ObservableObject {
         return searchResults.values.contains { !$0.isEmpty }
     }
 
-    func search(characterId: Int, searchText: String, force: Bool = false) async {
+    /// 同步入口：同步校验 + 置位 isSearching，异步搜索在内部 Task 执行。
+    /// 调用方无需再包 Task，避免同步状态与异步调度之间的帧间隙。
+    func search(
+        characterId: Int,
+        searchText: String,
+        force: Bool = false,
+        onComplete: ((_ hasResults: Bool) -> Void)? = nil
+    ) {
         guard !searchText.isEmpty else {
             resetKeywordSearchResults()
             return
@@ -742,88 +788,95 @@ class BRKillMailSearchViewModel: ObservableObject {
             return
         }
 
-        isSearching = true
-        defer { isSearching = false }
-
+        // 同步清除旧结果，确保 body 在异步搜索期间显示加载指示器
+        searchResults = [:]
         skippedOnlineSearchNotice = nil
         directKillMailEntity = nil
-        async let directKillmailTask = fetchDirectKillMailIfApplicable(searchText: searchText)
+        isSearching = true
 
-        // 联网搜索
-        var networkResults: [SearchResultCategory: [SearchResult]] = [:]
-        do {
-            // 使用searchEveItems进行搜索
-            let apiResults = try await zKbToolAPI.shared.searchEveItems(
-                characterId: characterId,
-                searchText: searchText
-            )
+        Task {
+            defer {
+                isSearching = false
+                let hasResults = hasAnyKeywordSearchResults()
+                onComplete?(hasResults)
+            }
 
-            // 处理搜索结果
-            for (categoryStr, items) in apiResults {
-                guard let category = SearchResultCategory(rawValue: categoryStr) else { continue }
+            async let directKillmailTask = fetchDirectKillMailIfApplicable(searchText: searchText)
 
-                var results: [SearchResult] = []
-                var seenIds = Set<Int>() // 用于跟踪已经见过的id
+            // 联网搜索
+            var networkResults: [SearchResultCategory: [SearchResult]] = [:]
+            do {
+                let apiResults = try await zKbToolAPI.shared.searchEveItems(
+                    characterId: characterId,
+                    searchText: searchText
+                )
 
-                for item in items {
-                    // 检查id是否已经存在
-                    if !seenIds.contains(item.id) {
-                        results.append(
-                            SearchResult(
-                                id: item.id,
-                                name: item.name,
-                                category: category,
-                                imageURL: item.image,
-                                icon: nil
-                            ))
-                        // 添加id到已见过集合
-                        seenIds.insert(item.id)
+                for (categoryStr, items) in apiResults {
+                    guard let category = SearchResultCategory(rawValue: categoryStr) else { continue }
+
+                    var results: [SearchResult] = []
+                    var seenIds = Set<Int>()
+
+                    for item in items {
+                        if !seenIds.contains(item.id) {
+                            results.append(
+                                SearchResult(
+                                    id: item.id,
+                                    name: item.name,
+                                    category: category,
+                                    imageURL: item.image,
+                                    icon: nil
+                                )
+                            )
+                            seenIds.insert(item.id)
+                        }
+                    }
+
+                    if !results.isEmpty {
+                        networkResults[category] = results
                     }
                 }
 
-                if !results.isEmpty {
-                    networkResults[category] = results
-                }
-            }
-
-            // 开始异步加载图标
-            Task {
-                for category in categories {
-                    if let results = networkResults[category] {
-                        for result in results {
-                            if let url = URL(
-                                string: result.imageURL.replacingOccurrences(
-                                    of: "size=32", with: "size=64"
-                                )),
-                                let data = try? await NetworkManager.shared.fetchData(from: url),
-                                let image = UIImage(data: data)
-                            {
-                                if let index = self.searchResults[category]?.firstIndex(where: {
-                                    $0.id == result.id
-                                }) {
-                                    self.searchResults[category]?[index].icon = image
+                // 异步加载图标（不阻塞搜索完成）
+                Task {
+                    for category in categories {
+                        if let results = networkResults[category] {
+                            for result in results {
+                                if let url = URL(
+                                    string: result.imageURL.replacingOccurrences(
+                                        of: "size=32", with: "size=64"
+                                    )
+                                ),
+                                    let data = try? await NetworkManager.shared.fetchData(from: url),
+                                    let image = UIImage(data: data)
+                                {
+                                    if let index = self.searchResults[category]?.firstIndex(where: {
+                                        $0.id == result.id
+                                    }) {
+                                        self.searchResults[category]?[index].icon = image
+                                    }
                                 }
                             }
                         }
                     }
                 }
+
+            } catch {
+                Logger.error("联网搜索失败: \(error)")
             }
 
-        } catch {
-            Logger.error("联网搜索失败: \(error)")
-        }
+            searchResults = networkResults
+            directKillMailEntity = await directKillmailTask
 
-        searchResults = networkResults
-        directKillMailEntity = await directKillmailTask
+            lastSearchText = searchText
 
-        lastSearchText = searchText
-
-        if searchText.count < 3 {
-            skippedOnlineSearchNotice = NSLocalizedString(
-                "KillMail_Search_Skipped_Online_Results_Banner", comment: ""
-            )
-        } else {
-            skippedOnlineSearchNotice = nil
+            if searchText.count < 3 {
+                skippedOnlineSearchNotice = NSLocalizedString(
+                    "KillMail_Search_Skipped_Online_Results_Banner", comment: ""
+                )
+            } else {
+                skippedOnlineSearchNotice = nil
+            }
         }
     }
 

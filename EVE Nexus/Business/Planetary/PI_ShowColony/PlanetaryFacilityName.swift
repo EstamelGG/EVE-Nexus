@@ -5,7 +5,7 @@ struct PlanetaryFacility {
     let identifier: Int64
     private(set) var name: String
 
-    // 缓存字典，用于存储identifier和pinName的映射关系
+    /// 缓存字典，用于存储identifier和pinName的映射关系
     private static var nameCache: [Int64: String] = [:]
 
     init(identifier: Int64) {

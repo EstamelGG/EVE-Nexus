@@ -9,7 +9,7 @@ class Logger {
     let loggerStore: LoggerStore
     private let fileManager = FileManager.default
 
-    // 是否输出日志到文件，通过UserDefaults控制
+    /// 是否输出日志到文件，通过UserDefaults控制
     private var ifWriteToFile: Bool {
         return UserDefaults.standard.bool(forKey: "enableLogging")
     }
@@ -18,7 +18,7 @@ class Logger {
     private static var maxDebugLogLength = 2000
     private static var maxInfoLogLength = 200_000
 
-    // 静态初始化方法，应在应用启动时调用
+    /// 静态初始化方法，应在应用启动时调用
     static func configure() {
         // Pulse 会在首次访问 LoggerStore 时自动初始化
         // 不需要额外的配置
@@ -131,19 +131,18 @@ class Logger {
         loggerStore.storeMessage(label: "com.eve.nexus.logger", level: .info, message: header, metadata: nil, file: #file, function: #function, line: UInt(#line))
     }
 
-    // 获取设备标识符
+    /// 获取设备标识符
     private func getDeviceIdentifier() -> String {
         var systemInfo = utsname()
         uname(&systemInfo)
         let machineMirror = Mirror(reflecting: systemInfo.machine)
-        let identifier = machineMirror.children.reduce("") { identifier, element in
+        return machineMirror.children.reduce("") { identifier, element in
             guard let value = element.value as? Int8, value != 0 else { return identifier }
             return identifier + String(UnicodeScalar(UInt8(value)))
         }
-        return identifier
     }
 
-    // 获取当前内存使用情况
+    /// 获取当前内存使用情况
     private func getMemoryUsage() -> (used: Double, total: Double) {
         var info = mach_task_basic_info()
         var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size) / 4
@@ -162,7 +161,7 @@ class Logger {
         return (used: 0, total: 0)
     }
 
-    // 获取CPU使用率
+    /// 获取CPU使用率
     private func getCPUUsage() -> Double {
         var info = mach_task_basic_info()
         var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size) / 4
@@ -211,13 +210,13 @@ class Logger {
         return 0
     }
 
-    // 格式化调用位置信息
+    /// 格式化调用位置信息
     private static func formatLocation(file: String, function: String, line: UInt) -> String {
         let fileName = (file as NSString).lastPathComponent
         return "[\(fileName):\(line)] \(function): "
     }
 
-    // 内部辅助函数，用于处理日志消息和位置信息
+    /// 内部辅助函数，用于处理日志消息和位置信息
     private static func _log(
         message: String,
         level: LoggerStore.Level,
@@ -245,7 +244,7 @@ class Logger {
         )
     }
 
-    // 公共日志方法 - 使用默认参数自动捕获调用位置（虽然会显示 Logger 的位置，但会在消息中包含）
+    /// 公共日志方法 - 使用默认参数自动捕获调用位置（虽然会显示 Logger 的位置，但会在消息中包含）
     static func debug(_ message: String, file: String = #file, function: String = #function, line: UInt = #line) {
         _log(message: message, level: .debug, maxLength: maxDebugLogLength, osLogType: .debug, file: file, function: function, line: line)
     }
@@ -275,7 +274,7 @@ class Logger {
         _log(message: message, level: .critical, maxLength: maxInfoLogLength, osLogType: .fault, file: file, function: function, line: line)
     }
 
-    // 截断消息到指定长度
+    /// 截断消息到指定长度
     private static func truncateMessage(_ message: String, maxLength: Int) -> String {
         if message.count <= maxLength {
             return message

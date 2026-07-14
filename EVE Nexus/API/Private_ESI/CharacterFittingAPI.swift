@@ -10,7 +10,7 @@ public struct CharacterFitting: Codable {
     var ship_type_id: Int
 }
 
-// 缓存数据结构
+/// 缓存数据结构
 private struct FittingCache: Codable {
     let update_time: Int64
     let data: [CharacterFitting]

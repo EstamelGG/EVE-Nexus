@@ -3,11 +3,10 @@ import SwiftUI
 // MARK: - 工具类
 
 enum MarketItemGrouper {
-    static let categoryPriority = [6, 7, 32, 8, 4, 16, 18, 87, 20, 22, 9, 5]
+    /// 复用 MarketManager 中的统一定义，避免多处重复硬编码
+    static let categoryPriority = MarketManager.categoryPriority
 
-    static func groupSearchResults(_ items: [DatabaseListItem]) -> [(
-        id: Int, name: String, items: [DatabaseListItem]
-    )] {
+    static func groupSearchResults(_ items: [DatabaseListItem]) -> [SearchResultSection<DatabaseListItem>] {
         guard !items.isEmpty else { return [] }
 
         var groupedByCategory: [Int: [(groupID: Int, name: String, items: [DatabaseListItem])]] =
@@ -28,11 +27,12 @@ enum MarketItemGrouper {
                 groupedByCategory[categoryID]?[index].items.append(item)
             } else {
                 groupedByCategory[categoryID]?.append(
-                    (groupID: groupID, name: groupName, items: [item]))
+                    (groupID: groupID, name: groupName, items: [item])
+                )
             }
         }
 
-        var result: [(id: Int, name: String, items: [DatabaseListItem])] = []
+        var result: [SearchResultSection<DatabaseListItem>] = []
 
         // 优先级分类 + 其他分类
         let allCategories =
@@ -48,7 +48,9 @@ enum MarketItemGrouper {
                         return item1.name.localizedCaseInsensitiveCompare(item2.name)
                             == .orderedAscending
                     }
-                    result.append((id: group.groupID, name: group.name, items: sortedItems))
+                    result.append(
+                        SearchResultSection(identity: .group(group.groupID), name: group.name, items: sortedItems)
+                    )
                 }
             }
         }
@@ -80,11 +82,11 @@ struct MarketItemTreeSelectorView: View {
     @State private var hasNavigated = false
     @StateObject private var searchController = SearchController()
 
-    var groupedSearchResults: [(id: Int, name: String, items: [DatabaseListItem])] {
+    var groupedSearchResults: [SearchResultSection<DatabaseListItem>] {
         MarketItemGrouper.groupSearchResults(searchResults)
     }
 
-    // 获取当前市场树的所有市场组ID（递归）
+    /// 获取当前市场树的所有市场组ID（递归）
     private var allowedMarketGroupIDs: Set<Int> {
         var groupIDs = Set<Int>()
 
@@ -99,7 +101,7 @@ struct MarketItemTreeSelectorView: View {
         return groupIDs
     }
 
-    // 内建搜索方法，限制在当前市场树范围内
+    /// 内建搜索方法，限制在当前市场树范围内
     private func performTreeConstrainedSearch(with keyword: String) -> [DatabaseListItem] {
         Logger.info("开始树限制搜索，关键词: \"\(keyword)\"")
         let startTime = Date()
@@ -119,12 +121,13 @@ struct MarketItemTreeSelectorView: View {
         var whereConditions: [String] = []
         var parameters: [Any] = []
 
-        // 添加搜索条件（不区分大小写）
-        whereConditions.append(
-            "(LOWER(t.name) LIKE LOWER(?) OR LOWER(t.en_name) LIKE LOWER(?) OR t.type_id = ?)")
+        // 添加搜索条件（全语种，不区分大小写）
+        let langLikes = LocalizedText.typeLangNameColumns
+            .map { "LOWER(t.\($0)) LIKE LOWER(?)" }
+            .joined(separator: " OR ")
+        whereConditions.append("(\(langLikes) OR t.type_id = ?)")
         let searchPattern = "%\(keyword)%"
-        parameters.append(searchPattern)
-        parameters.append(searchPattern)
+        parameters.append(contentsOf: Array(repeating: searchPattern, count: 8))
         if let typeIdInt = Int(keyword) {
             parameters.append(typeIdInt)
         } else {
@@ -146,7 +149,8 @@ struct MarketItemTreeSelectorView: View {
             whereClause: whereClause, parameters: parameters, limit: 100
         )
         Logger.info(
-            "树限制搜索找到 \(results.count) 个匹配项，耗时: \(Date().timeIntervalSince(startTime) * 1000)ms")
+            "树限制搜索找到 \(results.count) 个匹配项，耗时: \(Date().timeIntervalSince(startTime) * 1000)ms"
+        )
 
         return results
     }
@@ -193,7 +197,7 @@ struct MarketItemTreeSelectorView: View {
             .searchable(
                 text: $searchText,
                 isPresented: $isSearchActive,
-                placement: .navigationBarDrawer(displayMode: .always),
+                // placement: .navigationBarDrawer(displayMode: .always),
                 prompt: Text(NSLocalizedString("Main_Database_Search", comment: "搜索"))
             )
             .onChange(of: searchText) { _, newValue in
@@ -621,7 +625,8 @@ struct MarketNodeItemsView: View {
                 (
                     id: -2, name: NSLocalizedString("Main_Database_ungrouped", comment: "未分组"),
                     items: ungroupedItems
-                ))
+                )
+            )
         }
 
         if !unpublishedItems.isEmpty {
@@ -629,7 +634,8 @@ struct MarketNodeItemsView: View {
                 (
                     id: -1, name: NSLocalizedString("Main_Database_unpublished", comment: "未发布"),
                     items: unpublishedItems
-                ))
+                )
+            )
         }
 
         return result

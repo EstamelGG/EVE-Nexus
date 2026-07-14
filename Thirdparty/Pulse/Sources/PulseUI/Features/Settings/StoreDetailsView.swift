@@ -89,9 +89,9 @@ struct StoreDetailsContentsView: View {
 }
 
 enum StoreDetailsViewSource {
-    /// Loads the info when the view appears on screen.
+    // Loads the info when the view appears on screen.
     case store(LoggerStore)
-    /// Displays prefetched info.
+    // Displays prefetched info.
     case info(LoggerStore.Info)
 }
 

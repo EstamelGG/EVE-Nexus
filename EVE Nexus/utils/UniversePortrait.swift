@@ -10,7 +10,7 @@ class UniversePortraitLoader: ObservableObject {
     private init() {}
 
     func loadPortrait(for id: Int, type: MailRecipient.RecipientType, size: Int) {
-        let key = "\(type.rawValue)_\(id)_\(size)"
+        let key = "\(type.apiValue)_\(id)_\(size)"
 
         // 如果已经在加载中或已加载完成，直接返回
         if loadingTasks[key] != nil || portraits[key] != nil {
@@ -42,9 +42,9 @@ class UniversePortraitLoader: ObservableObject {
                     self.portraits[key] = portrait
                 }
 
-                Logger.success("成功加载\(type.rawValue)头像 - ID: \(id)")
+                Logger.success("成功加载\(type.apiValue)头像 - ID: \(id)")
             } catch {
-                Logger.error("加载\(type.rawValue)头像失败 - ID: \(id), 错误: \(error)")
+                Logger.error("加载\(type.apiValue)头像失败 - ID: \(id), 错误: \(error)")
             }
         }
 
@@ -52,7 +52,7 @@ class UniversePortraitLoader: ObservableObject {
     }
 
     func getPortrait(for id: Int, type: MailRecipient.RecipientType, size: Int) -> UIImage? {
-        return portraits["\(type.rawValue)_\(id)_\(size)"]
+        return portraits["\(type.apiValue)_\(id)_\(size)"]
     }
 }
 

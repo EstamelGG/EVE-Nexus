@@ -1,6 +1,6 @@
 import Foundation
 
-// 建筑物信息模型
+/// 建筑物信息模型
 public struct UniverseStructureInfo: Codable {
     public let name: String
     public let owner_id: Int
@@ -138,12 +138,13 @@ public class UniverseStructureAPI {
         saveStructuresToCache([(structureId, structure)])
     }
 
-    // 批量保存建筑物信息
+    /// 批量保存建筑物信息
     private func saveStructuresToCache(_ structures: [(Int64, UniverseStructureInfo)]) {
         // 直接使用SQL的datetime('now')函数获取当前时间
         // 构建批量插入的SQL
         let valuesSql = structures.map { _ in "(?, ?, ?, ?, ?, datetime('now'))" }.joined(
-            separator: ",")
+            separator: ","
+        )
         let sql = """
             INSERT OR REPLACE INTO structure_cache (
                 structure_id,
@@ -155,7 +156,6 @@ public class UniverseStructureAPI {
             ) VALUES \(valuesSql)
         """
 
-        // 构建参数数组（不再需要timestamp参数）
         var parameters: [Any] = []
         for (structureId, structure) in structures {
             parameters.append(structureId)

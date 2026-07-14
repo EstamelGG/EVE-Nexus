@@ -106,7 +106,8 @@ public class LocalizationManager {
             // 添加占位符前的固定文本
             if match.range.location > lastEnd {
                 let text = nsString.substring(
-                    with: NSRange(location: lastEnd, length: match.range.location - lastEnd))
+                    with: NSRange(location: lastEnd, length: match.range.location - lastEnd)
+                )
                 patternParts.append(NSRegularExpression.escapedPattern(for: text))
             }
 
@@ -119,7 +120,8 @@ public class LocalizationManager {
         // 添加最后一个占位符后的固定文本
         if lastEnd < nsString.length {
             let text = nsString.substring(
-                with: NSRange(location: lastEnd, length: nsString.length - lastEnd))
+                with: NSRange(location: lastEnd, length: nsString.length - lastEnd)
+            )
             patternParts.append(NSRegularExpression.escapedPattern(for: text))
         }
 
@@ -163,7 +165,7 @@ public class LocalizationManager {
         return result
     }
 
-    // 便捷方法：处理日志消息模板
+    /// 便捷方法：处理日志消息模板
     public func processJournalMessage(for key: String, esiText: String, language: String = "en")
         -> String
     {
@@ -217,7 +219,7 @@ public class LocalizationManager {
         return esiText
     }
 
-    // 处理账目类型名称
+    /// 处理账目类型名称
     public func processEntryTypeName(for key: String, esiText: String, language: String = "en")
         -> String
     {

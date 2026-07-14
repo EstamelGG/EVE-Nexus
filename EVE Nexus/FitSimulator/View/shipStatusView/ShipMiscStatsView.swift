@@ -3,23 +3,19 @@ import SwiftUI
 struct ShipMiscStatsView: View {
     @ObservedObject var viewModel: FittingEditorViewModel
 
-    init(viewModel: FittingEditorViewModel) {
-        self.viewModel = viewModel
-    }
-
     private func formatValue(_ value: Double, unit: String = "") -> String {
         let numberString = FormatUtil.formatForUI(value, maxFractionDigits: 2)
         return numberString + (unit.isEmpty ? "" : " " + unit)
     }
 
-    // 格式化锁定距离，设置300km上限
+    /// 格式化锁定距离，设置300km上限
     private func formatLockRange(_ rangeInMeters: Double) -> String {
         let rangeInKm = rangeInMeters / 1000
         let cappedRange = min(rangeInKm, 300)
         return formatValue(cappedRange, unit: "km")
     }
 
-    // 计算飞船朝向时间
+    /// 计算飞船朝向时间
     private func calculateAlignTime(mass: Double, agility: Double) -> Double {
         // 公式: -ln(0.25) * agility * mass / 1000000
         // 其中 -ln(0.25) ≈ 1.3862943611198906
@@ -161,7 +157,7 @@ struct ShipMiscStatsView: View {
     }
 }
 
-// Reusable row component for statistics
+/// Reusable row component for statistics
 struct StatRow: View {
     let label: String
     let value: String

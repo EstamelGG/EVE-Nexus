@@ -55,7 +55,8 @@ class SkillPlanReaderTool {
             // 获取唯一的技能名称用于查询
             let uniqueSkillNames = Set(skillEntries.map { $0.name })
             let skillNamesString = uniqueSkillNames.sorted().map { "'\($0)'" }.joined(
-                separator: " UNION SELECT ")
+                separator: " UNION SELECT "
+            )
             let query = """
                 SELECT t.type_id, t.name, t.en_name
                 FROM types t

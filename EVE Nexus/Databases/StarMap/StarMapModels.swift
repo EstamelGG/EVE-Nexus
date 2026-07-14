@@ -1,4 +1,68 @@
 import Foundation
+import SwiftUI
+import UIKit
+
+// MARK: - 主题
+
+enum StarMapTheme {
+    static let background = Color(red: 0.02, green: 0.03, blue: 0.06)
+    static let chipAccent = Color(red: 0.35, green: 0.78, blue: 0.82)
+}
+
+enum StarMapColors {
+    /// 入侵标记色 #889A2F
+    static let incursion = UIColor(red: 136 / 255, green: 154 / 255, blue: 47 / 255, alpha: 1)
+
+    static func regionAccent(regionId: Int, factionId: Int) -> UIColor {
+        switch regionId {
+        case 10_000_070:
+            return UIColor(red: 175 / 255, green: 46 / 255, blue: 30 / 255, alpha: 1)
+        case 10_001_000:
+            return .white
+        case 10_001_004:
+            return UIColor(red: 65 / 255, green: 115 / 255, blue: 212 / 255, alpha: 1) // 深蓝
+        default:
+            switch factionId {
+            case 500_001:
+                return UIColor(red: 165 / 255, green: 208 / 255, blue: 225 / 255, alpha: 1)
+            case 500_002, 500_007:
+                return UIColor(red: 148 / 255, green: 76 / 255, blue: 50 / 255, alpha: 1)
+            case 500_003, 500_008:
+                return UIColor(red: 251 / 255, green: 239 / 255, blue: 156 / 255, alpha: 1)
+            case 500_004:
+                return UIColor(red: 122 / 255, green: 174 / 255, blue: 159 / 255, alpha: 1)
+            default:
+                return UIColor(red: 134 / 255, green: 57 / 255, blue: 103 / 255, alpha: 1)
+            }
+        }
+    }
+
+    static func security(_ trueSec: Double) -> UIColor {
+        UIColor(getSecurityColor(trueSec))
+    }
+
+    static func planetFilter(_ filter: RegionSystemMapView.PlanetFilter) -> UIColor {
+        UIColor(filter.color)
+    }
+
+    static func darkened(_ color: UIColor, factor: CGFloat = 0.35) -> UIColor {
+        var r: CGFloat = 0
+        var g: CGFloat = 0
+        var b: CGFloat = 0
+        var a: CGFloat = 0
+        color.getRed(&r, green: &g, blue: &b, alpha: &a)
+        return UIColor(red: r * factor, green: g * factor, blue: b * factor, alpha: a)
+    }
+}
+
+extension View {
+    /// 系统导航栏 + 深色内容底，避免切页闪白
+    func starMapChrome(title: String) -> some View {
+        navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .background(StarMapTheme.background.ignoresSafeArea())
+    }
+}
 
 // MARK: - 共享数据模型
 
@@ -35,13 +99,13 @@ struct SystemPosition: Codable {
 struct SystemNodeData {
     let systemId: Int
     let name: String
-    let nameEn: String
-    let nameZh: String
     let security: Double
     let regionId: Int
     let position: CGPoint
     let connections: [Int]
     let planetCounts: PlanetCounts
+    /// 相邻星域的跳接星系（仅作边界显示）
+    var isExternal: Bool = false
 }
 
 struct PlanetCounts {
@@ -96,15 +160,34 @@ struct PlanetCounts {
     }
 }
 
-struct StarMapRegion: Identifiable {
-    let id: Int
-    let name: String
-    let nameEn: String
-    let nameZh: String
+// MARK: - 入侵状态
+
+enum StarMapIncursions {
+    /// 获取当前所有受入侵影响的星系；集结星系一并纳入，避免其未出现在 infested 列表中时漏标
+    static func fetchInvadedSystemIDs() async -> Set<Int> {
+        do {
+            let incursions = try await IncursionsAPI.shared.fetchIncursions()
+            let systemIDs = incursions.flatMap {
+                $0.infestedSolarSystems + [$0.stagingSolarSystemId]
+            }
+            Logger.info("星图入侵状态检查完成，受入侵影响星系数: \(Set(systemIDs).count)")
+            return Set(systemIDs)
+        } catch {
+            Logger.error("星图入侵状态检查失败: \(error)")
+            return []
+        }
+    }
 }
 
 // MARK: - 导航枚举
 
-enum RegionNavigation: Hashable {
-    case regionMap(Int, String) // regionId, regionName
+enum RegionNavigation: Hashable, Identifiable {
+    case regionMap(Int, String, [Int]) // regionId, regionName, highlightSystemIds
+
+    var id: Int {
+        switch self {
+        case let .regionMap(regionId, _, _):
+            return regionId
+        }
+    }
 }

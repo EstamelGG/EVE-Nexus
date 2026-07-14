@@ -4,6 +4,12 @@ import SwiftUI
 
 struct StructureMarketDetailView: View {
     let structure: MarketStructure
+    @StateObject private var structureManager = MarketStructureManager.shared
+
+    /// 优先使用管理器中的最新建筑信息（订单刷新时会更新名称/图标等）
+    private var currentStructure: MarketStructure {
+        structureManager.structures.first { $0.structureId == structure.structureId } ?? structure
+    }
 
     @State private var cacheStatus: StructureMarketManager.CacheStatus = .noData
     @State private var lastUpdateDate: Date? = nil
@@ -26,10 +32,10 @@ struct StructureMarketDetailView: View {
     @State private var isGitHubAPIUnavailable = false // GitHub Market Price API 是否不可用
     @State private var hasInitialized = false // 是否已初始化，避免从子页面返回时重复加载
 
-    // 刷新冷却时间：20分钟
+    /// 刷新冷却时间：20分钟
     private let refreshCooldownInterval: TimeInterval = 20 * 60 // 20分钟
 
-    // 允许计算溢价的物品类别
+    /// 允许计算溢价的物品类别
     private let allowedCategories: Set<Int> = [2, 4, 6, 7, 8, 9, 17, 18, 20, 22, 24, 25, 32, 34, 35, 41, 42, 43, 46, 49, 65, 66, 87]
 
     var body: some View {
@@ -97,13 +103,12 @@ struct StructureMarketDetailView: View {
 
     // MARK: - 子视图组件
 
-    // 建筑基本信息 Section
-    @ViewBuilder
+    /// 建筑基本信息 Section
     private var structureInfoSection: some View {
         Section {
             // 行1: 建筑图标、名称、地点
             StructureInfoRowView(
-                structure: structure,
+                structure: currentStructure,
                 lastUpdateDate: lastUpdateDate,
                 allianceIconLoader: allianceIconLoader,
                 systemAllianceMap: systemAllianceMap,
@@ -116,7 +121,7 @@ struct StructureMarketDetailView: View {
         }
     }
 
-    // 订单统计信息视图
+    /// 订单统计信息视图
     @ViewBuilder
     private var ordersStatisticsView: some View {
         if buyOrdersCount != nil || sellOrdersCount != nil || itemTypesCount != nil {
@@ -174,7 +179,7 @@ struct StructureMarketDetailView: View {
         }
     }
 
-    // 最多卖单 Section
+    /// 最多卖单 Section
     @ViewBuilder
     private var topSellItemsSection: some View {
         if !topSellItems.isEmpty {
@@ -191,7 +196,7 @@ struct StructureMarketDetailView: View {
         }
     }
 
-    // 最多买单 Section
+    /// 最多买单 Section
     @ViewBuilder
     private var topBuyItemsSection: some View {
         if !topBuyItems.isEmpty {
@@ -208,8 +213,7 @@ struct StructureMarketDetailView: View {
         }
     }
 
-    // 最高溢价 Section
-    @ViewBuilder
+    /// 最高溢价 Section
     private var topPremiumItemsSection: some View {
         Section(header: Text(NSLocalizedString("Structure_Market_Top_Premium", comment: "最高溢价"))) {
             if isGitHubAPIUnavailable {
@@ -224,8 +228,7 @@ struct StructureMarketDetailView: View {
         }
     }
 
-    // GitHub API 不可用视图
-    @ViewBuilder
+    /// GitHub API 不可用视图
     private var premiumAPIUnavailableView: some View {
         HStack(alignment: .center, spacing: 10) {
             Image(systemName: "exclamationmark.triangle")
@@ -246,8 +249,7 @@ struct StructureMarketDetailView: View {
         .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
     }
 
-    // 溢价加载中视图
-    @ViewBuilder
+    /// 溢价加载中视图
     private var premiumLoadingView: some View {
         HStack {
             Spacer()
@@ -261,8 +263,7 @@ struct StructureMarketDetailView: View {
         .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
     }
 
-    // 溢价空状态视图
-    @ViewBuilder
+    /// 溢价空状态视图
     private var premiumEmptyView: some View {
         HStack {
             Spacer()
@@ -273,7 +274,7 @@ struct StructureMarketDetailView: View {
         .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
     }
 
-    // 溢价物品列表视图
+    /// 溢价物品列表视图
     @ViewBuilder
     private var premiumItemsListView: some View {
         ForEach(topPremiumItems) { item in
@@ -304,13 +305,13 @@ struct StructureMarketDetailView: View {
         }
     }
 
-    // 是否显示"查看更多"按钮
+    /// 是否显示"查看更多"按钮
     private var shouldShowViewMoreButton: Bool {
         let uniqueTypeIdsCount = Set(premiumSellOrders.map { $0.typeId }).count
         return !topPremiumItems.isEmpty && uniqueTypeIdsCount > 10
     }
 
-    // 更新缓存状态
+    /// 更新缓存状态
     private func updateCacheStatus() {
         cacheStatus = StructureMarketManager.getCacheStatus(
             structureId: Int64(structure.structureId)
@@ -321,7 +322,7 @@ struct StructureMarketDetailView: View {
         refreshStatus = calculateRefreshStatus()
     }
 
-    // 计算刷新状态
+    /// 计算刷新状态
     private func calculateRefreshStatus() -> CacheRefreshStatus {
         switch cacheStatus {
         case .valid:
@@ -345,7 +346,7 @@ struct StructureMarketDetailView: View {
         }
     }
 
-    // 处理下拉刷新
+    /// 处理下拉刷新
     private func handlePullToRefresh() async {
         // 更新缓存状态
         updateCacheStatus()
@@ -362,7 +363,7 @@ struct StructureMarketDetailView: View {
         }
     }
 
-    // 加载建筑市场订单
+    /// 加载建筑市场订单
     private func loadStructureOrders() async {
         isLoadingOrders = true
         structureOrdersProgress = nil
@@ -410,7 +411,7 @@ struct StructureMarketDetailView: View {
         }
     }
 
-    // 加载本地订单统计信息
+    /// 加载本地订单统计信息
     private func loadLocalOrdersStatistics() async {
         // 检查缓存状态，判断是否需要从API获取数据
         let cacheStatus = StructureMarketManager.getCacheStatus(structureId: Int64(structure.structureId))
@@ -497,7 +498,7 @@ struct StructureMarketDetailView: View {
         }
     }
 
-    // 处理订单数据（提取公共逻辑）
+    /// 处理订单数据（提取公共逻辑）
     private func processOrdersData(orders: [StructureMarketOrder], needsRefresh: Bool) async {
         // 计算统计数据
         let statistics = await StructureMarketManager.shared.getOrdersStatistics(orders: orders)
@@ -522,7 +523,7 @@ struct StructureMarketDetailView: View {
         }
     }
 
-    // 加载主权数据
+    /// 加载主权数据
     private func loadSovereigntyData() async {
         do {
             let data = try await SovereigntyDataAPI.shared.fetchSovereigntyData(forceRefresh: false)
@@ -541,7 +542,7 @@ struct StructureMarketDetailView: View {
                 systemAllianceMap = map
 
                 // 只加载当前建筑所在星系的联盟图标
-                if let currentSystemAllianceId = map[structure.systemId], currentSystemAllianceId > 0 {
+                if let currentSystemAllianceId = map[currentStructure.systemId], currentSystemAllianceId > 0 {
                     allianceIconLoader.loadIcon(for: currentSystemAllianceId)
                 }
             }
@@ -550,7 +551,7 @@ struct StructureMarketDetailView: View {
         }
     }
 
-    // 加载最多订单的物品
+    /// 加载最多订单的物品
     private func loadTopOrderItems() async {
         // 先检查是否有本地缓存文件
         let hasLocal = await StructureMarketManager.shared.hasLocalOrders(structureId: Int64(structure.structureId))
@@ -585,7 +586,7 @@ struct StructureMarketDetailView: View {
         }
     }
 
-    // 计算最多订单的物品（Top 3，相同数量时按typeId排序）
+    /// 计算最多订单的物品（Top 3，相同数量时按typeId排序）
     private func calculateTopOrderItems(orders: [StructureMarketOrder]) async -> ([ItemOrderInfo], [ItemOrderInfo]) {
         // 分别统计卖单和买单
         var sellOrderCount: [Int: Int] = [:]
@@ -630,25 +631,10 @@ struct StructureMarketDetailView: View {
         }
 
         // 只查询 Top 3 物品的信息
-        let placeholders = String(repeating: "?,", count: allTypeIds.count).dropLast()
-        let query = """
-            SELECT type_id, name, icon_filename
-            FROM types
-            WHERE type_id IN (\(placeholders))
-        """
-
         var itemInfoMap: [Int: (name: String, iconFileName: String)] = [:]
-
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(query, parameters: Array(allTypeIds)) {
-            for row in rows {
-                guard let typeId = row["type_id"] as? Int,
-                      let name = row["name"] as? String,
-                      let iconFileName = row["icon_filename"] as? String
-                else {
-                    continue
-                }
-                itemInfoMap[typeId] = (name: name, iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName)
-            }
+        for typeId in allTypeIds {
+            guard let info = ItemInfoMap.typeInfo(for: typeId), !info.name.isEmpty else { continue }
+            itemInfoMap[typeId] = (name: info.name, iconFileName: info.iconFilename)
         }
 
         // 构建最多卖单的物品（Top 3）
@@ -688,7 +674,7 @@ struct StructureMarketDetailView: View {
         return (topSellItems, topBuyItems)
     }
 
-    // 加载最高溢价的物品（`forceRefreshGitHub`：用户点刷新时跳过本地 JSON 缓存重新下载）
+    /// 加载最高溢价的物品（`forceRefreshGitHub`：用户点刷新时跳过本地 JSON 缓存重新下载）
     private func loadPremiumItems(forceRefreshGitHub: Bool = false) async {
         await MainActor.run {
             isLoadingPremium = true
@@ -775,22 +761,11 @@ struct StructureMarketDetailView: View {
                 return
             }
 
-            let placeholders = String(repeating: "?,", count: typeIdsArray.count).dropLast()
-            let categoryQuery = """
-                SELECT type_id, categoryID
-                FROM types
-                WHERE type_id IN (\(placeholders))
-            """
-
             var allowedTypeIds = Set<Int>()
-            if case let .success(rows) = DatabaseManager.shared.executeQuery(categoryQuery, parameters: typeIdsArray) {
-                for row in rows {
-                    guard let typeId = row["type_id"] as? Int,
-                          let categoryId = row["categoryID"] as? Int,
-                          allowedCategories.contains(categoryId)
-                    else {
-                        continue
-                    }
+            for typeId in typeIdsArray {
+                if let categoryId = ItemInfoMap.typeInfo(for: typeId)?.categoryID,
+                   allowedCategories.contains(categoryId)
+                {
                     allowedTypeIds.insert(typeId)
                 }
             }
@@ -878,28 +853,10 @@ struct StructureMarketDetailView: View {
                 return
             }
 
-            let itemPlaceholders = String(repeating: "?,", count: topTypeIds.count).dropLast()
-            let itemQuery = """
-                SELECT type_id, name, icon_filename
-                FROM types
-                WHERE type_id IN (\(itemPlaceholders))
-            """
-
             var itemInfoMap: [Int: (name: String, iconFileName: String)] = [:]
-
-            if case let .success(rows) = DatabaseManager.shared.executeQuery(itemQuery, parameters: topTypeIds) {
-                for row in rows {
-                    guard let typeId = row["type_id"] as? Int,
-                          let name = row["name"] as? String,
-                          let iconFileName = row["icon_filename"] as? String
-                    else {
-                        continue
-                    }
-                    itemInfoMap[typeId] = (
-                        name: name,
-                        iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
-                    )
-                }
+            for typeId in topTypeIds {
+                guard let info = ItemInfoMap.typeInfo(for: typeId), !info.name.isEmpty else { continue }
+                itemInfoMap[typeId] = (name: info.name, iconFileName: info.iconFilename)
             }
 
             // 10. 构建 Top 10 最终结果
@@ -915,27 +872,10 @@ struct StructureMarketDetailView: View {
 
             // 11. 查询所有溢价物品的详细信息（用于传递给子视图）
             let allPremiumTypeIds = Array(allPremiumItemsSorted.map { $0.typeId })
-            let allItemPlaceholders = String(repeating: "?,", count: allPremiumTypeIds.count).dropLast()
-            let allItemQuery = """
-                SELECT type_id, name, icon_filename
-                FROM types
-                WHERE type_id IN (\(allItemPlaceholders))
-            """
-
             var allItemInfoMap: [Int: (name: String, iconFileName: String)] = [:]
-            if case let .success(allRows) = DatabaseManager.shared.executeQuery(allItemQuery, parameters: allPremiumTypeIds) {
-                for row in allRows {
-                    guard let typeId = row["type_id"] as? Int,
-                          let name = row["name"] as? String,
-                          let iconFileName = row["icon_filename"] as? String
-                    else {
-                        continue
-                    }
-                    allItemInfoMap[typeId] = (
-                        name: name,
-                        iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName
-                    )
-                }
+            for typeId in allPremiumTypeIds {
+                guard let info = ItemInfoMap.typeInfo(for: typeId), !info.name.isEmpty else { continue }
+                allItemInfoMap[typeId] = (name: info.name, iconFileName: info.iconFilename)
             }
 
             // 12. 构建所有溢价物品的最终结果
@@ -1000,20 +940,6 @@ struct PremiumItemInfo: Identifiable, Equatable {
         self.structureBuyPrice = structureBuyPrice
         self.jitaBuyPrice = jitaBuyPrice
         self.buyPremiumPercentage = buyPremiumPercentage
-    }
-
-    // Equatable 实现
-    static func == (lhs: PremiumItemInfo, rhs: PremiumItemInfo) -> Bool {
-        return lhs.id == rhs.id &&
-            lhs.typeId == rhs.typeId &&
-            lhs.name == rhs.name &&
-            lhs.iconFileName == rhs.iconFileName &&
-            lhs.structureSellPrice == rhs.structureSellPrice &&
-            lhs.jitaSellPrice == rhs.jitaSellPrice &&
-            lhs.sellPremiumPercentage == rhs.sellPremiumPercentage &&
-            lhs.structureBuyPrice == rhs.structureBuyPrice &&
-            lhs.jitaBuyPrice == rhs.jitaBuyPrice &&
-            lhs.buyPremiumPercentage == rhs.buyPremiumPercentage
     }
 }
 

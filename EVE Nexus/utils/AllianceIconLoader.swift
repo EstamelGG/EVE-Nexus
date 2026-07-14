@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 联盟图标加载器
+/// 联盟图标加载器
 class AllianceIconLoader: ObservableObject {
     @Published var icons: [Int: Image] = [:]
     @Published var loadingIconIds: Set<Int> = []

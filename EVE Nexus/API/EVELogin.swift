@@ -29,7 +29,7 @@ struct EVECharacterInfo: Codable {
     var location: SolarSystemInfo?
     var queueFinishTime: TimeInterval? // 添加队列总剩余时间属性
 
-    // 为JWT令牌解析添加的初始化方法
+    /// 为JWT令牌解析添加的初始化方法
     init(
         CharacterID: Int, CharacterName: String, ExpiresOn: String, Scopes: String,
         TokenType: String, CharacterOwnerHash: String
@@ -43,7 +43,7 @@ struct EVECharacterInfo: Codable {
         refreshTokenExpired = false
     }
 
-    // 内部类型定义
+    /// 内部类型定义
     struct CurrentSkillInfo: Codable {
         let skillId: Int
         let name: String
@@ -123,14 +123,14 @@ struct EVECharacterInfo: Codable {
     }
 }
 
-// 添加Equatable协议支持
+/// 添加Equatable协议支持
 extension EVECharacterInfo: Equatable {
     static func == (lhs: EVECharacterInfo, rhs: EVECharacterInfo) -> Bool {
         return lhs.CharacterID == rhs.CharacterID
     }
 }
 
-// ESI配置模型
+/// ESI配置模型
 struct ESIConfig: Codable {
     let clientId: String
     //    let clientSecret: String
@@ -139,9 +139,9 @@ struct ESIConfig: Codable {
     var scopes: [String]
 
     struct ESIUrls: Codable {
-        //        let authorize: String
-        //        let token: String
-        // 添加JWT元数据端点
+        ///        let authorize: String
+        ///        let token: String
+        /// 添加JWT元数据端点
         let jwksMetadata: String?
 
         enum CodingKeys: String, CodingKey {
@@ -159,14 +159,14 @@ struct ESIConfig: Codable {
     }
 }
 
-// 添加角色管理相关的数据结构
+/// 添加角色管理相关的数据结构
 struct CharacterAuth: Codable {
     var character: EVECharacterInfo
     let addedDate: Date
     let lastTokenUpdateTime: Date
 }
 
-// 添加用户管理的 ViewModel
+/// 添加用户管理的 ViewModel
 @MainActor
 class EVELoginViewModel: ObservableObject {
     @Published var characterInfo: EVECharacterInfo?
@@ -253,42 +253,7 @@ class EVELoginViewModel: ObservableObject {
         }
     }
 
-    // 处理授权回调
-    func handleCallback(url _: URL) {
-        Task { @MainActor in
-            do {
-                guard let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-                      let viewController = scene.windows.first?.rootViewController
-                else {
-                    return
-                }
-
-                // 1. 使用 AuthTokenManager 处理授权回调
-                // 由于我们已经在 @MainActor 上下文中，不需要额外的主线程包装
-                let authState = try await AuthTokenManager.shared.authorize(
-                    presenting: viewController,
-                    scopes: EVELogin.shared.config?.scopes ?? []
-                )
-
-                // 2. 处理登录流程
-                let character = try await EVELogin.shared.processLogin(authState: authState)
-
-                // 3. 更新 UI（已在 MainActor 上下文中）
-                characterInfo = character
-                // isLoggedIn = true
-                loadCharacters()
-
-                // 4. 加载新角色的头像
-                await loadCharacterPortrait(characterId: character.CharacterID)
-            } catch {
-                errorMessage = error.localizedDescription
-                showingError = false
-                Logger.error("登录失败: \(error)")
-            }
-        }
-    }
-
-    // 移除角色
+    /// 移除角色
     func removeCharacter(_ character: EVECharacterInfo) {
         let characterId = character.CharacterID
         Logger.info("开始移除角色: \(character.CharacterName) (\(characterId))")
@@ -326,7 +291,7 @@ class EVELoginViewModel: ObservableObject {
         Logger.info("角色移除完成: \(character.CharacterName) (\(characterId))")
     }
 
-    // 更新角色顺序
+    /// 更新角色顺序
     func moveCharacter(from source: IndexSet, to destination: Int) {
         // 边界检查
         guard destination >= 0, destination <= characters.count else {
@@ -407,34 +372,38 @@ class EVELogin {
         loadConfig()
     }
 
-    // 主处理函数 - 基本认证
+    /// 主处理函数 - 基本认证
     func processLogin(authState: OIDAuthState) async throws -> EVECharacterInfo {
         Logger.info("开始处理登录流程...")
 
         // 1. 获取角色信息
-        let character = try await getCharacterInfo(
+        var character = try await getCharacterInfo(
             token: authState.lastTokenResponse?.accessToken ?? "",
             forceRefresh: true
         )
         Logger.info(
-            "成功获取角色信息 - 名称: \(character.CharacterName), ID: \(character.CharacterID)")
+            "成功获取角色信息 - 名称: \(character.CharacterName), ID: \(character.CharacterID)"
+        )
 
-        // 2. 保存认证状态
+        // 2. 先写入新的 refresh/access，再清过期标记，避免并发 getAccessToken 仍用旧 refresh。
         await AuthTokenManager.shared.saveAuthState(authState, for: character.CharacterID)
 
-        // 3. 保存角色信息
+        // 3. 清掉可能残留的 refreshTokenExpired（例如上次 invalid_grant）。
+        updateCharacterRefreshTokenExpiredStatus(
+            characterId: character.CharacterID, expired: false
+        )
+        character.refreshTokenExpired = false
         try await saveCharacterInfo(character)
 
         // 4. 加载详细信息
-        let updatedCharacter = try await loadDetailedInfo(character: character)
-
-        return updatedCharacter
+        return try await loadDetailedInfo(character: character)
     }
 
-    // 保存角色信息
+    /// 保存角色信息
     func saveCharacterInfo(_ character: EVECharacterInfo) async throws {
         Logger.info(
-            "开始保存角色信息 - 角色: \(character.CharacterName) (\(character.CharacterID))")
+            "开始保存角色信息 - 角色: \(character.CharacterName) (\(character.CharacterID))"
+        )
 
         var characters = loadCharacters()
         var isNewCharacter = false
@@ -457,7 +426,8 @@ class EVELogin {
                     character: character,
                     addedDate: Date(),
                     lastTokenUpdateTime: Date()
-                ))
+                )
+            )
             isNewCharacter = true
             Logger.info("添加新角色信息")
         }
@@ -465,7 +435,8 @@ class EVELogin {
         // 保存到 UserDefaults
         if let encodedData = try? JSONEncoder().encode(characters) {
             Logger.info(
-                "正在缓存个人信息数据, key: \(charactersKey), 数据大小: \(encodedData.count) bytes")
+                "正在缓存个人信息数据, key: \(charactersKey), 数据大小: \(encodedData.count) bytes"
+            )
             UserDefaults.standard.set(encodedData, forKey: charactersKey)
         }
 
@@ -484,11 +455,12 @@ class EVELogin {
         }
     }
 
-    // 加载详细信息
+    /// 加载详细信息
     private func loadDetailedInfo(character: EVECharacterInfo) async throws -> EVECharacterInfo {
         // 获取角色详细信息
         let (skills, balance, location, skillQueue) = try await fetchCharacterDetails(
-            characterId: character.CharacterID)
+            characterId: character.CharacterID
+        )
 
         // 获取位置详细信息
         let locationInfo = await getSolarSystemInfo(
@@ -531,7 +503,7 @@ class EVELogin {
         return updatedCharacter
     }
 
-    // 获取角色信息
+    /// 获取角色信息
     private func getCharacterInfo(token: String, forceRefresh: Bool) async throws
         -> EVECharacterInfo
     {
@@ -558,7 +530,7 @@ class EVELogin {
         throw NetworkError.authenticationError("无法解析JWT令牌，请确保使用的是v2版本的OAuth端点")
     }
 
-    // 加载保存的角色列表
+    /// 加载保存的角色列表
     func loadCharacters() -> [CharacterAuth] {
         guard let data = UserDefaults.standard.data(forKey: charactersKey) else {
             return []
@@ -571,7 +543,8 @@ class EVELogin {
             if let savedOrder = UserDefaults.standard.array(forKey: characterOrderKey) as? [Int] {
                 // 创建一个字典，用于快速查找角色
                 let characterDict = Dictionary(
-                    uniqueKeysWithValues: characters.map { ($0.character.CharacterID, $0) })
+                    uniqueKeysWithValues: characters.map { ($0.character.CharacterID, $0) }
+                )
 
                 // 按保存的顺序重新排列角色
                 characters = savedOrder.compactMap { characterDict[$0] }
@@ -591,7 +564,7 @@ class EVELogin {
         }
     }
 
-    // 移除角色
+    /// 移除角色
     func removeCharacter(characterId: Int) {
         Logger.info("开始移除角色 (ID: \(characterId))")
 
@@ -619,18 +592,22 @@ class EVELogin {
         Task {
             do {
                 try await CharacterDatabaseManager.shared.deleteCharacterData(
-                    characterId: characterId)
+                    characterId: characterId
+                )
                 Logger.info("已清理角色 \(characterId) 在数据库中的所有数据")
             } catch {
                 Logger.error("清理角色 \(characterId) 的数据库数据失败: \(error)")
             }
         }
 
+        // 5. 取消该角色的技能队列到期提醒
+        NotificationManager.shared.cancelSkillQueueNotifications(characterId: characterId)
+
         UserDefaults.standard.synchronize()
         Logger.info("角色移除完成 (ID: \(characterId))")
     }
 
-    // 保存角色顺序
+    /// 保存角色顺序
     func saveCharacterOrder(_ characterIds: [Int]) {
         // 使用 OrderedSet 去除重复的角色ID，保持原有顺序
         var uniqueCharacterIds: [Int] = []
@@ -652,12 +629,12 @@ class EVELogin {
         UserDefaults.standard.synchronize()
     }
 
-    // 获取指定ID的角色
+    /// 获取指定ID的角色
     func getCharacterByID(_ characterId: Int) -> CharacterAuth? {
         return loadCharacters().first { $0.character.CharacterID == characterId }
     }
 
-    // 获取角色详细信息
+    /// 获取角色详细信息
     func fetchCharacterDetails(characterId: Int) async throws -> (
         skills: CharacterSkillsResponse, balance: Double, location: CharacterLocation,
         skillQueue: [SkillQueueItem]
@@ -713,7 +690,7 @@ class EVELogin {
         }
     }
 
-    // 更新角色的 refreshTokenExpired 状态
+    /// 更新角色的 refreshTokenExpired 状态
     func updateCharacterRefreshTokenExpiredStatus(characterId: Int, expired: Bool) {
         var characters = loadCharacters()
         if let index = characters.firstIndex(where: { $0.character.CharacterID == characterId }) {
@@ -747,30 +724,7 @@ class EVELogin {
         }
     }
 
-    // 保存认证信息
-    func saveAuthInfo(token: EVEAuthToken, character: EVECharacterInfo) async throws {
-        Logger.info(
-            "开始保存认证信息 - 角色: \(character.CharacterName) (\(character.CharacterID))")
-
-        // 1. 保存角色信息
-        try await saveCharacterInfo(character)
-
-        // 2. 创建并保存 OIDAuthState
-        await AuthTokenManager.shared.createAndSaveAuthState(
-            accessToken: token.access_token,
-            refreshToken: token.refresh_token,
-            expiresIn: token.expires_in,
-            tokenType: token.token_type,
-            characterId: character.CharacterID
-        )
-
-        // 3. 重置refreshTokenExpired状态
-        updateCharacterRefreshTokenExpiredStatus(characterId: character.CharacterID, expired: false)
-
-        Logger.info("EVELogin: 认证状态已保存")
-    }
-
-    // 添加 getScopes 方法到类内部
+    /// 添加 getScopes 方法到类内部
     func getScopes() async -> [String] {
         let scopes = await ScopeManager.shared.getLatestScopes()
         // 更新配置中的 scopes
@@ -779,23 +733,9 @@ class EVELogin {
         }
         return scopes
     }
-
-    func resetRefreshTokenExpired(characterId: Int) {
-        // 不再需要手动管理 token 状态，由 AuthTokenManager 处理
-        Task {
-            do {
-                _ = try await AuthTokenManager.shared.getAccessToken(for: characterId)
-                // 明确将refreshTokenExpired设置为false
-                updateCharacterRefreshTokenExpiredStatus(characterId: characterId, expired: false)
-                Logger.info("EVELogin: 已重置角色 \(characterId) 的 token 状态")
-            } catch {
-                Logger.error("重置角色 \(characterId) 的 token 状态失败: \(error)")
-            }
-        }
-    }
 }
 
-// 添加 ScopeManager 类
+/// 添加 ScopeManager 类
 class ScopeManager {
     static let shared = ScopeManager()
     private let latestScopesFileName = "latest_scopes.json"
@@ -803,30 +743,30 @@ class ScopeManager {
 
     private init() {}
 
-    // 定义 scopes 获取来源枚举
+    /// 定义 scopes 获取来源枚举
     enum ScopeSource {
         case network
         case localCache
         case hardcoded
     }
 
-    // 定义返回结果结构
+    /// 定义返回结果结构
     struct ScopeResult {
         let scopes: [String]
         let source: ScopeSource
     }
 
-    // 获取文档目录路径
+    /// 获取文档目录路径
     private var documentsDirectory: URL {
         FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
 
-    // 获取最新 scopes 文件路径
+    /// 获取最新 scopes 文件路径
     private var latestScopesPath: URL {
         documentsDirectory.appendingPathComponent(latestScopesFileName)
     }
 
-    // 从本地文件加载 scopes
+    /// 从本地文件加载 scopes
     private func loadScopesFromFile(_ url: URL) -> [String]? {
         do {
             let data = try Data(contentsOf: url)
@@ -839,7 +779,7 @@ class ScopeManager {
         }
     }
 
-    // 保存 scopes 到本地文件
+    /// 保存 scopes 到本地文件
     private func saveScopesToFile(_ scopes: [String]) {
         do {
             // 对 scopes 数组进行排序
@@ -853,7 +793,7 @@ class ScopeManager {
         }
     }
 
-    // 读取打包内的 scopes 配置
+    /// 读取打包内的 scopes 配置
     private func readBundledScopesConfig() -> (registered: Set<String>, notRequired: Set<String>)? {
         guard
             let scopesURL = Bundle.main.url(
@@ -870,7 +810,7 @@ class ScopeManager {
         return (registered: registered, notRequired: notRequired)
     }
 
-    // 从 api 获取最新的 scopes（与 registeredScopes 取交集后，剔除 notRequiredScopes）
+    /// 从 api 获取最新的 scopes（与 registeredScopes 取交集后，剔除 notRequiredScopes）
     func fetchLatestScopes() async throws -> [String] {
         guard let url = URL(string: "https://esi.evetech.net/meta/openapi.json") else {
             throw NetworkError.invalidURL
@@ -891,7 +831,8 @@ class ScopeManager {
         let allScopes = Set(
             openapi.components.securitySchemes.oauth2.flows.authorizationCode.scopes.keys.map {
                 String($0)
-            })
+            }
+        )
 
         // 从本地打包文件读取配置
         let config =
@@ -911,7 +852,7 @@ class ScopeManager {
         return Array(finalScopes)
     }
 
-    // 获取 scopes 并返回来源信息
+    /// 获取 scopes 并返回来源信息
     func getLatestScopesWithSource(forceRefresh: Bool = false) async -> ScopeResult {
         // 检查是否需要刷新
         var shouldRefresh = forceRefresh
@@ -919,7 +860,8 @@ class ScopeManager {
         if !shouldRefresh && FileManager.default.fileExists(atPath: latestScopesPath.path) {
             do {
                 let attributes = try FileManager.default.attributesOfItem(
-                    atPath: latestScopesPath.path)
+                    atPath: latestScopesPath.path
+                )
                 if let modificationDate = attributes[.modificationDate] as? Date {
                     let timeInterval = Date().timeIntervalSince(modificationDate)
                     let days = Int(timeInterval) / (24 * 3600)
@@ -937,7 +879,8 @@ class ScopeManager {
                         - 已过去天数: \(days) 天
                         - 剩余有效期: \(remainingDays) 天
                         - 是否需要刷新: \(shouldRefresh ? "是" : "否")
-                        """)
+                        """
+                    )
                 }
             } catch {
                 Logger.error("检查 latest_scopes.json 文件属性失败: \(error)")
@@ -983,25 +926,26 @@ class ScopeManager {
         return ScopeResult(scopes: scopes, source: .hardcoded)
     }
 
-    // 获取 scopes（保持原有方法的兼容性）
+    /// 获取 scopes（保持原有方法的兼容性）
     func getLatestScopes(forceRefresh: Bool = false) async -> [String] {
         let result = await getLatestScopesWithSource(forceRefresh: forceRefresh)
         return result.scopes
     }
 
-    // 从硬编码的 scopes.json 加载：registeredScopes 与 notRequiredScopes 计算后返回
+    /// 从硬编码的 scopes.json 加载：registeredScopes 与 notRequiredScopes 计算后返回
     private func loadHardcodedScopes() -> [String]? {
         guard let config = readBundledScopesConfig() else { return nil }
 
         // 兜底：registeredScopes − notRequiredScopes
         let finalScopes = config.registered.subtracting(config.notRequired)
         Logger.info(
-            "从硬编码文件加载 scopes 成功（registered − notRequired），共 \(finalScopes.count) 个权限")
+            "从硬编码文件加载 scopes 成功（registered − notRequired），共 \(finalScopes.count) 个权限"
+        )
         return Array(finalScopes)
     }
 }
 
-// 添加 OpenAPIResponse 结构体
+/// 添加 OpenAPIResponse 结构体
 private struct OpenAPIResponse: Codable {
     let components: Components
 

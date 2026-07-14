@@ -7,7 +7,7 @@ final class CorporationIssuedContractsViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var currentLoadingPage: Int?
 
-    // 分组方式枚举（复用PersonalContractsViewModel的枚举）
+    /// 分组方式枚举（复用PersonalContractsViewModel的枚举）
     typealias GroupingMode = PersonalContractsViewModel.GroupingMode
 
     @Published var groupingMode: GroupingMode = .byIssueDate {
@@ -31,9 +31,6 @@ final class CorporationIssuedContractsViewModel: ObservableObject {
     let character: EVECharacterInfo
     let databaseManager: DatabaseManager
 
-    // 添加一个标志来跟踪是否正在进行强制刷新
-    private var isForceRefreshing = false
-
     private let calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone.current
@@ -46,7 +43,8 @@ final class CorporationIssuedContractsViewModel: ObservableObject {
         databaseManager = DatabaseManager()
 
         if let groupingModeValue = UserDefaults.standard.value(
-            forKey: "corpIssuedGroupingMode_\(characterId)") as? Int,
+            forKey: "corpIssuedGroupingMode_\(characterId)"
+        ) as? Int,
             let savedGroupingMode = GroupingMode(rawValue: groupingModeValue)
         {
             groupingMode = savedGroupingMode
@@ -57,11 +55,6 @@ final class CorporationIssuedContractsViewModel: ObservableObject {
         // 如果已经在加载中且不是强制刷新，则直接返回
         if isLoading, !forceRefresh {
             return
-        }
-
-        // 如果是强制刷新，设置标志
-        if forceRefresh {
-            isForceRefreshing = true
         }
 
         // 如果已经加载过且不是强制刷新，且缓存不为空，直接使用缓存
@@ -83,7 +76,7 @@ final class CorporationIssuedContractsViewModel: ObservableObject {
         do {
             let contracts: [ContractInfo]
             let loadedContracts = try await Task.detached(priority: .userInitiated) {
-                let result = try await CorporationContractsAPI.shared.fetchMyCorpContracts(
+                try await CorporationContractsAPI.shared.fetchMyCorpContracts(
                     characterId: self.characterId,
                     forceRefresh: forceRefresh,
                     progressCallback: { page in
@@ -92,7 +85,6 @@ final class CorporationIssuedContractsViewModel: ObservableObject {
                         }
                     }
                 )
-                return result
             }.value
             contracts = loadedContracts
 
@@ -110,7 +102,6 @@ final class CorporationIssuedContractsViewModel: ObservableObject {
                 self.contractGroups = processedGroups
                 isLoading = false
                 currentLoadingPage = nil
-                isForceRefreshing = false
                 isInitialized = true
             }
         } catch {
@@ -120,13 +111,11 @@ final class CorporationIssuedContractsViewModel: ObservableObject {
                     Logger.error("加载军团发起的合同失败: \(error)")
                     self.isLoading = false
                     self.currentLoadingPage = nil
-                    self.isForceRefreshing = false
                 }
             } else {
                 await MainActor.run {
                     self.isLoading = false
                     self.currentLoadingPage = nil
-                    self.isForceRefreshing = false
                 }
             }
         }
@@ -143,7 +132,7 @@ final class CorporationIssuedContractsViewModel: ObservableObject {
         }
     }
 
-    // 复用PersonalContractsViewModel的分组逻辑
+    /// 复用PersonalContractsViewModel的分组逻辑
     private func processContractGroups(_ contracts: [ContractInfo]) async -> [ContractGroup] {
         let groups: [ContractGroup]
         switch groupingMode {
@@ -155,7 +144,7 @@ final class CorporationIssuedContractsViewModel: ObservableObject {
         return groups
     }
 
-    // 按发起时间分组（复用PersonalContractsViewModel的逻辑）
+    /// 按发起时间分组（复用PersonalContractsViewModel的逻辑）
     private func groupContractsByIssueDate(_ contracts: [ContractInfo]) -> [ContractGroup] {
         var groupedContracts: [Date: [ContractInfo]] = [:]
         for contract in contracts {
@@ -174,7 +163,7 @@ final class CorporationIssuedContractsViewModel: ObservableObject {
         }.sorted { $0.date > $1.date }
     }
 
-    // 按完成时间分组（复用PersonalContractsViewModel的逻辑）
+    /// 按完成时间分组（复用PersonalContractsViewModel的逻辑）
     private func groupContractsByCompletionDate(_ contracts: [ContractInfo]) -> [ContractGroup] {
         var result: [ContractGroup] = []
 
@@ -281,7 +270,7 @@ struct CorporationIssuedContractsView: View {
         }
     }
 
-    // 过滤逻辑（完全复用PersonalContractsView的逻辑）
+    /// 过滤逻辑（完全复用PersonalContractsView的逻辑）
     private var filteredContractGroups: [ContractGroup] {
         let filteredGroups = viewModel.contractGroups.compactMap { group -> ContractGroup? in
             let filteredContracts = group.contracts.filter { contract in
@@ -334,7 +323,8 @@ struct CorporationIssuedContractsView: View {
                         contracts: limitedContracts,
                         startLocation: group.startLocation,
                         endLocation: group.endLocation
-                    ))
+                    )
+                )
                 break
             }
         }
@@ -580,9 +570,11 @@ struct CorporationIssuedContractsView: View {
                                 .transition(
                                     .asymmetric(
                                         insertion: .opacity.combined(
-                                            with: .move(edge: .top)),
+                                            with: .move(edge: .top)
+                                        ),
                                         removal: .opacity.combined(with: .move(edge: .top))
-                                    ))
+                                    )
+                                )
                             }
                         }
                         .padding(.horizontal)
@@ -678,7 +670,8 @@ struct CorporationIssuedContractsView: View {
                             Text(NSLocalizedString("Contract_Display_300", comment: "")).tag(300)
                             Text(NSLocalizedString("Contract_Display_500", comment: "")).tag(500)
                             Text(NSLocalizedString("Contract_Display_Unlimited", comment: "")).tag(
-                                Int.max)
+                                Int.max
+                            )
                         }
                         .pickerStyle(.navigationLink)
                     } header: {
@@ -872,7 +865,7 @@ struct CorporationIssuedContractsView: View {
         }
     }
 
-    // 价格筛选检查方法（复用PersonalContractsView的逻辑）
+    /// 价格筛选检查方法（复用PersonalContractsView的逻辑）
     private func checkPriceFilter(for contract: ContractInfo) -> Bool {
         if minPrice.isEmpty && maxPrice.isEmpty {
             return true
@@ -903,7 +896,7 @@ struct CorporationIssuedContractsView: View {
         return true
     }
 
-    // 根据状态返回对应的颜色（复用PersonalContractsView的逻辑）
+    /// 根据状态返回对应的颜色（复用PersonalContractsView的逻辑）
     private func getStatusColor(_ status: String) -> Color {
         switch status {
         case "deleted":
@@ -920,7 +913,7 @@ struct CorporationIssuedContractsView: View {
     }
 }
 
-// 专门用于公司发起合同的 ContractRow，price 始终显示为绿色正号
+/// 专门用于公司发起合同的 ContractRow，price 始终显示为绿色正号
 struct CorporationIssuedContractRow: View {
     let contract: ContractInfo
     let databaseManager: DatabaseManager
@@ -1016,7 +1009,7 @@ struct CorporationIssuedContractRow: View {
         }
     }
 
-    // 辅助方法：根据合同类型生成价格文本（从公司发起人视角）
+    /// 辅助方法：根据合同类型生成价格文本（从公司发起人视角）
     @ViewBuilder
     private func priceText(
         value: Double, isPrice _: Bool, contractType: String
@@ -1039,7 +1032,7 @@ struct CorporationIssuedContractRow: View {
         }
     }
 
-    // 辅助方法：根据合同类型生成奖励文本（从公司发起人视角）
+    /// 辅助方法：根据合同类型生成奖励文本（从公司发起人视角）
     @ViewBuilder
     private func rewardText(
         value: Double, contractType: String
@@ -1094,7 +1087,7 @@ struct CorporationIssuedContractRow: View {
                                     : contract.title)
                         )
                         .font(.caption)
-                        .foregroundColor(contract.title.isEmpty ? .secondary : .secondary)
+                        .foregroundColor(.secondary)
                         .lineLimit(1)
 
                         Spacer()
@@ -1126,7 +1119,7 @@ struct CorporationIssuedContractRow: View {
                                     : contract.title)
                         )
                         .font(.caption)
-                        .foregroundColor(contract.title.isEmpty ? .secondary : .secondary)
+                        .foregroundColor(.secondary)
                         .lineLimit(1)
 
                         Spacer()

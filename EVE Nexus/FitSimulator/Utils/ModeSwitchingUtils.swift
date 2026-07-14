@@ -3,9 +3,9 @@ import Foundation
 /// 模式切换工具类
 /// 用于检测飞船是否支持模式切换，以及查找对应的模式装备
 enum ModeSwitchingUtils {
-    // 缓存：飞船名称 -> 模式装备列表的映射
+    /// 缓存：飞船名称 -> 模式装备列表的映射
     private static var shipNameToModesCache: [String: [(typeId: Int, name: String, iconFileName: String)]]?
-    // 缓存：飞船类型ID -> 飞船名称的映射
+    /// 缓存：飞船类型ID -> 飞船名称的映射
     private static var shipIdToNameCache: [Int: String] = [:]
 
     /// 初始化模式装备映射缓存
@@ -109,21 +109,15 @@ enum ModeSwitchingUtils {
     /// 获取飞船的英文名称（带缓存）
     private static func getShipEnName(
         shipTypeId: Int,
-        databaseManager: DatabaseManager
+        databaseManager _: DatabaseManager
     ) -> String? {
         // 先查缓存
         if let cachedName = shipIdToNameCache[shipTypeId] {
             return cachedName
         }
 
-        // 缓存未命中，查询数据库
-        let shipQuery = "SELECT en_name FROM types WHERE type_id = ?"
-        guard case let .success(rows) = databaseManager.executeQuery(
-            shipQuery, parameters: [shipTypeId]
-        ),
-            let firstRow = rows.first,
-            let shipEnName = firstRow["en_name"] as? String
-        else {
+        // 缓存未命中，查询内存索引
+        guard let shipEnName = ItemInfoMap.typeInfo(for: shipTypeId)?.enName, !shipEnName.isEmpty else {
             return nil
         }
 

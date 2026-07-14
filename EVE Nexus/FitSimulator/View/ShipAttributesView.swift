@@ -9,7 +9,7 @@ struct ShipAttributesView: View {
     @State private var turretHardpoints: Int = 0
     @State private var launcherHardpoints: Int = 0
 
-    // 计算当前已安装的炮台数量
+    /// 计算当前已安装的炮台数量
     private var turretUsed: Int {
         var count = 0
         for module in viewModel.simulationInput.modules {
@@ -20,7 +20,7 @@ struct ShipAttributesView: View {
         return count
     }
 
-    // 计算当前已安装的发射器数量
+    /// 计算当前已安装的发射器数量
     private var launcherUsed: Int {
         var count = 0
         for module in viewModel.simulationInput.modules {
@@ -97,7 +97,7 @@ struct ShipAttributesView: View {
         }
     }
 
-    // 更新资源使用情况
+    /// 更新资源使用情况
     private func updateResourceUsage() {
         // 计算已使用的CPU和电力
         var cpuTotal: Double = 0
@@ -125,9 +125,11 @@ struct ShipAttributesView: View {
             Logger.info("没有计算结果，回退到使用原始值计算资源使用情况")
             // 获取原始挂点数
             turretHardpoints = Int(
-                viewModel.simulationInput.ship.baseAttributesByName["turretSlotsLeft"] ?? 0)
+                viewModel.simulationInput.ship.baseAttributesByName["turretSlotsLeft"] ?? 0
+            )
             launcherHardpoints = Int(
-                viewModel.simulationInput.ship.baseAttributesByName["launcherSlotsLeft"] ?? 0)
+                viewModel.simulationInput.ship.baseAttributesByName["launcherSlotsLeft"] ?? 0
+            )
 
             for module in viewModel.simulationInput.modules {
                 // 只计算在线状态（status >= 1）的装备的资源消耗
@@ -146,7 +148,7 @@ struct ShipAttributesView: View {
     }
 }
 
-// 带进度条的属性视图
+/// 带进度条的属性视图
 struct AttributeProgressView: View {
     let icon: String
     let current: Double
@@ -226,7 +228,7 @@ struct AttributeProgressView: View {
     }
 }
 
-// 纯数值属性视图
+/// 纯数值属性视图
 struct AttributeValueView: View {
     let icon: String
     let current: Int

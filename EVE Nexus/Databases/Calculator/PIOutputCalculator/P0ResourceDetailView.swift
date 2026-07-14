@@ -41,7 +41,8 @@ struct P0ResourceDetailView: View {
                             HStack {
                                 Image(
                                     uiImage: IconManager.shared.loadUIImage(
-                                        for: planet.iconFileName)
+                                        for: planet.iconFileName
+                                    )
                                 )
                                 .resizable()
                                 .scaledToFit()
@@ -78,21 +79,18 @@ struct P0ResourceDetailView: View {
             // 查询星系内的行星数量
             let query = """
                 SELECT 
-                    s.solarSystemID,
-                    s.solarSystemName,
-                    u.system_security,
-                    u.temperate,
-                    u.barren,
-                    u.oceanic,
-                    u.ice,
-                    u.gas,
-                    u.lava,
-                    u.storm,
-                    u.plasma
-                FROM solarsystems s
-                JOIN universe u ON s.solarSystemID = u.solarsystem_id
-                WHERE s.solarSystemID IN (\(systemIds.map { String($0) }.joined(separator: ",")))
-                ORDER BY s.solarSystemName
+                    solarsystem_id,
+                    system_security,
+                    temperate,
+                    barren,
+                    oceanic,
+                    ice,
+                    gas,
+                    lava,
+                    storm,
+                    plasma
+                FROM universe
+                WHERE solarsystem_id IN (\(systemIds.map { String($0) }.joined(separator: ",")))
             """
 
             var loadedSystemPlanets:
@@ -104,7 +102,8 @@ struct P0ResourceDetailView: View {
             if case let .success(rows) = DatabaseManager.shared.executeQuery(query) {
                 // 获取资源可用的行星类型
                 let resourceCalculator = PlanetaryResourceCalculator(
-                    databaseManager: DatabaseManager.shared)
+                    databaseManager: DatabaseManager.shared
+                )
                 let resourcePlanets = resourceCalculator.findResourcePlanets(for: [resourceId])
 
                 guard let resourceInfo = resourcePlanets.first else {
@@ -123,27 +122,16 @@ struct P0ResourceDetailView: View {
                 let availablePlanetTypes = Set(resourceInfo.availablePlanets.map { $0.id })
 
                 // 查询行星类型名称
-                let planetTypeIds = Array(availablePlanetTypes)
-                let typeQuery = """
-                    SELECT type_id, name 
-                    FROM types 
-                    WHERE type_id IN (\(planetTypeIds.map { String($0) }.joined(separator: ",")))
-                """
-
                 var planetTypeNames: [Int: String] = [:]
-                if case let .success(typeRows) = DatabaseManager.shared.executeQuery(typeQuery) {
-                    for row in typeRows {
-                        if let typeId = row["type_id"] as? Int,
-                           let name = row["name"] as? String
-                        {
-                            planetTypeNames[typeId] = name
-                        }
+                for typeId in availablePlanetTypes {
+                    if let name = ItemInfoMap.typeName(for: typeId) {
+                        planetTypeNames[typeId] = name
                     }
                 }
 
                 for row in rows {
-                    guard let systemId = row["solarSystemID"] as? Int,
-                          let systemName = row["solarSystemName"] as? String,
+                    guard let systemId = row["solarsystem_id"] as? Int,
+                          let systemName = SDEMemoryStore.solarSystemName(for: systemId),
                           let security = row["system_security"] as? Double
                     else {
                         continue
@@ -166,7 +154,8 @@ struct P0ResourceDetailView: View {
                                     count: count,
                                     iconFileName: iconFileName,
                                     typeName: typeName
-                                ))
+                                )
+                            )
                         }
                     }
 
@@ -180,14 +169,17 @@ struct P0ResourceDetailView: View {
                                 systemName: systemName,
                                 security: security,
                                 planets: planetCounts
-                            ))
+                            )
+                        )
                     }
                 }
             }
 
             // 更新UI
             DispatchQueue.main.async {
-                systemPlanets = loadedSystemPlanets
+                systemPlanets = loadedSystemPlanets.sorted {
+                    $0.systemName.localizedStandardCompare($1.systemName) == .orderedAscending
+                }
                 isLoading = false
 
                 // 加载主权数据

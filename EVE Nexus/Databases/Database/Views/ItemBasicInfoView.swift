@@ -2,65 +2,41 @@ import SwiftUI
 
 struct ItemBasicInfoView: View {
     let itemDetails: ItemDetails
-    @State private var renderImage: UIImage?
     @ObservedObject var databaseManager: DatabaseManager
     let modifiedAttributes: [Int: Double]?
 
-    // 监听屏幕方向变化
+    @State private var renderImage: UIImage?
     @State private var orientation = UIDevice.current.orientation
-
-    // 布局状态标识符（用于判断是否需要重新渲染视图）
-    @State private var layoutMode: LayoutMode = .portrait
-
-    // 存储市场目录路径
     @State private var marketPath: String = ""
-
-    // 保存图片状态
     @State private var showSaveSuccess = false
     @State private var showSaveError = false
-
-    // 模型可用性状态
-    @State private var isModelAvailable: Bool = false
-
-    /// 物品名称与英文不同时，点击名称在本地显示名与英文名之间切换
+    @State private var isModelAvailable = false
     @State private var itemNameShowsEnglish = false
 
-    // iOS 标准圆角半径
     private let cornerRadius: CGFloat = 10
-    // 标准边距
     private let standardPadding: CGFloat = 16
+    private let rowInsets = EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18)
 
-    // 判断是否应该使用小图模式（横屏或iPad）
+    /// 拥有 3D 渲染图的物品 categoryID 白名单
+    private static let renderImageCategories: Set<Int> = [
+        2, 3, 6, 11, 18, 22, 23, 40, 41, 46, 65, 87, 91,
+    ]
+
     private var shouldUseCompactLayout: Bool {
-        DeviceUtils.shouldUseCompactLayout
+        // 引用 orientation 以便设备旋转时触发 body 重新渲染
+        _ = orientation
+        return DeviceUtils.shouldUseCompactLayout
     }
 
-    // 获取图片尺寸
     private var imageSize: CGFloat {
-        if DeviceUtils.isIPad {
-            return 256 // iPad使用256尺寸
-        } else if DeviceUtils.isIPhoneLandscape {
-            return 128 // 横屏iPhone使用128尺寸
-        } else {
-            return 128 // 默认尺寸
-        }
+        DeviceUtils.isIPad ? 256 : 128
     }
 
-    // 获取修改后的属性值，如果没有则返回原始值
-    private func getAttributeValue(attributeId: Int, originalValue: Double?) -> Double? {
-        if let modifiedValue = modifiedAttributes?[attributeId] {
-            return modifiedValue
-        }
-        return originalValue
-    }
-
-    /// 当前名称是否与英文版本不同（可点击切换）
     private var itemNameCanToggleEnglish: Bool {
         guard let en = itemDetails.en_name, !en.isEmpty else { return false }
         return en != itemDetails.name
     }
 
-    /// 标题行当前展示的名称（本地或英文）
     private var itemTitleDisplayName: String {
         if itemNameCanToggleEnglish, itemNameShowsEnglish, let en = itemDetails.en_name {
             return en
@@ -68,7 +44,6 @@ struct ItemBasicInfoView: View {
         return itemDetails.name
     }
 
-    /// 与当前展示名称相对的另一种语言名称（用于长按复制「翻译」）
     private var itemTitleAlternateName: String? {
         guard itemNameCanToggleEnglish, let en = itemDetails.en_name else { return nil }
         return itemNameShowsEnglish ? itemDetails.name : en
@@ -79,126 +54,201 @@ struct ItemBasicInfoView: View {
         dampingFraction: 0.82
     )
 
-    private func toggleItemNameLanguageAnimated() {
-        guard itemNameCanToggleEnglish else { return }
-        withAnimation(Self.itemNameToggleAnimation) {
-            itemNameShowsEnglish.toggle()
-        }
+    private var categoryGroupIDText: String {
+        "\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)"
     }
 
-    // 获取属性值的颜色
-    private func getAttributeColor(attributeId: Int, originalValue: Double?) -> Color {
-        guard let originalValue = originalValue,
-              let modifiedValue = modifiedAttributes?[attributeId]
-        else {
-            return .secondary
-        }
-
-        if abs(modifiedValue - originalValue) < 0.0001 {
-            return .secondary // 没有变化
-        }
-
-        // 对于 mass 和 capacity，通常值越大越好（capacity）或越小越好（mass）
-        // mass(4): 质量，越小越好，所以 highIsGood = false
-        // capacity(38): 容量，越大越好，所以 highIsGood = true
-        let highIsGood = (attributeId == 38) // capacity 是 highIsGood
-
-        if highIsGood {
-            return modifiedValue > originalValue ? .green : .red
-        } else {
-            return modifiedValue < originalValue ? .green : .red
-        }
+    private var hasBasicStats: Bool {
+        itemDetails.volume != nil
+            || itemDetails.capacity != nil
+            || itemDetails.mass != nil
+            || itemDetails.repackagedVolume != nil
     }
 
-    // 保存渲染图到相册
-    private func saveRenderImageToPhotos() {
-        guard let renderImage = renderImage else { return }
-
-        ImageSaver.saveImage(renderImage) { success in
-            if success {
-                self.showSaveSuccess = true
-            } else {
-                self.showSaveError = true
-            }
-        }
-    }
-
-    // 获取市场目录路径
-    private func fetchMarketPath(for marketGroupID: Int?) {
-        guard let marketGroupID = marketGroupID else {
-            marketPath = ""
-            return
-        }
-
-        Task {
-            do {
-                let path = try await getMarketGroupPath(groupID: marketGroupID)
-                await MainActor.run {
-                    self.marketPath = path.joined(separator: " / ")
-                }
-            } catch {
-                Logger.error("获取市场目录路径失败: \(error.localizedDescription)")
-                await MainActor.run {
-                    self.marketPath = ""
-                }
-            }
-        }
-    }
-
-    // 递归获取市场目录路径
-    private func getMarketGroupPath(groupID: Int) async throws -> [String] {
-        var path: [String] = []
-        var currentGroupID = groupID
-        var iterations = 0
-        let maxIterations = 100 // 设置最大递归深度，避免无限循环
-
-        while currentGroupID != 0, iterations < maxIterations {
-            iterations += 1 // 增加迭代计数
-
-            // 查询市场组信息
-            let query = "SELECT name, parentgroup_id FROM marketGroups WHERE group_id = ?"
-            let result = databaseManager.executeQuery(query, parameters: [currentGroupID])
-
-            switch result {
-            case let .success(rows):
-                guard let row = rows.first,
-                      let name = row["name"] as? String
-                else {
-                    return path // 如果找不到数据，直接返回当前路径
-                }
-
-                // 添加当前组名称到路径
-                path.insert(name, at: 0)
-
-                // 获取父组ID，如果为nil或0则结束循环
-                if let parentGroupID = row["parentgroup_id"] as? Int, parentGroupID > 0 {
-                    // 检查是否形成循环引用（子项引用了已经在路径中的父项）
-                    if parentGroupID == currentGroupID || path.count >= maxIterations {
-                        Logger.warning("检测到可能的循环引用或过深的市场目录路径，中止查询")
-                        return path
+    var body: some View {
+        Group {
+            Section {
+                Group {
+                    if let renderImage {
+                        if shouldUseCompactLayout {
+                            compactLayoutView(renderImage: renderImage)
+                        } else {
+                            renderImageLayoutView(renderImage: renderImage)
+                        }
+                    } else {
+                        originalLayoutView()
                     }
-                    currentGroupID = parentGroupID
-                } else {
-                    return path // 找到了顶级分类，返回路径
                 }
-            case let .error(error):
-                Logger.error("查询市场组信息失败: \(error)")
-                return path // 查询出错，返回已收集的路径
+
+                if !itemDetails.description.isEmpty {
+                    RichTextView(text: itemDetails.description, databaseManager: databaseManager)
+                        .font(.body)
+                        .foregroundColor(.primary)
+                }
+            }
+            .onAppear {
+                loadRenderImage(for: itemDetails.typeId)
+                Logger.debug(
+                    "物品 \(itemDetails.name) 的 marketGroupID: \(String(describing: itemDetails.marketGroupID))"
+                )
+                if let marketGroupID = itemDetails.marketGroupID {
+                    Logger.debug("显示市场按钮，marketGroupID: \(marketGroupID)")
+                    if shouldUseCompactLayout {
+                        fetchMarketPath(for: marketGroupID)
+                    }
+                }
+                checkModelAvailability()
+                setupOrientationNotification()
+            }
+            .onDisappear {
+                removeOrientationNotification()
+            }
+            .alert(
+                NSLocalizedString("Misc_Save_Render_Image", comment: ""),
+                isPresented: $showSaveSuccess
+            ) {
+                Button("OK") {}
+            } message: {
+                Text(NSLocalizedString("Misc_Save_Render_Image_Success", comment: ""))
+            }
+            .alert(
+                NSLocalizedString("Misc_Save_Render_Image_Error_Title", comment: ""),
+                isPresented: $showSaveError
+            ) {
+                Button("OK") {}
+            } message: {
+                Text(NSLocalizedString("Misc_Save_Render_Image_Error", comment: ""))
+            }
+            .onChange(of: shouldUseCompactLayout) { _, newValue in
+                if newValue && marketPath.isEmpty && itemDetails.marketGroupID != nil {
+                    fetchMarketPath(for: itemDetails.marketGroupID)
+                }
+            }
+
+            if itemDetails.marketGroupID != nil || isModelAvailable {
+                Section {
+                    if itemDetails.marketGroupID != nil {
+                        NavigationLink {
+                            MarketItemDetailView(
+                                databaseManager: databaseManager,
+                                itemID: itemDetails.typeId
+                            )
+                        } label: {
+                            iconTitleRow(
+                                icon: "isk",
+                                title: NSLocalizedString("Main_Market", comment: "")
+                            )
+                        }
+
+                        NavigationLink {
+                            MarketQuickbarDestinationPickerView(
+                                databaseManager: databaseManager,
+                                typeID: itemDetails.typeId
+                            )
+                        } label: {
+                            HStack(alignment: .center) {
+                                Image("searchmarket")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 32, height: 32)
+                                    .cornerRadius(6)
+                                Text(
+                                    NSLocalizedString(
+                                        "Main_Market_Add_To_Watchlist_Button", comment: ""
+                                    )
+                                )
+                                .foregroundColor(.primary)
+                                Spacer(minLength: 0)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .contentShape(Rectangle())
+                        }
+                    }
+
+                    if itemDetails.categoryID == 6 {
+                        NavigationLink {
+                            ShipInsuranceView(
+                                typeId: itemDetails.typeId,
+                                typeName: itemDetails.name
+                            )
+                        } label: {
+                            iconTitleRow(
+                                icon: "insurance",
+                                title: NSLocalizedString("Insurance_Title", comment: "保险")
+                            )
+                        }
+                    }
+
+                    if isModelAvailable {
+                        Button {
+                            if let url = URL(
+                                string:
+                                "https://estamelgg.github.io/EVE_Model_Gallery/#typeid=\(itemDetails.typeId)&tiny"
+                            ) {
+                                UIApplication.shared.open(url)
+                            }
+                        } label: {
+                            iconTitleRow(
+                                icon: "ISIS",
+                                title: NSLocalizedString("Item_View_Model", comment: "查看模型")
+                            )
+                        }
+                    }
+                }
+                .listRowInsets(rowInsets)
+            }
+
+            if hasBasicStats {
+                Section(
+                    header: Text(NSLocalizedString("Item_Basic_Info", comment: "")).font(.headline)
+                ) {
+                    if let volume = itemDetails.volume {
+                        basicStatRow(
+                            icon: "structure",
+                            title: NSLocalizedString("Item_Volume", comment: ""),
+                            value: "\(FormatUtil.format(Double(volume))) m3"
+                        )
+                    }
+                    if let repackagedVolume = itemDetails.repackagedVolume {
+                        basicStatRow(
+                            icon: "packages",
+                            title: NSLocalizedString("Item_RepackagesVolume", comment: ""),
+                            value: "\(FormatUtil.format(Double(repackagedVolume))) m3"
+                        )
+                    }
+                    if let capacity = itemDetails.capacity {
+                        let original = Double(capacity)
+                        let final =
+                            getAttributeValue(attributeId: 38, originalValue: original) ?? original
+                        basicStatRow(
+                            icon: "cargo_fit",
+                            title: NSLocalizedString("Item_Capacity", comment: ""),
+                            value: "\(FormatUtil.format(final)) m3",
+                            valueColor: getAttributeColor(attributeId: 38, originalValue: original)
+                        )
+                    }
+                    if let mass = itemDetails.mass {
+                        let original = Double(mass)
+                        let final =
+                            getAttributeValue(attributeId: 4, originalValue: original) ?? original
+                        basicStatRow(
+                            icon: "hull",
+                            title: NSLocalizedString("Item_Mass", comment: ""),
+                            value: "\(FormatUtil.format(final)) Kg",
+                            valueColor: getAttributeColor(attributeId: 4, originalValue: original)
+                        )
+                    }
+                }
+                .listRowInsets(rowInsets)
             }
         }
-
-        // 如果达到最大迭代次数，记录警告
-        if iterations >= maxIterations {
-            Logger.warning("市场目录路径查询达到最大迭代次数 \(maxIterations)，可能存在循环引用")
+        .onChange(of: itemDetails.typeId) { _, _ in
+            itemNameShowsEnglish = false
         }
-
-        return path
     }
 
-    // MARK: - 布局视图函数
+    // MARK: - Layout
 
-    // 小图布局（横屏或iPad）
-    @ViewBuilder
     private func compactLayoutView(renderImage: UIImage) -> some View {
         HStack(alignment: .center) {
             Image(uiImage: renderImage)
@@ -209,54 +259,16 @@ struct ItemBasicInfoView: View {
                 .padding(.trailing, 8)
 
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 0) {
-                    Text(itemTitleDisplayName)
-                        .font(.title)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                        .contentTransition(.interpolate)
-                    Spacer(minLength: 0)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .onTapGesture(perform: toggleItemNameLanguageAnimated)
-                .contextMenu {
-                    Button {
-                        UIPasteboard.general.string = itemTitleDisplayName
-                    } label: {
-                        Label(
-                            NSLocalizedString("Misc_Copy_Name", comment: ""),
-                            systemImage: "doc.on.doc"
-                        )
-                    }
-                    if let alt = itemTitleAlternateName {
-                        Button {
-                            UIPasteboard.general.string = alt
-                        } label: {
-                            Label(
-                                NSLocalizedString("Misc_Copy_Trans", comment: ""),
-                                systemImage: "translate"
-                            )
-                        }
-                    }
-                    Button {
-                        saveRenderImageToPhotos()
-                    } label: {
-                        Label(
-                            NSLocalizedString("Misc_Save_Render_Image", comment: ""),
-                            systemImage: "photo"
-                        )
-                    }
-                }
+                itemTitleLabel(lineLimit: 2)
+                    .contextMenu { itemNameContextMenu(includeSaveImage: true) }
 
                 Text(
-                    "\(NSLocalizedString("Main_Database_Category", comment: "")): \(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)"
+                    "\(NSLocalizedString("Main_Database_Category", comment: "")): \(categoryGroupIDText)"
                 )
                 .font(.subheadline)
                 .foregroundColor(.secondary)
                 .lineLimit(2)
 
-                // 显示市场目录路径（如果有）
                 if !marketPath.isEmpty {
                     Text(
                         "\(NSLocalizedString("Main_Database_Market_Category", comment: "")): \(marketPath)"
@@ -273,8 +285,6 @@ struct ItemBasicInfoView: View {
         .padding(.horizontal, 8)
     }
 
-    // 渲染图大图布局（竖屏手机）
-    @ViewBuilder
     private func renderImageLayoutView(renderImage: UIImage) -> some View {
         ZStack(alignment: .bottomLeading) {
             Image(uiImage: renderImage)
@@ -285,52 +295,13 @@ struct ItemBasicInfoView: View {
                 .padding(.horizontal, standardPadding)
                 .padding(.vertical, standardPadding)
 
-            // 物品信息覆盖层
             VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 0) {
-                    Text(itemTitleDisplayName)
-                        .font(.title)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                        .contentTransition(.interpolate)
-                    Spacer(minLength: 0)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .onTapGesture(perform: toggleItemNameLanguageAnimated)
-                Text(
-                    "\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)"
-                )
-                .font(.subheadline)
+                itemTitleLabel(lineLimit: 2)
+                Text(categoryGroupIDText)
+                    .font(.subheadline)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .contextMenu {
-                Button {
-                    UIPasteboard.general.string = itemTitleDisplayName
-                } label: {
-                    Label(
-                        NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc"
-                    )
-                }
-                if let alt = itemTitleAlternateName {
-                    Button {
-                        UIPasteboard.general.string = alt
-                    } label: {
-                        Label(
-                            NSLocalizedString("Misc_Copy_Trans", comment: ""),
-                            systemImage: "translate"
-                        )
-                    }
-                }
-                Button {
-                    saveRenderImageToPhotos()
-                } label: {
-                    Label(
-                        NSLocalizedString("Misc_Save_Render_Image", comment: ""),
-                        systemImage: "photo"
-                    )
-                }
-            }
+            .contextMenu { itemNameContextMenu(includeSaveImage: true) }
             .padding(.horizontal, standardPadding * 2)
             .padding(.vertical, standardPadding)
             .background(
@@ -341,11 +312,9 @@ struct ItemBasicInfoView: View {
             .padding(.horizontal, standardPadding)
             .padding(.bottom, standardPadding)
         }
-        .listRowInsets(EdgeInsets()) // 移除 List 的默认边距
+        .listRowInsets(EdgeInsets())
     }
 
-    // 原始布局（无渲染图时的回退布局）
-    @ViewBuilder
     private func originalLayoutView() -> some View {
         HStack(alignment: .center) {
             IconManager.shared.loadImage(for: itemDetails.iconFileName)
@@ -354,331 +323,225 @@ struct ItemBasicInfoView: View {
                 .cornerRadius(8)
 
             VStack(alignment: .leading, spacing: 4) {
-                HStack(spacing: 0) {
-                    Text(itemTitleDisplayName)
-                        .font(.title)
-                        .multilineTextAlignment(.leading)
-                        .contentTransition(.interpolate)
-                    Spacer(minLength: 0)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .onTapGesture(perform: toggleItemNameLanguageAnimated)
-                .contextMenu {
-                    Button {
-                        UIPasteboard.general.string = itemTitleDisplayName
-                    } label: {
-                        Label(
-                            NSLocalizedString("Misc_Copy_Name", comment: ""),
-                            systemImage: "doc.on.doc"
-                        )
-                    }
-                    if let alt = itemTitleAlternateName {
-                        Button {
-                            UIPasteboard.general.string = alt
-                        } label: {
-                            Label(
-                                NSLocalizedString("Misc_Copy_Trans", comment: ""),
-                                systemImage: "translate"
-                            )
-                        }
-                    }
-                }
-                Text(
-                    "\(itemDetails.categoryName) / \(itemDetails.groupName) / ID:\(itemDetails.typeId)"
-                )
-                .font(.subheadline)
-                .foregroundColor(.gray)
+                itemTitleLabel(lineLimit: nil)
+                    .contextMenu { itemNameContextMenu(includeSaveImage: false) }
+                Text(categoryGroupIDText)
+                    .font(.subheadline)
+                    .foregroundColor(.gray)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    var body: some View {
-        Group {
-            Section {
-                if let renderImage = renderImage {
-                    if shouldUseCompactLayout {
-                        // 小图模式（横屏或iPad）
-                        compactLayoutView(renderImage: renderImage)
-                    } else {
-                        // 渲染图大图布局（竖屏手机）
-                        renderImageLayoutView(renderImage: renderImage)
-                    }
-                } else {
-                    // 原始布局（无渲染图时的回退布局）
-                    originalLayoutView()
-                }
+    private func itemTitleLabel(lineLimit: Int?) -> some View {
+        HStack(spacing: 0) {
+            Text(itemTitleDisplayName)
+                .font(.title)
+                .lineLimit(lineLimit)
+                .multilineTextAlignment(.leading)
+                .contentTransition(.interpolate)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
+        .onTapGesture(perform: toggleItemNameLanguageAnimated)
+    }
 
-                let desc = itemDetails.description
-                if !desc.isEmpty {
-                    RichTextView(text: desc, databaseManager: databaseManager)
-                        .font(.body)
-                        .foregroundColor(.primary)
-                }
-            }
-            .onAppear {
-                layoutMode = DeviceUtils.currentLayoutMode
-                loadRenderImage(for: itemDetails.typeId)
-                // 调试输出移到这里
-                Logger.debug(
-                    "物品 \(itemDetails.name) 的 marketGroupID: \(String(describing: itemDetails.marketGroupID))"
-                )
-                if let marketGroupID = itemDetails.marketGroupID {
-                    Logger.debug("显示市场按钮，marketGroupID: \(marketGroupID)")
-                    // 如果是小图模式，获取市场目录路径
-                    if shouldUseCompactLayout {
-                        fetchMarketPath(for: marketGroupID)
-                    }
-                }
-
-                // 检查模型是否可用
-                checkModelAvailability()
-
-                // 设置方向变化通知
-                setupOrientationNotification()
-            }
-            .onDisappear {
-                // 移除方向变化通知
-                removeOrientationNotification()
-            }
-            .alert(
-                NSLocalizedString("Misc_Save_Render_Image", comment: ""), isPresented: $showSaveSuccess
-            ) {
-                Button("OK") {}
-            } message: {
-                Text(NSLocalizedString("Misc_Save_Render_Image_Success", comment: ""))
-            }
-            .alert(
-                NSLocalizedString("Misc_Save_Render_Image_Error_Title", comment: ""),
-                isPresented: $showSaveError
-            ) {
-                Button("OK") {}
-            } message: {
-                Text(NSLocalizedString("Misc_Save_Render_Image_Error", comment: ""))
-            }
-            // 使用布局模式而非方向作为视图ID
-            .id(layoutMode)
-            // 当布局模式变化时，决定是否需要获取市场路径
-            .onChange(of: shouldUseCompactLayout) { _, newValue in
-                if newValue && marketPath.isEmpty && itemDetails.marketGroupID != nil {
-                    fetchMarketPath(for: itemDetails.marketGroupID)
-                }
-            }
-
-            // 市场详情 Section
-            if itemDetails.marketGroupID != nil || isModelAvailable {
-                Section {
-                    if itemDetails.marketGroupID != nil {
-                        NavigationLink {
-                            MarketItemDetailView(
-                                databaseManager: databaseManager,
-                                itemID: itemDetails.typeId
-                            )
-                        } label: {
-                            HStack {
-                                Image("isk")
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                    .cornerRadius(6)
-                                Text(NSLocalizedString("Main_Market", comment: ""))
-                                Spacer()
-                            }
-                        }
-
-                        NavigationLink {
-                            MarketQuickbarDestinationPickerView(
-                                databaseManager: databaseManager,
-                                typeID: itemDetails.typeId
-                            )
-                        } label: {
-                            HStack(alignment: .center) {
-                                Image("searchmarket")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 32, height: 32)
-                                    .cornerRadius(6)
-                                Text(NSLocalizedString("Main_Market_Add_To_Watchlist_Button", comment: ""))
-                                    .foregroundColor(.primary)
-                                Spacer(minLength: 0)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                        }
-                    }
-
-                    if itemDetails.categoryID == 6 {
-                        NavigationLink {
-                            ShipInsuranceView(
-                                typeId: itemDetails.typeId,
-                                typeName: itemDetails.name
-                            )
-                        } label: {
-                            HStack {
-                                Image("insurance")
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                    .cornerRadius(6)
-                                Text(NSLocalizedString("Insurance_Title", comment: "保险"))
-                                Spacer()
-                            }
-                        }
-                    }
-
-                    if isModelAvailable {
-                        Button {
-                            if let url = URL(string: "https://estamelgg.github.io/EVE_Model_Gallery/#typeid=\(itemDetails.typeId)&tiny") {
-                                UIApplication.shared.open(url)
-                            }
-                        } label: {
-                            HStack {
-                                Image("ISIS")
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                    .cornerRadius(6)
-                                Text(NSLocalizedString("Item_View_Model", comment: "查看模型"))
-                                Spacer()
-                            }
-                        }
-                    }
-                }
-                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-            }
-
-            // 基础属性 Section
-            if itemDetails.volume != nil || itemDetails.capacity != nil || itemDetails.mass != nil
-                || itemDetails.repackagedVolume != nil
-            {
-                Section(header: Text(NSLocalizedString("Item_Basic_Info", comment: "")).font(.headline)) {
-                    if let volume = itemDetails.volume {
-                        HStack {
-                            Image("structure")
-                                .resizable()
-                                .frame(width: 32, height: 32)
-                                .cornerRadius(6)
-                            Text(NSLocalizedString("Item_Volume", comment: ""))
-                            Spacer()
-                            Text("\(FormatUtil.format(Double(volume))) m3")
-                                .foregroundColor(.secondary)
-                                .frame(alignment: .trailing)
-                        }
-                    }
-
-                    if let repackagedVolume = itemDetails.repackagedVolume {
-                        HStack {
-                            Image("packages")
-                                .resizable()
-                                .frame(width: 32, height: 32)
-                                .cornerRadius(6)
-                            Text(NSLocalizedString("Item_RepackagesVolume", comment: ""))
-                            Spacer()
-                            Text("\(FormatUtil.format(Double(repackagedVolume))) m3")
-                                .foregroundColor(.secondary)
-                                .frame(alignment: .trailing)
-                        }
-                    }
-
-                    if let capacity = itemDetails.capacity {
-                        let finalCapacity =
-                            getAttributeValue(attributeId: 38, originalValue: Double(capacity))
-                                ?? Double(capacity)
-                        let capacityColor = getAttributeColor(
-                            attributeId: 38, originalValue: Double(capacity)
-                        )
-
-                        HStack {
-                            Image("cargo_fit")
-                                .resizable()
-                                .frame(width: 32, height: 32)
-                                .cornerRadius(6)
-                            Text(NSLocalizedString("Item_Capacity", comment: ""))
-                            Spacer()
-                            Text("\(FormatUtil.format(finalCapacity)) m3")
-                                .foregroundColor(capacityColor)
-                                .frame(alignment: .trailing)
-                        }
-                    }
-
-                    if let mass = itemDetails.mass {
-                        let finalMass =
-                            getAttributeValue(attributeId: 4, originalValue: Double(mass))
-                                ?? Double(mass)
-                        let massColor = getAttributeColor(attributeId: 4, originalValue: Double(mass))
-
-                        HStack {
-                            Image("hull")
-                                .resizable()
-                                .frame(width: 32, height: 32)
-                                .cornerRadius(6)
-                            Text(NSLocalizedString("Item_Mass", comment: ""))
-                            Spacer()
-                            Text("\(FormatUtil.format(finalMass)) Kg")
-                                .foregroundColor(massColor)
-                                .frame(alignment: .trailing)
-                        }
-                    }
-                }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+    @ViewBuilder
+    private func itemNameContextMenu(includeSaveImage: Bool) -> some View {
+        Button {
+            UIPasteboard.general.string = itemTitleDisplayName
+        } label: {
+            Label(NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc")
+        }
+        if let alt = itemTitleAlternateName {
+            Button {
+                UIPasteboard.general.string = alt
+            } label: {
+                Label(NSLocalizedString("Misc_Copy_Trans", comment: ""), systemImage: "translate")
             }
         }
-        .onChange(of: itemDetails.typeId) { _, _ in
-            itemNameShowsEnglish = false
+        if includeSaveImage {
+            Button {
+                saveRenderImageToPhotos()
+            } label: {
+                Label(
+                    NSLocalizedString("Misc_Save_Render_Image", comment: ""),
+                    systemImage: "photo"
+                )
+            }
         }
     }
 
-    // 加载渲染图
+    private func iconTitleRow(icon: String, title: String) -> some View {
+        HStack {
+            Image(icon)
+                .resizable()
+                .frame(width: 32, height: 32)
+                .cornerRadius(6)
+            Text(title)
+            Spacer()
+        }
+    }
+
+    private func basicStatRow(
+        icon: String,
+        title: String,
+        value: String,
+        valueColor: Color = .secondary
+    ) -> some View {
+        HStack {
+            Image(icon)
+                .resizable()
+                .frame(width: 32, height: 32)
+                .cornerRadius(6)
+            Text(title)
+            Spacer()
+            Text(value)
+                .foregroundColor(valueColor)
+                .frame(alignment: .trailing)
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func toggleItemNameLanguageAnimated() {
+        guard itemNameCanToggleEnglish else { return }
+        withAnimation(Self.itemNameToggleAnimation) {
+            itemNameShowsEnglish.toggle()
+        }
+    }
+
+    private func getAttributeValue(attributeId: Int, originalValue: Double?) -> Double? {
+        modifiedAttributes?[attributeId] ?? originalValue
+    }
+
+    private func getAttributeColor(attributeId: Int, originalValue: Double?) -> Color {
+        guard let originalValue,
+              let modifiedValue = modifiedAttributes?[attributeId]
+        else { return .secondary }
+
+        if abs(modifiedValue - originalValue) < 0.0001 {
+            return .secondary
+        }
+
+        // mass(4): 越小越好；capacity(38): 越大越好
+        let highIsGood = attributeId == 38
+        if highIsGood {
+            return modifiedValue > originalValue ? .green : .red
+        }
+        return modifiedValue < originalValue ? .green : .red
+    }
+
+    private func saveRenderImageToPhotos() {
+        guard let renderImage else { return }
+        ImageSaver.saveImage(renderImage) { success in
+            if success {
+                showSaveSuccess = true
+            } else {
+                showSaveError = true
+            }
+        }
+    }
+
+    private func fetchMarketPath(for marketGroupID: Int?) {
+        guard let marketGroupID else {
+            marketPath = ""
+            return
+        }
+
+        Task {
+            do {
+                let path = try await getMarketGroupPath(groupID: marketGroupID)
+                await MainActor.run {
+                    marketPath = path.joined(separator: " / ")
+                }
+            } catch {
+                Logger.error("获取市场目录路径失败: \(error.localizedDescription)")
+                await MainActor.run {
+                    marketPath = ""
+                }
+            }
+        }
+    }
+
+    private func getMarketGroupPath(groupID: Int) async throws -> [String] {
+        var path: [String] = []
+        var currentGroupID = groupID
+        var iterations = 0
+        let maxIterations = 100
+
+        while currentGroupID != 0, iterations < maxIterations {
+            iterations += 1
+            guard let group = SDEMemoryStore.marketGroup(for: currentGroupID) else { return path }
+
+            path.insert(group.name, at: 0)
+
+            if let parentGroupID = group.parentGroupID, parentGroupID > 0 {
+                if parentGroupID == currentGroupID || path.count >= maxIterations {
+                    Logger.warning("检测到可能的循环引用或过深的市场目录路径，中止查询")
+                    return path
+                }
+                currentGroupID = parentGroupID
+            } else {
+                return path
+            }
+        }
+
+        if iterations >= maxIterations {
+            Logger.warning("市场目录路径查询达到最大迭代次数 \(maxIterations)，可能存在循环引用")
+        }
+        return path
+    }
+
     private func loadRenderImage(for itemID: Int) {
+        guard let categoryID = itemDetails.categoryID,
+              Self.renderImageCategories.contains(categoryID) else { return }
         Task {
             do {
                 let image = try await ItemRenderAPI.shared.fetchItemRender(
                     typeId: itemID, size: 512
                 )
                 await MainActor.run {
-                    self.renderImage = image
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        renderImage = image
+                    }
                 }
             } catch {
                 Logger.error("加载渲染图失败: \(error.localizedDescription)")
-                // 加载失败时保持使用原来的小图显示，不需特殊处理
             }
         }
     }
 
-    // 检查模型是否可用
     private func checkModelAvailability() {
         Task {
             do {
-                let available = try await AvailableModelsAPI.shared.isModelAvailable(itemDetails.typeId)
+                let available = try await AvailableModelsAPI.shared.isModelAvailable(
+                    itemDetails.typeId
+                )
                 await MainActor.run {
-                    self.isModelAvailable = available
+                    isModelAvailable = available
                 }
             } catch {
                 Logger.debug("检查模型可用性失败: \(error.localizedDescription)")
                 await MainActor.run {
-                    self.isModelAvailable = false
+                    isModelAvailable = false
                 }
             }
         }
     }
 
-    // 设置方向变化通知
     private func setupOrientationNotification() {
         NotificationCenter.default.addObserver(
             forName: UIDevice.orientationDidChangeNotification,
             object: nil,
             queue: .main
         ) { _ in
-            self.orientation = UIDevice.current.orientation
-
-            // 只有当布局模式真正发生变化时才更新layoutMode
-            let newLayoutMode = DeviceUtils.currentLayoutMode
-            if DeviceUtils.shouldUpdateLayout(from: self.layoutMode, to: newLayoutMode) {
-                Logger.debug("物品详情布局模式变化: \(self.layoutMode.rawValue) -> \(newLayoutMode.rawValue)")
-                self.layoutMode = newLayoutMode
-            }
+            orientation = UIDevice.current.orientation
         }
     }
 
-    // 移除方向变化通知
     private func removeOrientationNotification() {
         NotificationCenter.default.removeObserver(
             self,

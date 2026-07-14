@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 创建一个 ObservableObject 类来管理钱包数据
+/// 创建一个 ObservableObject 类来管理钱包数据
 class CorpWalletViewModel: ObservableObject {
     @Published var wallets: [CorpWallet] = []
     @Published var isLoading = true
@@ -49,7 +49,7 @@ struct CorpWalletView: View {
         _viewModel = StateObject(wrappedValue: CorpWalletViewModel(characterId: characterId))
     }
 
-    // 格式化金额
+    /// 格式化金额
     private func formatBalance(_ balance: Double) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal

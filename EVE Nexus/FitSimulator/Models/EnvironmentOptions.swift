@@ -10,16 +10,18 @@ struct EnvironmentOptions: Codable {
         case abyssal
         case other
 
-        var id: String { rawValue }
+        var id: String {
+            rawValue
+        }
 
-        var titleKey: String {
+        var title: String {
             switch self {
             case .wormhole:
-                return "Environment_Category_Wormhole"
+                return NSLocalizedString("Environment_Category_Wormhole", comment: "")
             case .abyssal:
-                return "Environment_Category_Abyssal"
+                return NSLocalizedString("Environment_Category_Abyssal", comment: "")
             case .other:
-                return "Environment_Category_Other"
+                return NSLocalizedString("Environment_Category_Other", comment: "")
             }
         }
 

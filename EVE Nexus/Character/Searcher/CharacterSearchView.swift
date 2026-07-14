@@ -36,7 +36,8 @@ struct CharacterSearchView {
                 // 一次性获取所有角色名称
                 searchingStatus = NSLocalizedString("Main_Search_Status_Loading_Names", comment: "")
                 let namesWithCategories = try await UniverseAPI.shared.getNamesWithFallback(
-                    ids: characters)
+                    ids: characters
+                )
                 let names = namesWithCategories.mapValues { $0.name }
 
                 // 创建基本的搜索结果
@@ -47,20 +48,7 @@ struct CharacterSearchView {
                         name: name,
                         type: .character
                     )
-                }.sorted { result1, result2 in
-                    // 检查是否以搜索文本开头
-                    let searchTextLower = searchText.lowercased()
-                    let name1Lower = result1.name.lowercased()
-                    let name2Lower = result2.name.lowercased()
-
-                    let starts1 = name1Lower.hasPrefix(searchTextLower)
-                    let starts2 = name2Lower.hasPrefix(searchTextLower)
-
-                    if starts1 != starts2 {
-                        return starts1 // 以搜索文本开头的排在前面
-                    }
-                    return result1.name < result2.name // 其次按字母顺序排序
-                }
+                }.sortedBySearchPrefix(searchText)
 
                 if Task.isCancelled { return }
 

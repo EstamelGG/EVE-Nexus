@@ -1,6 +1,6 @@
 import Foundation
 
-// 技能数据模型
+/// 技能数据模型
 public struct CharacterSkill: Codable {
     public let active_skill_level: Int
     public let skill_id: Int
@@ -49,7 +49,7 @@ public struct CharacterSkillsResponse: Codable {
     }
 }
 
-// 技能队列项目
+/// 技能队列项目
 public struct SkillQueueItem: Codable, Identifiable {
     public let queue_position: Int
     public let skill_id: Int
@@ -60,7 +60,9 @@ public struct SkillQueueItem: Codable, Identifiable {
     public let start_date: Date?
     public let finish_date: Date?
 
-    public var id: Int { queue_position }
+    public var id: Int {
+        queue_position
+    }
 
     public var isCurrentlyTraining: Bool {
         guard let startDate = start_date,
@@ -79,13 +81,13 @@ public struct SkillQueueItem: Codable, Identifiable {
         return finishDate.timeIntervalSinceNow
     }
 
-    // 获取技能等级的罗马数字表示
+    /// 获取技能等级的罗马数字表示
     public var skillLevel: String {
         let romanNumerals = ["I", "II", "III", "IV", "V"]
         return romanNumerals[finished_level - 1]
     }
 
-    // 计算训练进度
+    /// 计算训练进度
     public var progress: Double {
         guard let startDate = start_date,
               let finishDate = finish_date,
@@ -139,7 +141,7 @@ struct CharacterAttributes: Codable {
     let last_remap_date: String?
 }
 
-/// 技能与技能队列的单一磁盘快照（一个文件一次写入，取代旧版两文件与交叉失效）
+/// 技能与技能队列的单一磁盘快照
 private struct CharacterSkillsDiskBundle: Codable {
     var skills: CharacterSkillsResponse?
     var queue: [SkillQueueItem]?
@@ -326,6 +328,7 @@ public class CharacterSkillsAPI {
         if savePairedSkillsBundle(characterId: characterId, skills: skills, queue: queue) {
             Logger.success("成功缓存技能+队列到合并文件 - 角色ID: \(characterId), 队列长度: \(queue.count)")
         }
+        await scheduleSkillQueueReminder(characterId: characterId, queue: queue)
         return (skills, queue)
     }
 
@@ -338,7 +341,7 @@ public class CharacterSkillsAPI {
         return queue
     }
 
-    // 从服务器获取技能队列
+    /// 从服务器获取技能队列
     private func fetchSkillQueueFromServer(characterId: Int) async throws -> [SkillQueueItem] {
         let url = URL(
             string:
@@ -355,9 +358,9 @@ public class CharacterSkillsAPI {
         return try decoder.decode([SkillQueueItem].self, from: data)
     }
 
-    public func fetchSkillQueue(characterId: Int, forceRefresh: Bool = false) async throws
-        -> [SkillQueueItem]
-    {
+    public func fetchSkillQueue(
+        characterId: Int, forceRefresh: Bool = false, scheduleReminder: Bool = true
+    ) async throws -> [SkillQueueItem] {
         if !forceRefresh {
             if let cachedQueue = loadSkillQueue(characterId: characterId) {
                 return cachedQueue
@@ -370,7 +373,23 @@ public class CharacterSkillsAPI {
         if saveQueueOnlyToBundle(characterId: characterId, queue: queue) {
             Logger.success("成功缓存技能队列到合并文件 - 角色ID: \(characterId)")
         }
+        if scheduleReminder {
+            await scheduleSkillQueueReminder(characterId: characterId, queue: queue)
+        }
         return queue
+    }
+
+    /// 根据最新队列安排技能到期提醒通知（角色名从 EVELogin 已登录列表中查找）
+    private func scheduleSkillQueueReminder(characterId: Int, queue: [SkillQueueItem]) async {
+        let characterName = EVELogin.shared.loadCharacters()
+            .first(where: { $0.character.CharacterID == characterId })?
+            .character.CharacterName
+            ?? "\(characterId)"
+        await NotificationManager.shared.scheduleSkillQueueNotifications(
+            characterId: characterId,
+            characterName: characterName,
+            queue: queue
+        )
     }
 
     private func getAttributesCacheFilePath(characterId: Int) -> URL {
@@ -386,7 +405,7 @@ public class CharacterSkillsAPI {
         return characterSkillsPath.appendingPathComponent("\(characterId)_attributes.json")
     }
 
-    // 保存角色属性到本地文件
+    /// 保存角色属性到本地文件
     private func saveAttributesToCache(characterId: Int, attributes: CharacterAttributes) -> Bool {
         do {
             let encoder = JSONEncoder()
@@ -403,7 +422,7 @@ public class CharacterSkillsAPI {
         }
     }
 
-    // 从本地文件读取角色属性
+    /// 从本地文件读取角色属性
     private func loadAttributesFromCache(characterId: Int) -> CharacterAttributes? {
         let filePath = getAttributesCacheFilePath(characterId: characterId)
 

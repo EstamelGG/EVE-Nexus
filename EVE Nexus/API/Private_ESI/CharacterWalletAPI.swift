@@ -3,13 +3,13 @@ import Foundation
 class CharacterWalletAPI {
     static let shared = CharacterWalletAPI()
 
-    // 缓存结构
+    /// 缓存结构
     private struct CacheEntry: Codable {
         let value: String // 改用字符串存储以保持精度
         let timestamp: Date
     }
 
-    // 添加并发队列用于同步访问
+    /// 添加并发队列用于同步访问
     private let cacheQueue = DispatchQueue(
         label: "com.eve-nexus.wallet-cache", attributes: .concurrent
     )
@@ -18,7 +18,7 @@ class CharacterWalletAPI {
     private var memoryCache: [Int: CacheEntry] = [:]
     private let cacheTimeout: TimeInterval = 20 * 60 // 20分钟缓存，钱包余额使用
 
-    // UserDefaults键前缀
+    /// UserDefaults键前缀
     private let walletCachePrefix = "wallet_cache_"
 
     /// 使指定角色的钱包相关缓存失效（包括流水、交易记录和钱包余额）
@@ -61,7 +61,7 @@ class CharacterWalletAPI {
         }
     }
 
-    // 安全地获取钱包缓存
+    /// 安全地获取钱包缓存
     private func getWalletMemoryCache(characterId: Int) -> CacheEntry? {
         var result: CacheEntry?
         cacheQueue.sync {
@@ -70,14 +70,14 @@ class CharacterWalletAPI {
         return result
     }
 
-    // 安全地设置钱包缓存
+    /// 安全地设置钱包缓存
     private func setWalletMemoryCache(characterId: Int, cache: CacheEntry) {
         cacheQueue.async(flags: .barrier) {
             self.memoryCache[characterId] = cache
         }
     }
 
-    // 检查缓存是否有效
+    /// 检查缓存是否有效
     private func isCacheValid(_ cache: CacheEntry?) -> Bool {
         guard let cache = cache else {
             Logger.info("钱包缓存为空")
@@ -91,7 +91,7 @@ class CharacterWalletAPI {
         return isValid
     }
 
-    // 从UserDefaults获取缓存
+    /// 从UserDefaults获取缓存
     private func getDiskCache(characterId: Int) -> CacheEntry? {
         let key = walletCachePrefix + String(characterId)
         guard let data = UserDefaults.standard.data(forKey: key) else {
@@ -108,7 +108,7 @@ class CharacterWalletAPI {
         return cache
     }
 
-    // 保存缓存到UserDefaults
+    /// 保存缓存到UserDefaults
     private func saveToDiskCache(characterId: Int, cache: CacheEntry) {
         let key = walletCachePrefix + String(characterId)
         if let encoded = try? JSONEncoder().encode(cache) {
@@ -121,7 +121,7 @@ class CharacterWalletAPI {
         }
     }
 
-    // 获取缓存的钱包余额（异步方法）
+    /// 获取缓存的钱包余额（异步方法）
     func getCachedWalletBalance(characterId: Int) async -> String {
         // 1. 先检查内存缓存
         if let memoryCached = getWalletMemoryCache(characterId: characterId) {
@@ -138,7 +138,7 @@ class CharacterWalletAPI {
         return "-"
     }
 
-    // 获取钱包余额（异步方法，用于后台刷新）
+    /// 获取钱包余额（异步方法，用于后台刷新）
     func getWalletBalance(characterId: Int, forceRefresh: Bool = false) async throws -> Double {
         // 如果是强制刷新，先使关联缓存失效
         if forceRefresh {
@@ -187,7 +187,8 @@ class CharacterWalletAPI {
 
         guard
             let stringValue = String(data: data, encoding: .utf8)?.trimmingCharacters(
-                in: .whitespacesAndNewlines)
+                in: .whitespacesAndNewlines
+            )
         else {
             Logger.error("无法解析钱包余额数据: \(String(data: data, encoding: .utf8) ?? "无数据")")
             throw NetworkError.invalidResponse
@@ -209,12 +210,12 @@ class CharacterWalletAPI {
 
     // MARK: - 钱包流水和交易记录（委托给专门的API类）
 
-    // 获取钱包流水
+    /// 获取钱包流水
     func getWalletJournal(characterId: Int, forceRefresh: Bool = false) async throws -> String? {
         return try await WalletJournalAPI.shared.getWalletJournal(characterId: characterId, forceRefresh: forceRefresh)
     }
 
-    // 获取钱包交易记录
+    /// 获取钱包交易记录
     func getWalletTransactions(characterId: Int, forceRefresh: Bool = false) async throws -> String? {
         return try await WalletTransactionsAPI.shared.getWalletTransactions(characterId: characterId, forceRefresh: forceRefresh)
     }

@@ -9,16 +9,16 @@
 import Foundation
 @_implementationOnly import Minizip
 
-/// Zip error type
+// Zip error type
 public enum ZipError: Error {
-    /// File not found
+    // File not found
     case fileNotFound
-    /// Unzip fail
+    // Unzip fail
     case unzipFail
-    /// Zip fail
+    // Zip fail
     case zipFail
     
-    /// User readable description
+    // User readable description
     public var description: String {
         switch self {
         case .fileNotFound: return NSLocalizedString("File not found.", comment: "")
@@ -48,7 +48,7 @@ public enum ZipCompression: Int {
     }
 }
 
-/// Data in memory that will be archived as a file.
+// Data in memory that will be archived as a file.
 public struct ArchiveFile {
     var filename:String
     var data:NSData
@@ -62,7 +62,7 @@ public struct ArchiveFile {
 }
 
 
-/// Zip class
+// Zip class
 public class Zip {
     
     /**

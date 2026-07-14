@@ -193,7 +193,7 @@ private func checkSubsystemCompatibility(
             if AppConfiguration.Fitting.showDebug {
                 Logger.info("子系统与飞船兼容")
             }
-            /// 检查子系统重复
+            // 检查子系统重复
             if !duplicateSubSysCheck(
                 itemAttributesName: itemAttributesName,
                 currentModules: currentModules
@@ -260,7 +260,8 @@ private func checkCanFitTo(
     databaseManager: DatabaseManager
 ) -> Bool {
     let (shipGroupAttributes, shipTypeAttributes) = getCanFitAttributes(
-        databaseManager: databaseManager)
+        databaseManager: databaseManager
+    )
     if AppConfiguration.Fitting.showDebug {
         Logger.info("shipTypeID: \(shipTypeID)")
         Logger.info("shipGroupID: \(shipGroupID)")
@@ -382,7 +383,7 @@ func canFit(
         Logger.info("飞船type_id: \(shipTypeID)")
         Logger.info("飞船group_id: \(shipGroupID)")
     }
-    /// 检查装备是否可以装配到指定类型的飞船上
+    // 检查装备是否可以装配到指定类型的飞船上
     if !checkCanFitTo(
         shipTypeID: shipTypeID,
         shipGroupID: shipGroupID,
@@ -393,7 +394,7 @@ func canFit(
         return false
     }
 
-    /// 检查最大安装数量限制
+    // 检查最大安装数量限制
     if !maxFit(
         itemAttributes: itemAttributes,
         itemAttributesName: itemAttributesName,
@@ -405,7 +406,7 @@ func canFit(
         return false
     }
 
-    /// 检查子系统兼容性
+    // 检查子系统兼容性
     if !checkSubsystemCompatibility(
         shipTypeID: shipTypeID,
         itemAttributes: itemAttributes,
@@ -417,7 +418,7 @@ func canFit(
         return false
     }
 
-    /// 旗舰装备检查
+    // 旗舰装备检查
     if !checkCapitalShipLimits(
         shipAttributes: shipAttributes,
         moduleVolume: volume
@@ -426,7 +427,7 @@ func canFit(
         return false
     }
 
-    /// 检查炮台和发射器数量
+    // 检查炮台和发射器数量
     if !checkTurretAndLauncherLimits(
         shipAttributes: shipAttributes,
         itemEffects: itemEffects,
@@ -438,7 +439,7 @@ func canFit(
         return false
     }
 
-    /// 无特殊情况，允许安装
+    // 无特殊情况，允许安装
     if AppConfiguration.Fitting.showDebug {
         Logger.info("装备 \(typeId) 可以安装")
     }

@@ -1,12 +1,12 @@
 import SwiftUI
 
-// 添加WalletTab枚举
+/// 添加WalletTab枚举
 enum WalletTab {
     case journal
     case transactions
 }
 
-// 军团交易记录条目模型
+/// 军团交易记录条目模型
 struct CorpWalletTransactionEntry: Codable, Identifiable {
     let client_id: Int
     let date: String
@@ -19,15 +19,17 @@ struct CorpWalletTransactionEntry: Codable, Identifiable {
     let type_id: Int
     let unit_price: Double
 
-    var id: Int64 { transaction_id }
+    var id: Int64 {
+        transaction_id
+    }
 
-    // 提供默认值，如果字段缺失则默认为 false（非个人）
+    /// 提供默认值，如果字段缺失则默认为 false（非个人）
     var isPersonal: Bool {
         return is_personal ?? false
     }
 }
 
-// 合并后的军团交易记录条目
+/// 合并后的军团交易记录条目
 struct CorpMergedTransactionEntry: Identifiable {
     let id = UUID()
     let type_id: Int
@@ -58,7 +60,7 @@ struct CorpMergedTransactionEntry: Identifiable {
     }
 }
 
-// 按日期分组的交易记录
+/// 按日期分组的交易记录
 struct CorpWalletTransactionGroup: Identifiable {
     let id = UUID()
     let date: Date
@@ -114,43 +116,18 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
         loadingTask?.cancel()
     }
 
-    // 批量加载所有物品信息
+    /// 批量加载所有物品信息
     private func loadAllItemInfo(for typeIds: [Int]) {
         if typeIds.isEmpty { return }
 
-        let placeholders = Array(repeating: "?", count: typeIds.count).joined(separator: ",")
-        let query =
-            "SELECT type_id, name, en_name, zh_name, icon_filename FROM types WHERE type_id IN (\(placeholders))"
-
-        let result = databaseManager.executeQuery(query, parameters: typeIds.map { $0 as Any })
-
-        if case let .success(rows) = result {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let enName = row["en_name"] as? String,
-                   let zhName = row["zh_name"] as? String,
-                   let iconFileName = row["icon_filename"] as? String
-                {
-                    itemInfoCache[typeId] = TransactionItemInfo(
-                        name: name,
-                        enName: enName,
-                        zhName: zhName,
-                        iconFileName: iconFileName
-                    )
-                }
-            }
-        }
-
-        // 为未找到的物品设置默认值
         for typeId in typeIds {
-            if itemInfoCache[typeId] == nil {
+            if let info = ItemInfoMap.typeInfo(for: typeId), !info.name.isEmpty {
                 itemInfoCache[typeId] = TransactionItemInfo(
-                    name: "Unknown Item",
-                    enName: "Unknown Item",
-                    zhName: "未知物品",
-                    iconFileName: DatabaseConfig.defaultItemIcon
+                    names: info.names,
+                    iconFileName: info.iconFilename
                 )
+            } else {
+                itemInfoCache[typeId] = .unknown
             }
         }
     }
@@ -173,7 +150,7 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
         return locationInfoCache[locationId]?.stationName
     }
 
-    // 合并相似交易记录
+    /// 合并相似交易记录
     private func mergeSimilarTransactions(_ entries: [CorpWalletTransactionEntry])
         -> [CorpMergedTransactionEntry]
     {
@@ -320,7 +297,7 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
         await loadingTask?.value
     }
 
-    // 修改过滤后的交易记录计算属性,返回按日期分组的过滤结果
+    /// 修改过滤后的交易记录计算属性,返回按日期分组的过滤结果
     var filteredTransactionGroups: [CorpWalletTransactionGroup] {
         if searchText.isEmpty {
             return transactionGroups
@@ -329,11 +306,7 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
         return transactionGroups.map { group in
             if mergeSimilarTransactions {
                 let filteredMergedEntries = group.mergedEntries.filter { entry in
-                    if let itemInfo = itemInfoCache[entry.type_id] {
-                        return itemInfo.enName.localizedCaseInsensitiveContains(searchText)
-                            || itemInfo.zhName.localizedCaseInsensitiveContains(searchText)
-                    }
-                    return false
+                    itemInfoCache[entry.type_id]?.matches(searchText) == true
                 }
                 return CorpWalletTransactionGroup(
                     date: group.date,
@@ -342,11 +315,7 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
                 )
             } else {
                 let filteredEntries = group.entries.filter { entry in
-                    if let itemInfo = itemInfoCache[entry.type_id] {
-                        return itemInfo.enName.localizedCaseInsensitiveContains(searchText)
-                            || itemInfo.zhName.localizedCaseInsensitiveContains(searchText)
-                    }
-                    return false
+                    itemInfoCache[entry.type_id]?.matches(searchText) == true
                 }
                 return CorpWalletTransactionGroup(
                     date: group.date,
@@ -358,7 +327,7 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
     }
 }
 
-// 军团交易记录设置视图
+/// 军团交易记录设置视图
 struct CorpWalletTransactionSettingsView: View {
     @ObservedObject var viewModel: CorpWalletTransactionsViewModel
     @Environment(\.dismiss) private var dismiss
@@ -395,7 +364,7 @@ struct CorpWalletTransactionSettingsView: View {
     }
 }
 
-// 特定日期的交易记录详情视图
+/// 特定日期的交易记录详情视图
 struct CorpWalletTransactionDayDetailView: View {
     let group: CorpWalletTransactionGroup
     let viewModel: CorpWalletTransactionsViewModel
@@ -433,136 +402,7 @@ struct CorpWalletTransactionsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            // 搜索框
-            if selectedTab == .transactions {
-                HStack {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(.gray.opacity(0.6))
-                    TextField(
-                        NSLocalizedString("Main_Database_Search", comment: ""),
-                        text: $viewModel.searchText
-                    )
-                    .textFieldStyle(.plain)
-                    .foregroundColor(.primary)
-                    if !viewModel.searchText.isEmpty {
-                        Button(action: {
-                            viewModel.searchText = ""
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.gray.opacity(0.6))
-                        }
-                    }
-                }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 6)
-                .background(Color(.systemGray5))
-                .cornerRadius(10)
-                .padding(.horizontal)
-                .padding(.vertical, 8)
-            }
-
-            List {
-                if viewModel.isLoading {
-                    HStack {
-                        Spacer()
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                        Spacer()
-                    }
-                } else if viewModel.transactionGroups.isEmpty {
-                    Section {
-                        NoDataSection()
-                    }
-                } else {
-                    Section {
-                        if viewModel.filteredTransactionGroups.isEmpty {
-                            NoDataSection()
-                        } else {
-                            ForEach(viewModel.filteredTransactionGroups) { group in
-                                NavigationLink(
-                                    destination: CorpWalletTransactionDayDetailView(
-                                        group: group,
-                                        viewModel: viewModel,
-                                        currentCharacter: currentCharacter
-                                    )
-                                ) {
-                                    HStack {
-                                        // 左侧：日期和交易信息垂直排列
-                                        VStack(alignment: .leading, spacing: 4) {
-                                            Text(FormatUtil.formatDateToLocalDate(group.date))
-                                                .font(.system(size: 16))
-
-                                            let (buyCount, sellCount) =
-                                                if viewModel.mergeSimilarTransactions {
-                                                    (
-                                                        group.mergedEntries.filter { $0.is_buy }.count,
-                                                        group.mergedEntries.filter { !$0.is_buy }.count
-                                                    )
-                                                } else {
-                                                    (
-                                                        group.entries.filter { $0.is_buy }.count,
-                                                        group.entries.filter { !$0.is_buy }.count
-                                                    )
-                                                }
-                                            Text(
-                                                "\(NSLocalizedString("Main_Market_Transactions_Buy", comment: "")): \(buyCount), \(NSLocalizedString("Main_Market_Transactions_Sell", comment: "")): \(sellCount)"
-                                            )
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                        }
-
-                                        Spacer()
-
-                                        // 右侧：净收益
-                                        if viewModel.mergeSimilarTransactions {
-                                            let sellIncome = group.mergedEntries.filter { !$0.is_buy }
-                                                .reduce(0.0) { $0 + $1.totalAmount }
-                                            let buyExpense = group.mergedEntries.filter { $0.is_buy }
-                                                .reduce(0.0) { $0 + $1.totalAmount }
-                                            let netProfit = sellIncome - buyExpense
-
-                                            Text(
-                                                "\(netProfit >= 0 ? "+" : "")\(FormatUtil.formatISK(netProfit))"
-                                            )
-                                            .font(.caption)
-                                            .foregroundColor(
-                                                netProfit > 0 ? .green : netProfit < 0 ? .red : .secondary)
-                                        } else {
-                                            let sellIncome = group.entries.filter { !$0.is_buy }.reduce(0.0)
-                                                { $0 + ($1.unit_price * Double($1.quantity)) }
-                                            let buyExpense = group.entries.filter { $0.is_buy }.reduce(0.0)
-                                                { $0 + ($1.unit_price * Double($1.quantity)) }
-                                            let netProfit = sellIncome - buyExpense
-
-                                            Text(
-                                                "\(netProfit >= 0 ? "+" : "")\(FormatUtil.formatISK(netProfit))"
-                                            )
-                                            .font(.caption)
-                                            .foregroundColor(
-                                                netProfit > 0 ? .green : netProfit < 0 ? .red : .secondary)
-                                        }
-                                    }
-                                    .padding(.vertical, 4)
-                                }
-                            }
-                            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                        }
-                    }
-                }
-            }
-            .listStyle(.insetGrouped)
-            .refreshable {
-                await viewModel.loadTransactionData(forceRefresh: true)
-            }
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        viewModel.showSettings = true
-                    }) {
-                        Image(systemName: "gear")
-                    }
-                }
-            }
+            transactionList
         }
         .opacity(selectedTab == .transactions ? 1 : 0) // 控制整个视图的显示/隐藏
         .sheet(isPresented: $viewModel.showSettings) {
@@ -572,6 +412,125 @@ struct CorpWalletTransactionsView: View {
             let characterId = viewModel.characterId
             if let auth = EVELogin.shared.getCharacterByID(characterId) {
                 currentCharacter = auth.character
+            }
+        }
+    }
+
+    /// 交易记录列表；仅「交易记录」标签页挂系统搜索框
+    @ViewBuilder
+    private var transactionList: some View {
+        if selectedTab == .transactions {
+            baseList
+                .searchable(
+                    text: $viewModel.searchText,
+                    placement: .navigationBarDrawer(displayMode: .always),
+                    prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
+                )
+        } else {
+            baseList
+        }
+    }
+
+    private var baseList: some View {
+        List {
+            if viewModel.isLoading {
+                ForEach(0 ..< 8, id: \.self) { _ in
+                    ListSkeletonRow.walletJournal
+                }
+            } else if viewModel.transactionGroups.isEmpty {
+                Section {
+                    NoDataSection()
+                }
+            } else {
+                Section {
+                    if viewModel.filteredTransactionGroups.isEmpty {
+                        NoDataSection()
+                    } else {
+                        ForEach(viewModel.filteredTransactionGroups) { group in
+                            NavigationLink(
+                                destination: CorpWalletTransactionDayDetailView(
+                                    group: group,
+                                    viewModel: viewModel,
+                                    currentCharacter: currentCharacter
+                                )
+                            ) {
+                                HStack {
+                                    // 左侧：日期和交易信息垂直排列
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        Text(FormatUtil.formatDateToLocalDate(group.date))
+                                            .font(.system(size: 16))
+
+                                        let (buyCount, sellCount) =
+                                            if viewModel.mergeSimilarTransactions {
+                                                (
+                                                    group.mergedEntries.filter { $0.is_buy }.count,
+                                                    group.mergedEntries.filter { !$0.is_buy }.count
+                                                )
+                                            } else {
+                                                (
+                                                    group.entries.filter { $0.is_buy }.count,
+                                                    group.entries.filter { !$0.is_buy }.count
+                                                )
+                                            }
+                                        Text(
+                                            "\(NSLocalizedString("Main_Market_Transactions_Buy", comment: "")): \(buyCount), \(NSLocalizedString("Main_Market_Transactions_Sell", comment: "")): \(sellCount)"
+                                        )
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    }
+
+                                    Spacer()
+
+                                    // 右侧：净收益
+                                    if viewModel.mergeSimilarTransactions {
+                                        let sellIncome = group.mergedEntries.filter { !$0.is_buy }
+                                            .reduce(0.0) { $0 + $1.totalAmount }
+                                        let buyExpense = group.mergedEntries.filter { $0.is_buy }
+                                            .reduce(0.0) { $0 + $1.totalAmount }
+                                        let netProfit = sellIncome - buyExpense
+
+                                        Text(
+                                            "\(netProfit >= 0 ? "+" : "")\(FormatUtil.formatISK(netProfit))"
+                                        )
+                                        .font(.caption)
+                                        .foregroundColor(
+                                            netProfit > 0 ? .green : netProfit < 0 ? .red : .secondary
+                                        )
+                                    } else {
+                                        let sellIncome = group.entries.filter { !$0.is_buy }.reduce(0.0)
+                                            { $0 + ($1.unit_price * Double($1.quantity)) }
+                                        let buyExpense = group.entries.filter { $0.is_buy }.reduce(0.0)
+                                            { $0 + ($1.unit_price * Double($1.quantity)) }
+                                        let netProfit = sellIncome - buyExpense
+
+                                        Text(
+                                            "\(netProfit >= 0 ? "+" : "")\(FormatUtil.formatISK(netProfit))"
+                                        )
+                                        .font(.caption)
+                                        .foregroundColor(
+                                            netProfit > 0 ? .green : netProfit < 0 ? .red : .secondary
+                                        )
+                                    }
+                                }
+                                .padding(.vertical, 4)
+                            }
+                        }
+                        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                    }
+                }
+            }
+        }
+        .listStyle(.insetGrouped)
+        .refreshable {
+            await viewModel.loadTransactionData(forceRefresh: true)
+        }
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button(action: {
+                    viewModel.showSettings = true
+                }) {
+                    Image(systemName: "gear")
+                }
             }
         }
     }
@@ -599,7 +558,7 @@ struct CorpWalletTransactionEntryRow: View {
         return formatter
     }()
 
-    // 导航到详情页面的辅助方法
+    /// 导航到详情页面的辅助方法
     @ViewBuilder
     private func navigationDestination(for clientId: Int, isPersonal: Bool) -> some View {
         if let character = currentCharacter {
@@ -608,8 +567,6 @@ struct CorpWalletTransactionEntryRow: View {
             } else {
                 CorporationDetailView(corporationId: clientId, character: character)
             }
-        } else {
-            EmptyView()
         }
     }
 
@@ -709,7 +666,7 @@ struct CorpWalletTransactionEntryRow: View {
     }
 }
 
-// 合并军团交易记录行视图
+/// 合并军团交易记录行视图
 struct CorpMergedTransactionEntryRow: View {
     let entry: CorpMergedTransactionEntry
     let viewModel: CorpWalletTransactionsViewModel
@@ -733,7 +690,7 @@ struct CorpMergedTransactionEntryRow: View {
         return formatter
     }()
 
-    // 导航到详情页面的辅助方法
+    /// 导航到详情页面的辅助方法
     @ViewBuilder
     private func navigationDestination(for clientId: Int, isPersonal: Bool) -> some View {
         if let character = currentCharacter {
@@ -742,8 +699,6 @@ struct CorpMergedTransactionEntryRow: View {
             } else {
                 CorporationDetailView(corporationId: clientId, character: character)
             }
-        } else {
-            EmptyView()
         }
     }
 
@@ -879,7 +834,7 @@ struct CorpMergedTransactionEntryRow: View {
     }
 }
 
-// 军团交易对象列表 Sheet
+/// 军团交易对象列表 Sheet
 struct CorpTransactionClientListSheet: View {
     let entry: CorpMergedTransactionEntry
     let currentCharacter: EVECharacterInfo?
@@ -887,7 +842,7 @@ struct CorpTransactionClientListSheet: View {
     @State private var clientInfos: [(clientId: Int, isPersonal: Bool, name: String, category: String, portrait: UIImage?)] = []
     @State private var isLoading = true
 
-    // 导航到详情页面的辅助方法
+    /// 导航到详情页面的辅助方法
     @ViewBuilder
     private func navigationDestination(for clientId: Int, isPersonal: Bool) -> some View {
         if let character = currentCharacter {
@@ -896,12 +851,10 @@ struct CorpTransactionClientListSheet: View {
             } else {
                 CorporationDetailView(corporationId: clientId, character: character)
             }
-        } else {
-            EmptyView()
         }
     }
 
-    // 根据类型返回默认图标
+    /// 根据类型返回默认图标
     private func getDefaultIcon(for category: String) -> Image {
         switch category {
         case "character":
@@ -985,7 +938,7 @@ struct CorpTransactionClientListSheet: View {
         }
     }
 
-    // 获取占位行数量
+    /// 获取占位行数量
     private func getPlaceholderCount() -> Int {
         var seen = Set<String>()
         for entry in entry.originalEntries {
@@ -1052,7 +1005,7 @@ struct CorpTransactionClientListSheet: View {
         }
     }
 
-    // 根据类型加载头像
+    /// 根据类型加载头像
     private func loadPortrait(id: Int, category: String) async -> UIImage? {
         switch category {
         case "character":

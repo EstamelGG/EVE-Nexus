@@ -1,3 +1,4 @@
+import SwiftSoup
 import SwiftUI
 
 struct RichTextView: View {
@@ -7,23 +8,18 @@ struct RichTextView: View {
     @State private var showingSheet = false
     @State private var urlToConfirm: URL?
     @State private var showingURLAlert = false
-    @State private var plainText: String = ""
     @State private var fittingToShow: LocalFitting?
     @State private var killReportToShow: Int?
 
     var body: some View {
         let processedResult = RichTextProcessor.processRichText(text)
-        let _ = DispatchQueue.main.async {
-            plainText = processedResult.plainText
-        }
         return richTextWithModifiers(processedResult)
     }
 
-    @ViewBuilder
     private func richTextWithModifiers(_ result: RichTextProcessResult) -> some View {
         result.richText
             .environment(\.openURL, openURLAction)
-            .contextMenu { copyContextMenu }
+            .contextMenu { copyContextMenu(result.plainText) }
             .sheet(item: itemSheetBinding) { item in itemSheetContent(item) }
             .alert(NSLocalizedString("Misc_OpenLink", comment: ""), isPresented: $showingURLAlert) {
                 Button(NSLocalizedString("Common_Cancel", comment: ""), role: .cancel) {}
@@ -67,10 +63,9 @@ struct RichTextView: View {
         }
     }
 
-    @ViewBuilder
-    private var copyContextMenu: some View {
+    private func copyContextMenu(_ plain: String) -> some View {
         Button {
-            UIPasteboard.general.string = plainText
+            UIPasteboard.general.string = plain
         } label: {
             Label(NSLocalizedString("Misc_Copy", comment: ""), systemImage: "doc.on.doc")
         }
@@ -83,7 +78,6 @@ struct RichTextView: View {
         )
     }
 
-    @ViewBuilder
     private func itemSheetContent(_ item: SheetItem) -> some View {
         NavigationStack {
             ItemInfoMap.getItemInfoView(itemID: item.itemID, databaseManager: databaseManager)
@@ -107,7 +101,6 @@ struct RichTextView: View {
         )
     }
 
-    @ViewBuilder
     private func fittingSheetContent(_ item: FittingSheetItem) -> some View {
         NavigationStack {
             ShipFittingView(temporaryFitting: item.fitting, databaseManager: databaseManager)
@@ -130,7 +123,6 @@ struct RichTextView: View {
         )
     }
 
-    @ViewBuilder
     private func killReportSheetContent(_ item: KillReportSheetItem) -> some View {
         NavigationStack {
             KillMailDetailLoaderView(killmailId: item.killId, character: nil)
@@ -151,17 +143,14 @@ struct RichTextView: View {
     private func handleDNALink(_ url: URL) {
         Logger.info("处理DNA链接: \(url.absoluteString)")
 
-        // 直接从URL中获取DNA字符串，类似showinfo的处理方式
         let dnaString = url.absoluteString
         let displayName = NSLocalizedString("DNA_Fitting_Link_Default_Name", comment: "")
 
-        // 解析DNA字符串
         guard let dnaResult = DNAParser.parseDNA(dnaString, displayName: displayName) else {
             Logger.error("DNA解析失败: \(dnaString)")
             return
         }
 
-        // 将DNA结果转换为LocalFitting
         guard
             let localFitting = DNAParser.dnaResultToLocalFitting(
                 dnaResult, databaseManager: databaseManager
@@ -171,7 +160,6 @@ struct RichTextView: View {
             return
         }
 
-        // 直接显示装配详情，不保存到文件
         DispatchQueue.main.async {
             self.fittingToShow = localFitting
         }
@@ -180,447 +168,318 @@ struct RichTextView: View {
     }
 }
 
-// 用于sheet的标识符类型
+/// 用于sheet的标识符类型
 private struct SheetItem: Identifiable {
     let id = UUID()
     let itemID: Int
     let categoryID: Int
 }
 
-// 用于装配sheet的标识符类型
+/// 用于装配sheet的标识符类型
 private struct FittingSheetItem: Identifiable {
     let id = UUID()
     let fitting: LocalFitting
 }
 
-// 用于战斗日志sheet的标识符类型
+/// 用于战斗日志sheet的标识符类型
 private struct KillReportSheetItem: Identifiable {
     let id = UUID()
     let killId: Int
 }
 
-// 处理结果结构体
+/// 处理结果结构体
 struct RichTextProcessResult {
     let richText: Text
     let plainText: String
 }
 
+/// HTML富文本处理器（基于 SwiftSoup）
+///
+/// 采用 DOM 解析 + Token 渲染两阶段架构：
+/// 1. tokenize：用 SwiftSoup 解析 HTML 为 DOM，递归遍历生成 Token 序列
+/// 2. render：使用样式栈将 Token 渲染为 AttributedString，支持嵌套标签
+///
+/// 设计取舍：
+/// - 颜色标签（<font> 等）被静默丢弃，仅保留其内部文本内容
+/// - 不支持的颜色/样式不影响文本理解
+/// - 写邮件时不使用此处理器，仅使用最简单文本
+/// - HTML 实体由 SwiftSoup 自动解码（含数字实体 `&#NN;`、命名实体 `&copy;` 等）
+/// - 畸形 HTML 由 SwiftSoup 自动修复（未闭合标签、标签交叉等）
 enum RichTextProcessor {
-    static func cleanRichText(_ text: String) -> String {
-        var currentText = text
-
-        // 1. 处理换行标签（包括自闭合标签）
-        currentText = currentText.replacingOccurrences(of: "<br></br>", with: "\n")
-        currentText = currentText.replacingOccurrences(of: "<br />", with: "\n")
-        currentText = currentText.replacingOccurrences(of: "<br/>", with: "\n")
-        currentText = currentText.replacingOccurrences(of: "<br>", with: "\n")
-        currentText = currentText.replacingOccurrences(of: "</br>", with: "\n")
-
-        // 2. 处理font标签，保留内容
-        if let regex = try? NSRegularExpression(
-            pattern: "<font[^>]*>(.*?)</font>", options: [.dotMatchesLineSeparators]
-        ) {
-            let range = NSRange(currentText.startIndex ..< currentText.endIndex, in: currentText)
-            currentText = regex.stringByReplacingMatches(
-                in: currentText, options: [], range: range, withTemplate: "$1"
-            )
-        }
-
-        // 3. 统一链接格式：将带引号的href转换为不带引号的格式
-        // 先处理双引号的情况
-        if let regex = try? NSRegularExpression(pattern: "<a href=\"([^\"]*)\"", options: []) {
-            let range = NSRange(currentText.startIndex ..< currentText.endIndex, in: currentText)
-            currentText = regex.stringByReplacingMatches(
-                in: currentText, options: [], range: range, withTemplate: "<a href=$1"
-            )
-        }
-        // 再处理单引号的情况
-        if let regex = try? NSRegularExpression(pattern: "<a href='([^']*)'", options: []) {
-            let range = NSRange(currentText.startIndex ..< currentText.endIndex, in: currentText)
-            currentText = regex.stringByReplacingMatches(
-                in: currentText, options: [], range: range, withTemplate: "<a href=$1"
-            )
-        }
-
-        // 4. 优化连续换行和空格
-        currentText = currentText.replacingOccurrences(
-            of: "\n{3,}", with: "\n\n", options: .regularExpression
-        )
-        currentText = currentText.replacingOccurrences(
-            of: " +", with: " ", options: .regularExpression
-        )
-
-        // 5. 删除所有非白名单的HTML标签（除了链接相关的标签）
-        let pattern = "<(?!/?(a|b|url))[^>]*>"
-        if let regex = try? NSRegularExpression(pattern: pattern, options: .caseInsensitive) {
-            let range = NSRange(currentText.startIndex ..< currentText.endIndex, in: currentText)
-            currentText = regex.stringByReplacingMatches(
-                in: currentText, options: [], range: range, withTemplate: ""
-            )
-        }
-
-        return currentText
+    /// 将HTML富文本转换为SwiftUI Text与纯文本
+    static func processRichText(_ html: String) -> RichTextProcessResult {
+        let tokens = tokenize(html)
+        let (attributed, plain) = render(tokens)
+        return RichTextProcessResult(richText: Text(attributed), plainText: plain)
     }
 
-    static func processRichText(_ text: String) -> RichTextProcessResult {
-        // 记录原始文本
-        Logger.debug("RichText processing - Original text:\n\(text)")
+    /// 从HTML中提取纯文本（用于搜索、列表展示等场景）
+    static func plainText(from html: String) -> String {
+        let tokens = tokenize(html)
+        return renderPlainText(tokens)
+    }
 
-        // 清理文本
-        let currentText = cleanRichText(text)
+    // MARK: - Token
 
-        // 记录基础清理后的文本
-        Logger.debug("RichText processing - After basic cleanup:\n\(currentText)")
+    private enum Token {
+        case text(String)
+        case br
+        case boldStart
+        case boldEnd
+        case linkStart(href: String, isURLTag: Bool)
+        case linkEnd
+    }
 
-        // 创建AttributedString
-        var attributedString = AttributedString(currentText)
-        var processedText = currentText
+    /// 用 SwiftSoup 解析 HTML 并使用 NodeTraversor 遍历 DOM，生成 Token 序列
+    /// - 颜色标签（font 等）静默丢弃，仅保留其内部文本
+    /// - 注释、CDATA 等被自动跳过
+    /// - 未闭合标签、标签交叉由 SwiftSoup 自动修复
+    private static func tokenize(_ html: String) -> [Token] {
+        guard let document = try? SwiftSoup.parse(html),
+              let body = document.body()
+        else {
+            return [.text(html)]
+        }
 
-        // 处理链接
-        while let linkStart = processedText.range(of: "<a href="),
-              let linkEnd = processedText.range(of: "</a>")
-        {
-            let linkText = processedText[linkStart.lowerBound ..< linkEnd.upperBound]
+        let visitor = TokenBuildingVisitor()
+        let traversor = NodeTraversor(visitor)
+        try? traversor.traverse(body)
+        return visitor.tokens
+    }
 
-            if let textStart = linkText.range(of: ">")?.upperBound,
-               let textEnd = linkText.range(of: "</a>")?.lowerBound
-            {
-                let displayText = String(linkText[textStart ..< textEnd])
-                let startIndex = attributedString.range(of: linkText)?.lowerBound
-                let endIndex = attributedString.range(of: linkText)?.upperBound
+    /// NodeVisitor 实现：head/tail 分别 emit 开标签 / 闭标签 Token
+    /// 通过 NodeTraversor 访问 DOM，规避 childNodes 的可见性问题
+    private final class TokenBuildingVisitor: NodeVisitor {
+        private(set) var tokens: [Token] = []
+        /// 标记 a 标签是否已 emit linkStart（无 href 时跳过开闭）
+        private var linkEmitted = false
 
-                if let start = startIndex, let end = endIndex {
-                    // 处理showinfo链接
-                    if linkText.contains("href=showinfo:"),
-                       let idStart = linkText.range(of: "showinfo:")?.upperBound,
-                       let idEnd = linkText.range(of: ">")?.lowerBound
-                    {
-                        let idString = String(linkText[idStart ..< idEnd])
-                        if let itemID = Int(idString),
-                           idString.range(of: "^\\d+$", options: .regularExpression) != nil
-                        {
-                            // 有效的showinfo链接，设置为可点击
-                            attributedString.replaceSubrange(
-                                start ..< end, with: AttributedString(displayText)
-                            )
-                            attributedString[
-                                start ..< attributedString.index(
-                                    start, offsetByCharacters: displayText.count
-                                )
-                            ].foregroundColor = .blue
-                            attributedString[
-                                start ..< attributedString.index(
-                                    start, offsetByCharacters: displayText.count
-                                )
-                            ].link = URL(string: "showinfo://\(itemID)")
+        func head(_ node: Node, _: Int) throws {
+            if let textNode = node as? TextNode {
+                let text = textNode.getWholeText()
+                if !text.isEmpty {
+                    tokens.append(.text(text))
+                }
+                return
+            }
 
-                            Logger.debug(
-                                "Processed showinfo link - ID: \(itemID), Text: \(displayText)")
-                        } else {
-                            // 无效的showinfo链接，只保留文本内容
-                            attributedString.replaceSubrange(
-                                start ..< end, with: AttributedString(displayText)
-                            )
-                            Logger.debug(
-                                "Invalid showinfo link format - Text: \(displayText)")
-                        }
-                    } else if linkText.contains("href=fitting:") {
-                        // 处理DNA装配链接
-                        if let dnaStart = linkText.range(of: "fitting:")?.lowerBound,
-                           let dnaEnd = linkText.range(of: ">")?.lowerBound
-                        {
-                            let dnaString = String(linkText[dnaStart ..< dnaEnd])
+            guard let element = node as? Element else { return }
+            let tagName = element.tagName().lowercased()
 
-                            // 设置为可点击的DNA链接
-                            attributedString.replaceSubrange(
-                                start ..< end, with: AttributedString(displayText)
-                            )
-                            attributedString[
-                                start ..< attributedString.index(
-                                    start, offsetByCharacters: displayText.count
-                                )
-                            ].foregroundColor = .blue
+            switch tagName {
+            case "br":
+                tokens.append(.br)
+            case "b", "strong":
+                tokens.append(.boldStart)
+            case "a":
+                let href = (try? element.attr("href")) ?? ""
+                if !href.isEmpty {
+                    tokens.append(.linkStart(href: href, isURLTag: false))
+                    linkEmitted = true
+                } else {
+                    linkEmitted = false
+                }
+            case "url":
+                let href = extractURLTagHref(from: element)
+                tokens.append(.linkStart(href: href, isURLTag: true))
+                linkEmitted = true
+            default:
+                // 其他标签：静默丢弃标签本身，递归会处理子节点
+                break
+            }
+        }
 
-                            // 直接使用fitting://格式，类似showinfo://
-                            attributedString[
-                                start ..< attributedString.index(
-                                    start, offsetByCharacters: displayText.count
-                                )
-                            ].link = URL(string: dnaString)
+        func tail(_ node: Node, _: Int) throws {
+            guard let element = node as? Element else { return }
+            let tagName = element.tagName().lowercased()
 
-                            Logger.debug(
-                                "Processed DNA fitting link - DNA: \(dnaString), Text: \(displayText)"
-                            )
-                        } else {
-                            // 无效的DNA链接，只保留文本内容
-                            attributedString.replaceSubrange(
-                                start ..< end, with: AttributedString(displayText)
-                            )
-                            Logger.debug(
-                                "Invalid DNA fitting link format - Text: \(displayText)")
-                        }
-                    } else if linkText.contains("href=killReport:") {
-                        // 处理战斗日志链接
-                        if let killStart = linkText.range(of: "killReport:")?.upperBound,
-                           let hrefEnd = linkText.range(of: ">")?.lowerBound
-                        {
-                            let hrefContent = String(linkText[killStart ..< hrefEnd])
-                            // 提取第一个冒号前的数字作为 killmail ID
-                            let components = hrefContent.components(separatedBy: ":")
-                            if let killIdString = components.first, let killId = Int(killIdString) {
-                                // 设置为可点击的战斗日志链接
-                                attributedString.replaceSubrange(
-                                    start ..< end, with: AttributedString(displayText)
-                                )
-                                attributedString[
-                                    start ..< attributedString.index(
-                                        start, offsetByCharacters: displayText.count
-                                    )
-                                ].foregroundColor = .blue
-                                attributedString[
-                                    start ..< attributedString.index(
-                                        start, offsetByCharacters: displayText.count
-                                    )
-                                ].link = URL(string: "killreport://\(killId)")
+            switch tagName {
+            case "b", "strong":
+                tokens.append(.boldEnd)
+            case "a":
+                if linkEmitted {
+                    tokens.append(.linkEnd)
+                    linkEmitted = false
+                }
+            case "url":
+                if linkEmitted {
+                    tokens.append(.linkEnd)
+                    linkEmitted = false
+                }
+            default:
+                break
+            }
+        }
+    }
 
-                                Logger.debug(
-                                    "Processed killReport link - ID: \(killId), Text: \(displayText)"
-                                )
-                            } else {
-                                // 无效的killReport链接，只保留文本内容
-                                attributedString.replaceSubrange(
-                                    start ..< end, with: AttributedString(displayText)
-                                )
-                                Logger.debug(
-                                    "Invalid killReport ID format - Text: \(displayText)")
-                            }
-                        } else {
-                            // 无效的killReport链接格式，只保留文本内容
-                            attributedString.replaceSubrange(
-                                start ..< end, with: AttributedString(displayText)
-                            )
-                            Logger.debug(
-                                "Invalid killReport link format - Text: \(displayText)")
-                        }
-                    } else {
-                        // 处理普通链接
-                        attributedString.replaceSubrange(
-                            start ..< end, with: AttributedString(displayText)
-                        )
-                        attributedString[
-                            start ..< attributedString.index(
-                                start, offsetByCharacters: displayText.count
-                            )
-                        ].foregroundColor = .blue
-                        if let hrefStart = linkText.range(of: "href=")?.upperBound,
-                           let hrefEnd = linkText.range(of: ">")?.lowerBound,
-                           let url = URL(string: String(linkText[hrefStart ..< hrefEnd]))
-                        {
-                            attributedString[
-                                start ..< attributedString.index(
-                                    start, offsetByCharacters: displayText.count
-                                )
-                            ].link = url
-                        }
-                    }
+    /// 从 <url> 元素提取 href 值
+    /// SwiftSoup 对非标准 `<url=xxx>` 的解析结果不固定，按以下优先级回退：
+    /// 1. `href` 属性（标准 HTML 写法 `<url href="xxx">`）
+    /// 2. 第一个非空属性值（`<url=xxx>` 被解析为 `<url xxx>`，xxx 是属性名）
+    /// 3. 第一个属性名（兜底）
+    private static func extractURLTagHref(from element: Element) -> String {
+        // 1. 标准 href 属性
+        if let href = try? element.attr("href"), !href.isEmpty {
+            return href
+        }
+
+        // 2. 通过 asList() 遍历所有属性
+        guard let attrs = element.getAttributes() else { return "" }
+        let attrList = attrs.asList()
+
+        for attr in attrList {
+            if !attr.getValue().isEmpty {
+                return attr.getValue()
+            }
+        }
+
+        // 3. 兜底：取第一个属性名
+        if let first = attrList.first {
+            return first.getKey()
+        }
+        return ""
+    }
+
+    // MARK: - Render
+
+    private enum Style {
+        case bold
+        case link(URL)
+    }
+
+    /// 将Token序列渲染为AttributedString和纯文本，使用样式栈支持嵌套
+    /// 连续换行（来自 <br> 或文本中的 \n）最多保留 2 个（即 1 个空行）
+    private static func render(_ tokens: [Token]) -> (AttributedString, String) {
+        var attributed = AttributedString()
+        var plain = ""
+        var styles: [Style] = []
+        var consecutiveNewlines = 0
+
+        /// 追加一个换行符（若未达上限），并维护计数器
+        func appendNewline() {
+            consecutiveNewlines += 1
+            if consecutiveNewlines <= 2 {
+                plain += "\n"
+                var chunk = AttributedString("\n")
+                applyStyles(&chunk, styles)
+                attributed.append(chunk)
+            }
+        }
+
+        /// 追加普通文本，将其中的 \n 也纳入连续换行计数
+        func appendText(_ s: String) {
+            let parts = s.split(separator: "\n", omittingEmptySubsequences: false)
+            for (index, part) in parts.enumerated() {
+                if index > 0 {
+                    appendNewline()
+                }
+                if !part.isEmpty {
+                    consecutiveNewlines = 0
+                    plain += part
+                    var chunk = AttributedString(part)
+                    applyStyles(&chunk, styles)
+                    attributed.append(chunk)
                 }
             }
-
-            // 更新剩余文本
-            processedText = String(processedText[linkEnd.upperBound...])
         }
 
-        // 记录处理链接后的文本
-        Logger.debug(
-            "RichText processing - After processing links:\n\(attributedString.characters)")
-
-        // 处理URL标签
-        processedText = currentText
-        while let urlStart = processedText.range(of: "<url="),
-              let urlEnd = processedText.range(of: "</url>")
-        {
-            let urlText = processedText[urlStart.lowerBound ..< urlEnd.upperBound]
-
-            if let urlValueStart = urlText.range(of: "=")?.upperBound,
-               let urlValueEnd = urlText.range(of: ">")?.lowerBound,
-               let textStart = urlText.range(of: ">")?.upperBound,
-               let textEnd = urlText.range(of: "</url>")?.lowerBound
-            {
-                let url = String(urlText[urlValueStart ..< urlValueEnd])
-                let displayText = String(urlText[textStart ..< textEnd])
-
-                let startIndex = attributedString.range(of: urlText)?.lowerBound
-                let endIndex = attributedString.range(of: urlText)?.upperBound
-
-                if let start = startIndex, let end = endIndex {
-                    // 处理showinfo链接
-                    if url.contains("showinfo:") {
-                        let idString = url.replacingOccurrences(of: "showinfo:", with: "")
-                        if let itemID = Int(idString),
-                           idString.range(of: "^\\d+$", options: .regularExpression) != nil
-                        {
-                            // 有效的showinfo链接，设置为可点击
-                            attributedString.replaceSubrange(
-                                start ..< end, with: AttributedString(displayText)
-                            )
-                            attributedString[
-                                start ..< attributedString.index(
-                                    start, offsetByCharacters: displayText.count
-                                )
-                            ].foregroundColor = .blue
-                            attributedString[
-                                start ..< attributedString.index(
-                                    start, offsetByCharacters: displayText.count
-                                )
-                            ].link = URL(string: "showinfo://\(itemID)")
-
-                            Logger.debug(
-                                "Processed showinfo URL - ID: \(itemID), Text: \(displayText)")
-                        } else {
-                            // 无效的showinfo链接，只保留文本内容
-                            attributedString.replaceSubrange(
-                                start ..< end, with: AttributedString(displayText)
-                            )
-                            Logger.debug(
-                                "Invalid showinfo URL format - Text: \(displayText)")
-                        }
-                    } else if url.hasPrefix("fitting:") {
-                        // 处理DNA装配链接
-                        attributedString.replaceSubrange(
-                            start ..< end, with: AttributedString(displayText)
-                        )
-                        attributedString[
-                            start ..< attributedString.index(
-                                start, offsetByCharacters: displayText.count
-                            )
-                        ].foregroundColor = .blue
-
-                        // 直接使用fitting://格式，类似showinfo://
-                        attributedString[
-                            start ..< attributedString.index(
-                                start, offsetByCharacters: displayText.count
-                            )
-                        ].link = URL(string: url)
-
-                        Logger.debug(
-                            "Processed DNA fitting URL - DNA: \(url), Text: \(displayText)")
-                    } else if url.hasPrefix("killReport:") {
-                        // 处理战斗日志链接
-                        let killReportContent = String(url.dropFirst("killReport:".count))
-                        let components = killReportContent.components(separatedBy: ":")
-                        if let killIdString = components.first, let killId = Int(killIdString) {
-                            attributedString.replaceSubrange(
-                                start ..< end, with: AttributedString(displayText)
-                            )
-                            attributedString[
-                                start ..< attributedString.index(
-                                    start, offsetByCharacters: displayText.count
-                                )
-                            ].foregroundColor = .blue
-                            attributedString[
-                                start ..< attributedString.index(
-                                    start, offsetByCharacters: displayText.count
-                                )
-                            ].link = URL(string: "killreport://\(killId)")
-
-                            Logger.debug(
-                                "Processed killReport URL - ID: \(killId), Text: \(displayText)")
-                        } else {
-                            // 无效的killReport链接，只保留文本内容
-                            attributedString.replaceSubrange(
-                                start ..< end, with: AttributedString(displayText)
-                            )
-                            Logger.debug(
-                                "Invalid killReport URL format - Text: \(displayText)")
-                        }
-                    } else {
-                        // 处理普通URL
-                        attributedString.replaceSubrange(
-                            start ..< end, with: AttributedString(displayText)
-                        )
-                        attributedString[
-                            start ..< attributedString.index(
-                                start, offsetByCharacters: displayText.count
-                            )
-                        ].foregroundColor = .blue
-                        // 使用自定义scheme来处理外部URL
-                        if let encodedUrl = url.addingPercentEncoding(
-                            withAllowedCharacters: .urlHostAllowed)
-                        {
-                            attributedString[
-                                start ..< attributedString.index(
-                                    start, offsetByCharacters: displayText.count
-                                )
-                            ].link = URL(string: "externalurl://\(encodedUrl)")
-                        }
-                    }
+        for token in tokens {
+            switch token {
+            case let .text(s):
+                appendText(s)
+            case .br:
+                appendNewline()
+            case .boldStart:
+                styles.append(.bold)
+            case .boldEnd:
+                if let last = styles.last, case .bold = last {
+                    styles.removeLast()
+                }
+            case let .linkStart(href, isURLTag):
+                if let url = resolveLink(href, isURLTag: isURLTag) {
+                    styles.append(.link(url))
+                }
+            case .linkEnd:
+                if let last = styles.last, case .link = last {
+                    styles.removeLast()
                 }
             }
-
-            // 更新剩余文本
-            processedText = String(processedText[urlEnd.upperBound...])
         }
 
-        // 记录处理URL后的文本
-        Logger.debug("RichText processing - After processing URLs:\n\(attributedString.characters)")
+        let cleanedPlain = cleanWhitespace(plain)
+        return (attributed, cleanedPlain)
+    }
 
-        // 处理加粗文本
-        // 首先找出所有的加粗标签对
-        var boldRanges: [(Range<String.Index>, String)] = []
-        var searchRange = currentText.startIndex ..< currentText.endIndex
-
-        while let boldStart = currentText.range(of: "<b>", range: searchRange),
-              let boldEnd = currentText.range(
-                  of: "</b>", range: boldStart.upperBound ..< currentText.endIndex
-              )
-        {
-            let boldTextRange = boldStart.upperBound ..< boldEnd.lowerBound
-            let boldText = String(currentText[boldTextRange])
-            let fullRange = boldStart.lowerBound ..< boldEnd.upperBound
-            boldRanges.append((fullRange, boldText))
-            searchRange = boldEnd.upperBound ..< currentText.endIndex
-        }
-
-        // 记录找到的加粗文本
-        Logger.debug("RichText processing - Found \(boldRanges.count) bold ranges:")
-        for (_, text) in boldRanges {
-            Logger.debug("Bold text: \(text)")
-        }
-
-        // 从后向前处理每个加粗标签对
-        for (fullRange, boldText) in boldRanges.reversed() {
-            if let attrStartIndex = attributedString.range(of: String(currentText[fullRange]))?
-                .lowerBound
-            {
-                let attrEndIndex = attributedString.index(
-                    attrStartIndex, offsetByCharacters: "<b>".count + boldText.count + "</b>".count
-                )
-                attributedString.replaceSubrange(
-                    attrStartIndex ..< attrEndIndex, with: AttributedString(boldText)
-                )
-
-                let boldEndIndex = attributedString.index(
-                    attrStartIndex, offsetByCharacters: boldText.count
-                )
-                // 使用最简单的粗体设置方式
-                attributedString[attrStartIndex ..< boldEndIndex].inlinePresentationIntent =
-                    .stronglyEmphasized
-
-                Logger.debug("Applied bold style to: \(boldText)")
+    /// 仅渲染纯文本（用于不需要富文本的场景）
+    private static func renderPlainText(_ tokens: [Token]) -> String {
+        var plain = ""
+        for token in tokens {
+            switch token {
+            case let .text(s):
+                plain += s
+            case .br:
+                plain += "\n"
+            default:
+                break
             }
         }
+        return cleanWhitespace(plain)
+    }
 
-        // 记录最终处理后的文本
-        Logger.debug("RichText processing - Final processed text:\n\(attributedString.characters)")
+    /// 将样式栈中的所有样式应用到AttributedString片段
+    private static func applyStyles(_ chunk: inout AttributedString, _ styles: [Style]) {
+        for style in styles {
+            switch style {
+            case .bold:
+                chunk.inlinePresentationIntent = .stronglyEmphasized
+            case let .link(url):
+                chunk.foregroundColor = .blue
+                chunk.link = url
+            }
+        }
+    }
 
-        // 使用 NSAttributedString 的内置方法提取纯文本
-        let nsAttributedString = NSAttributedString(attributedString)
-        let plainText = nsAttributedString.string
+    /// 收紧多余换行和空格，清理首尾空白
+    private static func cleanWhitespace(_ text: String) -> String {
+        text
+            .replacingOccurrences(of: "\n{3,}", with: "\n\n", options: .regularExpression)
+            .replacingOccurrences(of: " +", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
-        Logger.debug("RichText processing - Final plain text:\n\(plainText)")
+    // MARK: - Link Resolution
 
-        // 创建文本视图并返回结果
-        let richText = Text(attributedString)
-        return RichTextProcessResult(richText: richText, plainText: plainText)
+    /// 将EVE游戏的链接格式转换为app内部使用的URL scheme
+    /// showinfo:1234 -> showinfo://1234
+    /// killReport:1234:5678 -> killreport://1234（取第一个数字）
+    /// fitting:dna:... -> 保留原样
+    /// 其他链接：<a>标签保留原样走系统处理，<url>标签包装为externalurl://走确认弹窗
+    private static func resolveLink(_ href: String, isURLTag: Bool) -> URL? {
+        if href.hasPrefix("showinfo:") {
+            let idString = String(href.dropFirst("showinfo:".count))
+            if let itemID = Int(idString) {
+                return URL(string: "showinfo://\(itemID)")
+            }
+            return nil
+        }
+        if href.hasPrefix("fitting:") {
+            return URL(string: href)
+        }
+        if href.hasPrefix("killReport:") {
+            let content = String(href.dropFirst("killReport:".count))
+            let components = content.components(separatedBy: ":")
+            if let killIdString = components.first, let killId = Int(killIdString) {
+                return URL(string: "killreport://\(killId)")
+            }
+            return nil
+        }
+        // 其他链接：<url>标签包装为externalurl://走确认弹窗，<a>标签保留原样走系统处理
+        if isURLTag {
+            if let encoded = href.addingPercentEncoding(withAllowedCharacters: .urlHostAllowed) {
+                return URL(string: "externalurl://\(encoded)")
+            }
+            return nil
+        }
+        return URL(string: href)
     }
 }

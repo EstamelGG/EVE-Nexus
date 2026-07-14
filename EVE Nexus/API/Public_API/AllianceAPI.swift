@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-// 联盟信息数据模型
+/// 联盟信息数据模型
 struct AllianceInfo: Codable {
     let name: String
     let ticker: String
@@ -24,12 +24,12 @@ class AllianceAPI {
         // 使用 ImageCacheManager，无需初始化配置
     }
 
-    // 获取联盟图标URL
+    /// 获取联盟图标URL
     private func getLogoURL(allianceId: Int, size: Int = 64) -> URL {
         return URL(string: "https://images.evetech.net/alliances/\(allianceId)/logo?size=\(size)")!
     }
 
-    // 获取联盟图标
+    /// 获取联盟图标
     func fetchAllianceLogo(allianceID: Int, size: Int = 64, forceRefresh: Bool = false) async throws
         -> UIImage
     {
@@ -124,7 +124,8 @@ class AllianceAPI {
             )
         } catch {
             Logger.error(
-                "保存联盟信息到文件失败: \(error) - 文件: \(filePath.lastPathComponent)")
+                "保存联盟信息到文件失败: \(error) - 文件: \(filePath.lastPathComponent)"
+            )
         }
     }
 

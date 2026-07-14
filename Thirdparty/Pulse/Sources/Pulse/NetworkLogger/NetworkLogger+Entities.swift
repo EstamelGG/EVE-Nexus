@@ -98,9 +98,8 @@ extension NetworkLogger {
         public var code: Int
         public var domain: String
         public var debugDescription: String
-        /// Contains the underlying error.
-        ///
-        /// - note: Currently is only used for ``NetworkLogger/DecodingError``.
+        // Contains the underlying error.
+        //         // - note: Currently is only used for ``NetworkLogger/DecodingError``.
         public var error: Swift.Error? { underlyingError?.error }
 
         var underlyingError: UnderlyingError?
@@ -215,7 +214,7 @@ extension NetworkLogger {
             (requestHeaderBytesSent, requestBodyBytesBeforeEncoding, requestBodyBytesSent, responseHeaderBytesReceived, responseBodyBytesReceived, responseBodyBytesAfterDecoding) = (values[0], values[1], values[2], values[3], values[4], values[5])
         }
 
-        /// Just a space and compile time optimization
+        // Just a space and compile time optimization
         public func encode(to encoder: Encoder) throws {
             try [requestHeaderBytesSent, requestBodyBytesBeforeEncoding, requestBodyBytesSent, responseHeaderBytesReceived, responseBodyBytesReceived, responseBodyBytesAfterDecoding].encode(to: encoder)
         }
@@ -365,7 +364,7 @@ extension NetworkLogger {
             (fetchStartDate, domainLookupStartDate, domainLookupEndDate, connectStartDate, secureConnectionStartDate, secureConnectionEndDate, connectEndDate, requestStartDate, requestEndDate, responseStartDate, responseEndDate) = (values[0], values[1], values[2], values[3], values[4], values[5], values[6], values[7], values[8], values[9], values[10])
         }
 
-        /// Just a space and compile time optimization
+        // Just a space and compile time optimization
         public func encode(to encoder: Encoder) throws {
             try [fetchStartDate, domainLookupStartDate, domainLookupEndDate, connectStartDate, secureConnectionStartDate, secureConnectionEndDate, connectEndDate, requestStartDate, requestEndDate, responseStartDate, responseEndDate].encode(to: encoder)
         }
@@ -490,14 +489,13 @@ extension NetworkLogger {
     }
 
     public struct ContentType: Hashable, ExpressibleByStringLiteral {
-        /// The type and subtype of the content type. This is everything except for
-        /// any parameters that are also attached.
+        // The type and subtype of the content type. This is everything except for
+        // any parameters that are also attached.
         public var type: String
 
-        /// Key/Value pairs serialized as parameters for the content type.
-        ///
-        /// For example, in "`text/plain; charset=UTF-8`" "charset" is
-        /// the name of a parameter with the value "UTF-8".
+        // Key/Value pairs serialized as parameters for the content type.
+        //         // For example, in "`text/plain; charset=UTF-8`" "charset" is
+        // the name of a parameter with the value "UTF-8".
         public var parameters: [String: String]
 
         public var rawValue: String

@@ -5,8 +5,11 @@ import UIKit
 // MARK: - 数据模型
 
 struct SettingItem: Identifiable {
-    // 使用 title 作为 ID，避免每次重建
-    var id: String { title }
+    /// 使用 title 作为 ID，避免每次重建
+    var id: String {
+        title
+    }
+
     let title: String
     let detail: String?
     let icon: String?
@@ -42,8 +45,11 @@ struct SettingItem: Identifiable {
 // MARK: - 设置组
 
 struct SettingGroup: Identifiable {
-    // 使用 header 作为 ID，避免每次重建
-    var id: String { header }
+    /// 使用 header 作为 ID，避免每次重建
+    var id: String {
+        header
+    }
+
     let header: String
     let items: [SettingItem]
 }
@@ -54,12 +60,12 @@ class CacheManager {
     static let shared = CacheManager()
     private let fileManager = FileManager.default
 
-    // 定义需要清理的缓存键前缀
+    /// 定义需要清理的缓存键前缀
     private let cachePrefixes = [
         "character_portrait_",
     ]
 
-    // 定义需要清理的目录列表
+    /// 定义需要清理的目录列表
     private let cacheDirs = [
         "StructureCache", // 建筑缓存
         "AssetCache", // 资产缓存
@@ -71,7 +77,6 @@ class CacheManager {
         "MarketCache", // 市场价格细节
         "Planetary", // 行星开发
         "CharacterOrders", // 人物市场订单
-        // "Fitting",  // 舰船配置目录
         "fw", // 势力战争
         "CorpCache", // 军团缓存
         "char_standings", // 人物声望
@@ -87,12 +92,12 @@ class CacheManager {
         "github_market_cache", // Jita 订单汇总缓存
     ]
 
-    // 获取缓存目录列表
+    /// 获取缓存目录列表
     func getCacheDirs() -> [String] {
         return cacheDirs
     }
 
-    // 清理指定前缀的缓存
+    /// 清理指定前缀的缓存
     private func clearCacheWithPrefixes() {
         let defaults = UserDefaults.standard
         let allKeys = defaults.dictionaryRepresentation().keys
@@ -109,7 +114,7 @@ class CacheManager {
         Logger.info("基于前缀的缓存清理完成")
     }
 
-    // 清理指定目录
+    /// 清理指定目录
     private func clearCacheDirectories() async {
         let documentPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
         var totalFilesRemoved = 0
@@ -160,14 +165,14 @@ class CacheManager {
         Logger.info("目录缓存清理完成，共删除 \(totalFilesRemoved) 个文件")
     }
 
-    // 清理图片缓存
+    /// 清理图片缓存
     private func clearImageCaches() async {
         // 清理自定义图片缓存管理器
         await ImageCacheManager.shared.clearAllCache()
         Logger.info("图片缓存清理完成")
     }
 
-    // 清理所有缓存
+    /// 清理所有缓存
     func clearAllCaches() async {
         // 1. 清理 NetworkManager 缓存
         await NetworkManager.shared.clearAllCaches()
@@ -201,12 +206,7 @@ class CacheManager {
             InfestedSystemsViewModel.clearCache()
         }
 
-        // 6. 清理数据库浏览器缓存
-        await MainActor.run {
-            DatabaseBrowserView.clearCache()
-        }
-
-        // 7. 清理静态资源
+        // 6. 清理静态资源
         do {
             try StaticResourceManager.shared.clearAllStaticData()
         } catch {
@@ -263,13 +263,12 @@ struct SettingView: View {
     @AppStorage("enableLogging") private var enableLogging: Bool = false
     @State private var showingCleanCacheAlert = false
     @State private var showingCleanCharacterDatabaseAlert = false
-    @State private var showingDeleteIconsAlert = false
     @State private var showingLanguageView = false
     @State private var cacheSize: String = NSLocalizedString("Misc_Calculating", comment: "")
     @ObservedObject var databaseManager: DatabaseManager
     @State private var isCleaningCache = false
     @State private var isCleaningCharacterDatabase = false
-    @State private var isReextractingIcons = false
+    @State private var isResettingSDE = false
     @State private var unzipProgress: Double = 0
     @State private var loadingState: LoadingState = .processing
     @State private var showingLoadingView = false
@@ -277,12 +276,15 @@ struct SettingView: View {
     @State private var showResetSDEDatabaseAlert = false
     @State private var showResetSDEDatabaseSuccessAlert = false
     @State private var showingESIStatusView = false
+    @State private var showingRateLimitMonitorView = false
     @State private var showingLogsBrowserView = false
     @State private var showingMarketStructureView = false
     @State private var showingEVEStatusIncidentsView = false
     @State private var isCalculatingCache = false // 缓存计算状态
     @State private var showingTokenScopesView = false // 显示 token scopes sheet
+    @State private var showingTokenViewerView = false // 显示 token 查看页
     @State private var showingFittingDefaultSkillView = false
+    @State private var showingNotificationsManagerView = false
 
     // MARK: - 数据更新函数
 
@@ -348,7 +350,8 @@ struct SettingView: View {
                             }
                         } catch {
                             Logger.error(
-                                "计算文件大小失败 - \(fileURL.path): \(error)")
+                                "计算文件大小失败 - \(fileURL.path): \(error)"
+                            )
                         }
                     }
                 }
@@ -410,6 +413,12 @@ struct SettingView: View {
                     icon: getThemeIcon(),
                     iconColor: .blue,
                     action: toggleAppearance
+                ),
+                SettingItem(
+                    title: NSLocalizedString("Main_Setting_Language", comment: ""),
+                    detail: NSLocalizedString("Main_Setting_Select_your_language", comment: ""),
+                    icon: "translate",
+                    action: { showingLanguageView = true }
                 ),
             ]
         )
@@ -507,10 +516,11 @@ struct SettingView: View {
             header: NSLocalizedString("Main_Setting_Others", comment: ""),
             items: [
                 SettingItem(
-                    title: NSLocalizedString("Main_Setting_Language", comment: ""),
-                    detail: NSLocalizedString("Main_Setting_Select_your_language", comment: ""),
-                    icon: "translate",
-                    action: { showingLanguageView = true }
+                    title: NSLocalizedString("Main_Setting_Notification_Manage", comment: ""),
+                    detail: NSLocalizedString("Main_Setting_Notification_Manage_Detail", comment: ""),
+                    icon: "bell.badge",
+                    iconColor: .blue,
+                    action: { showingNotificationsManagerView = true }
                 ),
                 SettingItem(
                     title: NSLocalizedString("Main_Setting_ESI_Status", comment: ""),
@@ -518,6 +528,13 @@ struct SettingView: View {
                     icon: "waveform.path.ecg.rectangle",
                     iconColor: .blue,
                     action: { showingESIStatusView = true }
+                ),
+                SettingItem(
+                    title: NSLocalizedString("RateLimit_Monitor_Title", comment: ""),
+                    detail: NSLocalizedString("RateLimit_Monitor_Detail", comment: ""),
+                    icon: "gauge.with.dots.needle.67percent",
+                    iconColor: .blue,
+                    action: { showingRateLimitMonitorView = true }
                 ),
                 SettingItem(
                     title: NSLocalizedString("EVE_Status_Incidents_Title", comment: "EVE Online 故障通知"),
@@ -568,7 +585,7 @@ struct SettingView: View {
         )
     }
 
-    // 日志开关组件
+    /// 日志开关组件
     private struct LoggingToggle: View {
         @Binding var enableLogging: Bool
 
@@ -614,11 +631,20 @@ struct SettingView: View {
             )
             items.append(
                 SettingItem(
-                    title: NSLocalizedString("Main_Setting_View_Token_Scopes", comment: "查看 token scopes"),
+                    title: NSLocalizedString("Main_Setting_View_Token_Scopes", comment: "查看 Token scopes"),
                     detail: NSLocalizedString("Main_Setting_View_Token_Scopes_Detail", comment: "查看所有已保存人物的 token scopes"),
                     icon: "key.fill",
                     iconColor: .blue,
                     action: { showingTokenScopesView = true }
+                )
+            )
+            items.append(
+                SettingItem(
+                    title: NSLocalizedString("Main_Setting_View_Token", comment: "查看 Token"),
+                    detail: NSLocalizedString("Main_Setting_View_Token_Detail", comment: "查看 refresh token 与 access token"),
+                    icon: "lock.doc",
+                    iconColor: .blue,
+                    action: { showingTokenViewerView = true }
                 )
             )
         }
@@ -672,18 +698,10 @@ struct SettingView: View {
             header: NSLocalizedString("SDE_Reset_Section", comment: "重置 SDE"),
             items: [
                 SettingItem(
-                    title: NSLocalizedString("Main_Setting_Reset_Icons", comment: ""),
-                    detail: isReextractingIcons
-                        ? String(format: "%.0f%%", unzipProgress * 100)
-                        : NSLocalizedString("Main_Setting_Reset_Icons_Detail", comment: ""),
-                    icon: isReextractingIcons
-                        ? "arrow.triangle.2.circlepath" : "arrow.triangle.2.circlepath",
-                    iconColor: .orange,
-                    action: { showingDeleteIconsAlert = true }
-                ),
-                SettingItem(
                     title: NSLocalizedString("SDE_Reset_Database", comment: ""),
-                    detail: NSLocalizedString("SDE_Reset_Database_Detail", comment: ""),
+                    detail: isResettingSDE
+                        ? String(format: "%.0f%%", unzipProgress * 100)
+                        : NSLocalizedString("SDE_Reset_Database_Detail", comment: ""),
                     icon: "arrow.triangle.2.circlepath",
                     iconColor: .red,
                     action: { showResetSDEDatabaseAlert = true }
@@ -692,13 +710,20 @@ struct SettingView: View {
         )
     }
 
-    // 添加一个新的视图组件来优化列表项渲染
+    /// 列表项渲染组件
     private struct SettingItemView: View {
         let item: SettingItem
         let isCleaningCache: Bool
         let isCleaningCharacterDatabase: Bool
         let showingLoadingView: Bool
         let isCalculatingCache: Bool
+        let isResettingSDE: Bool
+
+        private var isLoading: Bool {
+            (item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCleaningCache) ||
+                (item.title == NSLocalizedString("Main_Setting_Clean_Character_Database", comment: "") && isCleaningCharacterDatabase) ||
+                (item.title == NSLocalizedString("SDE_Reset_Database", comment: "") && isResettingSDE)
+        }
 
         var body: some View {
             if let customView = item.customView {
@@ -712,7 +737,6 @@ struct SettingView: View {
                                 .font(.system(size: 16))
                                 .foregroundColor(.primary)
 
-                            // 如果是清理缓存按钮且正在计算缓存，显示加载指示器
                             if item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCalculatingCache {
                                 HStack(spacing: 4) {
                                     ProgressView()
@@ -729,9 +753,7 @@ struct SettingView: View {
                         }
                         Spacer()
                         if let icon = item.icon {
-                            if (item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCleaningCache) ||
-                                (item.title == NSLocalizedString("Main_Setting_Clean_Character_Database", comment: "") && isCleaningCharacterDatabase)
-                            {
+                            if isLoading {
                                 ProgressView()
                                     .frame(width: 36)
                             } else {
@@ -744,7 +766,7 @@ struct SettingView: View {
                     }
                 }
                 .disabled(
-                    isCleaningCache || isCleaningCharacterDatabase || showingLoadingView ||
+                    isCleaningCache || isCleaningCharacterDatabase || showingLoadingView || isResettingSDE ||
                         (item.title == NSLocalizedString("Main_Setting_Clean_Cache", comment: "") && isCalculatingCache)
                 )
             }
@@ -763,7 +785,8 @@ struct SettingView: View {
                             isCleaningCache: isCleaningCache,
                             isCleaningCharacterDatabase: isCleaningCharacterDatabase,
                             showingLoadingView: showingLoadingView,
-                            isCalculatingCache: isCalculatingCache
+                            isCalculatingCache: isCalculatingCache,
+                            isResettingSDE: isResettingSDE
                         )
                     }
                 } header: {
@@ -783,6 +806,9 @@ struct SettingView: View {
         .navigationDestination(isPresented: $showingESIStatusView) {
             ESIStatusView()
         }
+        .navigationDestination(isPresented: $showingRateLimitMonitorView) {
+            RateLimitMonitorView()
+        }
         .navigationDestination(isPresented: $showingLogsBrowserView) {
             LogsBrowserView()
         }
@@ -795,8 +821,14 @@ struct SettingView: View {
         .navigationDestination(isPresented: $showingEVEStatusIncidentsView) {
             EVEStatusIncidentsView()
         }
+        .navigationDestination(isPresented: $showingNotificationsManagerView) {
+            NotificationsManagerView()
+        }
         .sheet(isPresented: $showingTokenScopesView) {
             TokenScopesListView()
+        }
+        .navigationDestination(isPresented: $showingTokenViewerView) {
+            TokenViewerView()
         }
         .alert(
             NSLocalizedString("Main_Setting_Clean_Cache_Title", comment: ""),
@@ -821,23 +853,12 @@ struct SettingView: View {
             Text(NSLocalizedString("Main_Setting_Clean_Character_Database_Message", comment: ""))
         }
         .alert(
-            NSLocalizedString("Main_Setting_Reset_Icons_Title", comment: ""),
-            isPresented: $showingDeleteIconsAlert
-        ) {
-            Button(NSLocalizedString("Main_Setting_Cancel", comment: ""), role: .cancel) {}
-            Button(NSLocalizedString("Main_Setting_Reset", comment: ""), role: .destructive) {
-                deleteIconsAndRestart()
-            }
-        } message: {
-            Text(NSLocalizedString("Main_Setting_Reset_Icons_Message", comment: ""))
-        }
-        .alert(
             NSLocalizedString("SDE_Reset_Confirm_Title", comment: ""),
             isPresented: $showResetSDEDatabaseAlert
         ) {
             Button(NSLocalizedString("SDE_Reset_Cancel", comment: ""), role: .cancel) {}
             Button(NSLocalizedString("SDE_Reset_Confirm", comment: ""), role: .destructive) {
-                resetSDEDatabase()
+                resetSDEAndIcons()
             }
         } message: {
             Text(NSLocalizedString("SDE_Reset_Message", comment: ""))
@@ -874,7 +895,7 @@ struct SettingView: View {
                 loadingState: $loadingState,
                 onComplete: {
                     showingLoadingView = false
-                    updateAllData() // 重置图标完成后更新
+                    updateAllData() // SDE/图标重置完成后更新
                 }
             )
         }
@@ -945,120 +966,57 @@ struct SettingView: View {
         }
     }
 
-    // MARK: - 图标管理
+    // MARK: - SDE/图标重置
 
-    private func deleteIconsAndRestart() {
+    /// 重置SDE数据库（同时重新解压SDE数据包与图标包，并清空相关内存缓存）
+    private func resetSDEAndIcons() {
         Task {
-            isReextractingIcons = true
+            isResettingSDE = true
             showingLoadingView = true
             loadingState = .processing
-
-            let fileManager = FileManager.default
-            let documentPath = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-            let iconPath = documentPath.appendingPathComponent("icons")
+            unzipProgress = 0
 
             do {
-                // 1. 删除现有图标
-                if fileManager.fileExists(atPath: iconPath.path) {
-                    try fileManager.removeItem(at: iconPath)
-                    Logger.info("Successfully deleted Icons directory:\(iconPath)")
-                }
+                // 删除本地SDE目录（包含数据库与图标）
+                try StaticResourceManager.shared.resetSDEDatabase()
 
-                // 2. 重置解压状态
-                IconManager.shared.isExtractionComplete = false
-
-                // 3. 获取 Bundle 中的 icons.zip 路径
-                guard let bundleIconPath = Bundle.main.path(forResource: "icons", ofType: "zip")
-                else {
-                    Logger.error("icons.zip file not found in bundle")
-                    return
-                }
-
-                // 4. 重新解压图标
-                let iconURL = URL(fileURLWithPath: bundleIconPath)
-                try await IconManager.shared.unzipIcons(from: iconURL, to: iconPath) { progress in
+                // 从Bundle重新解压SDE + icons
+                try await SDEDownloader().seedFromBundle { progress in
                     Task { @MainActor in
                         self.unzipProgress = progress
                     }
                 }
 
-                Logger.info("Successfully reextracted icons")
-
-                // 5. 保存 Bundle 中的 metadata.json 到 icons 目录
-                if let bundleMetadata = MetadataManager.shared.readMetadataFromBundle() {
-                    do {
-                        try MetadataManager.shared.saveMetadataToIconsDirectory(bundleMetadata)
-                        Logger.info("Saved Bundle metadata.json to icons directory (icon_version: \(bundleMetadata.iconVersion))")
-                    } catch {
-                        Logger.error("Failed to save Bundle metadata.json: \(error)")
-                    }
-                } else {
-                    Logger.warning("Unable to read Bundle metadata.json")
-                }
-
-                // 清理更新检查缓存，以便重新检查更新
+                // 清空所有相关内存/查询缓存，确保旧数据不会继续显示
                 await MainActor.run {
+                    IconManager.shared.clearCache()
+                    DatabaseManager.shared.clearCache()
+                    self.reloadDataWithNewSDE()
                     SDEUpdateChecker.shared.clearCheckCache()
+                    self.loadingState = .complete
+                    self.isResettingSDE = false
+                    self.showResetSDEDatabaseSuccessAlert = true
                 }
 
-                await MainActor.run {
-                    loadingState = .complete
-                }
+                Logger.info("SDE与图标数据重置完成")
             } catch {
-                Logger.error("Error reextracting icons: \(error)")
+                Logger.error("重置SDE与图标数据失败: \(error)")
                 await MainActor.run {
-                    showingLoadingView = false
+                    self.isResettingSDE = false
+                    self.showingLoadingView = false
                 }
             }
-
-            await MainActor.run {
-                isReextractingIcons = false
-                showingDeleteIconsAlert = false
-            }
         }
     }
 
-    // 重置SDE数据库
-    private func resetSDEDatabase() {
-        do {
-            // 重置SDE数据库
-            try StaticResourceManager.shared.resetSDEDatabase()
-
-            // 如果当前选择的不是中英文，回退到英文（内置数据库只有中英文）
-            let dbLanguage = UserDefaults.standard.string(forKey: "selectedDatabaseLanguage") ?? "en"
-            if !ExtraLanguageDBManager.isBuiltinLanguage(dbLanguage) {
-                Logger.info("当前数据库语言 \(dbLanguage) 不是内置语言，回退到英文")
-                UserDefaults.standard.set("en", forKey: "selectedDatabaseLanguage")
-            }
-
-            // 清除数据库相关缓存
-            DatabaseBrowserView.clearCache()
-            DatabaseManager.shared.clearCache()
-
-            // 重新加载数据以使用Bundle中的数据库
-            reloadDataWithNewSDE()
-
-            // 清理更新检查缓存，以便重新检查更新
-            SDEUpdateChecker.shared.clearCheckCache()
-
-            Logger.info("SDE database reset completed")
-
-            // 显示成功提示
-            showResetSDEDatabaseSuccessAlert = true
-        } catch {
-            Logger.error("Failed to reset SDE database: \(error)")
-        }
-    }
-
-    // 重新加载数据以使用新的SDE数据
+    /// 重新加载数据以使用新的SDE数据
     private func reloadDataWithNewSDE() {
         Logger.info("Reloading data with new SDE...")
 
-        // 重新加载本地化数据
         LocalizationManager.shared.loadAccountingEntryTypes()
-
-        // 重新加载数据库
         DatabaseManager.shared.loadDatabase()
+        ItemTextStore.shared.syncWithActiveSDE()
+        AttributeCompareMarketPolicy.reload()
 
         Logger.info("Data reload completed with new SDE")
     }
@@ -1067,76 +1025,128 @@ struct SettingView: View {
 // MARK: - 下载进度视图
 
 struct DownloadProgressView: View {
-    let progress: Double
-    let logs: [LogMessage]
+    let iconsState: PackageUpdateState
+    let sdeState: PackageUpdateState
     let hasError: Bool
     let isCompleted: Bool
     let onExit: () -> Void
 
     var body: some View {
-        ZStack {
-            // 黑色背景
-            Color.black
-                .ignoresSafeArea()
-
-            VStack {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 4) {
-                        ForEach(logs) { log in
-                            // 根据日志类型显示不同颜色
-                            HStack {
-                                Text(log.displayText)
-                                    .font(.system(size: 14, design: .monospaced))
-                                    .foregroundColor(log.type.color)
-                                Spacer()
-                            }
-                        }
-                    }
-                    .padding()
-                    .frame(maxWidth: .infinity, alignment: .leading)
+        NavigationStack {
+            ScrollView {
+                VStack(spacing: 16) {
+                    PackageUpdateCard(
+                        title: NSLocalizedString("SDE_Icon_Package", comment: "图标包"),
+                        systemImage: "photo.on.rectangle.angled",
+                        state: iconsState
+                    )
+                    PackageUpdateCard(
+                        title: NSLocalizedString("SDE_Data_Package", comment: "SDE数据包"),
+                        systemImage: "externaldrive.fill",
+                        state: sdeState
+                    )
                 }
-
-                // 如果有错误，显示退出按钮
-                if hasError {
-                    VStack(spacing: 16) {
-                        Text("Update failed")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(.red)
-
-                        Button(action: onExit) {
-                            Text("Exit")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 44)
-                                .background(Color.red)
-                                .cornerRadius(8)
-                        }
-                        .padding(.horizontal, 40)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
+            }
+            .background(Color(.systemGroupedBackground))
+            .navigationTitle(NSLocalizedString("SDE_Update_Details", comment: ""))
+            .navigationBarTitleDisplayMode(.inline)
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if hasError || isCompleted {
+                    Button(action: onExit) {
+                        Text(hasError
+                            ? NSLocalizedString("SDE_Exit", comment: "")
+                            : NSLocalizedString("SDE_Done", comment: ""))
+                            .font(.system(size: 16, weight: .medium))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 44)
                     }
-                    .padding(.bottom, 40)
-                } else if isCompleted {
-                    // 如果完成，显示完成按钮
-                    VStack(spacing: 16) {
-                        Text(NSLocalizedString("SDE_Update_Completed", comment: ""))
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(.green)
-
-                        Button(action: onExit) {
-                            Text(NSLocalizedString("SDE_Done", comment: ""))
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 44)
-                                .background(Color.green)
-                                .cornerRadius(8)
-                        }
-                        .padding(.horizontal, 40)
-                    }
-                    .padding(.bottom, 40)
+                    .buttonStyle(.borderedProminent)
+                    .tint(hasError ? .red : .green)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+                    .padding(.bottom, 8)
+                    .frame(maxWidth: .infinity)
+                    .background(.bar)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
+            .animation(.easeOut(duration: 0.25), value: hasError || isCompleted)
         }
+    }
+}
+
+private struct PackageUpdateCard: View {
+    let title: String
+    let systemImage: String
+    let state: PackageUpdateState
+
+    private var accent: Color {
+        switch state.phase {
+        case .failed: return .red
+        case .done, .skipped: return .green
+        case .running: return .accentColor
+        case .pending: return .secondary
+        }
+    }
+
+    private var statusLabel: String {
+        switch state.phase {
+        case .pending:
+            return String(localized: "SDE_Status_Pending", defaultValue: "等待中")
+        case .running:
+            return "\(Int((state.progress * 100).rounded()))%"
+        case .skipped, .done:
+            return String(localized: "SDE_Done", defaultValue: "完成")
+        case .failed:
+            return String(localized: "SDE_Update_Failed", defaultValue: "更新失败")
+        }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.headline)
+                .foregroundStyle(.primary)
+
+            HStack(spacing: 12) {
+                Image(systemName: systemImage)
+                    .font(.title2)
+                    .foregroundStyle(accent)
+                    .frame(width: 28)
+
+                Spacer()
+
+                Text(statusLabel)
+                    .font(.subheadline.weight(.medium).monospacedDigit())
+                    .foregroundStyle(accent)
+                    .contentTransition(.numericText())
+            }
+
+            ProgressView(value: min(max(state.progress, 0), 1))
+                .tint(accent)
+                .animation(.linear(duration: 0.12), value: state.progress)
+
+            if !state.lines.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(state.lines) { line in
+                        Text(line.text)
+                            .font(.caption)
+                            .foregroundStyle(line.type.color)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .offset(y: 6)),
+                                removal: .opacity
+                            ))
+                    }
+                }
+                .animation(.easeOut(duration: 0.22), value: state.lines.count)
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 }
 
@@ -1147,12 +1157,19 @@ struct SDEUpdateDetailView: View {
     @StateObject private var updateChecker = SDEUpdateChecker.shared
     @StateObject private var updateManager = SDEUpdateManager.shared
 
+    private var sdeUpToDate: Bool {
+        updateChecker.currentSDEVersion == updateChecker.latestSDEVersion
+    }
+
+    private var iconsUpToDate: Bool {
+        updateChecker.currentIconVersion == updateChecker.latestIconVersion
+    }
+
     var body: some View {
         if updateManager.isDownloading {
-            // 全屏下载进度视图
             DownloadProgressView(
-                progress: updateManager.downloadProgress,
-                logs: updateManager.downloadLogs,
+                iconsState: updateManager.iconsState,
+                sdeState: updateManager.sdeState,
                 hasError: updateManager.hasError,
                 isCompleted: updateManager.isCompleted,
                 onExit: {
@@ -1161,104 +1178,89 @@ struct SDEUpdateDetailView: View {
                 }
             )
         } else {
-            NavigationView {
+            NavigationStack {
                 List {
-                    // SDE数据包section
                     Section {
-                        // 当前版本
                         HStack {
                             Text(NSLocalizedString("SDE_Current_Version", comment: "当前版本"))
-                                .font(.system(size: 16))
                             Spacer()
                             Text(updateChecker.currentSDEVersion)
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(
-                                    updateChecker.currentSDEVersion == updateChecker.latestSDEVersion ?
-                                        .green : .orange
-                                )
+                                .fontWeight(.medium)
+                                .foregroundStyle(sdeUpToDate ? Color.green : Color.orange)
                         }
-
-                        // 最新版本
                         HStack {
                             Text(NSLocalizedString("SDE_Latest_Version", comment: "最新版本"))
-                                .font(.system(size: 16))
                             Spacer()
                             Text(updateChecker.latestSDEVersion)
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(
-                                    updateChecker.currentSDEVersion == updateChecker.latestSDEVersion ?
-                                        .green : .secondary
-                                )
+                                .fontWeight(.medium)
+                                .foregroundStyle(sdeUpToDate ? Color.green : Color.secondary)
                         }
                     } header: {
                         Text(NSLocalizedString("SDE_Data_Package", comment: "SDE数据包"))
-                            .fontWeight(.semibold)
-                            .font(.system(size: 18))
-                            .foregroundColor(.primary)
-                            .textCase(.none)
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                            .textCase(nil)
                     }
 
-                    // 图标包section
                     Section {
-                        // 当前版本
                         HStack {
                             Text(NSLocalizedString("SDE_Current_Version", comment: "当前版本"))
-                                .font(.system(size: 16))
                             Spacer()
                             Text("v\(updateChecker.currentIconVersion)")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(
-                                    updateChecker.currentIconVersion == updateChecker.latestIconVersion ?
-                                        .green : .orange
-                                )
+                                .fontWeight(.medium)
+                                .foregroundStyle(iconsUpToDate ? Color.green : Color.orange)
                         }
-
-                        // 最新版本
                         HStack {
                             Text(NSLocalizedString("SDE_Latest_Version", comment: "最新版本"))
-                                .font(.system(size: 16))
                             Spacer()
                             Text("v\(updateChecker.latestIconVersion)")
-                                .font(.system(size: 16, weight: .medium))
-                                .foregroundColor(
-                                    updateChecker.currentIconVersion == updateChecker.latestIconVersion ?
-                                        .green : .secondary
-                                )
+                                .fontWeight(.medium)
+                                .foregroundStyle(iconsUpToDate ? Color.green : Color.secondary)
                         }
                     } header: {
                         Text(NSLocalizedString("SDE_Icon_Package", comment: "图标包"))
-                            .fontWeight(.semibold)
-                            .font(.system(size: 18))
-                            .foregroundColor(.primary)
-                            .textCase(.none)
+                            .font(.headline)
+                            .foregroundStyle(.primary)
+                            .textCase(nil)
                     }
 
-                    // 操作按钮section
                     Section {
                         VStack(spacing: 12) {
-                            // 更新按钮
-                            Button(action: {
-                                updateManager.startUpdate()
-                            }) {
-                                Text(NSLocalizedString("SDE_Update", comment: "更新"))
-                                    .font(.system(size: 16, weight: .medium))
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 44)
-                            }
-                            .buttonStyle(.borderedProminent)
+                            if sdeUpToDate && iconsUpToDate {
+                                Button {
+                                    dismiss()
+                                } label: {
+                                    Text(NSLocalizedString("SDE_Done", comment: ""))
+                                        .font(.system(size: 16, weight: .medium))
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 44)
+                                }
+                                .buttonStyle(.borderedProminent)
+                            } else {
+                                Button {
+                                    updateManager.startUpdate()
+                                } label: {
+                                    Text(NSLocalizedString("SDE_Update", comment: "更新"))
+                                        .font(.system(size: 16, weight: .medium))
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 44)
+                                }
+                                .buttonStyle(.borderedProminent)
 
-                            // 退出按钮
-                            Button(action: {
-                                dismiss()
-                            }) {
-                                Text(NSLocalizedString("SDE_Exit", comment: "退出"))
-                                    .font(.system(size: 16, weight: .medium))
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 44)
+                                Button {
+                                    dismiss()
+                                } label: {
+                                    Text(NSLocalizedString("SDE_Exit", comment: "退出"))
+                                        .font(.system(size: 16, weight: .medium))
+                                        .frame(maxWidth: .infinity)
+                                        .frame(height: 44)
+                                }
+                                .buttonStyle(.bordered)
                             }
-                            .buttonStyle(.bordered)
                         }
                         .padding(.vertical, 8)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        .listRowBackground(Color.clear)
                     }
                 }
                 .listStyle(.insetGrouped)
@@ -1332,7 +1334,7 @@ struct TokenScopesListView: View {
                     }
                 }
             }
-            .navigationTitle(NSLocalizedString("Main_Setting_View_Token_Scopes", comment: "查看 token scopes"))
+            .navigationTitle(NSLocalizedString("Main_Setting_View_Token_Scopes", comment: "查看 Token scopes"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
@@ -1485,5 +1487,213 @@ struct TokenScopesDetailView: View {
                 self.isLoading = false
             }
         }
+    }
+}
+
+// MARK: - Token 查看视图
+
+struct TokenViewerView: View {
+    @State private var characters: [CharacterAuth] = []
+    @State private var characterPortraits: [Int: UIImage] = [:]
+    @State private var refreshTokens: [Int: String] = [:]
+    @State private var accessTokens: [Int: String] = [:]
+    @State private var isLoading = true
+    @State private var forceExpireCharacterId: Int?
+
+    var body: some View {
+        Group {
+            if isLoading {
+                ProgressView()
+            } else if characters.isEmpty {
+                ContentUnavailableView {
+                    Label(
+                        NSLocalizedString("Misc_No_Data", comment: "无数据"),
+                        systemImage: "person.slash"
+                    )
+                }
+            } else {
+                List {
+                    ForEach(characters, id: \.character.CharacterID) { characterAuth in
+                        let characterId = characterAuth.character.CharacterID
+                        TokenViewerRow(
+                            characterAuth: characterAuth,
+                            portrait: characterPortraits[characterId],
+                            refreshToken: refreshTokens[characterId],
+                            accessToken: accessTokens[characterId],
+                            onForceExpire: { forceExpireCharacterId = characterId }
+                        )
+                    }
+                }
+            }
+        }
+        .navigationTitle(NSLocalizedString("Main_Setting_View_Token", comment: "查看 Token"))
+        .navigationBarTitleDisplayMode(.inline)
+        .task { await loadData() }
+        .alert(
+            NSLocalizedString("Token_Viewer_Force_Expire", comment: "强制过期"),
+            isPresented: .init(
+                get: { forceExpireCharacterId != nil },
+                set: { if !$0 { forceExpireCharacterId = nil } }
+            )
+        ) {
+            Button(NSLocalizedString("Common_Cancel", comment: "取消"), role: .cancel) {
+                forceExpireCharacterId = nil
+            }
+            Button(NSLocalizedString("Token_Viewer_Force_Expire", comment: "强制过期"), role: .destructive) {
+                if let characterId = forceExpireCharacterId {
+                    Task { await forceExpire(characterId: characterId) }
+                }
+                forceExpireCharacterId = nil
+            }
+        } message: {
+            Text(NSLocalizedString("Token_Viewer_Force_Expire_Confirm", comment: ""))
+        }
+    }
+
+    private func loadData() async {
+        isLoading = true
+        let allCharacters = EVELogin.shared.loadCharacters()
+        await MainActor.run { characters = allCharacters }
+
+        for characterAuth in allCharacters {
+            let characterId = characterAuth.character.CharacterID
+            // 加载头像
+            do {
+                let portrait = try await CharacterAPI.shared.fetchCharacterPortrait(
+                    characterId: characterId,
+                    catchImage: false
+                )
+                await MainActor.run { characterPortraits[characterId] = portrait }
+            } catch {
+                Logger.error("加载人物头像失败 (ID: \(characterId)): \(error)")
+            }
+            // 读取 refresh token（Keychain）
+            let refreshToken = try? SecureStorage.shared.loadToken(for: characterId)
+            // 读取 access token（内存缓存，不触发刷新）
+            let accessToken = await AuthTokenManager.shared.getCachedAccessToken(for: characterId)
+            await MainActor.run {
+                if let rt = refreshToken { refreshTokens[characterId] = rt }
+                if let at = accessToken { accessTokens[characterId] = at }
+            }
+        }
+
+        await MainActor.run { isLoading = false }
+    }
+
+    private func forceExpire(characterId: Int) async {
+        // 清除 access token（内存）和 refresh token（Keychain）
+        await AuthTokenManager.shared.clearAllTokens(for: characterId)
+        // 标记为过期（触发 CharacterDetailsUpdated 通知，UI 自动更新）
+        EVELogin.shared.updateCharacterRefreshTokenExpiredStatus(characterId: characterId, expired: true)
+        // 刷新本地数据
+        await MainActor.run {
+            refreshTokens.removeValue(forKey: characterId)
+            accessTokens.removeValue(forKey: characterId)
+            if let index = characters.firstIndex(where: { $0.character.CharacterID == characterId }) {
+                var updated = characters[index]
+                updated.character.refreshTokenExpired = true
+                characters[index] = updated
+            }
+        }
+        Logger.info("已强制过期角色 \(characterId) 的 token")
+    }
+}
+
+private struct TokenViewerRow: View {
+    let characterAuth: CharacterAuth
+    let portrait: UIImage?
+    let refreshToken: String?
+    let accessToken: String?
+    let onForceExpire: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            // 头像
+            if let portrait = portrait {
+                Image(uiImage: portrait)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 44, height: 44)
+                    .clipShape(Circle())
+            } else {
+                Image("default_char")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 44, height: 44)
+                    .clipShape(Circle())
+            }
+
+            // 信息
+            VStack(alignment: .leading, spacing: 4) {
+                // 第一行：人物名 + 过期标记
+                HStack(spacing: 6) {
+                    Text(characterAuth.character.CharacterName)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.primary)
+                    if characterAuth.character.refreshTokenExpired {
+                        Text(NSLocalizedString("Token_Viewer_Expired_Tag", comment: "已过期"))
+                            .font(.caption2)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Color.red))
+                    }
+                }
+
+                // 第二行：refresh token
+                tokenRow(label: "Refresh", token: refreshToken)
+
+                // 第三行：access token
+                tokenRow(label: "Access", token: accessToken)
+            }
+
+            Spacer()
+        }
+        .padding(.vertical, 4)
+        .contextMenu {
+            Button(role: .destructive) {
+                onForceExpire()
+            } label: {
+                Label(
+                    NSLocalizedString("Token_Viewer_Force_Expire", comment: "强制过期"),
+                    systemImage: "xmark.octagon"
+                )
+            }
+        }
+        .swipeActions(edge: .trailing) {
+            Button(role: .destructive) {
+                onForceExpire()
+            } label: {
+                Label(
+                    NSLocalizedString("Token_Viewer_Force_Expire", comment: "强制过期"),
+                    systemImage: "xmark.octagon"
+                )
+            }
+        }
+    }
+
+    private func tokenRow(label: String, token: String?) -> some View {
+        HStack(spacing: 6) {
+            Text(label)
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundColor(.secondary)
+            Text(maskToken(token))
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundColor(.secondary)
+                .textSelection(.enabled)
+        }
+    }
+
+    /// 首位各 8 个字符，中间 8 个星号；token 过短则全遮罩
+    private func maskToken(_ token: String?) -> String {
+        guard let token = token, !token.isEmpty else {
+            return NSLocalizedString("Token_Viewer_No_Token", comment: "无")
+        }
+        guard token.count > 16 else {
+            return String(repeating: "*", count: token.count)
+        }
+        let prefix = token.prefix(8)
+        let suffix = token.suffix(8)
+        return "\(prefix)********\(suffix)"
     }
 }

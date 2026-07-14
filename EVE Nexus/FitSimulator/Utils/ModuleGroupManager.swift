@@ -74,7 +74,8 @@ class ModuleGroupManager {
             - maxGroupActive: \(maxGroupActive)
             - 当前在线数量: \(statusCount.onlineCount)
             - 当前激活数量: \(statusCount.activeCount)
-            """)
+            """
+        )
 
         // 检查激活状态限制
         if maxGroupActive > 0 && adjustedStatus >= 2 {
@@ -130,7 +131,8 @@ class ModuleGroupManager {
             - 当前在线数量: \(statusCount.onlineCount)
             - 当前激活数量: \(statusCount.activeCount)
             - 排除槽位: \(excludeFlags.map { $0.rawValue })
-            """)
+            """
+        )
 
         // 处理在线状态限制
         if maxGroupOnline > 0, statusCount.onlineCount > maxGroupOnline {
@@ -158,13 +160,15 @@ class ModuleGroupManager {
                         name: module.name,
                         iconFileName: module.iconFileName,
                         requiredSkills: FitConvert.extractRequiredSkills(
-                            attributes: module.attributes),
+                            attributes: module.attributes
+                        ),
                         isSpoolUpFull: module.isSpoolUpFull
                     )
                     modules[moduleIndex] = updatedModule
                     modifiedIndices.append(moduleIndex)
                     Logger.info(
-                        "将同组装备[\(module.name)]从状态\(module.status)降级到离线(0)")
+                        "将同组装备[\(module.name)]从状态\(module.status)降级到离线(0)"
+                    )
                     downgraded += 1
                 }
             }
@@ -199,13 +203,15 @@ class ModuleGroupManager {
                         name: module.name,
                         iconFileName: module.iconFileName,
                         requiredSkills: FitConvert.extractRequiredSkills(
-                            attributes: module.attributes),
+                            attributes: module.attributes
+                        ),
                         isSpoolUpFull: module.isSpoolUpFull
                     )
                     modules[moduleIndex] = updatedModule
                     modifiedIndices.append(moduleIndex)
                     Logger.info(
-                        "将同组装备[\(module.name)]从状态\(module.status)降级到在线(1)")
+                        "将同组装备[\(module.name)]从状态\(module.status)降级到在线(1)"
+                    )
                     downgraded += 1
                 }
             }

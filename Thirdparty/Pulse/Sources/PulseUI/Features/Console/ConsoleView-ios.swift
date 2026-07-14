@@ -46,7 +46,7 @@ public struct ConsoleView: View {
             .injecting(environment)
     }
 
-    /// Changes the default close button visibility.
+    // Changes the default close button visibility.
     public func closeButtonHidden(_ isHidden: Bool = true) -> ConsoleView {
         var copy = self
         copy.isCloseButtonHidden = isHidden

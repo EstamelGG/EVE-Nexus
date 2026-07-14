@@ -2,7 +2,9 @@ import SwiftUI
 
 private struct KMVictimShipSheetItem: Identifiable {
     let typeId: Int
-    var id: Int { typeId }
+    var id: Int {
+        typeId
+    }
 }
 
 struct BRKillMailDetailView: View {
@@ -20,29 +22,29 @@ struct BRKillMailDetailView: View {
     @State private var droppedValue: Double = 0
     @State private var totalValue: Double = 0
     @State private var fittedValue: Double = 0
-    @State private var itemInfoCache: [Int: (name: String, iconFileName: String, categoryID: Int)] =
+    @State private var itemInfoCache: [Int: (iconFileName: String, bpcIconFileName: String, categoryID: Int)] =
         [:]
     @State private var solarSystemInfo: SolarSystemInfo?
     @State private var zkbInfoFromAPI: ZKBInfo? // 存储从 API 获取的 zkb 信息
     /// 详情列表中各 type 的单价（EIV average）；未写入前 `ItemRow` 显示加载指示器
     @State private var kmMarketUnitPriceByType: [Int: Double] = [:]
-    /// 每次开始加载详情时递增，用于丢弃上一轮未完成的价格写入
+    // 每次开始加载详情时递增，用于丢弃上一轮未完成的价格写入
     @State private var kmMarketPriceSession: Int = 0
     @State private var showZkbLinkCopiedAlert = false
     @State private var victimShipDetailSheetItem: KMVictimShipSheetItem?
 
-    // 监听屏幕方向变化
+    /// 监听屏幕方向变化
     @State private var orientation = UIDevice.current.orientation
 
-    // 布局状态标识符（用于判断是否需要重新渲染视图）
+    /// 布局状态标识符（用于判断是否需要重新渲染视图）
     @State private var layoutMode: LayoutMode = DeviceUtils.currentLayoutMode
 
-    // 判断是否应该使用紧凑布局（横屏或iPad）
+    /// 判断是否应该使用紧凑布局（横屏或iPad）
     private var shouldUseCompactLayout: Bool {
         DeviceUtils.shouldUseCompactLayout
     }
 
-    // 导航辅助方法
+    /// 导航辅助方法
     @ViewBuilder
     private func navigationDestination(for id: Int, type: String) -> some View {
         if let character = character {
@@ -56,8 +58,6 @@ struct BRKillMailDetailView: View {
             default:
                 EmptyView()
             }
-        } else {
-            EmptyView()
         }
     }
 
@@ -202,7 +202,7 @@ struct BRKillMailDetailView: View {
 
     // MARK: - 布局视图函数
 
-    // 紧凑布局（横屏或iPad）
+    /// 紧凑布局（横屏或iPad）
     @ViewBuilder
     private func compactLayout(detail: KillMailDetailData) -> some View {
         // 第一行：左侧装配视图 + 右侧基本信息
@@ -248,7 +248,6 @@ struct BRKillMailDetailView: View {
         basicInfoRows(detailData: detail)
     }
 
-    @ViewBuilder
     private func basicInfoList(detailData: KillMailDetailData) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             victimInfoCompact(detailData: detailData)
@@ -362,8 +361,7 @@ struct BRKillMailDetailView: View {
         }
     }
 
-    // 舰船信息行
-    @ViewBuilder
+    /// 舰船信息行
     private func shipInfoRow(shipId: Int) -> some View {
         HStack(spacing: 8) {
             Text(NSLocalizedString("Main_KM_Ship", comment: ""))
@@ -393,7 +391,6 @@ struct BRKillMailDetailView: View {
         }
     }
 
-    @ViewBuilder
     private func victimShipDetailInlineButton(shipTypeId: Int) -> some View {
         Button {
             victimShipDetailSheetItem = KMVictimShipSheetItem(typeId: shipTypeId)
@@ -407,7 +404,6 @@ struct BRKillMailDetailView: View {
         .accessibilityLabel(Text(NSLocalizedString("View Ship", comment: "")))
     }
 
-    @ViewBuilder
     private func systemInfoRowCompact(systemName: String, regionName: String, security: Double) -> some View {
         HStack(spacing: 8) {
             Text(NSLocalizedString("Main_KM_System", comment: ""))
@@ -432,8 +428,7 @@ struct BRKillMailDetailView: View {
         }
     }
 
-    // 本地时间行
-    @ViewBuilder
+    /// 本地时间行
     private func localTimeRow(time: Int) -> some View {
         HStack(spacing: 8) {
             Text(NSLocalizedString("Main_KM_Local_Time", comment: ""))
@@ -447,15 +442,14 @@ struct BRKillMailDetailView: View {
         }
     }
 
-    // 伤害量行
-    @ViewBuilder
+    /// 伤害量行
     private func DamageRow(dmg: Int) -> some View {
         HStack(spacing: 8) {
             Text(NSLocalizedString("Main_KM_Damage", comment: ""))
                 .font(.caption)
                 .foregroundColor(.secondary)
                 .frame(width: 60, alignment: .leading)
-            Text(formatNumber(dmg))
+            Text(FormatUtil.formatInteger(dmg))
                 .font(.caption)
                 .fontDesign(.monospaced)
                 .fontWeight(.semibold)
@@ -463,8 +457,7 @@ struct BRKillMailDetailView: View {
         }
     }
 
-    // 总价值行
-    @ViewBuilder
+    /// 总价值行
     private func TotalRow(total: Double) -> some View {
         HStack(spacing: 8) {
             Text(NSLocalizedString("Main_KM_Total", comment: ""))
@@ -479,7 +472,7 @@ struct BRKillMailDetailView: View {
         }
     }
 
-    // 伤害和价值信息列表
+    /// 伤害和价值信息列表
     @ViewBuilder
     private func KmValueList() -> some View {
         // 摧毁价值
@@ -667,7 +660,7 @@ struct BRKillMailDetailView: View {
         HStack {
             Text(NSLocalizedString("Main_KM_Damage", comment: ""))
                 .frame(width: 110, alignment: .leading)
-            Text(formatNumber(detailData.esi.victim.damage_taken))
+            Text(FormatUtil.formatInteger(detailData.esi.victim.damage_taken))
                 .foregroundColor(.secondary)
                 .font(.system(.body, design: .monospaced))
         }
@@ -721,17 +714,20 @@ struct BRKillMailDetailView: View {
         item.count > 5 ? item[5] : 0
     }
 
-    @ViewBuilder
     private func killMailLegacyItemRows(_ items: [[Int]]) -> some View {
         ForEach(items, id: \.self) { item in
             let typeId = item[1]
             let depth = itemDepth(item)
+            let singleton = item.count > 4 ? item[4] : 0
+            let flag = item[0]
             if item[2] > 0 {
                 ItemRow(
                     typeId: typeId, quantity: item[2], isDropped: true,
                     itemInfoCache: itemInfoCache,
                     resolvedUnitPrice: kmMarketUnitPriceByType[typeId],
-                    depth: depth
+                    depth: depth,
+                    singleton: singleton,
+                    flag: flag
                 )
             }
             if item[3] > 0 {
@@ -739,13 +735,14 @@ struct BRKillMailDetailView: View {
                     typeId: typeId, quantity: item[3], isDropped: false,
                     itemInfoCache: itemInfoCache,
                     resolvedUnitPrice: kmMarketUnitPriceByType[typeId],
-                    depth: depth
+                    depth: depth,
+                    singleton: singleton,
+                    flag: flag
                 )
             }
         }
     }
 
-    @ViewBuilder
     private func killMailDisplayItemRows(_ rows: [KillMailDisplayRow]) -> some View {
         ForEach(rows) { row in
             if row.quantityDropped > 0 {
@@ -753,7 +750,9 @@ struct BRKillMailDetailView: View {
                     typeId: row.typeId, quantity: row.quantityDropped, isDropped: true,
                     itemInfoCache: itemInfoCache,
                     resolvedUnitPrice: kmMarketUnitPriceByType[row.typeId],
-                    depth: row.depth
+                    depth: row.depth,
+                    singleton: row.singleton,
+                    flag: row.flag
                 )
             }
             if row.quantityDestroyed > 0 {
@@ -761,7 +760,9 @@ struct BRKillMailDetailView: View {
                     typeId: row.typeId, quantity: row.quantityDestroyed, isDropped: false,
                     itemInfoCache: itemInfoCache,
                     resolvedUnitPrice: kmMarketUnitPriceByType[row.typeId],
-                    depth: row.depth
+                    depth: row.depth,
+                    singleton: row.singleton,
+                    flag: row.flag
                 )
             }
         }
@@ -891,7 +892,7 @@ struct BRKillMailDetailView: View {
 
     // MARK: - 方向变化通知处理
 
-    // 设置方向变化通知
+    /// 设置方向变化通知
     private func setupOrientationNotification() {
         NotificationCenter.default.addObserver(
             forName: UIDevice.orientationDidChangeNotification,
@@ -909,7 +910,7 @@ struct BRKillMailDetailView: View {
         }
     }
 
-    // 移除方向变化通知
+    /// 移除方向变化通知
     private func removeOrientationNotification() {
         NotificationCenter.default.removeObserver(
             self,
@@ -1051,21 +1052,19 @@ struct BRKillMailDetailView: View {
     }
 
     private func getShipName(_ shipId: Int) -> (name: String, groupName: String) {
-        let query = """
-            SELECT name, group_name
-            FROM types t 
-            WHERE type_id = ?
-        """
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            query, parameters: [shipId]
-        ),
-            let row = rows.first,
-            let name = row["name"] as? String,
-            let groupName = row["group_name"] as? String
-        {
-            return (name, groupName)
+        guard let type = ItemInfoMap.typeInfo(for: shipId), !type.name.isEmpty else {
+            return ("Unknown Ship", "Unknown Group")
         }
-        return ("Unknown Ship", "Unknown Group")
+        let groupName: String
+        if let groupID = type.groupID,
+           let group = SDEMemoryStore.group(for: groupID),
+           !group.name.isEmpty
+        {
+            groupName = group.name
+        } else {
+            groupName = "Unknown Group"
+        }
+        return (type.name, groupName)
     }
 
     private func formatSecurityStatus(_ value: Double) -> String {
@@ -1079,13 +1078,6 @@ struct BRKillMailDetailView: View {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = TimeZone.current
         return formatter.string(from: date)
-    }
-
-    private func formatNumber(_ number: Int) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.groupingSeparator = ","
-        return formatter.string(from: NSNumber(value: number)) ?? "\(number)"
     }
 
     private func zkillboardKillPageURLString(killId: Int) -> String {
@@ -1109,45 +1101,58 @@ struct BRKillMailDetailView: View {
             typeIds.insert(typeId)
         }
 
-        // 一次性查询所有物品信息
-        let placeholders = String(repeating: "?,", count: typeIds.count).dropLast()
-        let query = """
-            SELECT type_id, name, icon_filename, categoryID
-            FROM types
-            WHERE type_id IN (\(placeholders))
-        """
-
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            query, parameters: Array(typeIds)
-        ) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let iconFileName = row["icon_filename"] as? String,
-                   let categoryID = row["categoryID"] as? Int
-                {
-                    itemInfoCache[typeId] = (name, iconFileName, categoryID)
-                }
-            }
+        for typeId in typeIds {
+            guard let info = SDEMemoryStore.type(for: typeId) else { continue }
+            itemInfoCache[typeId] = (
+                info.iconFilename,
+                info.bpcIconFilename ?? "",
+                info.categoryID
+            )
         }
     }
 }
 
-// 修改 ItemRow 视图
+/// 修改 ItemRow 视图
 struct ItemRow: View {
     let typeId: Int
     let quantity: Int
     let isDropped: Bool // 是否为掉落物品
-    let itemInfoCache: [Int: (name: String, iconFileName: String, categoryID: Int)]
+    let itemInfoCache: [Int: (iconFileName: String, bpcIconFileName: String, categoryID: Int)]
     /// 已解析的单价；`nil` 表示价格仍在加载，显示占位指示器
     let resolvedUnitPrice: Double?
     /// 嵌套深度（0=顶层，>0 为容器内容物，用于左侧缩进）
     var depth: Int = 0
+    /// ESI singleton 字段（0=BPO/可堆叠，非0=BPC/单件）
+    var singleton: Int = 0
+    /// 物品所在舱位 flag（5=船舱/Cargo）
+    var flag: Int = 0
 
-    private var nestedIndent: CGFloat { CGFloat(depth) * 16 }
+    private var nestedIndent: CGFloat {
+        CGFloat(depth) * 16
+    }
+
+    /// 判断是否为蓝图复制品（BPC）：位于船舱 + 蓝图类别 + singleton 非 0
+    private var isBPC: Bool {
+        flag == 5 && itemInfoCache[typeId]?.categoryID == 9 && singleton != 0
+    }
+
+    /// BPC 单价统一为 0.01 ISK
+    private var effectiveUnitPrice: Double? {
+        if isBPC { return 0.01 }
+        return resolvedUnitPrice
+    }
+
+    /// 当前应显示的图标文件名（BPC 使用 bpc_icon_filename，无则回退到普通图标）
+    private var iconFileName: String {
+        guard let info = itemInfoCache[typeId] else { return "" }
+        if isBPC && !info.bpcIconFileName.isEmpty {
+            return info.bpcIconFileName
+        }
+        return info.iconFileName
+    }
 
     var body: some View {
-        if let itemInfo = itemInfoCache[typeId] {
+        if itemInfoCache[typeId] != nil {
             NavigationLink(destination: {
                 ItemInfoMap.getItemInfoView(
                     itemID: typeId,
@@ -1158,13 +1163,13 @@ struct ItemRow: View {
                     if nestedIndent > 0 {
                         Color.clear.frame(width: nestedIndent, height: 1)
                     }
-                    Image(uiImage: IconManager.shared.loadUIImage(for: itemInfo.iconFileName))
+                    Image(uiImage: IconManager.shared.loadUIImage(for: iconFileName))
                         .resizable()
                         .frame(width: 32, height: 32)
                         .cornerRadius(6)
 
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(itemInfo.name)
+                        Text(SDEMemoryStore.type(for: typeId)?.name ?? "Type \(typeId)")
                         priceCaptionLine
                     }
 
@@ -1208,7 +1213,7 @@ struct ItemRow: View {
 
     @ViewBuilder
     private var priceCaptionLine: some View {
-        if let unit = resolvedUnitPrice {
+        if let unit = effectiveUnitPrice {
             Text(FormatUtil.formatISK(unit * Double(quantity)))
                 .font(.caption)
                 .foregroundColor(.secondary)
@@ -1355,10 +1360,21 @@ struct KillMailAttackersView: View {
     }
 
     /// 应用搜索过滤后的列表
-    private var filteredMyAttackers: [ESIAttacker] { myAttackers.filter(attackerMatchesSearch) }
-    private var filteredFinalBlowAttackers: [ESIAttacker] { finalBlowAttackers.filter(attackerMatchesSearch) }
-    private var filteredMostDamageAttackers: [ESIAttacker] { mostDamageAttackers.filter(attackerMatchesSearch) }
-    private var filteredAllAttackers: [ESIAttacker] { allAttackers.filter(attackerMatchesSearch) }
+    private var filteredMyAttackers: [ESIAttacker] {
+        myAttackers.filter(attackerMatchesSearch)
+    }
+
+    private var filteredFinalBlowAttackers: [ESIAttacker] {
+        finalBlowAttackers.filter(attackerMatchesSearch)
+    }
+
+    private var filteredMostDamageAttackers: [ESIAttacker] {
+        mostDamageAttackers.filter(attackerMatchesSearch)
+    }
+
+    private var filteredAllAttackers: [ESIAttacker] {
+        allAttackers.filter(attackerMatchesSearch)
+    }
 
     private var totalDamageDone: Int {
         detailData.attackers.reduce(0) { $0 + $1.damage_done }
@@ -1469,7 +1485,7 @@ struct KillMailAttackersView: View {
 
 private struct AttackerRowView: View {
     let attacker: ESIAttacker
-    /// 角色/军团/联盟 id → 名称（含详情预取 + 参与者页补充）
+    // 角色/军团/联盟 id → 名称（含详情预取 + 参与者页补充）
     let entityNameMap: [Int: String]
     let totalDamageDone: Int
     let character: EVECharacterInfo?
@@ -1633,16 +1649,8 @@ private struct AttackerRowView: View {
         }
     }
 
-    /// 从数据库查询 type_id 对应的 name
+    /// 从内存索引查询 type_id 对应的 name
     private static func queryTypeName(typeId: Int) -> String? {
-        let query = "SELECT name FROM types WHERE type_id = ?"
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(query, parameters: [typeId]),
-           let row = rows.first,
-           let name = row["name"] as? String,
-           !name.isEmpty
-        {
-            return name
-        }
-        return nil
+        ItemInfoMap.typeName(for: typeId)
     }
 }

@@ -39,7 +39,7 @@ class CorporationContractsAPI {
         return try decoder.decode([ContractItemInfo].self, from: data)
     }
 
-    // 更新最后查询时间
+    /// 更新最后查询时间
     private func updateLastQueryTime(corporationId: Int, isItems: Bool = false) {
         let key =
             isItems
@@ -48,7 +48,7 @@ class CorporationContractsAPI {
         UserDefaults.standard.set(Date(), forKey: key)
     }
 
-    // 从服务器获取合同列表
+    /// 从服务器获取合同列表
     private func fetchContractsFromServer(
         corporationId: Int, characterId: Int, progressCallback: ((Int) -> Void)? = nil
     ) async throws -> [ContractInfo] {
@@ -89,7 +89,7 @@ class CorporationContractsAPI {
         return contracts
     }
 
-    // 从数据库获取合同列表
+    /// 从数据库获取合同列表
     private func getContractsFromDB(corporationId: Int) async -> [ContractInfo]? {
         let query = """
             SELECT contract_id, acceptor_id, assignee_id, availability,
@@ -243,13 +243,13 @@ class CorporationContractsAPI {
         return nil
     }
 
-    // 合同过滤模式枚举
+    /// 合同过滤模式枚举
     enum ContractFilterMode {
         case assignee // 过滤指定给自己公司的合同
         case issuer // 过滤自己公司发起的合同
     }
 
-    // 保存合同列表到数据库
+    /// 保存合同列表到数据库
     private func saveContractsToDB(corporationId: Int, contracts: [ContractInfo], filterMode: ContractFilterMode = .assignee) -> Bool {
         // 如果没有合同需要保存，直接返回成功
         if contracts.isEmpty {
@@ -282,7 +282,8 @@ class CorporationContractsAPI {
         }
 
         Logger.debug(
-            "过滤后需要保存的合同数量: \(filteredContracts.count) / \(contracts.count) (\(filterDescription))")
+            "过滤后需要保存的合同数量: \(filteredContracts.count) / \(contracts.count) (\(filterDescription))"
+        )
 
         // 获取已存在的合同ID和状态
         let checkQuery =
@@ -443,7 +444,7 @@ class CorporationContractsAPI {
         }
     }
 
-    // 从数据库获取合同物品
+    /// 从数据库获取合同物品
     private func getContractItemsFromDB(corporationId _: Int, contractId: Int)
         -> [ContractItemInfo]?
     {
@@ -512,7 +513,7 @@ class CorporationContractsAPI {
         return nil
     }
 
-    // 保存合同物品到数据库
+    /// 保存合同物品到数据库
     private func saveContractItemsToDB(
         corporationId _: Int, contractId: Int, items: [ContractItemInfo]
     ) -> Bool {
@@ -596,14 +597,15 @@ class CorporationContractsAPI {
         }
     }
 
-    // 获取合同列表（公开方法）
+    /// 获取合同列表（公开方法）
     func fetchContracts(
         characterId: Int, forceRefresh: Bool = false, progressCallback: ((Int) -> Void)? = nil
     ) async throws -> [ContractInfo] {
         // 1. 获取角色的军团ID
         guard
             let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(
-                characterId: characterId)
+                characterId: characterId
+            )
         else {
             throw NetworkError.authenticationError("无法获取军团ID")
         }
@@ -651,7 +653,7 @@ class CorporationContractsAPI {
         return []
     }
 
-    // 从数据库获取军团发起的合同列表
+    /// 从数据库获取军团发起的合同列表
     private func getMyCorpContractsFromDB(corporationId: Int) async -> [ContractInfo]? {
         let query = """
             SELECT contract_id, acceptor_id, assignee_id, availability,
@@ -798,14 +800,15 @@ class CorporationContractsAPI {
         return nil
     }
 
-    // 获取军团发起的合同列表（公开方法）
+    /// 获取军团发起的合同列表（公开方法）
     func fetchMyCorpContracts(
         characterId: Int, forceRefresh: Bool = false, progressCallback: ((Int) -> Void)? = nil
     ) async throws -> [ContractInfo] {
         // 1. 获取角色的军团ID
         guard
             let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(
-                characterId: characterId)
+                characterId: characterId
+            )
         else {
             throw NetworkError.authenticationError("无法获取军团ID")
         }
@@ -853,7 +856,7 @@ class CorporationContractsAPI {
         return []
     }
 
-    // 获取合同物品（公开方法）
+    /// 获取合同物品（公开方法）
     func fetchContractItems(characterId: Int, contractId: Int) async throws
         -> [ContractItemInfo]
     {
@@ -862,7 +865,8 @@ class CorporationContractsAPI {
         // 获取角色的军团ID
         guard
             let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(
-                characterId: characterId)
+                characterId: characterId
+            )
         else {
             throw NetworkError.authenticationError("无法获取军团ID")
         }

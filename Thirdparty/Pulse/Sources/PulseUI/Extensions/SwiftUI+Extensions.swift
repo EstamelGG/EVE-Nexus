@@ -63,7 +63,7 @@ extension View {
     }
 }
 
-/// Allows you to use `@StateObject` only for memory management (without observing).
+// Allows you to use `@StateObject` only for memory management (without observing).
 package final class IgnoringUpdates<T>: ObservableObject {
     package var value: T
     package init(_ value: T) { self.value = value }

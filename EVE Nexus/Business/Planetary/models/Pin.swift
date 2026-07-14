@@ -245,12 +245,12 @@ struct Type: Hashable {
     let name: String
     let volume: Double
 
-    // 实现Hashable协议
+    /// 实现Hashable协议
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
     }
 
-    // 实现Equatable协议（Hashable继承自Equatable）
+    /// 实现Equatable协议（Hashable继承自Equatable）
     static func == (lhs: Type, rhs: Type) -> Bool {
         return lhs.id == rhs.id
     }

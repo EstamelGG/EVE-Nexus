@@ -133,7 +133,7 @@ struct ShipResistancesStatsView: View {
         }
     }
 
-    // 获取护盾抗性
+    /// 获取护盾抗性
     private func getShieldResistances(ship: SimShipOutput) -> (
         em: Double, thermal: Double, kinetic: Double, explosive: Double
     ) {
@@ -152,7 +152,7 @@ struct ShipResistancesStatsView: View {
         )
     }
 
-    // 获取装甲抗性
+    /// 获取装甲抗性
     private func getArmorResistances(ship: SimShipOutput) -> (
         em: Double, thermal: Double, kinetic: Double, explosive: Double
     ) {
@@ -169,7 +169,7 @@ struct ShipResistancesStatsView: View {
         )
     }
 
-    // 获取结构抗性
+    /// 获取结构抗性
     private func getHullResistances(ship: SimShipOutput) -> (
         em: Double, thermal: Double, kinetic: Double, explosive: Double
     ) {
@@ -186,7 +186,7 @@ struct ShipResistancesStatsView: View {
         )
     }
 
-    // 计算总HP（盾+甲+结构）
+    /// 计算总HP（盾+甲+结构）
     private func calculateTotalHP(ship: SimShipOutput) -> Double {
         let shieldHP = ship.attributesByName["shieldCapacity"] ?? 0
         let armorHP = ship.attributesByName["armorHP"] ?? 0
@@ -195,7 +195,7 @@ struct ShipResistancesStatsView: View {
         return shieldHP + armorHP + hullHP
     }
 
-    // 计算有效血量
+    /// 计算有效血量
     private func calculateEHP(ship: SimShipOutput) -> Double {
         let shieldHP = ship.attributesByName["shieldCapacity"] ?? 0
         let armorHP = ship.attributesByName["armorHP"] ?? 0
@@ -223,7 +223,7 @@ struct ShipResistancesStatsView: View {
         return shieldEHP + armorEHP + hullEHP
     }
 
-    // 格式化HP数值：大于100,000时才使用k单位，使用FormatUtil的uiFormatter
+    /// 格式化HP数值：大于100,000时才使用k单位，使用FormatUtil的uiFormatter
     private func formatHP(_ value: Double) -> String {
         // 创建一个临时的NumberFormatter，基于FormatUtil的uiFormatter配置
         let formatter = NumberFormatter()
@@ -262,7 +262,7 @@ struct ShipResistancesStatsView: View {
     }
 }
 
-// 抗性视图组件
+/// 抗性视图组件
 struct ResistanceView: View {
     let resistance: Double
     let color: Color

@@ -1,7 +1,9 @@
 import SwiftUI
 
 struct WealthPieSlice: Identifiable {
-    var id: String { type.rawValue } // 使用 type 的 rawValue 作为稳定的 ID
+    var id: String {
+        type.rawValue
+    } // 使用 type 的 rawValue 作为稳定的 ID
     let type: WealthType
     let value: Double
     let percentage: Double
@@ -125,10 +127,18 @@ struct PieSliceView: View {
     let slice: WealthPieSlice
     let size: CGFloat
 
-    // 内圆半径比例，设置为外圆半径的40%，形成圆环
-    private var innerRadiusRatio: CGFloat { 0.4 }
-    private var outerRadius: CGFloat { size / 2 }
-    private var innerRadius: CGFloat { outerRadius * innerRadiusRatio }
+    /// 内圆半径比例，设置为外圆半径的40%，形成圆环
+    private var innerRadiusRatio: CGFloat {
+        0.4
+    }
+
+    private var outerRadius: CGFloat {
+        size / 2
+    }
+
+    private var innerRadius: CGFloat {
+        outerRadius * innerRadiusRatio
+    }
 
     var path: Path {
         var path = Path()

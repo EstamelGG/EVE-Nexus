@@ -1,10 +1,9 @@
-//
+
 //  ThemeColorExtractor.swift
 //  EVE Nexus
-//
+
 //  Created on 2025/01/XX.
 //  主题色提取工具，用于从图像中计算主要颜色
-//
 
 import SwiftUI
 import UIKit

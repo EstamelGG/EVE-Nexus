@@ -42,9 +42,8 @@ extension MockTask {
 
     package static var allTasks: [MockTask] = [.login, .profile, .repos, .octocat, .downloadNuke, .createAPI, .uploadPulseArchive, .patchRepo]
 
-    /// A successful request the demonstrates:
-    ///
-    /// - Query parameters in URL
+    // A successful request the demonstrates:
+    //     // - Query parameters in URL
     package static let login = MockTask(
         originalRequest: mockLoginOriginalRequest,
         response: mockLoginResponse,
@@ -55,9 +54,8 @@ extension MockTask {
         delay: 0.4
     )
 
-    /// A failing request:
-    ///
-    /// - HTTP status code (404) that doesn't pass validation
+    // A failing request:
+    //     // - HTTP status code (404) that doesn't pass validation
     package static let profile = MockTask(
         originalRequest: mockProfileOriginalRequest,
         response: mockProfileFailureResponse,
@@ -68,9 +66,8 @@ extension MockTask {
         delay: 2.0
     )
 
-    /// A successful request that demonstrates:
-    ///
-    /// - Large response body to check FileViewer performance
+    // A successful request that demonstrates:
+    //     // - Large response body to check FileViewer performance
     package static let repos = MockTask(
         originalRequest: mockReposOriginalRequest,
         response: mockReposResponse,
@@ -81,10 +78,9 @@ extension MockTask {
         delay: 2.0
     )
 
-    /// A successful response:
-    ///
-    /// - Image in the response with a respective "Content-Type"
-    /// - Local cache lookup with further validation (302)
+    // A successful response:
+    //     // - Image in the response with a respective "Content-Type"
+    // - Local cache lookup with further validation (302)
     package static let octocat = MockTask(
         originalRequest: mockOctocatOriginalRequest,
         response: mockOctocatResponse,
@@ -132,10 +128,9 @@ extension MockTask {
         delay: 5.5
     )
 
-    /// A failing request:
-    ///
-    /// - Contains Query Items in the response body
-    /// - Fails with a decoding error
+    // A failing request:
+    //     // - Contains Query Items in the response body
+    // - Fails with a decoding error
     package static let patchRepo = MockTask(
         originalRequest: mockPatchRepoOriginalRequest,
         response: mockPatchRepoResponse,

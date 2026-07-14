@@ -1,6 +1,6 @@
 import SwiftUI
 
-// location_flag → 本地化 key，新增 flag 只需在此添加一项
+/// location_flag → 本地化 key，新增 flag 只需在此添加一项
 private let locationFlagLocalizationKeys: [String: String] = [
     "Hangar": "Location_Flag_Hangar",
     "CorpSAG1": "Location_Flag_CorpSAG1", "CorpSAG2": "Location_Flag_CorpSAG2",
@@ -57,15 +57,9 @@ private enum AssetShipFittingExport {
     static let slotFlags: Set<String> = ["HiSlots", "MedSlots", "LoSlots", "RigSlots"]
 
     /// category=6 且 marketGroupID 非空，视为可上架装配的飞船
-    static func isMarketShip(typeId: Int, databaseManager: DatabaseManager) -> Bool {
-        let query = """
-            SELECT 1 FROM types
-            WHERE type_id = ? AND categoryID = 6 AND marketGroupID IS NOT NULL
-        """
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]) {
-            return rows.first != nil
-        }
-        return false
+    static func isMarketShip(typeId: Int, databaseManager _: DatabaseManager) -> Bool {
+        guard let info = SDEMemoryStore.type(for: typeId) else { return false }
+        return info.categoryID == 6 && info.marketGroupID != nil
     }
 
     static func hasAnySlotFitting(in items: [AssetTreeNode]) -> Bool {
@@ -132,10 +126,12 @@ private enum AssetShipFittingExport {
 /// 用于 `.sheet(item:)` 打开已保存的本地装配
 private struct SavedFittingSheetItem: Identifiable {
     let fittingId: Int
-    var id: Int { fittingId }
+    var id: Int {
+        fittingId
+    }
 }
 
-// 扩展，提供共用的获取位置名称方法
+/// 扩展，提供共用的获取位置名称方法
 extension AssetTreeNode {
     func getLocationName(
         stationNameCache: [Int64: String]? = nil, solarSystemNameCache: [Int: String]? = nil
@@ -164,51 +160,81 @@ extension AssetTreeNode {
     }
 }
 
-// 主资产列表视图
+/// 主资产列表视图
 struct LocationAssetsView: View {
     let location: AssetTreeNode
     @StateObject private var viewModel: LocationAssetsViewModel
     let stationNameCache: [Int64: String]?
     let solarSystemNameCache: [Int: String]?
-    /// 深渊变异产物 type_id 集合，这类物品不可跳转市场
     let dynamicResultingTypeIds: Set<Int>
+    let showOwner: Bool
+    let ownerId: Int?
+    let ownerName: String?
+    let ownerPortrait: UIImage?
+    let typeFilterContext: AssetTypeFilterContext
 
     init(
         location: AssetTreeNode, preloadedItemInfo: [Int: ItemInfo]? = nil,
         stationNameCache: [Int64: String]? = nil, solarSystemNameCache: [Int: String]? = nil,
-        dynamicResultingTypeIds: Set<Int> = []
+        dynamicResultingTypeIds: Set<Int> = [],
+        showOwner: Bool = false, ownerId: Int? = nil, ownerName: String? = nil,
+        ownerPortrait: UIImage? = nil,
+        typeFilterContext: AssetTypeFilterContext = .inactive
     ) {
         self.location = location
         self.stationNameCache = stationNameCache
         self.solarSystemNameCache = solarSystemNameCache
         self.dynamicResultingTypeIds = dynamicResultingTypeIds
+        self.showOwner = showOwner
+        self.ownerId = ownerId
+        self.ownerName = ownerName
+        self.ownerPortrait = ownerPortrait
+        self.typeFilterContext = typeFilterContext
         _viewModel = StateObject(
             wrappedValue: LocationAssetsViewModel(
                 location: location, preloadedItemInfo: preloadedItemInfo,
-                dynamicResultingTypeIds: dynamicResultingTypeIds
-            ))
-    }
-
-    // 获取位置名称
-    private func getLocationName() -> String {
-        return location.getLocationName(
-            stationNameCache: stationNameCache, solarSystemNameCache: solarSystemNameCache
+                dynamicResultingTypeIds: dynamicResultingTypeIds,
+                typeFilterContext: typeFilterContext
+            )
         )
     }
 
     var body: some View {
         List {
-            ForEach(viewModel.groupedAssets(), id: \.flag) { group in
+            locationInfoSection
+            ForEach(viewModel.groupedSections, id: \.flag) { group in
                 assetGroupSection(for: group)
             }
         }
-        .navigationTitle(getLocationName())
+        .listStyle(.insetGrouped)
+        .navigationTitle(NSLocalizedString("Main_Assets", comment: ""))
+        .navigationBarTitleDisplayMode(.inline)
         .task {
             await viewModel.loadItemInfo()
         }
     }
 
-    // 将Section提取为单独的函数
+    private var locationInfoSection: some View {
+        Section {
+            AssetLocationRowContent(
+                location: location,
+                stationNameCache: stationNameCache,
+                solarSystemNameCache: solarSystemNameCache,
+                showOwner: showOwner,
+                ownerId: ownerId,
+                ownerName: ownerName,
+                ownerPortrait: ownerPortrait
+            )
+        } header: {
+            Text(NSLocalizedString("ESI_Tag_Location", comment: ""))
+                .fontWeight(.semibold)
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+                .textCase(.none)
+        }
+    }
+
+    /// 将Section提取为单独的函数
     private func assetGroupSection(for group: (flag: String, items: [AssetTreeNode])) -> some View {
         Section(
             header: Text(formatLocationFlag(group.flag))
@@ -224,7 +250,7 @@ struct LocationAssetsView: View {
         .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
     }
 
-    // 将资产行提取为单独的函数
+    /// 将资产行提取为单独的函数
     @ViewBuilder
     private func assetRow(for node: AssetTreeNode) -> some View {
         if node.items != nil {
@@ -236,20 +262,21 @@ struct LocationAssetsView: View {
         }
     }
 
-    // 容器链接
+    /// 容器链接
     private func containerLink(for node: AssetTreeNode) -> some View {
         NavigationLink {
             SubLocationAssetsView(
                 parentNode: node, preloadedItemInfo: viewModel.preloadedItemInfo,
                 stationNameCache: stationNameCache, solarSystemNameCache: solarSystemNameCache,
-                dynamicResultingTypeIds: dynamicResultingTypeIds
+                dynamicResultingTypeIds: dynamicResultingTypeIds,
+                typeFilterContext: typeFilterContext.containerContext(for: node)
             )
         } label: {
             AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
         }
     }
 
-    // 物品链接（深渊变异产物跳转深渊详情，其余跳转市场）
+    /// 物品链接（深渊变异产物跳转深渊详情，其余跳转市场）
     @ViewBuilder
     private func itemLink(for node: AssetTreeNode) -> some View {
         if dynamicResultingTypeIds.contains(node.type_id) {
@@ -272,7 +299,57 @@ struct LocationAssetsView: View {
     }
 }
 
-// 单个资产项的视图
+/// 容器详情行：type name + 第二行自定义名称
+private struct ContainerInfoRow: View {
+    let node: AssetTreeNode
+    let itemInfo: ItemInfo?
+    var showItemId: Bool = false
+
+    private var decodedCustomName: String? {
+        guard let customName = node.name, !customName.isEmpty, customName != "None" else {
+            return nil
+        }
+        return HTMLUtils.decodeHTMLEntities(customName)
+    }
+
+    var body: some View {
+        HStack {
+            AssetIconView(
+                iconName: node.resolvedIconName(itemInfo: itemInfo)
+            )
+            VStack(alignment: .leading, spacing: 2) {
+                if let itemInfo {
+                    Text(itemInfo.name).lineLimit(1)
+                        .contextMenu {
+                            Button {
+                                UIPasteboard.general.string = itemInfo.name
+                            } label: {
+                                Label(
+                                    NSLocalizedString("Misc_Copy_Item_Name", comment: ""),
+                                    systemImage: "doc.on.doc"
+                                )
+                            }
+                        }
+                    if let customName = decodedCustomName {
+                        Text(customName)
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                    }
+                } else {
+                    Text("Type ID: \(node.type_id)")
+                }
+                if showItemId {
+                    Text("ID: \(node.item_id)")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+        }
+    }
+}
+
+/// 单个资产项的视图
 struct AssetItemView: View {
     let node: AssetTreeNode
     let itemInfo: ItemInfo?
@@ -295,12 +372,10 @@ struct AssetItemView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                // 资产图标 - 优先使用节点上的icon_name
                 AssetIconView(
-                    iconName: node.icon_name ?? itemInfo?.iconFileName
-                        ?? DatabaseConfig.defaultItemIcon)
+                    iconName: node.resolvedIconName(itemInfo: itemInfo)
+                )
                 VStack(alignment: .leading, spacing: 2) {
-                    // 资产名称和自定义名称
                     HStack(spacing: 4) {
                         if let itemInfo = itemInfo {
                             Text(itemInfo.name).lineLimit(1)
@@ -355,35 +430,41 @@ struct AssetItemView: View {
     }
 }
 
-// 子位置资产视图
+/// 子位置资产视图
 struct SubLocationAssetsView: View {
     let parentNode: AssetTreeNode
     @StateObject private var viewModel: LocationAssetsViewModel
     let stationNameCache: [Int64: String]?
     let solarSystemNameCache: [Int: String]?
     let dynamicResultingTypeIds: Set<Int>
+    let typeFilterContext: AssetTypeFilterContext
 
     @State private var isExportableFittedShip = false
+    @State private var showExportConfirm = false
     @State private var exportErrorMessage: String?
     @State private var showExportSuccessPrompt = false
-    /// 成功保存后、在「是否查看」对话框中使用
+    // 成功保存后、在「是否查看」对话框中使用
     @State private var exportSuccessFittingId: Int?
     @State private var savedFittingSheetItem: SavedFittingSheetItem?
 
     init(
         parentNode: AssetTreeNode, preloadedItemInfo: [Int: ItemInfo]? = nil,
         stationNameCache: [Int64: String]? = nil, solarSystemNameCache: [Int: String]? = nil,
-        dynamicResultingTypeIds: Set<Int> = []
+        dynamicResultingTypeIds: Set<Int> = [],
+        typeFilterContext: AssetTypeFilterContext = .inactive
     ) {
         self.parentNode = parentNode
         self.stationNameCache = stationNameCache
         self.solarSystemNameCache = solarSystemNameCache
         self.dynamicResultingTypeIds = dynamicResultingTypeIds
+        self.typeFilterContext = typeFilterContext
         _viewModel = StateObject(
             wrappedValue: LocationAssetsViewModel(
                 location: parentNode, preloadedItemInfo: preloadedItemInfo,
-                dynamicResultingTypeIds: dynamicResultingTypeIds
-            ))
+                dynamicResultingTypeIds: dynamicResultingTypeIds,
+                typeFilterContext: typeFilterContext
+            )
+        )
     }
 
     var body: some View {
@@ -393,18 +474,19 @@ struct SubLocationAssetsView: View {
                 containerInfoSection
 
                 // 容器内的物品
-                ForEach(viewModel.groupedAssets(), id: \.flag) { group in
+                ForEach(viewModel.groupedSections, id: \.flag) { group in
                     containerContentSection(for: group)
                 }
             }
         }
         .listStyle(.insetGrouped)
-        .navigationTitle(getLocationName())
+        .navigationTitle(getContainerTypeName())
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             if isExportableFittedShip {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
-                        exportFittingToSimulator()
+                        showExportConfirm = true
                     } label: {
                         Image(systemName: "square.and.arrow.up")
                     }
@@ -412,6 +494,24 @@ struct SubLocationAssetsView: View {
                 }
             }
         }
+        .alert(
+            NSLocalizedString("Assets_Export_Fitting_Confirm_Title", comment: ""),
+            isPresented: $showExportConfirm,
+            actions: {
+                Button(NSLocalizedString("Common_Confirm", comment: "")) {
+                    exportFittingToSimulator()
+                }
+                Button(NSLocalizedString("Common_Cancel", comment: ""), role: .cancel) {}
+            },
+            message: {
+                Text(
+                    String(
+                        format: NSLocalizedString("Assets_Export_Fitting_Confirm_Message", comment: ""),
+                        getContainerTypeName()
+                    )
+                )
+            }
+        )
         .alert(
             NSLocalizedString("Assets_Export_Fitting_Alert_Title", comment: ""),
             isPresented: Binding(
@@ -482,46 +582,33 @@ struct SubLocationAssetsView: View {
         }
     }
 
-    // 获取位置名称
-    private func getLocationName() -> String {
-        return parentNode.getLocationName(
-            stationNameCache: stationNameCache, solarSystemNameCache: solarSystemNameCache
-        )
+    /// 容器类型名称（用于导航标题）
+    private func getContainerTypeName() -> String {
+        viewModel.itemInfo(for: parentNode.type_id)?.name ?? String(parentNode.type_id)
     }
 
-    // 容器信息部分（深渊变异产物跳转深渊详情，其余跳转市场）
-    @ViewBuilder
+    /// 容器信息部分（深渊变异产物跳转深渊详情，其余跳转市场）
     private var containerInfoSection: some View {
-        Section {
-            if dynamicResultingTypeIds.contains(parentNode.type_id) {
-                NavigationLink {
+        let isDynamic = dynamicResultingTypeIds.contains(parentNode.type_id)
+        return Section {
+            NavigationLink {
+                if isDynamic {
                     DynamicItemDetailView(
                         typeId: parentNode.type_id,
                         itemId: parentNode.item_id,
                         itemName: viewModel.itemInfo(for: parentNode.type_id)?.name ?? ""
                     )
-                } label: {
-                    AssetItemView(
-                        node: parentNode,
-                        itemInfo: viewModel.itemInfo(for: parentNode.type_id),
-                        showItemCount: false,
-                        showCustomName: false,
-                        showItemId: true
-                    )
-                }
-            } else {
-                NavigationLink {
+                } else {
                     MarketItemDetailView(
                         databaseManager: viewModel.databaseManager, itemID: parentNode.type_id
                     )
-                } label: {
-                    AssetItemView(
-                        node: parentNode,
-                        itemInfo: viewModel.itemInfo(for: parentNode.type_id),
-                        showItemCount: false,
-                        showCustomName: false
-                    )
                 }
+            } label: {
+                ContainerInfoRow(
+                    node: parentNode,
+                    itemInfo: viewModel.itemInfo(for: parentNode.type_id),
+                    showItemId: isDynamic
+                )
             }
         } header: {
             Text(NSLocalizedString("Container_Basic_Info", comment: ""))
@@ -532,7 +619,7 @@ struct SubLocationAssetsView: View {
         }
     }
 
-    // 容器内容部分
+    /// 容器内容部分
     private func containerContentSection(for group: (flag: String, items: [AssetTreeNode]))
         -> some View
     {
@@ -550,7 +637,7 @@ struct SubLocationAssetsView: View {
         .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
     }
 
-    // 容器内物品行（深渊变异产物跳转深渊详情，其余跳转市场）
+    /// 容器内物品行（深渊变异产物跳转深渊详情，其余跳转市场）
     @ViewBuilder
     private func containerItemRow(for node: AssetTreeNode) -> some View {
         if let subitems = node.items, !subitems.isEmpty {
@@ -561,7 +648,8 @@ struct SubLocationAssetsView: View {
                     preloadedItemInfo: viewModel.preloadedItemInfo,
                     stationNameCache: stationNameCache,
                     solarSystemNameCache: solarSystemNameCache,
-                    dynamicResultingTypeIds: dynamicResultingTypeIds
+                    dynamicResultingTypeIds: dynamicResultingTypeIds,
+                    typeFilterContext: typeFilterContext.containerContext(for: node)
                 )
             } label: {
                 AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
@@ -590,35 +678,39 @@ struct SubLocationAssetsView: View {
     }
 }
 
-// LocationAssetsViewModel
+/// LocationAssetsViewModel
 class LocationAssetsViewModel: ObservableObject {
     private let location: AssetTreeNode
     private var itemInfoCache: [Int: ItemInfo] = [:]
     let databaseManager: DatabaseManager
 
-    // 添加一个标志来跟踪是否正在加载
+    @Published private(set) var groupedSections: [(flag: String, items: [AssetTreeNode])] = []
+
+    /// 添加一个标志来跟踪是否正在加载
     private var isLoadingItems = false
 
-    // 修改为internal，使其可以被视图访问
     let preloadedItemInfo: [Int: ItemInfo]?
 
     /// 深渊变异产物 type_id 集合，不可合并、不可跳转市场
     let dynamicResultingTypeIds: Set<Int>
+    private let typeFilterContext: AssetTypeFilterContext
 
-    // 优先显示的货物集装箱的 marketGroupID 列表
+    /// 优先显示的货物集装箱的 marketGroupID 列表
     private let priorityMarketGroups = [1651, 1652, 1653, 1657, 1658]
-    // 对应 type_id 集合，只查一次数据库后缓存
+    /// 对应 type_id 集合，只查一次数据库后缓存
     private var cachedPriorityContainerTypeIds: Set<Int>?
 
     init(
         location: AssetTreeNode, databaseManager: DatabaseManager = DatabaseManager(),
         preloadedItemInfo: [Int: ItemInfo]? = nil,
-        dynamicResultingTypeIds: Set<Int> = []
+        dynamicResultingTypeIds: Set<Int> = [],
+        typeFilterContext: AssetTypeFilterContext = .inactive
     ) {
         self.location = location
         self.databaseManager = databaseManager
         self.preloadedItemInfo = preloadedItemInfo
         self.dynamicResultingTypeIds = dynamicResultingTypeIds
+        self.typeFilterContext = typeFilterContext
     }
 
     func itemInfo(for typeId: Int) -> ItemInfo? {
@@ -629,24 +721,24 @@ class LocationAssetsViewModel: ObservableObject {
     /// 优先容器 type_id 集合，首次访问时查库并缓存
     private var priorityContainerTypeIds: Set<Int> {
         if let cached = cachedPriorityContainerTypeIds { return cached }
-        let marketGroupList = priorityMarketGroups.map { String($0) }.joined(separator: ",")
-        let query = "SELECT type_id FROM types WHERE marketGroupID IN (\(marketGroupList))"
+        let groups = Set(priorityMarketGroups)
         var typeIds = Set<Int>()
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int { typeIds.insert(typeId) }
+        for (typeId, info) in SDEMemoryStore.types {
+            if let mg = info.marketGroupID, groups.contains(mg) {
+                typeIds.insert(typeId)
             }
         }
         cachedPriorityContainerTypeIds = typeIds
         return typeIds
     }
 
-    // 按location_flag分组的资产
-    func groupedAssets() -> [(flag: String, items: [AssetTreeNode])] {
-        // 如果是容器，使用其items属性
-        let items = location.items ?? []
+    /// 按location_flag分组的资产（结果缓存在 groupedSections）
+    private func rebuildGroupedSections() {
+        let rawItems = location.items ?? []
+        let items = typeFilterContext.filterNodesForDisplay(rawItems)
         if items.isEmpty {
-            return []
+            groupedSections = []
+            return
         }
 
         // 获取优先显示的容器类型ID集合（带缓存，避免每次 groupedAssets 都查库）
@@ -704,13 +796,11 @@ class LocationAssetsViewModel: ObservableObject {
                         location_flag: firstItem.location_flag,
                         quantity: totalQuantity,
                         name: firstItem.name,
-                        icon_name: firstItem.icon_name,
                         is_singleton: false,
                         is_blueprint_copy: firstItem.is_blueprint_copy,
                         system_id: firstItem.system_id,
                         region_id: firstItem.region_id,
-                        security_status: firstItem.security_status,
-                        items: nil
+                        security_status: firstItem.security_status
                     )
                     mergedNormalItems.append(mergedItem)
                 }
@@ -767,7 +857,7 @@ class LocationAssetsViewModel: ObservableObject {
         let remainingResult = remainingGroups.map { (flag: $0.key, items: $0.value) }
             .sorted { $0.flag < $1.flag }
 
-        return result + remainingResult
+        groupedSections = result + remainingResult
     }
 
     private let flagOrder = [
@@ -795,7 +885,7 @@ class LocationAssetsViewModel: ObservableObject {
         // 如果有预加载的物品信息，直接使用
         if let preloadedInfo = preloadedItemInfo {
             itemInfoCache = preloadedInfo
-            objectWillChange.send()
+            rebuildGroupedSections()
             isLoadingItems = false
             return
         }
@@ -816,55 +906,19 @@ class LocationAssetsViewModel: ObservableObject {
 
         // 查询所有物品的名称
         if !typeIds.isEmpty {
-            let query = """
-                SELECT t.type_id, t.name, t.zh_name, t.en_name
-                FROM types t
-                WHERE t.type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
-            """
-
-            if case let .success(rows) = databaseManager.executeQuery(query) {
-                var typeIdToName: [Int: String] = [:]
-
-                // 先收集所有的名称
-                for row in rows {
-                    if let typeId = row["type_id"] as? Int,
-                       let name = row["name"] as? String,
-                       let zh_name = row["zh_name"] as? String,
-                       let en_name = row["en_name"] as? String
-                    {
-                        typeIdToName[typeId] = name
-
-                        // 为每个节点创建ItemInfo
-                        if let nodes = typeIdToNodes[typeId] {
-                            // 一般情况下，对于相同的type_id，我们只需要存储一个ItemInfo
-                            // 我们默认使用第一个非蓝图复制品节点的图标（如果有的话）
-                            let nonBPCNode =
-                                nodes.first { node in
-                                    !(node.is_blueprint_copy ?? false)
-                                } ?? nodes.first
-
-                            if let node = nonBPCNode {
-                                let iconName = node.icon_name ?? DatabaseConfig.defaultItemIcon
-                                itemInfoCache[typeId] = ItemInfo(
-                                    name: name,
-                                    zh_name: zh_name,
-                                    en_name: en_name,
-                                    iconFileName: iconName
-                                )
-                            }
-                        }
-                    }
+            for typeId in typeIds {
+                guard let info = SDEMemoryStore.type(for: typeId) else { continue }
+                if typeIdToNodes[typeId] != nil {
+                    itemInfoCache[typeId] = ItemInfo(from: info)
                 }
-
-                objectWillChange.send()
             }
+            rebuildGroupedSections()
         }
 
-        // 重置加载标志
         isLoadingItems = false
     }
 
-    // 收集节点信息的辅助方法
+    /// 收集节点信息的辅助方法
     private func collectNode(
         _ node: AssetTreeNode, typeIds: inout Set<Int>, typeIdToNodes: inout [Int: [AssetTreeNode]]
     ) {
@@ -875,5 +929,93 @@ class LocationAssetsViewModel: ObservableObject {
             typeIdToNodes[typeId] = []
         }
         typeIdToNodes[typeId]?.append(node)
+    }
+}
+
+// MARK: - 合并模式下的地点详情视图
+
+/// 合并模式地点详情：人物列表 section，点击跳转到该人物的资产目录
+struct MergedLocationAssetsView: View {
+    let merged: MergedAssetLocation
+    let itemInfoCache: [Int: ItemInfo]
+    let stationNameCache: [Int64: String]
+    let solarSystemNameCache: [Int: String]
+    let dynamicResultingTypeIds: Set<Int>
+    let ownerName: (Int) -> String?
+    let ownerPortrait: (Int) -> UIImage?
+    let typeFilterContext: AssetTypeFilterContext
+
+    var body: some View {
+        List {
+            // 地点信息
+            Section {
+                AssetLocationRowContent(
+                    location: merged.representativeLocation,
+                    stationNameCache: stationNameCache,
+                    solarSystemNameCache: solarSystemNameCache,
+                    showItemCount: false
+                )
+            } header: {
+                Text(NSLocalizedString("ESI_Tag_Location", comment: ""))
+                    .fontWeight(.semibold)
+                    .font(.system(size: 18))
+                    .foregroundColor(.primary)
+                    .textCase(.none)
+            }
+
+            // 人物列表：点击跳转到该人物的资产目录
+            Section {
+                ForEach(merged.entries, id: \.id) { entry in
+                    NavigationLink {
+                        LocationAssetsView(
+                            location: entry.location,
+                            preloadedItemInfo: itemInfoCache,
+                            stationNameCache: stationNameCache,
+                            solarSystemNameCache: solarSystemNameCache,
+                            dynamicResultingTypeIds: dynamicResultingTypeIds,
+                            showOwner: true,
+                            ownerId: entry.ownerId,
+                            ownerName: ownerName(entry.ownerId),
+                            ownerPortrait: ownerPortrait(entry.ownerId),
+                            typeFilterContext: typeFilterContext
+                        )
+                    } label: {
+                        HStack(spacing: 8) {
+                            if let portrait = ownerPortrait(entry.ownerId) {
+                                AssetIconView(uiImage: portrait, size: CharacterAssetsIconSize.standard)
+                            } else {
+                                AssetIconView(
+                                    iconName: IconManager.defaultItemIcon,
+                                    size: CharacterAssetsIconSize.standard
+                                )
+                            }
+                            Text(ownerName(entry.ownerId) ?? String(entry.ownerId))
+                                .foregroundColor(.primary)
+                            Spacer()
+                            let count = typeFilterContext.matchingItemQuantity(in: entry.location)
+                            if count > 0 {
+                                Text(
+                                    String(
+                                        format: NSLocalizedString("Assets_Item_Count", comment: ""),
+                                        count
+                                    )
+                                )
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                }
+            } header: {
+                Text(NSLocalizedString("Assets_Characters_At_Location", comment: ""))
+                    .fontWeight(.semibold)
+                    .font(.system(size: 18))
+                    .foregroundColor(.primary)
+                    .textCase(.none)
+            }
+        }
+        .listStyle(.insetGrouped)
+        .navigationTitle(NSLocalizedString("Main_Assets", comment: ""))
+        .navigationBarTitleDisplayMode(.inline)
     }
 }

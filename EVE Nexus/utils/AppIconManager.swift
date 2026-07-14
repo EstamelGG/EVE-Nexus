@@ -12,7 +12,7 @@ class AppIconManager: ObservableObject {
         loadCurrentIcon()
     }
 
-    // 加载当前图标
+    /// 加载当前图标
     private func loadCurrentIcon() {
         if let savedIcon = UserDefaults.standard.string(forKey: iconKey) {
             currentIconName = savedIcon.isEmpty ? nil : savedIcon
@@ -21,7 +21,7 @@ class AppIconManager: ObservableObject {
         }
     }
 
-    // 切换图标
+    /// 切换图标
     @MainActor
     func setIcon(_ iconId: String?) async throws {
         // 确保所有 UIApplication 调用都在主线程

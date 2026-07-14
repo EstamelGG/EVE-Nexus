@@ -1,6 +1,6 @@
 import Foundation
 
-// 克隆体数据模型
+/// 克隆体数据模型
 struct CharacterCloneInfo: Codable {
     let home_location: CloneLocation
     let jump_clones: [JumpClone]
@@ -25,7 +25,7 @@ class CharacterClonesAPI {
     static let shared = CharacterClonesAPI()
     private init() {}
 
-    // 获取克隆体缓存文件路径
+    /// 获取克隆体缓存文件路径
     private func getClonesCacheFilePath(characterId: Int) -> URL {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
             .first!
@@ -39,7 +39,7 @@ class CharacterClonesAPI {
         return characterSkillsPath.appendingPathComponent("\(characterId)_clones.json")
     }
 
-    // 保存克隆体数据到本地文件
+    /// 保存克隆体数据到本地文件
     private func saveClonesToCache(characterId: Int, clones: CharacterCloneInfo) -> Bool {
         do {
             let encoder = JSONEncoder()
@@ -56,7 +56,7 @@ class CharacterClonesAPI {
         }
     }
 
-    // 从本地文件读取克隆体数据
+    /// 从本地文件读取克隆体数据
     private func loadClonesFromCache(characterId: Int) -> CharacterCloneInfo? {
         let filePath = getClonesCacheFilePath(characterId: characterId)
 
@@ -93,7 +93,7 @@ class CharacterClonesAPI {
         }
     }
 
-    // 获取克隆体信息
+    /// 获取克隆体信息
     func fetchCharacterClones(characterId: Int, forceRefresh: Bool = false) async throws
         -> CharacterCloneInfo
     {

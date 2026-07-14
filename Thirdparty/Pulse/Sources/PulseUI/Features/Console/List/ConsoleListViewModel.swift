@@ -35,7 +35,7 @@ final class ConsoleListViewModel: ConsoleDataSourceDelegate, ObservableObject, C
     let events = PassthroughSubject<ConsoleUpdateEvent, Never>()
 
 #if os(iOS) || os(visionOS)
-    /// This exist strictly to workaround List performance issues
+    // This exist strictly to workaround List performance issues
     private var scrollPosition: ScrollPosition = .nearTop
     private var visibleEntityCountLimit = ConsoleDataSource.fetchBatchSize
     private var visibleObjectIDs: Set<NSManagedObjectID> = []

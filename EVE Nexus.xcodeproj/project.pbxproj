@@ -7,6 +7,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		C602BB7A30135886004A364C /* SwiftSoup in Frameworks */ = {isa = PBXBuildFile; productRef = C602BB7930135886004A364C /* SwiftSoup */; };
+		C602BB7C30135886004A364C /* SwiftSoupProfile in Frameworks */ = {isa = PBXBuildFile; productRef = C602BB7B30135886004A364C /* SwiftSoupProfile */; };
 		C61948672ED6E4C200AB0216 /* AppAuth in Frameworks */ = {isa = PBXBuildFile; productRef = C61948662ED6E4C200AB0216 /* AppAuth */; };
 		C61948692ED6E4C200AB0216 /* AppAuthCore in Frameworks */ = {isa = PBXBuildFile; productRef = C61948682ED6E4C200AB0216 /* AppAuthCore */; };
 		C68E07512D047AD2007DA6D8 /* Zip in Frameworks */ = {isa = PBXBuildFile; productRef = C68E07502D047AD2007DA6D8 /* Zip */; };
@@ -77,9 +79,11 @@
 			files = (
 				C61948672ED6E4C200AB0216 /* AppAuth in Frameworks */,
 				C6F824CF2EC45B700084AEB7 /* PulseUI in Frameworks */,
+				C602BB7C30135886004A364C /* SwiftSoupProfile in Frameworks */,
 				C6F824CD2EC45B700084AEB7 /* PulseProxy in Frameworks */,
 				C61948692ED6E4C200AB0216 /* AppAuthCore in Frameworks */,
 				C6FDBFED2DC9DD17007A9F7D /* JWTDecode in Frameworks */,
+				C602BB7A30135886004A364C /* SwiftSoup in Frameworks */,
 				C6F824CB2EC45B700084AEB7 /* Pulse in Frameworks */,
 				C68E07512D047AD2007DA6D8 /* Zip in Frameworks */,
 			);
@@ -149,6 +153,8 @@
 				C6F824CE2EC45B700084AEB7 /* PulseUI */,
 				C61948662ED6E4C200AB0216 /* AppAuth */,
 				C61948682ED6E4C200AB0216 /* AppAuthCore */,
+				C602BB7930135886004A364C /* SwiftSoup */,
+				C602BB7B30135886004A364C /* SwiftSoupProfile */,
 			);
 			productName = "EVE Nexus";
 			productReference = C6417FC12CF80C4D0032F75C /* EVE Nexus.app */;
@@ -239,6 +245,7 @@
 				C6FDBFEB2DC9DD17007A9F7D /* XCLocalSwiftPackageReference "Thirdparty/JWTDecode" */,
 				C6F824C92EC45B700084AEB7 /* XCLocalSwiftPackageReference "Thirdparty/Pulse" */,
 				C61948652ED6E4C200AB0216 /* XCLocalSwiftPackageReference "Thirdparty/AppAuth-iOS" */,
+				C602BB7830135886004A364C /* XCLocalSwiftPackageReference "Thirdparty/SwiftSoup-2.13.7" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C6417FC22CF80C4D0032F75C /* Products */;
@@ -460,7 +467,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				"INFOPLIST_FILE[sdk=*]" = "EVE Nexus/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Tritanium;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.simulation-games";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "This app needs access to photo library to save item render images";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -477,7 +486,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.12.8;
+				MARKETING_VERSION = 1.13;
 				PRODUCT_BUNDLE_IDENTIFIER = "secgg.EVE-Nexus";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -509,7 +518,9 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				"INFOPLIST_FILE[sdk=*]" = "EVE Nexus/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = Tritanium;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.simulation-games";
+				INFOPLIST_KEY_NSPhotoLibraryAddUsageDescription = "This app needs access to photo library to save item render images";
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphoneos*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSceneManifest_Generation[sdk=iphonesimulator*]" = YES;
 				"INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents[sdk=iphoneos*]" = YES;
@@ -526,7 +537,7 @@
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.12.8;
+				MARKETING_VERSION = 1.13;
 				PRODUCT_BUNDLE_IDENTIFIER = "secgg.EVE-Nexus";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = auto;
@@ -674,6 +685,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		C602BB7830135886004A364C /* XCLocalSwiftPackageReference "Thirdparty/SwiftSoup-2.13.7" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "Thirdparty/SwiftSoup-2.13.7";
+		};
 		C61948652ED6E4C200AB0216 /* XCLocalSwiftPackageReference "Thirdparty/AppAuth-iOS" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = "Thirdparty/AppAuth-iOS";
@@ -693,6 +708,14 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		C602BB7930135886004A364C /* SwiftSoup */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SwiftSoup;
+		};
+		C602BB7B30135886004A364C /* SwiftSoupProfile */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = SwiftSoupProfile;
+		};
 		C61948662ED6E4C200AB0216 /* AppAuth */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = AppAuth;

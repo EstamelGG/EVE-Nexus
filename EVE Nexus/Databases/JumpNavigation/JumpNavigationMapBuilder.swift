@@ -1,10 +1,10 @@
 import Foundation
 
 class JumpNavigationHandler {
-    // 光年转换常量
+    /// 光年转换常量
     private static let LY_CONVERSION: Double = 1.0 / 9_460_000_000_000_000.0
 
-    // 计算两点之间的距离（光年）
+    /// 计算两点之间的距离（光年）
     static func calculateDistanceLY(
         x1: Double, y1: Double, z1: Double, x2: Double, y2: Double, z2: Double
     ) -> Double {
@@ -15,7 +15,7 @@ class JumpNavigationHandler {
         return distanceM * LY_CONVERSION
     }
 
-    // 获取所有符合条件的星系对
+    /// 获取所有符合条件的星系对
     static func getNearbySystems(
         databaseManager: DatabaseManager, progressUpdate: ((String, Double) -> Void)? = nil
     ) -> [[String: Any]] {
@@ -26,7 +26,7 @@ class JumpNavigationHandler {
         return getNearbySystems(preloadedSystems: jumpSystems, progressUpdate: progressUpdate)
     }
 
-    // 获取所有符合条件的星系对，使用预加载的星系数据
+    /// 获取所有符合条件的星系对，使用预加载的星系数据
     static func getNearbySystems(
         preloadedSystems: [JumpSystemData], progressUpdate: ((String, Double) -> Void)? = nil
     ) -> [[String: Any]] {
@@ -101,7 +101,7 @@ class JumpNavigationHandler {
         return nearbyPairs
     }
 
-    // 保存数据到JSON文件
+    /// 保存数据到JSON文件
     static func saveToJSON(data: [[String: Any]]) {
         if data.isEmpty {
             Logger.info("没有数据需要保存")
@@ -129,7 +129,7 @@ class JumpNavigationHandler {
         }
     }
 
-    // 处理跳跃导航数据，可以使用预加载的星系数据
+    /// 处理跳跃导航数据，可以使用预加载的星系数据
     static func processJumpNavigationData(
         databaseManager: DatabaseManager,
         preloadedSystems: [JumpSystemData]? = nil,

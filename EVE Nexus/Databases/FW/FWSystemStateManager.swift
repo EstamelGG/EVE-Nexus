@@ -9,29 +9,25 @@ final class FWSystemStateManager {
     private var lastCalculationTime: Date?
     private let cacheTimeout: TimeInterval = 300 // 5分钟缓存
 
-    // 星系名称缓存，使用更简单直观的命名
-    private var systemNameCache: [Int: (name: String, name_en: String, name_zh: String)] = [:]
-
     private init() {}
 
-    // 星系状态结构体
+    /// 星系状态结构体
     struct FWSystemState {
         let systemId: Int
-        let systemName: String
         let systemType: SystemType
         let ownerFactionId: Int
         let occupierFactionId: Int
         let security: Double
-        let constellationName: String
-        let regionName: String
+        let constellationId: Int
+        let regionId: Int
         let victoryPoints: Int
         let victoryPointsThreshold: Int
         let contested: String
-        let enemyNeighbours: [(id: Int, name: String, factionId: Int)]
-        let frontlineNeighbours: [(id: Int, name: String)]
+        let enemyNeighbours: [(id: Int, factionId: Int)]
+        let frontlineNeighbours: [Int]
     }
 
-    // 计算所有星系状态
+    /// 计算所有星系状态
     func calculateSystemStates(
         systems: [FWSystem],
         wars: [FWWar],
@@ -55,30 +51,13 @@ final class FWSystemStateManager {
         var sovereigntyData: [Int: SovereigntyData] = [:]
         do {
             let sovereigntyDataArray = try await SovereigntyDataAPI.shared.fetchSovereigntyData(
-                forceRefresh: false)
+                forceRefresh: false
+            )
             sovereigntyData = Dictionary(
-                uniqueKeysWithValues: sovereigntyDataArray.map { ($0.systemId, $0) })
+                uniqueKeysWithValues: sovereigntyDataArray.map { ($0.systemId, $0) }
+            )
         } catch {
             Logger.error("获取主权数据失败: \(error)")
-        }
-
-        // 获取所有星系的中英文名称
-        let solarSystemIds = systems.map { $0.solar_system_id }
-        let query =
-            "SELECT solarSystemID, solarSystemName, solarSystemName_en, solarSystemName_zh FROM solarsystems WHERE solarSystemID IN (\(String(repeating: "?,", count: solarSystemIds.count).dropLast()))"
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: solarSystemIds) {
-            systemNameCache = Dictionary(
-                uniqueKeysWithValues: rows.compactMap { row in
-                    guard let id = row["solarSystemID"] as? Int,
-                          let name = row["solarSystemName"] as? String,
-                          let nameEn = row["solarSystemName_en"] as? String,
-                          let nameZh = row["solarSystemName_zh"] as? String
-                    else {
-                        return nil
-                    }
-                    // 使用更简单直观的命名
-                    return (id, (name: name, name_en: nameEn, name_zh: nameZh))
-                })
         }
 
         // 第一步：计算所有前线星系
@@ -86,24 +65,14 @@ final class FWSystemStateManager {
             systems.filter { currentSystem in
                 let currentNeighbourIds =
                     systemNeighbours[String(currentSystem.solar_system_id)] ?? []
-                // let systemName = systemNameCache[currentSystem.solar_system_id]?.zh ?? "未知星系"
-
                 // 检查是否有敌对邻居
-                var enemyNeighbours: [(Int, String, Int)] = []
-                let hasEnemyNeighbour = currentNeighbourIds.contains { neighbourId in
+                return currentNeighbourIds.contains { neighbourId in
                     if let neighbourFactionId = getFactionIdForSystem(
                         neighbourId, systems: systems, sovereigntyData: sovereigntyData
                     ) {
-                        let isEnemy = isEnemyFaction(
+                        return isEnemyFaction(
                             currentSystem.occupier_faction_id, neighbourFactionId, wars: wars
                         )
-                        if isEnemy {
-                            let neighbourName =
-                                systemNameCache[neighbourId]?.name
-                                    ?? NSLocalizedString("Unknown", comment: "")
-                            enemyNeighbours.append((neighbourId, neighbourName, neighbourFactionId))
-                        }
-                        return isEnemy
                     }
                     return false
                 }
@@ -113,8 +82,8 @@ final class FWSystemStateManager {
                 //  Logger.info("星系 \(currentSystem.solar_system_id) (\(systemName), 势力:\(currentSystem.occupier_faction_id)) 被判定为前线，原因：有敌对邻居 [\(enemyNeighboursStr)]")
                 // }
 
-                return hasEnemyNeighbour
-            }.map { $0.solar_system_id })
+            }.map { $0.solar_system_id }
+        )
 
         Logger.info("前线星系数量: \(frontlineSystems.count)")
 
@@ -123,19 +92,10 @@ final class FWSystemStateManager {
             systems.filter { currentSystem in
                 let currentNeighbourIds =
                     systemNeighbours[String(currentSystem.solar_system_id)] ?? []
-                // let systemName = systemNameCache[currentSystem.solar_system_id]?.zh ?? "未知星系"
 
                 // 检查邻居中是否有前线
-                var frontlineNeighbours: [(Int, String)] = []
-                let hasFrontlineNeighbour = currentNeighbourIds.contains { neighbourId in
-                    let isFrontline = frontlineSystems.contains(neighbourId)
-                    if isFrontline {
-                        let neighbourName =
-                            systemNameCache[neighbourId]?.name
-                                ?? NSLocalizedString("Unknown", comment: "")
-                        frontlineNeighbours.append((neighbourId, neighbourName))
-                    }
-                    return isFrontline
+                return currentNeighbourIds.contains { neighbourId in
+                    frontlineSystems.contains(neighbourId)
                 }
 
                 // if hasFrontlineNeighbour {
@@ -143,28 +103,25 @@ final class FWSystemStateManager {
                 // Logger.info("星系 \(currentSystem.solar_system_id) (\(systemName), 势力:\(currentSystem.occupier_faction_id)) 被判定为指挥，原因：有前线邻居 [\(frontlineNeighboursStr)]")
                 // }
 
-                return hasFrontlineNeighbour
-            }.map { $0.solar_system_id })
+            }.map { $0.solar_system_id }
+        )
 
         Logger.info("指挥星系数量: \(commandSystems.count)")
 
         // 获取所有星系信息
         let systemInfoMap = await getBatchSolarSystemInfo(
-            solarSystemIds: solarSystemIds,
+            solarSystemIds: systems.map(\.solar_system_id),
             databaseManager: databaseManager
         )
 
         // 存储所有星系状态
         for system in systems {
-            let systemName =
-                systemNameCache[system.solar_system_id]?.name
-                    ?? NSLocalizedString("Unknown", comment: "")
             let systemInfo = systemInfoMap[system.solar_system_id]
 
             // 获取邻居信息
             let neighbourIds = systemNeighbours[String(system.solar_system_id)] ?? []
-            var enemyNeighbours: [(id: Int, name: String, factionId: Int)] = []
-            var frontlineNeighbours: [(id: Int, name: String)] = []
+            var enemyNeighbours: [(id: Int, factionId: Int)] = []
+            var frontlineNeighbours: [Int] = []
 
             for neighbourId in neighbourIds {
                 if let neighbourFactionId = getFactionIdForSystem(
@@ -172,17 +129,11 @@ final class FWSystemStateManager {
                 ),
                     isEnemyFaction(system.occupier_faction_id, neighbourFactionId, wars: wars)
                 {
-                    let neighbourName =
-                        systemNameCache[neighbourId]?.name
-                            ?? NSLocalizedString("Unknown", comment: "")
-                    enemyNeighbours.append((neighbourId, neighbourName, neighbourFactionId))
+                    enemyNeighbours.append((neighbourId, neighbourFactionId))
                 }
 
                 if frontlineSystems.contains(neighbourId) {
-                    let neighbourName =
-                        systemNameCache[neighbourId]?.name
-                            ?? NSLocalizedString("Unknown", comment: "")
-                    frontlineNeighbours.append((neighbourId, neighbourName))
+                    frontlineNeighbours.append(neighbourId)
                 }
             }
 
@@ -202,13 +153,12 @@ final class FWSystemStateManager {
             // 创建星系状态
             let state = FWSystemState(
                 systemId: system.solar_system_id,
-                systemName: systemName,
                 systemType: systemType,
                 ownerFactionId: system.owner_faction_id,
                 occupierFactionId: system.occupier_faction_id,
                 security: systemInfo?.security ?? 0.0,
-                constellationName: systemInfo?.constellationName ?? "",
-                regionName: systemInfo?.regionName ?? "",
+                constellationId: systemInfo?.constellationId ?? 0,
+                regionId: systemInfo?.regionId ?? 0,
                 victoryPoints: system.victory_points,
                 victoryPointsThreshold: system.victory_points_threshold,
                 contested: system.contested,
@@ -222,12 +172,12 @@ final class FWSystemStateManager {
         lastCalculationTime = Date()
     }
 
-    // 获取星系状态
+    /// 获取星系状态
     func getSystemState(for systemId: Int) -> FWSystemState? {
         return systemStates[systemId]
     }
 
-    // 辅助函数：获取星系所属势力
+    /// 辅助函数：获取星系所属势力
     private func getFactionIdForSystem(
         _ systemId: Int, systems: [FWSystem], sovereigntyData: [Int: SovereigntyData]
     ) -> Int? {
@@ -245,7 +195,7 @@ final class FWSystemStateManager {
         return nil
     }
 
-    // 辅助函数：判断两个势力是否为敌对关系
+    /// 辅助函数：判断两个势力是否为敌对关系
     private func isEnemyFaction(_ factionId1: Int, _ factionId2: Int, wars: [FWWar]) -> Bool {
         return wars.contains { war in
             (war.faction_id == factionId1 && war.against_id == factionId2)

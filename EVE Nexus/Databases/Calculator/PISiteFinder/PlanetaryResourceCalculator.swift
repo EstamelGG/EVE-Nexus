@@ -1,6 +1,6 @@
 import Foundation
 
-// 行星资源计算结果
+/// 行星资源计算结果
 struct PlanetaryResourceResult {
     var typeId: Int
     var name: String
@@ -8,24 +8,30 @@ struct PlanetaryResourceResult {
     var depth: Int // 用于记录资源层级深度
 }
 
-// 资源可用行星结果
+/// 资源可用行星结果
 struct ResourcePlanetResult {
     var resourceId: Int
     var resourceName: String
     var availablePlanets: [(id: Int, name: String, iconFileName: String)]
 }
 
-// 星系评分结果
+/// 星系评分结果
 struct SystemScoreResult {
     var systemId: Int
-    var systemName: String
     var regionId: Int
-    var regionName: String
     var security: Double
     var score: Double
     var availableResources: [Int: Int]
     var missingResources: [Int]
     var additionalResources: [Int: (resourceId: Int, jumps: Int)]
+
+    var systemName: String {
+        SDEMemoryStore.solarSystemName(for: systemId) ?? "System \(systemId)"
+    }
+
+    var regionName: String {
+        SDEMemoryStore.regionName(for: regionId) ?? "Region \(regionId)"
+    }
 }
 
 class PlanetaryResourceCalculator {
@@ -35,7 +41,7 @@ class PlanetaryResourceCalculator {
         self.databaseManager = databaseManager
     }
 
-    // 计算行星产品所需的基础资源
+    /// 计算行星产品所需的基础资源
     func calculateBaseResources(for typeId: Int) -> [PlanetaryResourceResult] {
         var baseResourcesWithDepth: [(typeId: Int, depth: Int)] = [] // 存储基础资源ID和深度
         var processedTypes = Set<Int>() // 用于检测循环依赖
@@ -98,53 +104,41 @@ class PlanetaryResourceCalculator {
 
         // 所有溯源完成后，一次性查询所有基础资源的名称
         if !baseResourcesWithDepth.isEmpty {
-            let allResourceIds = baseResourcesWithDepth.map { $0.typeId }
-            let nameQuery = """
-                SELECT type_id, name
-                FROM types
-                WHERE type_id IN (\(allResourceIds.map { String($0) }.joined(separator: ",")))
-            """
+            var nameMap: [Int: String] = [:]
+            for resource in baseResourcesWithDepth {
+                if let name = ItemInfoMap.typeName(for: resource.typeId) {
+                    nameMap[resource.typeId] = name
+                }
+            }
 
             var results: [PlanetaryResourceResult] = []
-            if case let .success(nameRows) = databaseManager.executeQuery(nameQuery) {
-                // 创建ID到名称的映射
-                var nameMap: [Int: String] = [:]
-                for row in nameRows {
-                    if let typeId = row["type_id"] as? Int,
-                       let name = row["name"] as? String
-                    {
-                        nameMap[typeId] = name
-                    }
-                }
-
-                // 使用映射创建最终结果
-                for resource in baseResourcesWithDepth {
-                    results.append(
-                        PlanetaryResourceResult(
-                            typeId: resource.typeId,
-                            name: nameMap[resource.typeId] ?? "未知资源",
-                            quantity: 1.0,
-                            depth: resource.depth
-                        ))
-                }
-
-                // 记录找到的基础资源
-                Logger.info("产品需要以下基础资源：")
-                for result in results.sorted(by: { $0.depth < $1.depth }) {
-                    Logger.info(
-                        "资源: \(result.name) (ID: \(result.typeId)), 数量: \(String(format: "%.2f", result.quantity)), 深度: \(result.depth)"
+            for resource in baseResourcesWithDepth {
+                results.append(
+                    PlanetaryResourceResult(
+                        typeId: resource.typeId,
+                        name: nameMap[resource.typeId] ?? "未知资源",
+                        quantity: 1.0,
+                        depth: resource.depth
                     )
-                }
-
-                // 返回排序后的结果
-                return results.sorted { $0.depth < $1.depth }
+                )
             }
+
+            // 记录找到的基础资源
+            Logger.info("产品需要以下基础资源：")
+            for result in results.sorted(by: { $0.depth < $1.depth }) {
+                Logger.info(
+                    "资源: \(result.name) (ID: \(result.typeId)), 数量: \(String(format: "%.2f", result.quantity)), 深度: \(result.depth)"
+                )
+            }
+
+            // 返回排序后的结果
+            return results.sorted { $0.depth < $1.depth }
         }
 
         return []
     }
 
-    // 查找资源可用的行星类型
+    /// 查找资源可用的行星类型
     func findResourcePlanets(for resourceIds: [Int]) -> [ResourcePlanetResult] {
         var results: [ResourcePlanetResult] = []
 
@@ -198,7 +192,8 @@ class PlanetaryResourceCalculator {
                                 resourceId: id,
                                 resourceName: name,
                                 availablePlanets: currentPlanets
-                            ))
+                            )
+                        )
                     }
 
                     currentResourceId = resourceId
@@ -207,7 +202,8 @@ class PlanetaryResourceCalculator {
                 }
 
                 currentPlanets.append(
-                    (id: planetTypeId, name: planetName, iconFileName: iconFileName))
+                    (id: planetTypeId, name: planetName, iconFileName: iconFileName)
+                )
             }
 
             // 添加最后一个资源的结果
@@ -217,14 +213,15 @@ class PlanetaryResourceCalculator {
                         resourceId: id,
                         resourceName: name,
                         availablePlanets: currentPlanets
-                    ))
+                    )
+                )
             }
         }
 
         return results
     }
 
-    // 计算星系评分
+    /// 计算星系评分
     func calculateSystemScores(
         for systems: Set<Int>,
         requiredResources: [PlanetaryResourceResult],
@@ -253,23 +250,19 @@ class PlanetaryResourceCalculator {
         Logger.debug("查询所有相关星系信息...")
         let query = """
             SELECT 
-                s.solarsystem_id,
-                s.region_id,
-                r.regionName as region_name,
-                s.system_security,
-                s.temperate,
-                s.barren,
-                s.oceanic,
-                s.ice,
-                s.gas,
-                s.lava,
-                s.storm,
-                s.plasma,
-                ss.solarSystemName as system_name
-            FROM universe s
-            JOIN regions r ON r.regionID = s.region_id
-            JOIN solarsystems ss ON ss.solarSystemID = s.solarsystem_id
-            WHERE s.solarsystem_id IN (\(systems.map { String($0) }.joined(separator: ",")))
+                solarsystem_id,
+                region_id,
+                system_security,
+                temperate,
+                barren,
+                oceanic,
+                ice,
+                gas,
+                lava,
+                storm,
+                plasma
+            FROM universe
+            WHERE solarsystem_id IN (\(systems.map { String($0) }.joined(separator: ",")))
         """
 
         guard case let .success(rows) = databaseManager.executeQuery(query) else {
@@ -285,8 +278,6 @@ class PlanetaryResourceCalculator {
         for row in rows {
             guard let systemId = row["solarsystem_id"] as? Int,
                   let regionId = row["region_id"] as? Int,
-                  let regionName = row["region_name"] as? String,
-                  let systemName = row["system_name"] as? String,
                   let security = row["system_security"] as? Double
             else {
                 continue
@@ -295,7 +286,7 @@ class PlanetaryResourceCalculator {
             processedSystems += 1
             Logger.debug("-------------------------------------------")
             Logger.debug(
-                "评估星系: \(systemName) (ID: \(systemId), 地区: \(regionName), 安全等级: \(String(format: "%.1f", security)))"
+                "评估星系: \(SDEMemoryStore.solarSystemName(for: systemId) ?? "System \(systemId)") (ID: \(systemId), 地区: \(SDEMemoryStore.regionName(for: regionId) ?? "Region \(regionId)"), 安全等级: \(String(format: "%.1f", security)))"
             )
 
             // 获取当前星系的可用资源
@@ -488,7 +479,7 @@ class PlanetaryResourceCalculator {
             // 如果指定跳数内无法满足所有资源需求，跳过该星系
             if !missingResources.isEmpty {
                 Logger.debug(
-                    "星系 \(systemName) 不满足条件: 即使在 \(maxJumps) 跳范围内仍然缺少 \(missingResources.count) 种资源"
+                    "星系 \(SDEMemoryStore.solarSystemName(for: systemId) ?? "System \(systemId)") 不满足条件: 即使在 \(maxJumps) 跳范围内仍然缺少 \(missingResources.count) 种资源"
                 )
                 continue
             }
@@ -507,13 +498,13 @@ class PlanetaryResourceCalculator {
 
             // 如果资源覆盖率不足100%，跳过该星系
             if coveredCount < totalCount {
-                Logger.debug("星系 \(systemName) 不满足条件: 资源覆盖率不足 (\(coveredCount)/\(totalCount))")
+                Logger.debug("星系 \(SDEMemoryStore.solarSystemName(for: systemId) ?? "System \(systemId)") 不满足条件: 资源覆盖率不足 (\(coveredCount)/\(totalCount))")
                 continue
             }
 
             // 计算总分
             var score = 0.0
-            Logger.debug("星系 \(systemName) 满足条件! 开始计算评分...")
+            Logger.debug("星系 \(SDEMemoryStore.solarSystemName(for: systemId) ?? "System \(systemId)") 满足条件! 开始计算评分...")
             eligibleSystems += 1
 
             // 1. 基础分：每个可用资源的行星数量
@@ -593,14 +584,12 @@ class PlanetaryResourceCalculator {
                 Logger.debug("没有任何可用资源，设置基础分 1.0")
             }
 
-            Logger.debug("星系 \(systemName) 最终得分: \(String(format: "%.2f", score))")
+            Logger.debug("星系 \(SDEMemoryStore.solarSystemName(for: systemId) ?? "System \(systemId)") 最终得分: \(String(format: "%.2f", score))")
 
             // 创建结果
             let result = SystemScoreResult(
                 systemId: systemId,
-                systemName: systemName,
                 regionId: regionId,
-                regionName: regionName,
                 security: security,
                 score: score,
                 availableResources: availableResources,

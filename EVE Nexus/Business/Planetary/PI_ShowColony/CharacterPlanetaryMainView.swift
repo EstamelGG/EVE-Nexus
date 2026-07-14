@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 行星信息模型
+/// 行星信息模型
 struct PlanetTypeInfo {
     let name: String
     let icon: String
@@ -13,24 +13,26 @@ struct AggregatedPlanetTypeSummary: Identifiable {
     let displayName: String
     let iconFileName: String
 
-    var id: String { planetTypeKey }
+    var id: String {
+        planetTypeKey
+    }
 }
 
-// 最终产品模型
+/// 最终产品模型
 struct FinalProduct: Identifiable {
     let id: Int // typeId
     let typeId: Int
     let icon: String
 }
 
-// 采集器状态模型
+/// 采集器状态模型
 struct ExtractorStatus {
     let totalCount: Int // 总采集器数量
     let expiredCount: Int // 已停工的采集器数量
     let expiringSoonCount: Int // 即将在1小时内停工的采集器数量
 }
 
-// 扩展CharacterPlanetaryInfo来包含角色归属信息
+/// 扩展CharacterPlanetaryInfo来包含角色归属信息
 struct PlanetWithOwner {
     let planet: CharacterPlanetaryInfo
     let ownerId: Int // 该行星归属的角色ID
@@ -50,7 +52,7 @@ final class CharacterPlanetaryViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var loadingProgress: (current: Int, total: Int)? = nil // 加载进度 (已加载/总数)
 
-    // 多人物聚合相关
+    /// 多人物聚合相关
     @Published var multiCharacterMode = false {
         didSet {
             UserDefaults.standard.set(multiCharacterMode, forKey: "multiCharacterMode_planetary")
@@ -96,10 +98,10 @@ final class CharacterPlanetaryViewModel: ObservableObject {
     private let characterId: Int?
     private var initialLoadDone = false
 
-    // Schematic 缓存，避免重复查询数据库
+    /// Schematic 缓存，避免重复查询数据库
     private var schematicCache: [Int: Schematic] = [:]
 
-    // Type 缓存（包括图标信息），避免重复查询数据库
+    /// Type 缓存（包括图标信息），避免重复查询数据库
     private var typeCache: [Int: (name: String, icon: String)] = [:]
 
     init(characterId: Int?) {
@@ -108,7 +110,8 @@ final class CharacterPlanetaryViewModel: ObservableObject {
         // 从 UserDefaults 读取多人物聚合设置
         multiCharacterMode = UserDefaults.standard.bool(forKey: "multiCharacterMode_planetary")
         showPlanetTypeSummaryInMultiSelect = UserDefaults.standard.bool(
-            forKey: "showPlanetTypeSummary_planetary")
+            forKey: "showPlanetTypeSummary_planetary"
+        )
         let savedCharacterIds =
             UserDefaults.standard.array(forKey: "selectedCharacterIds_planetary") as? [Int] ?? []
         selectedCharacterIds = Set(savedCharacterIds)
@@ -146,24 +149,13 @@ final class CharacterPlanetaryViewModel: ObservableObject {
 
     private func loadPlanetTypeInfo() async throws -> [Int: PlanetTypeInfo] {
         let typeIds = Array(PlanetaryUtils.planetTypeToColumn.keys).sorted()
-        let typeIdsString = typeIds.map { String($0) }.joined(separator: ",")
-
         var tempPlanetTypeInfo: [Int: PlanetTypeInfo] = [:]
 
-        // 从数据库获取行星类型信息
-        let typeQuery =
-            "SELECT type_id, name, icon_filename FROM types WHERE type_id IN (\(typeIdsString))"
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(typeQuery) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let iconFilename = row["icon_filename"] as? String
-                {
-                    tempPlanetTypeInfo[typeId] = PlanetTypeInfo(
-                        name: name, icon: iconFilename
-                    )
-                }
-            }
+        for typeId in typeIds {
+            guard let info = ItemInfoMap.typeInfo(for: typeId), !info.name.isEmpty else { continue }
+            tempPlanetTypeInfo[typeId] = PlanetTypeInfo(
+                name: info.name, icon: info.iconFilename
+            )
         }
 
         return tempPlanetTypeInfo
@@ -257,12 +249,9 @@ final class CharacterPlanetaryViewModel: ObservableObject {
 
                     // 获取所有行星ID
                     let planetIds = allPlanets.map { $0.planetId }
-                    let planetIdsString = planetIds.sorted().map { String($0) }.joined(
-                        separator: ",")
 
                     if Task.isCancelled { return }
 
-                    var tempPlanetNames: [Int: String] = [:]
                     var tempSystemSecurities: [Int: Double] = [:]
 
                     // 获取所有唯一的星系ID
@@ -287,20 +276,7 @@ final class CharacterPlanetaryViewModel: ObservableObject {
                         }
                     }
 
-                    // 获取行星名称
-                    if !planetIdsString.isEmpty {
-                        let nameQuery =
-                            "SELECT itemID, itemName FROM celestialNames WHERE itemID IN (\(planetIdsString))"
-                        if case let .success(rows) = DatabaseManager.shared.executeQuery(nameQuery) {
-                            for row in rows {
-                                if let itemId = row["itemID"] as? Int,
-                                   let itemName = row["itemName"] as? String
-                                {
-                                    tempPlanetNames[itemId] = itemName
-                                }
-                            }
-                        }
-                    }
+                    let tempPlanetNames = DatabaseManager.shared.getCelestialNames(itemIDs: planetIds)
 
                     if Task.isCancelled { return }
 
@@ -536,7 +512,7 @@ final class CharacterPlanetaryViewModel: ObservableObject {
 
         return counts.map { planetTypeKey, count -> AggregatedPlanetTypeSummary in
             if let info = getPlanetTypeInfo(for: planetTypeKey) {
-                let icon = info.icon.isEmpty ? DatabaseConfig.defaultItemIcon : info.icon
+                let icon = info.icon.isEmpty ? IconManager.defaultItemIcon : info.icon
                 return AggregatedPlanetTypeSummary(
                     planetTypeKey: planetTypeKey,
                     count: count,
@@ -548,7 +524,7 @@ final class CharacterPlanetaryViewModel: ObservableObject {
                 planetTypeKey: planetTypeKey,
                 count: count,
                 displayName: NSLocalizedString("Main_Planetary_Unknown_Type", comment: ""),
-                iconFileName: DatabaseConfig.defaultItemIcon
+                iconFileName: IconManager.defaultItemIcon
             )
         }
         .sorted {
@@ -950,25 +926,12 @@ final class CharacterPlanetaryViewModel: ObservableObject {
             var schematicTypeCache: [Int: Type] = [:] // 用于构建 Schematic 对象
 
             if !allTypeIds.isEmpty {
-                let typeIdsString = allTypeIds.sorted().map { String($0) }.joined(separator: ",")
-                let typeQuery = "SELECT type_id, name, volume, icon_filename FROM types WHERE type_id IN (\(typeIdsString))"
-
-                if case let .success(typeRows) = DatabaseManager.shared.executeQuery(typeQuery) {
-                    for typeRow in typeRows {
-                        guard let typeId = typeRow["type_id"] as? Int,
-                              let name = typeRow["name"] as? String,
-                              let volume = typeRow["volume"] as? Double,
-                              let iconFilename = typeRow["icon_filename"] as? String
-                        else {
-                            continue
-                        }
-
-                        // 缓存 type 信息（包括图标）
-                        tempTypeCache[typeId] = (name: name, icon: iconFilename)
-
-                        // 同时构建 Type 对象用于 Schematic
-                        schematicTypeCache[typeId] = Type(id: typeId, name: name, volume: volume)
+                for typeId in allTypeIds {
+                    guard let info = ItemInfoMap.typeInfo(for: typeId), !info.name.isEmpty else {
+                        continue
                     }
+                    tempTypeCache[typeId] = (name: info.name, icon: info.iconFilename)
+                    schematicTypeCache[typeId] = Type(id: typeId, name: info.name, volume: info.volume)
                 }
             }
 
@@ -1022,29 +985,19 @@ final class CharacterPlanetaryViewModel: ObservableObject {
             Logger.info("批量加载了 \(tempSchematicCache.count) 个 schematic 和 \(tempTypeCache.count) 个 type")
         } else if !extractorProductTypeIds.isEmpty {
             // 如果没有 schematic，只加载采集器输出的 type
-            let typeIdsString = extractorProductTypeIds.sorted().map { String($0) }.joined(separator: ",")
-            let typeQuery = "SELECT type_id, name, volume, icon_filename FROM types WHERE type_id IN (\(typeIdsString))"
-
-            if case let .success(typeRows) = DatabaseManager.shared.executeQuery(typeQuery) {
-                var tempTypeCache: [Int: (name: String, icon: String)] = [:]
-
-                for typeRow in typeRows {
-                    guard let typeId = typeRow["type_id"] as? Int,
-                          let name = typeRow["name"] as? String,
-                          let iconFilename = typeRow["icon_filename"] as? String
-                    else {
-                        continue
-                    }
-
-                    tempTypeCache[typeId] = (name: name, icon: iconFilename)
+            var tempTypeCache: [Int: (name: String, icon: String)] = [:]
+            for typeId in extractorProductTypeIds {
+                guard let info = ItemInfoMap.typeInfo(for: typeId), !info.name.isEmpty else {
+                    continue
                 }
-
-                await MainActor.run {
-                    self.typeCache.merge(tempTypeCache) { _, new in new }
-                }
-
-                Logger.info("批量加载了 \(tempTypeCache.count) 个 type")
+                tempTypeCache[typeId] = (name: info.name, icon: info.iconFilename)
             }
+
+            await MainActor.run {
+                self.typeCache.merge(tempTypeCache) { _, new in new }
+            }
+
+            Logger.info("批量加载了 \(tempTypeCache.count) 个 type")
         }
     }
 
@@ -1121,8 +1074,6 @@ final class CharacterPlanetaryViewModel: ObservableObject {
         // 按typeId排序，确保显示顺序一致
         finalProducts.sort { $0.typeId < $1.typeId }
 
-        // Logger.info("找到 \(finalProducts.count) 个最终产品: \(finalProducts.map { "\($0.typeId)" }.joined(separator: ", "))")
-
         return finalProducts
     }
 
@@ -1136,7 +1087,7 @@ final class CharacterPlanetaryViewModel: ObservableObject {
     }
 }
 
-// 进度更新 Actor（用于线程安全地更新进度）
+/// 进度更新 Actor（用于线程安全地更新进度）
 actor ProgressActor {
     private var current: Int = 0
     private let total: Int
@@ -1153,7 +1104,7 @@ actor ProgressActor {
     }
 }
 
-// 用于存储选中星球信息的结构
+/// 用于存储选中星球信息的结构
 struct SelectedPlanet {
     let characterId: Int
     let planetId: Int
@@ -1171,7 +1122,8 @@ struct CharacterPlanetaryView: View {
     init(characterId: Int?) {
         self.characterId = characterId
         _viewModel = StateObject(
-            wrappedValue: CharacterPlanetaryViewModel(characterId: characterId))
+            wrappedValue: CharacterPlanetaryViewModel(characterId: characterId)
+        )
     }
 
     var body: some View {
@@ -1231,7 +1183,8 @@ struct CharacterPlanetaryView: View {
                                 }
                                 ForEach(groupedPlanets, id: \.characterId) { group in
                                     let isCollapsed = collapsedCharacterIdsInMultiMode.contains(
-                                        group.characterId)
+                                        group.characterId
+                                    )
                                     if groupedPlanets.count > 1 {
                                         Section(
                                             header: HStack(spacing: 16) {
@@ -1268,7 +1221,8 @@ struct CharacterPlanetaryView: View {
                                                 accessibilityLabelForMultiCharacterHeader(
                                                     characterName: group.characterName,
                                                     isCollapsed: isCollapsed
-                                                ))
+                                                )
+                                            )
                                         ) {
                                             if !isCollapsed {
                                                 ForEach(group.planets, id: \.planetId) { planet in
@@ -1430,7 +1384,6 @@ struct CharacterPlanetaryView: View {
         }
     }
 
-    @ViewBuilder
     private func deployedColoniesCountCaption(deployed: Int, max: Int, needsAttention: Bool) -> some View {
         HStack(spacing: 0) {
             Text("\(deployed)")
@@ -1463,7 +1416,7 @@ struct CharacterPlanetaryView: View {
     }
 }
 
-// 行星设置界面
+/// 行星设置界面
 struct PlanetarySettingsSheet: View {
     @ObservedObject var viewModel: CharacterPlanetaryViewModel
     @Environment(\.dismiss) private var dismiss
@@ -1477,7 +1430,8 @@ struct PlanetarySettingsSheet: View {
                             Text(
                                 NSLocalizedString(
                                     "Planetary_Settings_Multi_Character", comment: "多人物聚合"
-                                ))
+                                )
+                            )
                             Text(
                                 NSLocalizedString(
                                     "Planetary_Settings_Multi_Character_Description",
@@ -1494,74 +1448,18 @@ struct PlanetarySettingsSheet: View {
                             Text(
                                 NSLocalizedString(
                                     "Planetary_Settings_Show_Type_Summary", comment: "显示汇总"
-                                ))
+                                )
+                            )
                         }
                     }
                 }
 
                 // 只有在多人物模式开启时才显示角色选择
                 if viewModel.multiCharacterMode {
-                    Section(
-                        header: Text(
-                            NSLocalizedString(
-                                "Planetary_Settings_Select_Characters", comment: "选择角色"
-                            ))
-                    ) {
-                        ForEach(viewModel.availableCharacters, id: \.id) { character in
-                            Button(action: {
-                                if viewModel.selectedCharacterIds.contains(character.id) {
-                                    viewModel.selectedCharacterIds.remove(character.id)
-                                } else {
-                                    viewModel.selectedCharacterIds.insert(character.id)
-                                }
-                            }) {
-                                HStack {
-                                    // 角色头像
-                                    CharacterPortraitView(characterId: character.id)
-                                        .padding(.trailing, 8)
-
-                                    Text(character.name)
-                                        .foregroundColor(.primary)
-
-                                    Spacer()
-
-                                    if viewModel.selectedCharacterIds.contains(character.id) {
-                                        Image(systemName: "checkmark")
-                                            .foregroundColor(.blue)
-                                    }
-                                }
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                        }
-
-                        // 全选/全不选按钮
-                        Button(action: {
-                            if viewModel.selectedCharacterIds.count
-                                == viewModel.availableCharacters.count
-                            {
-                                viewModel.selectedCharacterIds = []
-                            } else {
-                                viewModel.selectedCharacterIds = Set(
-                                    viewModel.availableCharacters.map { $0.id })
-                            }
-                        }) {
-                            HStack {
-                                Text(NSLocalizedString("Planetary_Filter_Select_All", comment: "全选"))
-                                Spacer()
-                                if viewModel.selectedCharacterIds.count
-                                    == viewModel.availableCharacters.count
-                                {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(.blue)
-                                } else {
-                                    Image(systemName: "circle")
-                                        .foregroundColor(.secondary)
-                                }
-                            }
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                    }
+                    MultiCharacterSelectionSection(
+                        availableCharacters: viewModel.availableCharacters,
+                        selectedCharacterIds: $viewModel.selectedCharacterIds
+                    )
                 }
             }
             .navigationTitle(NSLocalizedString("Planetary_Settings_Title", comment: "设置"))
@@ -1577,12 +1475,14 @@ struct PlanetarySettingsSheet: View {
     }
 }
 
-// 让 SelectedPlanet 遵循 Identifiable 协议
+/// 让 SelectedPlanet 遵循 Identifiable 协议
 extension SelectedPlanet: Identifiable {
-    var id: Int { planetId }
+    var id: Int {
+        planetId
+    }
 }
 
-// 最终产品图标网格视图
+/// 最终产品图标网格视图
 struct FinalProductsGridView: View {
     let products: [FinalProduct]
 
@@ -1649,7 +1549,7 @@ struct FinalProductsGridView: View {
     }
 }
 
-// 产品图标视图
+/// 产品图标视图
 struct ProductIcon: View {
     let product: FinalProduct
     let size: CGFloat
@@ -1662,7 +1562,7 @@ struct ProductIcon: View {
     }
 }
 
-// 行星行组件
+/// 行星行组件
 struct PlanetRow: View {
     let planet: CharacterPlanetaryInfo
     let viewModel: CharacterPlanetaryViewModel
@@ -1738,13 +1638,14 @@ struct PlanetRow: View {
                             // 显示采集器最早过期时间
                             let timeRemaining = expiryDate.timeIntervalSince(Date())
                             if timeRemaining > 0 {
-                                Text("\(NSLocalizedString("Planet_Detail_Extractor_Expiry_Time", comment: "")): \(formatTimeRemaining(timeRemaining))")
+                                Text("\(NSLocalizedString("Planet_Detail_Extractor_Expiry_Time", comment: "")): \(FormatUtil.formatRemainingDuration(timeRemaining))")
                                     .font(.caption2)
                                     .foregroundColor(
                                         viewModel.planetNeedsExtractorAttention(
                                             planetId: planet.planetId,
                                             characterId: characterId
-                                        ) ? .red : .green)
+                                        ) ? .red : .green
+                                    )
                             } else {
                                 Text(NSLocalizedString("Planet_Detail_Extractor_Expired", comment: ""))
                                     .font(.caption2)
@@ -1755,13 +1656,14 @@ struct PlanetRow: View {
                         // 兼容旧逻辑：如果没有状态信息，显示过期时间
                         let timeRemaining = expiryDate.timeIntervalSince(Date())
                         if timeRemaining > 0 {
-                            Text("\(NSLocalizedString("Planet_Detail_Extractor_Expiry_Time", comment: "")): \(formatTimeRemaining(timeRemaining))")
+                            Text("\(NSLocalizedString("Planet_Detail_Extractor_Expiry_Time", comment: "")): \(FormatUtil.formatRemainingDuration(timeRemaining))")
                                 .font(.caption2)
                                 .foregroundColor(
                                     viewModel.planetNeedsExtractorAttention(
                                         planetId: planet.planetId,
                                         characterId: characterId
-                                    ) ? .red : .green)
+                                    ) ? .red : .green
+                                )
                         } else {
                             Text(NSLocalizedString("Planet_Detail_Extractor_Expired", comment: ""))
                                 .font(.caption2)
@@ -1786,35 +1688,5 @@ struct PlanetRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-}
-
-// 格式化剩余时间显示
-private func formatTimeRemaining(_ interval: TimeInterval) -> String {
-    if interval < 0 {
-        return ""
-    }
-
-    let totalSeconds = Int(interval)
-    let days = totalSeconds / (24 * 3600)
-    let hours = totalSeconds / 3600 % 24
-    let minutes = totalSeconds / 60 % 60
-
-    if days > 0 {
-        if hours > 0 {
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Days_Hours", comment: ""), days, hours)
-        } else {
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Days", comment: ""), days)
-        }
-    } else if hours > 0 {
-        if minutes > 0 {
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Hours_Minutes", comment: ""), hours, minutes)
-        } else {
-            return String.localizedStringWithFormat(NSLocalizedString("Time_Hours", comment: ""), hours)
-        }
-    } else if minutes > 0 {
-        return String.localizedStringWithFormat(NSLocalizedString("Time_Minutes", comment: ""), minutes)
-    } else {
-        return NSLocalizedString("Time_Just_Now", comment: "刚刚")
     }
 }

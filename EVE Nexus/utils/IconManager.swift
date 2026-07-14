@@ -5,6 +5,12 @@ import Zip
 
 class IconManager {
     static let shared = IconManager()
+
+    /// 分类 / 分组缺省图标
+    static let defaultIcon = "category"
+    /// 物品缺省图标
+    static let defaultItemIcon = "not_found"
+
     private let fileManager = FileManager.default
     private var imageCache = NSCache<NSString, UIImage>()
     private var iconsDirectory: URL?
@@ -18,26 +24,17 @@ class IconManager {
     }
 
     private func setupIconsDirectory() {
-        let documentsURL = fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let iconsDir = documentsURL.appendingPathComponent("icons")
-        let oldIconsDir = documentsURL.appendingPathComponent("Icons") // 旧的大写目录名
-
-        // 通过列出父目录内容来精确检查是否存在真正的 "Icons" 目录（区分大小写）
-        if let contents = try? fileManager.contentsOfDirectory(atPath: documentsURL.path) {
-            // 如果存在 "Icons" 且不存在 "icons"，说明是旧的大写目录，删除它
-            if contents.contains("Icons"), !contents.contains("icons") {
-                Logger.info("Found old 'Icons' directory, removing it...")
-                try? fileManager.removeItem(at: oldIconsDir)
-            }
-        }
-
-        // 如果图标目录不存在，创建它
+        let iconsDir = LocalSDELayout.iconsDirectory
         if !fileManager.fileExists(atPath: iconsDir.path) {
             try? fileManager.createDirectory(at: iconsDir, withIntermediateDirectories: true)
         }
-
         iconsDirectory = iconsDir
         Logger.info("Icons directory setup at: \(iconsDir.path)")
+    }
+
+    /// 解压完成后更新图标根目录
+    func adoptIconsDirectory(_ url: URL) {
+        iconsDirectory = url
     }
 
     private func setupTypeIconsDirectory() {
@@ -64,7 +61,7 @@ class IconManager {
         }
     }
 
-    // 从图标名称中提取ID
+    /// 从图标名称中提取ID
     private func extractTypeID(from iconName: String) -> Int? {
         // 检查是否以"icon_"开头
         guard iconName.hasPrefix("icon_") else {
@@ -92,7 +89,7 @@ class IconManager {
         return Int(idString)
     }
 
-    // 从磁盘加载类型图标
+    /// 从磁盘加载类型图标
     private func loadTypeIconFromDisk(iconName: String) -> UIImage? {
         guard let typeIconsDirectory = typeIconsDirectory else {
             return nil
@@ -108,7 +105,7 @@ class IconManager {
         return nil
     }
 
-    // 同步从在线API获取图标
+    /// 同步从在线API获取图标
     func loadTypeIconFromAPISync(typeID: Int, size: Int = 64) -> UIImage? {
         let iconName = "icon_\(typeID)_\(size).png"
 
@@ -184,7 +181,6 @@ class IconManager {
         // 如果缓存中有，直接返回
         let cacheKey = NSString(string: iconName)
         if let cachedImage = imageCache.object(forKey: cacheKey) {
-            // Logger.info("Load image from cache \(cacheKey).")
             return cachedImage
         }
 
@@ -206,9 +202,7 @@ class IconManager {
             if let imageData = try? Data(contentsOf: iconURL),
                let image = UIImage(data: imageData)
             {
-                // 缓存图片
                 imageCache.setObject(image, forKey: cacheKey)
-                // Logger.info("Load image from disk \(cacheKey).")
                 return image
             }
         }
@@ -217,7 +211,6 @@ class IconManager {
         if extractTypeID(from: iconName) != nil,
            let typeIcon = loadTypeIconFromDisk(iconName: iconName)
         {
-            // 缓存图片
             imageCache.setObject(typeIcon, forKey: cacheKey)
             return typeIcon
         }
@@ -225,14 +218,16 @@ class IconManager {
         // 如果是类型图标但未找到，尝试同步加载
         if let typeID = extractTypeID(from: iconName) {
             if let downloadedImage = loadTypeIconFromAPISync(typeID: typeID) {
-                // 缓存图片
                 imageCache.setObject(downloadedImage, forKey: cacheKey)
                 return downloadedImage
             }
         }
 
+        // 兜底：加载 Asset Catalog 的 not_found 图标并缓存，避免重复查找与日志
         Logger.warning("Failed to load image: \(iconName)")
-        return UIImage(named: "not_found") ?? UIImage()
+        let fallback = UIImage(named: "not_found") ?? UIImage()
+        imageCache.setObject(fallback, forKey: cacheKey)
+        return fallback
     }
 
     func loadImage(for iconName: String) -> Image {
@@ -251,6 +246,12 @@ class IconManager {
                 _ = self.loadUIImage(for: iconName)
             }
         }
+    }
+
+    /// 清空内存图标缓存（SDE/图标重置后调用，确保旧图标不会继续显示）
+    func clearCache() {
+        imageCache.removeAllObjects()
+        Logger.info("IconManager 内存图标缓存已清空")
     }
 
     func unzipIcons(

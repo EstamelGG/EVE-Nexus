@@ -1,18 +1,20 @@
 import SwiftUI
 
-// MARK: - 包含中英文名称的溢价物品信息
+// MARK: - 含全语种名称的溢价物品信息（用于搜索）
 
 struct PremiumItemInfoWithNames: Identifiable {
     let id: Int
     let premiumItem: PremiumItemInfo
-    let enName: String
-    let zhName: String
+    let names: LocalizedText
 
-    init(premiumItem: PremiumItemInfo, enName: String, zhName: String) {
+    init(premiumItem: PremiumItemInfo, names: LocalizedText) {
         id = premiumItem.id
         self.premiumItem = premiumItem
-        self.enName = enName
-        self.zhName = zhName
+        self.names = names
+    }
+
+    func matches(_ query: String) -> Bool {
+        names.matchesSearch(query) || premiumItem.name.localizedCaseInsensitiveContains(query)
     }
 }
 
@@ -30,22 +32,17 @@ struct PremiumItemsView: View {
     @State private var allPremiumItemsWithNames: [PremiumItemInfoWithNames] = [] // 包含中英文名称的溢价物品
     @State private var showBuyPrice = false // 是否显示买价溢价（false = 卖价，true = 买价）
 
-    // 过滤后的搜索结果
+    /// 过滤后的搜索结果
     private var filteredItems: [PremiumItemInfoWithNames] {
         guard searchText.count >= 2 else {
             return []
         }
 
-        let searchLower = searchText.lowercased()
-        return allPremiumItemsWithNames.filter { item in
-            item.premiumItem.name.lowercased().contains(searchLower) ||
-                item.enName.lowercased().contains(searchLower) ||
-                item.zhName.lowercased().contains(searchLower)
-        }
-        .sorted { item1, item2 in
-            // 按名称顺序排序
-            item1.premiumItem.name.localizedCompare(item2.premiumItem.name) == .orderedAscending
-        }
+        return allPremiumItemsWithNames.filter { $0.matches(searchText) }
+            .sorted { item1, item2 in
+                // 按名称顺序排序
+                item1.premiumItem.name.localizedCompare(item2.premiumItem.name) == .orderedAscending
+            }
     }
 
     var body: some View {
@@ -191,7 +188,7 @@ struct PremiumItemsView: View {
         Logger.info("成功加载 \(allPremiumItems.count) 个溢价物品，分布在 \(categories.count) 个目录中")
     }
 
-    // 计算溢价物品的目录分布（同时加载中英文名称用于搜索）
+    /// 计算溢价物品的目录分布（同时加载中英文名称用于搜索）
     private func calculatePremiumCategories(orders: [StructureMarketOrder], premiumItems: [PremiumItemInfo]) async -> ([CategoryOrderData], [PremiumItemInfoWithNames]) {
         guard !premiumItems.isEmpty else {
             return ([], [])
@@ -208,17 +205,17 @@ struct PremiumItemsView: View {
             }
         }
 
-        // 查询所有溢价物品的目录信息和中英文名称（一次查询完成）
+        // 查询溢价物品的目录信息；名称从内存全语种索引取
         let typeIdsArray = Array(premiumTypeIds)
         let placeholders = String(repeating: "?,", count: typeIdsArray.count).dropLast()
         let query = """
-            SELECT type_id, categoryID, category_name, en_name, zh_name
+            SELECT type_id, categoryID, category_name
             FROM types
             WHERE type_id IN (\(placeholders))
         """
 
         var categoryOrderCount: [Int: (name: String, orderCount: Int)] = [:]
-        var nameMap: [Int: (enName: String, zhName: String)] = [:]
+        var nameMap: [Int: LocalizedText] = [:]
 
         if case let .success(rows) = DatabaseManager.shared.executeQuery(query, parameters: typeIdsArray) {
             for row in rows {
@@ -228,6 +225,10 @@ struct PremiumItemsView: View {
                       let orderCount = typeIdOrderCount[typeId]
                 else {
                     continue
+                }
+
+                if let type = SDEMemoryStore.type(for: typeId) {
+                    nameMap[typeId] = type.names
                 }
 
                 // 统计目录订单数
@@ -241,13 +242,6 @@ struct PremiumItemsView: View {
                         name: categoryName,
                         orderCount: orderCount
                     )
-                }
-
-                // 同时收集中英文名称（用于搜索）
-                if let enName = row["en_name"] as? String,
-                   let zhName = row["zh_name"] as? String
-                {
-                    nameMap[typeId] = (enName: enName, zhName: zhName)
                 }
             }
         }
@@ -276,7 +270,7 @@ struct PremiumItemsView: View {
                         continue
                     }
 
-                    categoryIconMap[categoryID] = iconFileName.isEmpty ? DatabaseConfig.defaultIcon : iconFileName
+                    categoryIconMap[categoryID] = iconFileName.isEmpty ? IconManager.defaultIcon : iconFileName
                 }
             }
         }
@@ -285,7 +279,7 @@ struct PremiumItemsView: View {
         let categories = categoryOrderCount
             .sorted { $0.value.orderCount > $1.value.orderCount }
             .map { categoryId, categoryInfo in
-                let iconFileName = categoryIconMap[categoryId] ?? DatabaseConfig.defaultIcon
+                let iconFileName = categoryIconMap[categoryId] ?? IconManager.defaultIcon
                 return CategoryOrderData(
                     id: categoryId,
                     name: categoryInfo.name,
@@ -294,15 +288,14 @@ struct PremiumItemsView: View {
                 )
             }
 
-        // 构建包含中英文名称的溢价物品列表（用于搜索）
+        // 构建含全语种名称的溢价物品列表（用于搜索）
         let itemsWithNames = premiumItems.compactMap { item -> PremiumItemInfoWithNames? in
             guard let names = nameMap[item.typeId] else {
                 return nil
             }
             return PremiumItemInfoWithNames(
                 premiumItem: item,
-                enName: names.enName,
-                zhName: names.zhName
+                names: names
             )
         }
 
@@ -371,7 +364,7 @@ struct PremiumCategoryGroupsView: View {
         }
     }
 
-    // 计算指定目录下所有分组的订单数（只包含溢价物品）
+    /// 计算指定目录下所有分组的订单数（只包含溢价物品）
     private func calculatePremiumCategoryGroups(orders: [StructureMarketOrder], categoryId _: Int) async -> [GroupOrderData] {
         guard !orders.isEmpty else {
             return []
@@ -469,16 +462,16 @@ struct PremiumCategoryGroupsView: View {
                         continue
                     }
 
-                    groupIconMap[groupID] = iconFileName.isEmpty ? DatabaseConfig.defaultIcon : iconFileName
+                    groupIconMap[groupID] = iconFileName.isEmpty ? IconManager.defaultIcon : iconFileName
                 }
             }
         }
 
         // 转换为数组并按订单数排序
-        let groups = groupOrderCount.values
+        return groupOrderCount.values
             .sorted { $0.orderCount > $1.orderCount }
             .map { groupInfo in
-                let iconFileName = groupIconMap[groupInfo.groupID] ?? DatabaseConfig.defaultIcon
+                let iconFileName = groupIconMap[groupInfo.groupID] ?? IconManager.defaultIcon
                 return GroupOrderData(
                     id: groupInfo.groupID,
                     name: groupInfo.groupName,
@@ -486,8 +479,6 @@ struct PremiumCategoryGroupsView: View {
                     iconFileName: iconFileName
                 )
             }
-
-        return groups
     }
 }
 
@@ -504,7 +495,7 @@ struct PremiumGroupItemsView: View {
     @State private var hasLoaded = false
     @State private var showBuyPrice = false // 是否显示买价溢价（false = 卖价，true = 买价）
 
-    // 根据当前显示模式排序的物品列表
+    /// 根据当前显示模式排序的物品列表
     private var sortedItemData: [PremiumItemInfo] {
         if showBuyPrice {
             // 按买价溢价排序（有买价数据的优先，然后按溢价从大到小）
@@ -628,7 +619,7 @@ struct PremiumGroupItemsView: View {
         }
     }
 
-    // 计算指定组内物品的溢价
+    /// 计算指定组内物品的溢价
     private func calculatePremiumGroupItems(orders: [StructureMarketOrder], groupID: Int) async -> [PremiumItemInfo] {
         guard !orders.isEmpty else {
             return []
@@ -665,16 +656,16 @@ struct PremiumGroupItemsView: View {
             for row in rows {
                 guard let typeId = row["type_id"] as? Int,
                       let name = row["name"] as? String,
-                      let iconFileName = row["icon_filename"] as? String,
                       orderTypeIds.contains(typeId),
                       let orderCount = typeIdOrderCount[typeId]
                 else {
                     continue
                 }
+                let iconFileName = row["icon_filename"] as? String ?? ""
 
                 itemInfoMap[typeId] = (
                     name: name,
-                    iconFileName: iconFileName.isEmpty ? DatabaseConfig.defaultItemIcon : iconFileName,
+                    iconFileName: iconFileName.isEmpty ? IconManager.defaultItemIcon : iconFileName,
                     orderCount: orderCount
                 )
             }

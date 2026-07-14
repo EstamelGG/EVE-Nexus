@@ -1,6 +1,6 @@
 import Foundation
 
-// 军团成员信息模型
+/// 军团成员信息模型
 public struct MemberTrackingInfo: Codable {
     public let character_id: Int
     public let location_id: Int?
@@ -10,7 +10,7 @@ public struct MemberTrackingInfo: Codable {
     public let start_date: String?
 }
 
-// 缓存数据结构
+/// 缓存数据结构
 private struct MemberTrackingCacheData: Codable {
     let data: [MemberTrackingInfo]
     let timestamp: Date
@@ -40,7 +40,8 @@ public class CorpMembersAPI {
         // 1. 获取角色的军团ID
         guard
             let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(
-                characterId: characterId)
+                characterId: characterId
+            )
         else {
             throw NetworkError.authenticationError("无法获取军团ID")
         }

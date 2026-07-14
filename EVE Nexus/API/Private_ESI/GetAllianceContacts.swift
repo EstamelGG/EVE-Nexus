@@ -6,7 +6,7 @@ class GetAllianceContacts {
 
     private init() {}
 
-    // 获取缓存文件路径
+    /// 获取缓存文件路径
     private func getCacheFilePath(allianceId: Int) -> URL {
         let paths = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         let contactsCacheDir = paths[0].appendingPathComponent("ContactsCache", isDirectory: true)
@@ -21,7 +21,7 @@ class GetAllianceContacts {
         return contactsCacheDir.appendingPathComponent("\(allianceId)_contacts.json")
     }
 
-    // 从缓存加载数据
+    /// 从缓存加载数据
     private func loadFromCache(allianceId: Int) -> [ContactInfo]? {
         let cacheFile = getCacheFilePath(allianceId: allianceId)
 
@@ -51,7 +51,7 @@ class GetAllianceContacts {
         }
     }
 
-    // 保存数据到缓存
+    /// 保存数据到缓存
     private func saveToCache(contacts: [ContactInfo], allianceId: Int) {
         let cacheFile = getCacheFilePath(allianceId: allianceId)
         let cachedData = CachedContactsData(contacts: contacts, timestamp: Date())
@@ -67,7 +67,7 @@ class GetAllianceContacts {
         }
     }
 
-    // 获取所有联系人数据
+    /// 获取所有联系人数据
     func fetchContacts(characterId: Int, allianceId: Int, forceRefresh: Bool = false)
         async throws -> [ContactInfo]
     {

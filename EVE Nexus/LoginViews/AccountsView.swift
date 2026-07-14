@@ -2,7 +2,7 @@ import SafariServices
 import SwiftUI
 import WebKit
 
-// 带有组织徽章的角色头像组件
+/// 带有组织徽章的角色头像组件
 struct CharacterAvatarWithBadges: View {
     let character: EVECharacterInfo
     let portrait: UIImage?
@@ -18,28 +18,21 @@ struct CharacterAvatarWithBadges: View {
     var body: some View {
         ZStack {
             // 主要头像
-            if let portrait = portrait {
-                Image(uiImage: portrait)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: avatarSize, height: avatarSize)
-                    .clipShape(Circle())
-            } else {
-                Image("default_char")
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .frame(width: avatarSize, height: avatarSize)
-                    .clipShape(Circle())
-            }
+            portraitImage
+                .resizable()
+                .aspectRatio(contentMode: .fill)
+                .frame(width: avatarSize, height: avatarSize)
+                .clipShape(Circle())
 
             // 刷新或过期状态覆盖层
             if isRefreshing {
                 Circle()
-                    .fill(Color.black.opacity(0.6))
+                    .fill(Color.black.opacity(0.4))
                     .frame(width: avatarSize, height: avatarSize)
 
                 ProgressView()
                     .scaleEffect(0.8)
+                    .tint(.white)
             } else if refreshTokenhasExpired {
                 TokenExpiredOverlay()
             }
@@ -55,46 +48,23 @@ struct CharacterAvatarWithBadges: View {
         .shadow(color: Color.primary.opacity(0.2), radius: 8, x: 0, y: 4)
         .padding(4)
         .overlay(
-            // 在这里添加小图标作为overlay，这样它们会显示在最上层
+            // 组织图标作为overlay，显示在最上层
             ZStack {
-                // 势力图标 (左上角)
-                if let factionIcon = factionIcon {
-                    Image(uiImage: factionIcon)
-                        .resizable()
-                        .frame(width: badgeSize, height: badgeSize)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.primary.opacity(0.8), lineWidth: 1))
-                        .background(Circle().fill(Color(UIColor.systemBackground)))
-                        .offset(
-                            x: -avatarSize / 2 + badgeSize / 2, y: -avatarSize / 2 + badgeSize / 2
-                        )
-                }
-
-                // 军团图标 (左下角)
-                if let corporationIcon = corporationIcon {
-                    Image(uiImage: corporationIcon)
-                        .resizable()
-                        .frame(width: badgeSize, height: badgeSize)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.primary.opacity(0.8), lineWidth: 1))
-                        .background(Circle().fill(Color(UIColor.systemBackground)))
-                        .offset(
-                            x: -avatarSize / 2 + badgeSize / 2, y: avatarSize / 2 - badgeSize / 2
-                        )
-                }
-
-                // 联盟图标 (右下角)
-                if let allianceIcon = allianceIcon {
-                    Image(uiImage: allianceIcon)
-                        .resizable()
-                        .frame(width: badgeSize, height: badgeSize)
-                        .clipShape(Circle())
-                        .overlay(Circle().stroke(Color.primary.opacity(0.8), lineWidth: 1))
-                        .background(Circle().fill(Color(UIColor.systemBackground)))
-                        .offset(
-                            x: avatarSize / 2 - badgeSize / 2, y: avatarSize / 2 - badgeSize / 2
-                        )
-                }
+                organizationBadge(
+                    factionIcon,
+                    x: -avatarSize / 2 + badgeSize / 2,
+                    y: -avatarSize / 2 + badgeSize / 2
+                )
+                organizationBadge(
+                    corporationIcon,
+                    x: -avatarSize / 2 + badgeSize / 2,
+                    y: avatarSize / 2 - badgeSize / 2
+                )
+                organizationBadge(
+                    allianceIcon,
+                    x: avatarSize / 2 - badgeSize / 2,
+                    y: avatarSize / 2 - badgeSize / 2
+                )
             }
         )
         .onAppear {
@@ -105,21 +75,38 @@ struct CharacterAvatarWithBadges: View {
         }
     }
 
+    /// 主要头像（有缓存用缓存，否则用默认占位图）
+    private var portraitImage: Image {
+        if let portrait = portrait {
+            Image(uiImage: portrait)
+        } else {
+            Image("default_char")
+        }
+    }
+
+    /// 组织图标徽章（势力 / 军团 / 联盟共用）
+    @ViewBuilder
+    private func organizationBadge(_ icon: UIImage?, x: CGFloat, y: CGFloat) -> some View {
+        if let icon = icon {
+            Image(uiImage: icon)
+                .resizable()
+                .frame(width: badgeSize, height: badgeSize)
+                .clipShape(Circle())
+                .overlay(Circle().stroke(Color.primary.opacity(0.8), lineWidth: 1))
+                .background(Circle().fill(Color(UIColor.systemBackground)))
+                .offset(x: x, y: y)
+        }
+    }
+
     private func loadOrganizationIcons() {
         // 加载势力图标
-        if let factionId = character.factionId {
+        if let factionId = character.factionId,
+           let iconName = SDEMemoryStore.faction(for: factionId)?.iconName
+        {
             Task {
-                let query = "SELECT iconName FROM factions WHERE id = ?"
-                if case let .success(rows) = DatabaseManager.shared.executeQuery(
-                    query, parameters: [factionId]
-                ),
-                    let row = rows.first,
-                    let iconName = row["iconName"] as? String
-                {
-                    let icon = IconManager.shared.loadUIImage(for: iconName)
-                    await MainActor.run {
-                        self.factionIcon = icon
-                    }
+                let icon = IconManager.shared.loadUIImage(for: iconName)
+                await MainActor.run {
+                    self.factionIcon = icon
                 }
             }
         }
@@ -161,7 +148,6 @@ struct CharacterAvatarWithBadges: View {
 struct AccountsView: View {
     @StateObject private var viewModel: EVELoginViewModel
     let mainViewModel: MainViewModel
-    @State private var showingWebView = false
     @State private var isEditing = false
     @State private var characterToRemove: EVECharacterInfo? = nil
     @State private var forceUpdate: Bool = false
@@ -175,7 +161,7 @@ struct AccountsView: View {
     @State private var showingSuccess: Bool = false
     @State private var showingSteamLoginSheet: Bool = false
 
-    // 添加角色选择回调
+    /// 添加角色选择回调
     var onCharacterSelect: ((EVECharacterInfo, UIImage?) -> Void)?
 
     init(
@@ -218,134 +204,27 @@ struct AccountsView: View {
                                 scopes: EVELogin.shared.config?.scopes ?? []
                             )
 
-                            // 获取角色信息
                             let character = try await EVELogin.shared.processLogin(
                                 authState: authState
                             )
-
-                            // 获取并保存角色公开信息到数据库
-                            let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(
-                                characterId: character.CharacterID,
-                                forceRefresh: true
-                            )
-                            Logger.success("成功获取并保存角色公开信息 - 角色: \(publicInfo.name)")
-
-                            // UI 更新已经在 MainActor 上下文中
-                            viewModel.characterInfo = character
-                            viewModel.loadCharacters()
-
-                            // 加载新角色的头像
-                            await viewModel.loadCharacterPortrait(
-                                characterId: character.CharacterID)
-
-                            // 加载技能队列信息
-                            await updateCharacterSkillQueue(character: character)
-
-                            // 保存更新后的角色信息到UserDefaults
-                            if let updatedCharacter = await MainActor.run(body: {
-                                self.viewModel.getCharacter(by: character.CharacterID)
-                            }) {
-                                do {
-                                    // 获取 access token
-                                    let accessToken = try await AuthTokenManager.shared
-                                        .getAccessToken(for: updatedCharacter.CharacterID)
-                                    // 创建 EVEAuthToken 对象
-                                    let token = try EVEAuthToken(
-                                        access_token: accessToken,
-                                        expires_in: 1200, // 20分钟过期
-                                        token_type: "Bearer",
-                                        refresh_token: SecureStorage.shared.loadToken(
-                                            for: updatedCharacter.CharacterID) ?? ""
-                                    )
-                                    // 保存认证信息
-                                    try await EVELogin.shared.saveAuthInfo(
-                                        token: token,
-                                        character: updatedCharacter
-                                    )
-                                    Logger.info("已保存更新后的角色信息 - \(updatedCharacter.CharacterName)")
-
-                                    // 立即刷新该角色的所有数据
-                                    await refreshCharacterData(updatedCharacter)
-                                } catch {
-                                    Logger.error("保存认证信息失败: \(error)")
-                                }
-                            }
-
-                            Logger.info(
-                                "成功刷新角色信息(\(character.CharacterID)) - \(character.CharacterName)")
+                            await finishLoginSuccess(character: character)
                         } catch {
                             // 检查是否是 scope 无效错误
                             if error.localizedDescription.lowercased().contains("invalid_scope") {
                                 Logger.info("检测到无效权限，尝试重新获取最新的 scopes")
-                                // 强制刷新获取最新的 scopes
                                 let scopes = await ScopeManager.shared.getLatestScopes(
-                                    forceRefresh: true)
+                                    forceRefresh: true
+                                )
 
                                 do {
-                                    // 使用新的 scopes 重试登录
                                     let authState = try await AuthTokenManager.shared.authorize(
                                         presenting: viewController,
                                         scopes: scopes
                                     )
-
-                                    // 获取角色信息
                                     let character = try await EVELogin.shared.processLogin(
                                         authState: authState
                                     )
-
-                                    // 获取并保存角色公开信息到数据库
-                                    let publicInfo = try await CharacterAPI.shared
-                                        .fetchCharacterPublicInfo(
-                                            characterId: character.CharacterID,
-                                            forceRefresh: true
-                                        )
-                                    Logger.success("成功获取并保存角色公开信息 - 角色: \(publicInfo.name)")
-
-                                    // UI 更新已经在 MainActor 上下文中
-                                    viewModel.characterInfo = character
-                                    viewModel.loadCharacters()
-
-                                    // 加载新角色的头像
-                                    await viewModel.loadCharacterPortrait(
-                                        characterId: character.CharacterID)
-
-                                    // 加载技能队列信息
-                                    await updateCharacterSkillQueue(character: character)
-
-                                    // 保存更新后的角色信息到UserDefaults
-                                    if let updatedCharacter = await MainActor.run(body: {
-                                        self.viewModel.getCharacter(by: character.CharacterID)
-                                    }) {
-                                        do {
-                                            // 获取 access token
-                                            let accessToken = try await AuthTokenManager.shared
-                                                .getAccessToken(for: updatedCharacter.CharacterID)
-                                            // 创建 EVEAuthToken 对象
-                                            let token = try EVEAuthToken(
-                                                access_token: accessToken,
-                                                expires_in: 1200, // 20分钟过期
-                                                token_type: "Bearer",
-                                                refresh_token: SecureStorage.shared.loadToken(
-                                                    for: updatedCharacter.CharacterID) ?? ""
-                                            )
-                                            // 保存认证信息
-                                            try await EVELogin.shared.saveAuthInfo(
-                                                token: token,
-                                                character: updatedCharacter
-                                            )
-                                            Logger.info(
-                                                "已保存更新后的角色信息 - \(updatedCharacter.CharacterName)")
-
-                                            // 立即刷新该角色的所有数据
-                                            await refreshCharacterData(updatedCharacter)
-                                        } catch {
-                                            Logger.error("保存认证信息失败: \(error)")
-                                        }
-                                    }
-
-                                    Logger.info(
-                                        "成功刷新角色信息(\(character.CharacterID)) - \(character.CharacterName)"
-                                    )
+                                    await finishLoginSuccess(character: character)
                                 } catch {
                                     viewModel.errorMessage =
                                         "登录失败，请稍后重试：\(error.localizedDescription)"
@@ -354,7 +233,7 @@ struct AccountsView: View {
                                 }
                             } else {
                                 viewModel.errorMessage = error.localizedDescription
-                                viewModel.showingError = false
+                                viewModel.showingError = true
                                 Logger.error("登录失败: \(error)")
                             }
                         }
@@ -370,7 +249,6 @@ struct AccountsView: View {
                                 .padding(.trailing, 5)
                         } else {
                             Image(systemName: "plus.circle.fill")
-                                .foregroundColor(.blue)
                         }
                         Text(
                             NSLocalizedString(
@@ -378,11 +256,10 @@ struct AccountsView: View {
                                 comment: ""
                             )
                         )
-                        .foregroundColor(isEditing ? .primary : .blue)
                         Spacer()
                     }
                 }
-                .disabled(isLoggingIn)
+                .disabled(isLoggingIn || isEditing)
             } footer: {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
@@ -399,7 +276,8 @@ struct AccountsView: View {
                                 // 强制刷新 scopes
                                 Logger.info("手动强制刷新 scopes")
                                 let scopeResult = await ScopeManager.shared.getLatestScopesWithSource(
-                                    forceRefresh: true)
+                                    forceRefresh: true
+                                )
 
                                 // 更新 EVELogin 中的 scopes 配置
                                 await MainActor.run {
@@ -458,74 +336,27 @@ struct AccountsView: View {
                         "\(NSLocalizedString("Account_Logged_Characters", comment: "")) (\(viewModel.characters.count))"
                     )
                 ) {
-                    if isEditing {
-                        ForEach(viewModel.characters, id: \.CharacterID) { character in
-                            Button(action: {
+                    ForEach(viewModel.characters, id: \.CharacterID) { character in
+                        Button {
+                            if isEditing {
                                 characterToRemove = character
-                            }) {
-                                CharacterRowView(
-                                    character: character,
-                                    portrait: viewModel.characterPortraits[character.CharacterID],
-                                    isRefreshing: refreshingCharacters.contains(
-                                        character.CharacterID),
-                                    isEditing: isEditing,
-                                    refreshTokenhasExpired: expiredTokenCharacters.contains(
-                                        character.CharacterID),
-                                    formatISK: FormatUtil.formatISK,
-                                    formatSkillPoints: formatSkillPoints,
-                                    formatRemainingTime: formatRemainingTime
-                                )
-                            }
-                            .foregroundColor(.primary)
-                        }
-                        .onMove { from, to in
-                            viewModel.moveCharacter(from: from, to: to)
-                        }
-                    } else {
-                        ForEach(viewModel.characters, id: \.CharacterID) { character in
-                            Button {
-                                // 复用已加载的数据
+                            } else {
                                 let portrait = viewModel.characterPortraits[character.CharacterID]
-                                // 保存当前角色的最新状态到 EVELogin
-                                Task {
-                                    do {
-                                        // 获取 access token
-                                        let accessToken = try await AuthTokenManager.shared
-                                            .getAccessToken(for: character.CharacterID)
-                                        // 创建 EVEAuthToken 对象
-                                        let token = try EVEAuthToken(
-                                            access_token: accessToken,
-                                            expires_in: 1200, // 20分钟过期
-                                            token_type: "Bearer",
-                                            refresh_token: SecureStorage.shared.loadToken(
-                                                for: character.CharacterID) ?? ""
-                                        )
-                                        // 保存认证信息
-                                        try await EVELogin.shared.saveAuthInfo(
-                                            token: token,
-                                            character: character
-                                        )
-                                    } catch {
-                                        Logger.error("保存认证信息失败: \(error)")
-                                    }
-                                }
                                 onCharacterSelect?(character, portrait)
                                 selectedItem = nil
-                            } label: {
-                                CharacterRowView(
-                                    character: character,
-                                    portrait: viewModel.characterPortraits[character.CharacterID],
-                                    isRefreshing: refreshingCharacters.contains(
-                                        character.CharacterID),
-                                    isEditing: isEditing,
-                                    refreshTokenhasExpired: expiredTokenCharacters.contains(
-                                        character.CharacterID),
-                                    formatISK: FormatUtil.formatISK,
-                                    formatSkillPoints: formatSkillPoints,
-                                    formatRemainingTime: formatRemainingTime
-                                )
                             }
-                            .buttonStyle(.plain)
+                        } label: {
+                            characterRow(for: character)
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .onMove { from, to in
+                        viewModel.moveCharacter(from: from, to: to)
+                    }
+                    .onDelete { indexSet in
+                        // 左滑删除：与点 trash 按钮一致，触发确认 alert
+                        if let index = indexSet.first, index < viewModel.characters.count {
+                            characterToRemove = viewModel.characters[index]
                         }
                     }
                 }
@@ -601,8 +432,6 @@ struct AccountsView: View {
                         object: nil,
                         userInfo: ["characterId": characterId]
                     )
-                    // 清除该角色的 RefreshTokenExpired 状态
-                    EVELogin.shared.resetRefreshTokenExpired(characterId: characterId)
                     // 从过期token集合中移除该角色
                     expiredTokenCharacters.remove(characterId)
                     characterToRemove = nil
@@ -618,138 +447,16 @@ struct AccountsView: View {
         }
         .onAppear {
             viewModel.loadCharacters()
-            // 初始化过期token状态
             let characterAuths = EVELogin.shared.loadCharacters()
+            // 同步套上已知过期遮罩，避免首帧先显示正常头像
+            expiredTokenCharacters = Set(
+                characterAuths.filter(\.character.refreshTokenExpired).map(\.character.CharacterID)
+            )
 
             // 从缓存更新所有角色的数据
             Task { @MainActor in
                 for auth in characterAuths {
-                    if auth.character.refreshTokenExpired {
-                        expiredTokenCharacters.insert(auth.character.CharacterID)
-                    }
-
-                    // 使用基于角色ID的安全更新方法
-                    let characterId = auth.character.CharacterID
-
-                    // 尝试从缓存获取钱包余额
-                    let cachedBalance = await CharacterWalletAPI.shared.getCachedWalletBalance(
-                        characterId: characterId)
-                    if let balance = Double(cachedBalance) {
-                        viewModel.updateCharacter(characterId: characterId) { character in
-                            character.walletBalance = balance
-                        }
-                    }
-
-                    // 尝试从缓存获取技能点数据
-                    if let skillsInfo = try? await CharacterSkillsAPI.shared
-                        .fetchCharacterSkills(
-                            characterId: characterId,
-                            forceRefresh: false
-                        )
-                    {
-                        viewModel.updateCharacter(characterId: characterId) { character in
-                            character.totalSkillPoints = skillsInfo.total_sp
-                            character.unallocatedSkillPoints = skillsInfo.unallocated_sp
-                        }
-                    }
-
-                    // 尝试从缓存获取技能队列
-                    if let queue = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
-                        characterId: characterId,
-                        forceRefresh: false
-                    ) {
-                        viewModel.updateCharacter(characterId: characterId) { character in
-                            character.skillQueueLength = queue.count
-
-                            if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
-                                if let skillName = SkillTreeManager.shared.getSkillName(
-                                    for: currentSkill.skill_id)
-                                {
-                                    character.currentSkill = EVECharacterInfo.CurrentSkillInfo(
-                                        skillId: currentSkill.skill_id,
-                                        name: skillName,
-                                        level: currentSkill.skillLevel,
-                                        progress: currentSkill.progress,
-                                        remainingTime: currentSkill.remainingTime
-                                    )
-                                }
-                            } else if let firstSkill = queue.first,
-                                      let skillName = SkillTreeManager.shared.getSkillName(
-                                          for: firstSkill.skill_id),
-                                      let trainingStartSp = firstSkill.training_start_sp,
-                                      let levelEndSp = firstSkill.level_end_sp
-                            {
-                                // 计算暂停技能的实际进度
-                                let calculatedProgress = SkillProgressCalculator.calculateProgress(
-                                    trainingStartSp: trainingStartSp,
-                                    levelEndSp: levelEndSp,
-                                    finishedLevel: firstSkill.finished_level
-                                )
-                                character.currentSkill = EVECharacterInfo.CurrentSkillInfo(
-                                    skillId: firstSkill.skill_id,
-                                    name: skillName,
-                                    level: firstSkill.skillLevel,
-                                    progress: calculatedProgress,
-                                    remainingTime: nil // 暂停状态
-                                )
-                            }
-                        }
-                    }
-
-                    // 尝试从缓存获取位置信息
-                    if let location = try? await CharacterLocationAPI.shared
-                        .fetchCharacterLocation(
-                            characterId: characterId,
-                            forceRefresh: false
-                        )
-                    {
-                        viewModel.updateCharacter(characterId: characterId) { character in
-                            character.locationStatus = location.locationStatus
-                        }
-
-                        let locationInfo = await getSolarSystemInfo(
-                            solarSystemId: location.solar_system_id,
-                            databaseManager: viewModel.databaseManager
-                        )
-                        if let locationInfo = locationInfo {
-                            viewModel.updateCharacter(characterId: characterId) { character in
-                                character.location = locationInfo
-                            }
-                        }
-                    }
-
-                    // 尝试从缓存获取头像
-                    if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
-                        characterId: characterId,
-                        forceRefresh: false
-                    ) {
-                        viewModel.characterPortraits[characterId] = portrait
-                    }
-
-                    // 尝试从缓存获取角色公共信息（组织信息）
-                    if let publicInfo = try? await CharacterAPI.shared.fetchCharacterPublicInfo(
-                        characterId: characterId,
-                        forceRefresh: false
-                    ) {
-                        viewModel.updateCharacter(characterId: characterId) { character in
-                            character.corporationId = publicInfo.corporation_id
-                            character.allianceId = publicInfo.alliance_id
-                            character.factionId = publicInfo.faction_id
-                        }
-                    }
-
-                    await persistCharacterSnapshot(characterId: characterId)
-                }
-            }
-        }
-        .onOpenURL { url in
-            Task {
-                viewModel.handleCallback(url: url)
-                showingWebView = false
-                // 如果登录成功，清除该角色的token过期状态
-                if let character = viewModel.characterInfo {
-                    expiredTokenCharacters.remove(character.CharacterID)
-                    EVELogin.shared.resetRefreshTokenExpired(characterId: character.CharacterID)
+                    await loadCachedData(for: auth.character.CharacterID)
                 }
             }
         }
@@ -759,6 +466,20 @@ struct AccountsView: View {
             // 强制视图刷新以更新技能名称
             withAnimation {
                 forceUpdate.toggle()
+            }
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: Notification.Name("CharacterDetailsUpdated")
+            )
+        ) { notification in
+            // 同步 token 过期状态（后台 API 调用触发 token 过期/恢复时实时更新 UI）
+            if let character = notification.userInfo?["character"] as? EVECharacterInfo {
+                if character.refreshTokenExpired {
+                    expiredTokenCharacters.insert(character.CharacterID)
+                } else {
+                    expiredTokenCharacters.remove(character.CharacterID)
+                }
             }
         }
         .id(forceUpdate)
@@ -775,11 +496,138 @@ struct AccountsView: View {
         }
     }
 
-    // 添加一个帮助函数来处理 MainActor.run 的返回值
+    /// 从缓存加载单个角色的全部数据（钱包 / 技能点 / 技能队列 / 位置 / 头像 / 公共信息），并写入 ViewModel
+    private func loadCachedData(for characterId: Int) async {
+        // 钱包余额
+        let cachedBalance = await CharacterWalletAPI.shared.getCachedWalletBalance(
+            characterId: characterId
+        )
+        if let balance = Double(cachedBalance) {
+            viewModel.updateCharacter(characterId: characterId) { character in
+                character.walletBalance = balance
+            }
+        }
+
+        // 技能点
+        if let skillsInfo = try? await CharacterSkillsAPI.shared.fetchCharacterSkills(
+            characterId: characterId,
+            forceRefresh: false
+        ) {
+            viewModel.updateCharacter(characterId: characterId) { character in
+                character.totalSkillPoints = skillsInfo.total_sp
+                character.unallocatedSkillPoints = skillsInfo.unallocated_sp
+            }
+        }
+
+        // 技能队列
+        if let queue = try? await CharacterSkillsAPI.shared.fetchSkillQueue(
+            characterId: characterId,
+            forceRefresh: false
+        ) {
+            viewModel.updateCharacter(characterId: characterId) { character in
+                applySkillQueue(queue, to: &character)
+            }
+        }
+
+        // 位置信息
+        if let location = try? await CharacterLocationAPI.shared.fetchCharacterLocation(
+            characterId: characterId,
+            forceRefresh: false
+        ) {
+            viewModel.updateCharacter(characterId: characterId) { character in
+                character.locationStatus = location.locationStatus
+            }
+
+            if let locationInfo = await getSolarSystemInfo(
+                solarSystemId: location.solar_system_id,
+                databaseManager: viewModel.databaseManager
+            ) {
+                viewModel.updateCharacter(characterId: characterId) { character in
+                    character.location = locationInfo
+                }
+            }
+        }
+
+        // 头像
+        if let portrait = try? await CharacterAPI.shared.fetchCharacterPortrait(
+            characterId: characterId,
+            forceRefresh: false
+        ) {
+            viewModel.characterPortraits[characterId] = portrait
+        }
+
+        // 角色公共信息（组织信息）
+        if let publicInfo = try? await CharacterAPI.shared.fetchCharacterPublicInfo(
+            characterId: characterId,
+            forceRefresh: false
+        ) {
+            viewModel.updateCharacter(characterId: characterId) { character in
+                character.corporationId = publicInfo.corporation_id
+                character.allianceId = publicInfo.alliance_id
+                character.factionId = publicInfo.faction_id
+            }
+        }
+
+        await persistCharacterSnapshot(characterId: characterId)
+    }
+
+    /// 构造角色行视图（编辑/非编辑模式共用，避免参数列表重复）
+    private func characterRow(for character: EVECharacterInfo) -> some View {
+        CharacterRowView(
+            character: character,
+            portrait: viewModel.characterPortraits[character.CharacterID],
+            isRefreshing: refreshingCharacters.contains(character.CharacterID),
+            isEditing: isEditing,
+            refreshTokenhasExpired: expiredTokenCharacters.contains(character.CharacterID),
+            formatISK: FormatUtil.formatISK,
+            formatSkillPoints: formatSkillPoints,
+            formatRemainingTime: formatRemainingTime
+        )
+    }
+
+    /// 添加一个帮助函数来处理 MainActor.run 的返回值
     @discardableResult
     @Sendable
     private func updateUI<T>(_ operation: @MainActor () -> T) async -> T {
         await MainActor.run { operation() }
+    }
+
+    /// 从技能队列提取当前技能信息并写入角色（统一处理 训练中 / 暂停 / 空队列 三种状态）
+    private func applySkillQueue(_ queue: [SkillQueueItem], to character: inout EVECharacterInfo) {
+        character.skillQueueLength = queue.count
+
+        if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }),
+           let skillName = SkillTreeManager.shared.getSkillName(for: currentSkill.skill_id)
+        {
+            // 训练中
+            character.currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                skillId: currentSkill.skill_id,
+                name: skillName,
+                level: currentSkill.skillLevel,
+                progress: currentSkill.progress,
+                remainingTime: currentSkill.remainingTime
+            )
+        } else if let firstSkill = queue.first,
+                  let skillName = SkillTreeManager.shared.getSkillName(for: firstSkill.skill_id),
+                  let trainingStartSp = firstSkill.training_start_sp,
+                  let levelEndSp = firstSkill.level_end_sp
+        {
+            // 暂停状态：根据已花费 SP 计算实际进度
+            character.currentSkill = EVECharacterInfo.CurrentSkillInfo(
+                skillId: firstSkill.skill_id,
+                name: skillName,
+                level: firstSkill.skillLevel,
+                progress: SkillProgressCalculator.calculateProgress(
+                    trainingStartSp: trainingStartSp,
+                    levelEndSp: levelEndSp,
+                    finishedLevel: firstSkill.finished_level
+                ),
+                remainingTime: nil
+            )
+        } else {
+            // 队列为空
+            character.currentSkill = nil
+        }
     }
 
     /// 将 ViewModel 中的角色信息写回 UserDefaults，使下次进入账号页时技能进度等与上次展示一致
@@ -801,139 +649,58 @@ struct AccountsView: View {
         try? await Task.sleep(nanoseconds: 500_000_000) // 0.5秒
 
         isRefreshing = true
-        expiredTokenCharacters.removeAll()
 
-        // 获取所有保存的角色认证信息
         let characterAuths = EVELogin.shared.loadCharacters()
-        let service = CharacterDataService.shared
 
-        // 初始化过期状态
-        for auth in characterAuths {
-            if auth.character.refreshTokenExpired {
-                expiredTokenCharacters.insert(auth.character.CharacterID)
-            }
+        // 先套上已知过期遮罩，且不进入刷新转圈（避免遮罩被 ProgressView 盖住）
+        let knownExpiredIds = Set(
+            characterAuths.filter(\.character.refreshTokenExpired).map(\.character.CharacterID)
+        )
+        expiredTokenCharacters = knownExpiredIds
+        let candidates = characterAuths.filter {
+            !knownExpiredIds.contains($0.character.CharacterID)
         }
+        refreshingCharacters = Set(candidates.map(\.character.CharacterID))
+        // 让 UI 先渲染过期遮罩
+        await Task.yield()
 
+        Logger.info(
+            "刷新全部角色: \(candidates.count) 人 (跳过已知过期 \(knownExpiredIds.count) 人)"
+        )
+
+        // 角色优先：每个角色独立检查 token → 通过后并行加载 5 类数据，全部就绪即刷新 UI
         // 分批处理角色，每批最多 10 个
         let batchSize = 10
-        for batch in stride(from: 0, to: characterAuths.count, by: batchSize) {
-            let end = min(batch + batchSize, characterAuths.count)
-            let currentBatch = characterAuths[batch ..< end]
+        for batchStart in stride(from: 0, to: candidates.count, by: batchSize) {
+            let end = min(batchStart + batchSize, candidates.count)
+            let currentBatch = Array(candidates[batchStart ..< end])
 
             // 使用 TaskGroup 并行处理当前批次的角色数据刷新
             await withTaskGroup(of: Void.self) { group in
                 for characterAuth in currentBatch {
                     group.addTask {
-                        // 添加角色到刷新集合
-                        await updateUI {
-                            refreshingCharacters.insert(characterAuth.character.CharacterID)
-                        }
+                        let characterId = characterAuth.character.CharacterID
 
                         do {
                             // 使用 TokenManager 获取有效的 token
-                            let current_access_token = try await AuthTokenManager.shared
-                                .getAccessToken(for: characterAuth.character.CharacterID)
+                            let currentAccessToken = try await AuthTokenManager.shared
+                                .getAccessToken(for: characterId)
                             Logger.info(
-                                "获得角色Token \(characterAuth.character.CharacterName)(\(characterAuth.character.CharacterID)) token: \(String(reflecting: current_access_token)), 上次token更新: \(characterAuth.lastTokenUpdateTime)"
+                                "获得角色Token \(characterAuth.character.CharacterName)(\(characterId)) token: \(String(reflecting: currentAccessToken)), 上次token更新: \(characterAuth.lastTokenUpdateTime)"
                             )
 
-                            // 并行获取所有数据
-                            async let skillInfoTask = service.getSkillInfo(
-                                id: characterAuth.character.CharacterID, forceRefresh: true
-                            )
-                            async let walletTask = service.getWalletBalance(
-                                id: characterAuth.character.CharacterID, forceRefresh: true
-                            )
-                            async let portraitTask = service.getCharacterPortrait(
-                                id: characterAuth.character.CharacterID, forceRefresh: true
-                            )
-                            async let locationTask = service.getLocation(
-                                id: characterAuth.character.CharacterID, forceRefresh: true
-                            )
-                            async let publicInfoTask = CharacterAPI.shared.fetchCharacterPublicInfo(
-                                characterId: characterAuth.character.CharacterID, forceRefresh: true
+                            // 并行获取全部 5 类数据并更新 UI
+                            try await self.fetchAndUpdateCharacter(
+                                characterId: characterId, forceRefresh: true
                             )
 
-                            // 等待所有数据获取完成
-                            let ((skillsResponse, queue), balance, portrait, location, publicInfo) =
-                                try await (
-                                    skillInfoTask, walletTask, portraitTask, locationTask,
-                                    publicInfoTask
-                                )
-
-                            // 更新UI
                             await updateUI {
-                                let characterId = characterAuth.character.CharacterID
-
-                                // 使用基于角色ID的安全更新方法
-                                self.viewModel.updateCharacter(characterId: characterId) {
-                                    character in
-                                    // 更新组织信息
-                                    character.corporationId = publicInfo.corporation_id
-                                    character.allianceId = publicInfo.alliance_id
-                                    character.factionId = publicInfo.faction_id
-
-                                    // 更新技能信息
-                                    character.totalSkillPoints = skillsResponse.total_sp
-                                    character.unallocatedSkillPoints = skillsResponse.unallocated_sp
-
-                                    // 更新技能队列
-                                    character.skillQueueLength = queue.count
-                                    if let currentSkill = queue.first(where: {
-                                        $0.isCurrentlyTraining
-                                    }) {
-                                        if let skillName = SkillTreeManager.shared.getSkillName(
-                                            for: currentSkill.skill_id)
-                                        {
-                                            character.currentSkill =
-                                                EVECharacterInfo.CurrentSkillInfo(
-                                                    skillId: currentSkill.skill_id,
-                                                    name: skillName,
-                                                    level: currentSkill.skillLevel,
-                                                    progress: currentSkill.progress,
-                                                    remainingTime: currentSkill.remainingTime
-                                                )
-                                        }
-                                    }
-
-                                    // 更新钱包余额
-                                    character.walletBalance = balance
-
-                                    // 更新位置信息
-                                    character.locationStatus = location.locationStatus
-                                }
-
-                                // 更新头像
-                                self.viewModel.characterPortraits[characterId] = portrait
-
-                                // 异步更新位置详细信息
-                                Task {
-                                    let databaseManager = self.viewModel.databaseManager
-                                    let viewModel = self.viewModel
-
-                                    if let locationInfo = await getSolarSystemInfo(
-                                        solarSystemId: location.solar_system_id,
-                                        databaseManager: databaseManager
-                                    ) {
-                                        await MainActor.run {
-                                            viewModel.updateCharacter(characterId: characterId) {
-                                                character in
-                                                character.location = locationInfo
-                                            }
-                                        }
-                                    }
-                                }
+                                expiredTokenCharacters.remove(characterId)
                             }
-
-                            await persistCharacterSnapshot(
-                                characterId: characterAuth.character.CharacterID)
-
                         } catch {
                             if case NetworkError.refreshTokenExpired = error {
                                 await updateUI {
-                                    expiredTokenCharacters.insert(
-                                        characterAuth.character.CharacterID
-                                    )
+                                    expiredTokenCharacters.insert(characterId)
                                 }
                             }
                             Logger.error("刷新角色信息失败: \(error)")
@@ -941,7 +708,7 @@ struct AccountsView: View {
 
                         // 从刷新集合中移除角色
                         await updateUI {
-                            refreshingCharacters.remove(characterAuth.character.CharacterID)
+                            refreshingCharacters.remove(characterId)
                         }
                     }
                 }
@@ -954,11 +721,10 @@ struct AccountsView: View {
         // 更新登录状态
         await updateUI {
             self.isRefreshing = false
-            // self.viewModel.isLoggedIn = !self.viewModel.characters.isEmpty
         }
     }
 
-    // 格式化技能点显示
+    /// 格式化技能点显示
     private func formatSkillPoints(_ sp: Int) -> String {
         if sp >= 1_000_000 {
             return String(format: "%.1fM", Double(sp) / 1_000_000.0)
@@ -968,7 +734,7 @@ struct AccountsView: View {
         return "\(sp)"
     }
 
-    // 格式化剩余时间显示
+    /// 格式化剩余时间显示
     private func formatRemainingTime(_ seconds: TimeInterval) -> String {
         let days = Int(seconds) / 86400
         let hours = (Int(seconds) % 86400) / 3600
@@ -983,225 +749,98 @@ struct AccountsView: View {
         }
     }
 
-    // 添加技能队列加载方法
-    private func updateCharacterSkillQueue(character: EVECharacterInfo) async {
-        do {
-            // 添加重试机制
-            let maxRetries = 3
-            var retryCount = 0
-            var lastError: Error?
+    /// processLogin 成功后的 UI / 数据收尾（权威落盘已在 processLogin 完成）
+    private func finishLoginSuccess(character: EVECharacterInfo) async {
+        expiredTokenCharacters.remove(character.CharacterID)
 
-            while retryCount < maxRetries {
-                do {
-                    let queue = try await CharacterSkillsAPI.shared.fetchSkillQueue(
-                        characterId: character.CharacterID
-                    )
+        viewModel.characterInfo = character
+        viewModel.loadCharacters()
 
-                    Logger.success("成功获取技能队列 - 角色: \(character.CharacterName), 队列长度: \(queue.count)")
+        // refreshCharacterData 已并行获取全部 5 类数据（技能+队列、钱包、头像、位置、公共信息）
+        await refreshCharacterData(character)
 
-                    // 查找正在训练的技能
-                    if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
-                        if let skillName = SkillTreeManager.shared.getSkillName(
-                            for: currentSkill.skill_id)
-                        {
-                            Logger.info(
-                                "找到正在训练的技能 - 技能: \(skillName), 等级: \(currentSkill.skillLevel), 进度: \(currentSkill.progress)"
-                            )
-
-                            await updateUI {
-                                self.viewModel.updateCharacter(characterId: character.CharacterID) {
-                                    char in
-                                    char.currentSkill = EVECharacterInfo.CurrentSkillInfo(
-                                        skillId: currentSkill.skill_id,
-                                        name: skillName,
-                                        level: currentSkill.skillLevel,
-                                        progress: currentSkill.progress,
-                                        remainingTime: currentSkill.remainingTime
-                                    )
-                                    char.skillQueueLength = queue.count
-                                }
-                            }
-                        }
-                    } else if let firstSkill = queue.first {
-                        // 如果没有正在训练的技能，但队列有技能，说明是暂停状态
-                        if let skillName = SkillTreeManager.shared.getSkillName(
-                            for: firstSkill.skill_id)
-                        {
-                            Logger.info(
-                                "找到暂停的技能 - 技能: \(skillName), 等级: \(firstSkill.skillLevel), 进度: \(firstSkill.progress)"
-                            )
-
-                            // 计算暂停技能的实际进度
-                            let calculatedProgress: Double
-                            if let trainingStartSp = firstSkill.training_start_sp,
-                               let levelEndSp = firstSkill.level_end_sp
-                            {
-                                calculatedProgress = SkillProgressCalculator.calculateProgress(
-                                    trainingStartSp: trainingStartSp,
-                                    levelEndSp: levelEndSp,
-                                    finishedLevel: firstSkill.finished_level
-                                )
-                            } else {
-                                calculatedProgress = 0.0
-                            }
-
-                            await updateUI {
-                                self.viewModel.updateCharacter(characterId: character.CharacterID) {
-                                    char in
-                                    char.currentSkill = EVECharacterInfo.CurrentSkillInfo(
-                                        skillId: firstSkill.skill_id,
-                                        name: skillName,
-                                        level: firstSkill.skillLevel,
-                                        progress: calculatedProgress,
-                                        remainingTime: nil // 暂停状态
-                                    )
-                                    char.skillQueueLength = queue.count
-                                }
-                            }
-                        }
-                    } else {
-                        // 队列为空的情况
-                        Logger.info("技能队列为空 - 角色: \(character.CharacterName)")
-
-                        await updateUI {
-                            self.viewModel.updateCharacter(characterId: character.CharacterID) {
-                                char in
-                                char.currentSkill = nil
-                                char.skillQueueLength = 0
-                            }
-                        }
-                    }
-
-                    await persistCharacterSnapshot(characterId: character.CharacterID)
-
-                    // 如果成功，跳出循环
-                    break
-
-                } catch {
-                    lastError = error
-                    retryCount += 1
-                    Logger.error(
-                        "获取技能队列失败(尝试 \(retryCount)/\(maxRetries)) - 角色: \(character.CharacterName), 错误: \(error)"
-                    )
-
-                    if retryCount < maxRetries {
-                        // 等待一段时间后重试
-                        try await Task.sleep(nanoseconds: UInt64(1_000_000_000 * retryCount)) // 递增等待时间
-                    }
-                }
-            }
-
-            if retryCount == maxRetries {
-                Logger.error(
-                    "获取技能队列最终失败 - 角色: \(character.CharacterName), 错误: \(lastError?.localizedDescription ?? "未知错误")"
-                )
-            }
-
-        } catch {
-            Logger.error("获取技能队列失败 - 角色: \(character.CharacterName), 错误: \(error)")
-        }
+        Logger.info(
+            "成功刷新角色信息(\(character.CharacterID)) - \(character.CharacterName)"
+        )
     }
 
-    // 添加新的辅助方法用于刷新单个角色的数据
-    private func refreshCharacterData(_ character: EVECharacterInfo) async {
+    /// 获取单个角色的全部数据（5 路并行）并更新 UI，然后持久化快照
+    /// 调用方负责 token 检查、expiredTokenCharacters / refreshingCharacters 管理
+    private func fetchAndUpdateCharacter(characterId: Int, forceRefresh: Bool) async throws {
         let service = CharacterDataService.shared
 
-        do {
-            // 并行获取所有数据
-            async let skillInfoTask = service.getSkillInfo(
-                id: character.CharacterID, forceRefresh: true
-            )
-            async let walletTask = service.getWalletBalance(
-                id: character.CharacterID, forceRefresh: true
-            )
-            async let portraitTask = service.getCharacterPortrait(
-                id: character.CharacterID, forceRefresh: true
-            )
-            async let locationTask = service.getLocation(
-                id: character.CharacterID, forceRefresh: true
-            )
-            async let publicInfoTask = CharacterAPI.shared.fetchCharacterPublicInfo(
-                characterId: character.CharacterID, forceRefresh: true
-            )
+        // 并行获取所有数据
+        async let skillInfoTask = service.getSkillInfo(
+            id: characterId, forceRefresh: forceRefresh
+        )
+        async let walletTask = service.getWalletBalance(
+            id: characterId, forceRefresh: forceRefresh
+        )
+        async let portraitTask = service.getCharacterPortrait(
+            id: characterId, forceRefresh: forceRefresh
+        )
+        async let locationTask = service.getLocation(
+            id: characterId, forceRefresh: forceRefresh
+        )
+        async let publicInfoTask = CharacterAPI.shared.fetchCharacterPublicInfo(
+            characterId: characterId, forceRefresh: forceRefresh
+        )
 
-            // 等待所有数据获取完成
-            let ((skillsResponse, queue), balance, portrait, location, publicInfo) = try await (
-                skillInfoTask, walletTask, portraitTask, locationTask, publicInfoTask
-            )
+        let ((skillsResponse, queue), balance, portrait, location, publicInfo) = try await (
+            skillInfoTask, walletTask, portraitTask, locationTask, publicInfoTask
+        )
 
-            // 更新UI
-            await updateUI {
-                let characterId = character.CharacterID
+        await updateUI {
+            self.viewModel.updateCharacter(characterId: characterId) { character in
+                character.corporationId = publicInfo.corporation_id
+                character.allianceId = publicInfo.alliance_id
+                character.factionId = publicInfo.faction_id
+                character.totalSkillPoints = skillsResponse.total_sp
+                character.unallocatedSkillPoints = skillsResponse.unallocated_sp
+                applySkillQueue(queue, to: &character)
+                character.walletBalance = balance
+                character.locationStatus = location.locationStatus
+            }
 
-                // 使用基于角色ID的安全更新方法
-                self.viewModel.updateCharacter(characterId: characterId) { character in
-                    // 更新组织信息
-                    character.corporationId = publicInfo.corporation_id
-                    character.allianceId = publicInfo.alliance_id
-                    character.factionId = publicInfo.faction_id
+            self.viewModel.characterPortraits[characterId] = portrait
 
-                    // 更新技能信息
-                    character.totalSkillPoints = skillsResponse.total_sp
-                    character.unallocatedSkillPoints = skillsResponse.unallocated_sp
-
-                    // 更新技能队列
-                    character.skillQueueLength = queue.count
-                    if let currentSkill = queue.first(where: { $0.isCurrentlyTraining }) {
-                        if let skillName = SkillTreeManager.shared.getSkillName(
-                            for: currentSkill.skill_id)
-                        {
-                            character.currentSkill = EVECharacterInfo.CurrentSkillInfo(
-                                skillId: currentSkill.skill_id,
-                                name: skillName,
-                                level: currentSkill.skillLevel,
-                                progress: currentSkill.progress,
-                                remainingTime: currentSkill.remainingTime
-                            )
-                        }
-                    }
-
-                    // 更新钱包余额
-                    character.walletBalance = balance
-
-                    // 更新位置信息
-                    character.locationStatus = location.locationStatus
-                }
-
-                // 更新头像
-                self.viewModel.characterPortraits[characterId] = portrait
-
-                // 异步更新位置详细信息
-                Task {
-                    let databaseManager = self.viewModel.databaseManager
-                    let viewModel = self.viewModel
-
-                    if let locationInfo = await getSolarSystemInfo(
-                        solarSystemId: location.solar_system_id,
-                        databaseManager: databaseManager
-                    ) {
-                        await MainActor.run {
-                            viewModel.updateCharacter(characterId: characterId) { character in
-                                character.location = locationInfo
-                            }
+            // 异步更新位置详细信息
+            Task {
+                let databaseManager = self.viewModel.databaseManager
+                let viewModel = self.viewModel
+                if let locationInfo = await getSolarSystemInfo(
+                    solarSystemId: location.solar_system_id,
+                    databaseManager: databaseManager
+                ) {
+                    await MainActor.run {
+                        viewModel.updateCharacter(characterId: characterId) { character in
+                            character.location = locationInfo
                         }
                     }
                 }
             }
+        }
 
-            await persistCharacterSnapshot(characterId: character.CharacterID)
+        await persistCharacterSnapshot(characterId: characterId)
+    }
 
+    /// 刷新单个角色的数据（登录后调用，token 已知有效）
+    private func refreshCharacterData(_ character: EVECharacterInfo) async {
+        do {
+            try await fetchAndUpdateCharacter(
+                characterId: character.CharacterID, forceRefresh: true
+            )
             Logger.success("成功刷新角色数据 - \(character.CharacterName)")
         } catch {
             Logger.error("刷新角色数据失败 - \(character.CharacterName): \(error)")
         }
 
-        // 从刷新集合中移除角色
         await updateUI {
             refreshingCharacters.remove(character.CharacterID)
         }
     }
 
-    // 在AccountsView结构体内添加一个检查scopes更新时间的函数
+    /// 在AccountsView结构体内添加一个检查scopes更新时间的函数
     private func checkAndUpdateScopesIfNeeded() async {
         Logger.info("检查并更新 scopes...")
         // 只调用一次 getScopes，它会内部调用 getLatestScopes
@@ -1210,7 +849,7 @@ struct AccountsView: View {
     }
 }
 
-// 添加 CharacterRowView 结构体
+/// 添加 CharacterRowView 结构体
 struct CharacterRowView: View {
     let character: EVECharacterInfo
     let portrait: UIImage?
@@ -1221,8 +860,21 @@ struct CharacterRowView: View {
     let formatSkillPoints: (Int) -> String
     let formatRemainingTime: (TimeInterval) -> String
 
-    // 新增状态变量用于存储势力信息
-    @State private var factionInfo: (name: String, faction_id: Int, iconName: String, rank: Int?)?
+    /// 显示带标签的可选信息行：有值时显示 "\(label): \(formatted)"，无值时显示 "\(label): \(emptyPlaceholder)"
+    @ViewBuilder
+    private func optionalInfoRow<T>(
+        label: String,
+        value: T?,
+        formatter: (T) -> String,
+        emptyPlaceholder: String
+    ) -> some View {
+        let displayText = value.map { "\(label): \(formatter($0))" }
+            ?? "\(label): \(emptyPlaceholder)"
+        Text(displayText)
+            .font(.caption)
+            .foregroundColor(.gray)
+            .lineLimit(1)
+    }
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
@@ -1234,17 +886,6 @@ struct CharacterRowView: View {
             )
 
             VStack(alignment: .leading, spacing: 4) {
-                // HStack(spacing: 4) {
-                //     if let faction = factionInfo, let rank = faction.rank {
-                //         IconManager.shared.loadImage(for: "\(faction.faction_id)_\(rank)")
-                //             .resizable()
-                //             .frame(width: 20, height: 20)
-                //             .cornerRadius(2)
-                //     }
-                //     Text(character.CharacterName)
-                //         .font(.headline)
-                //         .frame(height: 20)
-                // }
                 Text(character.CharacterName)
                     .font(.headline)
                     .lineLimit(2)
@@ -1296,41 +937,27 @@ struct CharacterRowView: View {
                         }
 
                         // 钱包信息
-                        if let balance = character.walletBalance {
-                            Text(
-                                "\(NSLocalizedString("Account_Wallet_value", comment: "")): \(FormatUtil.formatISK(balance))"
-                            )
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                            .lineLimit(1)
-                        } else {
-                            Text(
-                                "\(NSLocalizedString("Account_Wallet_value", comment: "")): -- ISK"
-                            )
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                            .lineLimit(1)
-                        }
+                        optionalInfoRow(
+                            label: NSLocalizedString("Account_Wallet_value", comment: ""),
+                            value: character.walletBalance,
+                            formatter: formatISK,
+                            emptyPlaceholder: "-- ISK"
+                        )
 
                         // 技能点信息
-                        if let totalSP = character.totalSkillPoints {
-                            let spText =
+                        optionalInfoRow(
+                            label: NSLocalizedString("Account_Total_SP", comment: ""),
+                            value: character.totalSkillPoints,
+                            formatter: { sp in
                                 if let unallocatedSP = character.unallocatedSkillPoints,
-                                unallocatedSP > 0 {
-                                    "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) SP (\(NSLocalizedString("Main_Skill_Queue_Free_SP", comment: "")) \(formatSkillPoints(unallocatedSP)))"
-                                } else {
-                                    "\(NSLocalizedString("Account_Total_SP", comment: "")): \(formatSkillPoints(totalSP)) SP"
+                                   unallocatedSP > 0
+                                {
+                                    return "\(formatSkillPoints(sp)) SP (\(NSLocalizedString("Main_Skill_Queue_Free_SP", comment: "")) \(formatSkillPoints(unallocatedSP)))"
                                 }
-                            Text(spText)
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                                .lineLimit(1)
-                        } else {
-                            Text("\(NSLocalizedString("Account_Total_SP", comment: "")): -- SP")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                                .lineLimit(1)
-                        }
+                                return "\(formatSkillPoints(sp)) SP"
+                            },
+                            emptyPlaceholder: "-- SP"
+                        )
 
                         // 技能队列信息
                         if let currentSkill = character.currentSkill {
@@ -1353,7 +980,8 @@ struct CharacterRowView: View {
                                         )
                                         .font(.caption)
                                         .foregroundColor(
-                                            currentSkill.remainingTime != nil ? .green : .gray)
+                                            currentSkill.remainingTime != nil ? .green : .gray
+                                        )
                                         Text(
                                             "\(SkillTreeManager.shared.getSkillName(for: currentSkill.skillId) ?? currentSkill.name) \(currentSkill.level)"
                                         )
@@ -1404,74 +1032,33 @@ struct CharacterRowView: View {
             }
             .padding(.leading, 4)
 
-            if isEditing {
-                Spacer()
-                Image(systemName: "trash")
-                    .foregroundColor(.red)
-            } else {
-                Spacer(minLength: 0)
-            }
+            Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity)
-        .contentShape(Rectangle())
         .padding(.vertical, 4)
-        .onAppear {
-            loadFactionInfo()
+        .overlay(alignment: .trailing) {
+            Image(systemName: "trash.fill")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundColor(.white)
+                .frame(width: 24, height: 24)
+                .background(Circle().fill(Color.red))
+                .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
+                .padding(.trailing, 4)
+                .allowsHitTesting(false)
+                .scaleEffect(isEditing ? 1 : 0)
+                .opacity(isEditing ? 1 : 0)
+                .animation(.easeInOut(duration: 0.2), value: isEditing)
         }
-        .onChange(of: character.CharacterID) { _, _ in
-            loadFactionInfo()
-        }
-    }
-
-    // 加载势力信息的方法
-    private func loadFactionInfo() {
-        Task {
-            do {
-                // 获取角色公共信息
-                let publicInfo = try await CharacterAPI.shared.fetchCharacterPublicInfo(
-                    characterId: character.CharacterID
-                )
-
-                // 如果角色有势力信息
-                if let factionId = publicInfo.faction_id {
-                    // 从数据库获取势力信息
-                    let query = "SELECT name, iconName FROM factions WHERE id = ?"
-                    if case let .success(rows) = DatabaseManager.shared.executeQuery(
-                        query, parameters: [factionId]
-                    ),
-                        let row = rows.first,
-                        let name = row["name"] as? String,
-                        let iconName = row["iconName"] as? String
-                    {
-                        // 获取势力战争统计数据
-                        let fwStats = try? await CharacterFWStatsAPI.shared.getFWStats(
-                            characterId: character.CharacterID,
-                            forceRefresh: false
-                        )
-
-                        await MainActor.run {
-                            self.factionInfo = (
-                                name: name,
-                                faction_id: factionId,
-                                iconName: iconName,
-                                rank: fwStats?.current_rank
-                            )
-                        }
-                    }
-                }
-            } catch {
-                Logger.error("加载角色势力信息失败: \(error)")
-            }
-        }
+        .contentShape(Rectangle())
     }
 }
 
-// 技能进度计算工具类
+/// 技能进度计算工具类
 enum SkillProgressCalculator {
-    // 基准技能点数（x1倍增系数）
+    /// 基准技能点数（x1倍增系数）
     static let baseSkillPoints: [Int] = [250, 1415, 8000, 45255, 256_000]
 
-    // 计算技能的倍增系数
+    /// 计算技能的倍增系数
     static func calculateMultiplier(levelEndSp: Int, finishedLevel: Int) -> Int {
         guard finishedLevel > 0 && finishedLevel <= baseSkillPoints.count else { return 1 }
         let baseEndSp = baseSkillPoints[finishedLevel - 1]
@@ -1479,13 +1066,13 @@ enum SkillProgressCalculator {
         return Int(round(multiplier))
     }
 
-    // 获取前一等级的技能点数
+    /// 获取前一等级的技能点数
     static func getPreviousLevelSp(finishedLevel: Int, multiplier: Int) -> Int {
         guard finishedLevel > 1 && finishedLevel <= baseSkillPoints.count else { return 0 }
         return baseSkillPoints[finishedLevel - 2] * multiplier
     }
 
-    // 计算技能训练进度（0.0 - 1.0）
+    /// 计算技能训练进度（0.0 - 1.0）
     static func calculateProgress(trainingStartSp: Int, levelEndSp: Int, finishedLevel: Int)
         -> Double
     {
@@ -1500,21 +1087,17 @@ enum SkillProgressCalculator {
     }
 }
 
-// Steam 登录帮助视图
+/// Steam 登录帮助视图
 struct SteamLoginHelpView: View {
     @AppStorage("selectedLanguage") private var selectedLanguage: String = "en"
     @Environment(\.dismiss) private var dismiss
 
     private var gifFileName: String {
-        if selectedLanguage.hasPrefix("zh") {
-            return "Steam(zh)"
-        } else {
-            return "Steam(en)"
-        }
+        selectedLanguage.hasPrefix("zh") ? "Steam(zh)" : "Steam(en)"
     }
 
     private var gifURL: URL? {
-        return Bundle.main.url(forResource: gifFileName, withExtension: "gif")
+        Bundle.main.url(forResource: gifFileName, withExtension: "gif")
     }
 
     var body: some View {
@@ -1576,7 +1159,7 @@ struct SteamLoginHelpView: View {
     }
 }
 
-// GIF 显示组件
+/// GIF 显示组件
 struct GIFWebView: UIViewRepresentable {
     let data: Data
 

@@ -150,7 +150,8 @@ struct StructureItemOrdersView: View {
                             OrderRow(
                                 order: order,
                                 locationInfo: locationInfos[order.locationId],
-                                isLoadingLocation: isLoadingLocations
+                                isLoadingLocation: isLoadingLocations,
+                                hidesLocation: itemID == MarketManager.plexTypeID
                             )
                         }
                     }
@@ -186,7 +187,7 @@ struct StructureItemOrdersView: View {
                 MarketItemDetailView(
                     databaseManager: databaseManager,
                     itemID: itemID,
-                    selectedRegionID: 10_000_002
+                    selectedRegionID: MarketManager.theForgeRegionID
                 )
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -280,7 +281,8 @@ struct StructureItemOrdersView: View {
     }
 
     private func loadLocationInfo() async {
-        guard !orders.isEmpty else { return }
+        // PLEX 走全球市场，位置信息不可解析，直接不显示
+        guard itemID != MarketManager.plexTypeID, !orders.isEmpty else { return }
 
         isLoadingLocations = true
         defer { isLoadingLocations = false }
@@ -296,53 +298,33 @@ struct StructureItemOrdersView: View {
             locationInfos = [:]
         }
 
-        // 1. 立即处理PLEX建筑物（如果适用）
-        if itemID == 44992, let structureIds = groupedIds[.structure] {
-            var plexStructureInfos: [Int64: LocationInfoDetail] = [:]
-            for structureId in structureIds {
-                plexStructureInfos[structureId] = LocationInfoDetail(
-                    stationName: NSLocalizedString("Location_Player_Structure", comment: ""),
-                    solarSystemName: NSLocalizedString("Unknown_System", comment: ""),
-                    security: 0.0
-                )
-            }
-
-            await MainActor.run {
-                locationInfos.merge(plexStructureInfos) { _, new in new }
-            }
-        }
-
-        // 2. 优先加载空间站信息（通常在本地数据库中，速度快）
+        // 1. 优先加载空间站信息（通常在本地数据库中，速度快）
         if let stationIds = groupedIds[.station], !stationIds.isEmpty {
             let stationInfos = await locationInfoLoader.loadLocationInfo(
-                locationIds: Set(stationIds))
+                locationIds: Set(stationIds)
+            )
 
             await MainActor.run {
                 locationInfos.merge(stationInfos) { _, new in new }
             }
         }
 
-        // 3. 优先加载星系信息（通常在本地数据库中，速度快）
+        // 2. 优先加载星系信息（通常在本地数据库中，速度快）
         if let systemIds = groupedIds[.solarSystem], !systemIds.isEmpty {
             let systemInfos = await locationInfoLoader.loadLocationInfo(
-                locationIds: Set(systemIds))
+                locationIds: Set(systemIds)
+            )
 
             await MainActor.run {
                 locationInfos.merge(systemInfos) { _, new in new }
             }
         }
 
-        // 4. 最后加载建筑物信息（需要API查询，速度慢）
+        // 3. 最后加载建筑物信息（需要API查询，速度慢）
         if let structureIds = groupedIds[.structure], !structureIds.isEmpty {
-            // PLEX特殊处理：跳过建筑物API查询
-            if itemID == 44992 {
-                // PLEX的建筑物已经在步骤1中处理了
-                return
-            }
-
-            // 正常物品：查询建筑物信息
             let structureInfos = await locationInfoLoader.loadLocationInfo(
-                locationIds: Set(structureIds))
+                locationIds: Set(structureIds)
+            )
 
             await MainActor.run {
                 locationInfos.merge(structureInfos) { _, new in new }
@@ -392,12 +374,13 @@ struct StructureItemOrdersView: View {
         let order: MarketOrder
         let locationInfo: LocationInfoDetail?
         let isLoadingLocation: Bool
+        let hidesLocation: Bool
 
         var body: some View {
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
                     HStack {
-                        Text(formatPrice(order.price))
+                        Text(FormatUtil.formatMarketPrice(order.price))
                             .font(.headline)
                         Spacer()
                         Text("Qty: \(order.volumeRemain)")
@@ -405,53 +388,31 @@ struct StructureItemOrdersView: View {
                             .foregroundColor(.secondary)
                     }
 
-                    if let locationInfo = locationInfo {
-                        LocationInfoView(
-                            stationName: locationInfo.stationName,
-                            solarSystemName: locationInfo.solarSystemName,
-                            security: locationInfo.security,
-                            font: .caption,
-                            textColor: .secondary
-                        )
-                    } else if isLoadingLocation {
-                        // 地点信息加载中的占位视图
-                        HStack(spacing: 4) {
-                            Text(NSLocalizedString("Loading_Location", comment: "加载中..."))
+                    if !hidesLocation {
+                        if let locationInfo = locationInfo {
+                            LocationInfoView(
+                                stationName: locationInfo.stationName,
+                                solarSystemName: locationInfo.solarSystemName,
+                                security: locationInfo.security,
+                                font: .caption,
+                                textColor: .secondary
+                            )
+                        } else if isLoadingLocation {
+                            // 地点信息加载中的占位视图
+                            HStack(spacing: 4) {
+                                Text(NSLocalizedString("Loading_Location", comment: "加载中..."))
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                ProgressView()
+                                    .scaleEffect(0.5)
+                            }
+                        } else {
+                            Text(NSLocalizedString("Assets_Unknown_Location", comment: ""))
                                 .font(.caption)
                                 .foregroundColor(.secondary)
-                            ProgressView()
-                                .scaleEffect(0.5)
                         }
-                    } else {
-                        Text(NSLocalizedString("Assets_Unknown_Location", comment: ""))
-                            .font(.caption)
-                            .foregroundColor(.secondary)
                     }
                 }
-            }
-        }
-
-        private func formatPrice(_ price: Double) -> String {
-            let billion = 1_000_000_000.0
-            let million = 1_000_000.0
-
-            let numberFormatter = NumberFormatter()
-            numberFormatter.numberStyle = .decimal
-            numberFormatter.maximumFractionDigits = 2
-            numberFormatter.minimumFractionDigits = 2
-
-            let formattedFullPrice =
-                numberFormatter.string(from: NSNumber(value: price))
-                    ?? String(format: "%.2f", price)
-
-            if price >= billion {
-                let value = price / billion
-                return String(format: "%.2fB (%@ ISK)", value, formattedFullPrice)
-            } else if price >= million {
-                let value = price / million
-                return String(format: "%.2fM (%@ ISK)", value, formattedFullPrice)
-            } else {
-                return "\(formattedFullPrice) ISK"
             }
         }
     }
@@ -469,7 +430,7 @@ struct StructureItemOrdersView: View {
         }
 
         // 使用 ESI 获取 Jita 空间站市场价格
-        let regionID = 10_000_002 // The Forge (Jita所在星域)
+        let regionID = MarketManager.theForgeRegionID // The Forge (Jita所在星域)
         let systemID = 30_000_142 // Jita星系ID
         let stationID = 60_003_760 // Jita 4-4 空间站 ID
 

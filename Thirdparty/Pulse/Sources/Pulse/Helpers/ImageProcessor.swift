@@ -6,11 +6,11 @@ import Foundation
 
 #if !os(macOS)
 import UIKit.UIImage
-/// Alias for `UIImage`.
+// Alias for `UIImage`.
 typealias PlatformImage = UIImage
 #else
 import AppKit.NSImage
-/// Alias for `NSImage`.
+// Alias for `NSImage`.
 typealias PlatformImage = NSImage
 #endif
 
@@ -40,7 +40,7 @@ enum Graphics {
 #endif
     }
 
-    /// Creates an image thumbnail. Uses significantly less memory than other options.
+    // Creates an image thumbnail. Uses significantly less memory than other options.
     static func makeThumbnail(from data: Data, targetSize: CGFloat) -> PlatformImage? {
         guard let source = CGImageSourceCreateWithData(data as CFData, [kCGImageSourceShouldCache: false] as CFDictionary) else {
             return nil

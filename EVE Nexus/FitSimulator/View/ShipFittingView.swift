@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 定义配置视图类型枚举
+/// 定义配置视图类型枚举
 enum FittingViewType: String, CaseIterable, Identifiable {
     case modules
     case drones
@@ -8,7 +8,9 @@ enum FittingViewType: String, CaseIterable, Identifiable {
     case cargo
     case stats
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var localizedName: String {
         switch self {
@@ -88,7 +90,6 @@ struct ShipFittingView: View {
         }
     }
 
-    @ViewBuilder
     private func fittingBody(viewModel: FittingEditorViewModel) -> some View {
         VStack(spacing: 0) {
             Picker("ViewType", selection: $selectedViewType) {
@@ -240,7 +241,8 @@ struct ShipFittingView: View {
 
         let fittingsDirectory = documentsDirectory.appendingPathComponent("Fitting")
         let filePath = fittingsDirectory.appendingPathComponent(
-            "local_fitting_\(viewModel.simulationInput.fittingId).json")
+            "local_fitting_\(viewModel.simulationInput.fittingId).json"
+        )
 
         do {
             try FileManager.default.removeItem(at: filePath)

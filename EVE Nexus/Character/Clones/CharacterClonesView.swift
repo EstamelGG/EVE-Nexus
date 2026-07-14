@@ -1,21 +1,23 @@
 import SwiftUI
 
-// 合并的克隆体信息
+/// 合并的克隆体信息
 private struct MergedCloneLocation: Identifiable {
     let id: Int
     let locationType: String
     let locationId: Int
     let clones: [JumpClone]
 
-    var cloneCount: Int { clones.count }
+    var cloneCount: Int {
+        clones.count
+    }
 
-    // 计算该位置所有克隆体的植入体总数
+    /// 计算该位置所有克隆体的植入体总数
     var totalImplantsCount: Int {
         clones.reduce(0) { $0 + $1.implants.count }
     }
 }
 
-// 植入体信息结构
+/// 植入体信息结构
 private struct ImplantInfo {
     let typeId: Int
     let name: String
@@ -41,15 +43,16 @@ private struct ImplantInfo {
                    let name = row["name"] as? String
                 {
                     let iconFile =
-                        (row["icon_filename"] as? String) ?? DatabaseConfig.defaultItemIcon
+                        (row["icon_filename"] as? String) ?? IconManager.defaultItemIcon
                     let attributeValue = (row["attribute_value"] as? Double) ?? 0.0
                     implantInfos.append(
                         ImplantInfo(
                             typeId: typeId,
                             name: name,
-                            icon: iconFile.isEmpty ? DatabaseConfig.defaultItemIcon : iconFile,
+                            icon: iconFile.isEmpty ? IconManager.defaultItemIcon : iconFile,
                             attributeValue: attributeValue
-                        ))
+                        )
+                    )
                 }
             }
         }
@@ -89,10 +92,11 @@ struct CharacterClonesView: View {
         _locationLoader = State(
             initialValue: LocationInfoLoader(
                 databaseManager: databaseManager, characterId: Int64(character.CharacterID)
-            ))
+            )
+        )
     }
 
-    // 加载克隆体数据，但只在首次调用时执行
+    /// 加载克隆体数据，但只在首次调用时执行
     private func loadCloneDataIfNeeded() {
         guard !hasInitialized else { return }
 
@@ -161,7 +165,8 @@ struct CharacterClonesView: View {
 
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(
-                                        NSLocalizedString("Character_Last_Clone_Jump", comment: ""))
+                                        NSLocalizedString("Character_Last_Clone_Jump", comment: "")
+                                    )
                                     Text(formatDate(date))
                                         .font(.caption)
                                         .foregroundColor(.secondary)
@@ -178,7 +183,8 @@ struct CharacterClonesView: View {
 
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(
-                                    NSLocalizedString("Character_Last_Station_Change", comment: ""))
+                                    NSLocalizedString("Character_Last_Station_Change", comment: "")
+                                )
                                 if let lastStationDate = cloneInfo.last_station_change_date,
                                    let date = dateFormatter.date(from: lastStationDate)
                                 {
@@ -308,13 +314,7 @@ struct CharacterClonesView: View {
                         self.locationTypeId = structureInfo?.type_id
                     }
                 } else if cloneInfo.home_location.location_type == "station" {
-                    let query = "SELECT stationTypeID FROM stations WHERE stationID = ?"
-                    if case let .success(rows) = databaseManager.executeQuery(
-                        query, parameters: [Int(homeLocationId)]
-                    ),
-                        let row = rows.first,
-                        let typeId = row["stationTypeID"] as? Int
-                    {
+                    if let typeId = SDEMemoryStore.station(for: Int(homeLocationId))?.stationTypeID {
                         await MainActor.run {
                             self.locationTypeId = typeId
                         }
@@ -356,19 +356,12 @@ struct CharacterClonesView: View {
         return formatter.string(from: date)
     }
 
-    private func getStationIcon(typeId: Int, databaseManager: DatabaseManager) -> String? {
-        let query = "SELECT icon_filename FROM types WHERE type_id = ?"
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]),
-           let row = rows.first,
-           let iconFile = row["icon_filename"] as? String
-        {
-            return iconFile.isEmpty ? DatabaseConfig.defaultItemIcon : iconFile
-        }
-        return DatabaseConfig.defaultItemIcon
+    private func getStationIcon(typeId: Int, databaseManager _: DatabaseManager) -> String? {
+        ItemInfoMap.iconFilename(for: typeId)
     }
 }
 
-// 克隆体位置行视图
+/// 克隆体位置行视图
 struct CloneLocationRow: View {
     let locationId: Int
     let locationType: String
@@ -458,13 +451,7 @@ struct CloneLocationRow: View {
                     self.locationTypeId = structureInfo?.type_id
                 }
             } else if locationType == "station" {
-                let query = "SELECT stationTypeID FROM stations WHERE stationID = ?"
-                if case let .success(rows) = databaseManager.executeQuery(
-                    query, parameters: [locationId]
-                ),
-                    let row = rows.first,
-                    let typeId = row["stationTypeID"] as? Int
-                {
+                if let typeId = SDEMemoryStore.station(for: locationId)?.stationTypeID {
                     await MainActor.run {
                         self.locationTypeId = typeId
                     }
@@ -477,19 +464,12 @@ struct CloneLocationRow: View {
         }
     }
 
-    private func getStationIcon(typeId: Int, databaseManager: DatabaseManager) -> String? {
-        let query = "SELECT icon_filename FROM types WHERE type_id = ?"
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]),
-           let row = rows.first,
-           let iconFile = row["icon_filename"] as? String
-        {
-            return iconFile.isEmpty ? DatabaseConfig.defaultItemIcon : iconFile
-        }
-        return DatabaseConfig.defaultItemIcon
+    private func getStationIcon(typeId: Int, databaseManager _: DatabaseManager) -> String? {
+        ItemInfoMap.iconFilename(for: typeId)
     }
 }
 
-// 克隆体位置详情视图
+/// 克隆体位置详情视图
 struct CloneLocationDetailView: View {
     let clones: [JumpClone]
     let databaseManager: DatabaseManager
@@ -551,7 +531,8 @@ struct CloneLocationDetailView: View {
                             String(
                                 format: NSLocalizedString("Character_Clone_ID", comment: ""),
                                 clone.jump_clone_id
-                            ))
+                            )
+                        )
                     }
                 }
             }

@@ -13,7 +13,7 @@ actor AvailableModelsAPI {
 
     private let urlString = "https://estamelgg.github.io/EVE_Model_Gallery/statics/available_models.json"
 
-    // 临时内存缓存（不持久化，app运行期间有效）
+    /// 临时内存缓存（不持久化，app运行期间有效）
     private var available_models: [Int]?
 
     private init() {}

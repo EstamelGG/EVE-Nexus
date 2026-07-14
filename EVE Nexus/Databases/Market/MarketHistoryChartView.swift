@@ -1,18 +1,18 @@
 import Charts
 import SwiftUI
 
-// 市场历史图表视图
+/// 市场历史图表视图
 struct MarketHistoryChartView: View {
     let history: [MarketHistory]
     let orders: [MarketOrder]
 
-    // 使用@State存储月份第一天的集合，但初始化时就计算好
+    /// 使用@State存储月份第一天的集合，但初始化时就计算好
     @State private var firstDaysOfMonth: Set<String>
 
-    // 缓存图表相关的计算结果
+    /// 缓存图表相关的计算结果
     private let chartData: ChartData
 
-    // 图表数据结构
+    /// 图表数据结构
     private struct ChartData {
         let dates: [String]
         let priceValues: [Double]
@@ -25,7 +25,7 @@ struct MarketHistoryChartView: View {
         let effectiveRange: Double
     }
 
-    // 初始化时计算月份第一天和图表数据
+    /// 初始化时计算月份第一天和图表数据
     init(history: [MarketHistory], orders: [MarketOrder]) {
         // 只取最新的360个数据点进行显示
         let sortedHistory = history.sorted { $0.date < $1.date }
@@ -65,7 +65,7 @@ struct MarketHistoryChartView: View {
         _firstDaysOfMonth = State(initialValue: Self.calculateFirstDaysOfMonth(in: dates))
     }
 
-    // 格式化日期显示（只显示月份）
+    /// 格式化日期显示（只显示月份）
     private func formatMonth(_ dateString: String) -> String {
         let dateFormatter = DateFormatter()
         dateFormatter.dateFormat = "yyyy-MM-dd"
@@ -76,7 +76,7 @@ struct MarketHistoryChartView: View {
         return dateFormatter.string(from: date).uppercased()
     }
 
-    // 静态方法计算所有月份的第一个数据点
+    /// 静态方法计算所有月份的第一个数据点
     private static func calculateFirstDaysOfMonth(in dates: [String]) -> Set<String> {
         let dateFormatter = DateFormatter()
         Logger.info("提取横坐标月份点")
@@ -149,7 +149,8 @@ struct MarketHistoryChartView: View {
                     // 反向计算成交量
                     let volume = Int(
                         ((price - chartData.yMin) / (chartData.effectiveRange * 0.7))
-                            * chartData.maxVolume)
+                            * chartData.maxVolume
+                    )
                     AxisValueLabel {
                         Text("\(volume)")
                             .font(.system(size: 10))

@@ -19,7 +19,7 @@ struct RSSItem: Identifiable, Codable {
         self.guid = guid
     }
 
-    // 格式化的发布日期
+    /// 格式化的发布日期
     var formattedDate: String {
         guard let date = pubDate else { return "未知时间" }
         let formatter = DateFormatter()
@@ -29,7 +29,7 @@ struct RSSItem: Identifiable, Codable {
         return formatter.string(from: date)
     }
 
-    // 清理HTML标签的描述文本
+    /// 清理HTML标签的描述文本
     var cleanDescription: String {
         return description
             // 先处理换行标签

@@ -4,7 +4,7 @@ class CharacterImplantsAPI {
     static let shared = CharacterImplantsAPI()
     private init() {}
 
-    // 获取植入体缓存文件路径
+    /// 获取植入体缓存文件路径
     private func getImplantsCacheFilePath(characterId: Int) -> URL {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
             .first!
@@ -18,7 +18,7 @@ class CharacterImplantsAPI {
         return characterSkillsPath.appendingPathComponent("\(characterId)_implants.json")
     }
 
-    // 保存植入体数据到本地文件
+    /// 保存植入体数据到本地文件
     private func saveImplantsToCache(characterId: Int, implants: [Int]) -> Bool {
         do {
             let encoder = JSONEncoder()
@@ -35,7 +35,7 @@ class CharacterImplantsAPI {
         }
     }
 
-    // 从本地文件读取植入体数据
+    /// 从本地文件读取植入体数据
     private func loadImplantsFromCache(characterId: Int) -> [Int]? {
         let filePath = getImplantsCacheFilePath(characterId: characterId)
 
@@ -72,7 +72,7 @@ class CharacterImplantsAPI {
         }
     }
 
-    // 获取植入体信息
+    /// 获取植入体信息
     func fetchCharacterImplants(characterId: Int, forceRefresh: Bool = false) async throws -> [Int] {
         // 如果不是强制刷新，先尝试从缓存加载
         if !forceRefresh {

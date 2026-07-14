@@ -49,7 +49,7 @@
       "shouldTranslate" : false
     },
     "—" : {
-
+      "shouldTranslate" : false
     },
     "・" : {
       "shouldTranslate" : false
@@ -58,6 +58,9 @@
       "shouldTranslate" : false
     },
     "·" : {
+      "shouldTranslate" : false
+    },
+    "›" : {
       "shouldTranslate" : false
     },
     "(%@ m³)" : {
@@ -99,10 +102,21 @@
       "shouldTranslate" : false
     },
     "[%@%%]" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "[%1$@%%]"
+          }
+        }
+      },
+      "shouldTranslate" : false
+    },
+    "/ %lld" : {
       "shouldTranslate" : false
     },
     "/%lld" : {
-
+      "shouldTranslate" : false
     },
     "%" : {
       "shouldTranslate" : false
@@ -142,7 +156,7 @@
       "shouldTranslate" : false
     },
     "%@ (—)" : {
-
+      "shouldTranslate" : false
     },
     "%@ (%@)" : {
       "localizations" : {
@@ -285,9 +299,6 @@
     "%@ HP" : {
       "shouldTranslate" : false
     },
-    "%@ HP/s" : {
-      "shouldTranslate" : false
-    },
     "%@ ISK" : {
       "shouldTranslate" : false
     },
@@ -302,27 +313,21 @@
       },
       "shouldTranslate" : false
     },
-    "%@ Kg" : {
-      "shouldTranslate" : false
-    },
     "%@ ly" : {
       "shouldTranslate" : false
     },
     "%@ m/s" : {
       "shouldTranslate" : false
     },
-    "%@ m3" : {
-      "shouldTranslate" : false
-    },
     "%@ m³" : {
       "shouldTranslate" : false
     },
-    "%@ m³ + %@%%" : {
+    "%@ m³ + %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "%1$@ m³ + %2$@%%"
+            "value" : "%1$@ m³ + %2$@"
           }
         }
       },
@@ -340,29 +345,12 @@
     "%@: " : {
       "shouldTranslate" : false
     },
-    "%@: -- ISK" : {
-      "shouldTranslate" : false
-    },
-    "%@: -- SP" : {
-      "shouldTranslate" : false
-    },
     "%@: %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@: %2$@"
-          }
-        }
-      },
-      "shouldTranslate" : false
-    },
-    "%@: %@ / %@ / ID:%lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@: %2$@ / %3$@ / ID:%4$lld"
           }
         }
       },
@@ -385,28 +373,6 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$@: %2$@ ISK"
-          }
-        }
-      },
-      "shouldTranslate" : false
-    },
-    "%@: %@ SP" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@: %2$@ SP"
-          }
-        }
-      },
-      "shouldTranslate" : false
-    },
-    "%@: %@ SP, %@: %@ SP" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@: %2$@ SP, %3$@: %4$@ SP"
           }
         }
       },
@@ -473,6 +439,17 @@
       },
       "shouldTranslate" : false
     },
+    "%@(%@)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@(%2$@)"
+          }
+        }
+      },
+      "shouldTranslate" : false
+    },
     "%@(%lld)" : {
       "localizations" : {
         "en" : {
@@ -481,18 +458,18 @@
             "value" : "%1$@(%2$lld)"
           }
         }
-      }
+      },
+      "shouldTranslate" : false
     },
-    "%@/%@ " : {
+    "%@/%@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "new",
-            "value" : "%1$@/%2$@ "
+            "value" : "%1$@/%2$@"
           }
         }
-      },
-      "shouldTranslate" : false
+      }
     },
     "%@/%@ SP" : {
       "localizations" : {
@@ -550,6 +527,14 @@
       "shouldTranslate" : false
     },
     "%@%%" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@%%"
+          }
+        }
+      },
       "shouldTranslate" : false
     },
     "%@%% %@" : {
@@ -614,6 +599,14 @@
       "shouldTranslate" : false
     },
     "%lld %%" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld %%"
+          }
+        }
+      },
       "shouldTranslate" : false
     },
     "%lld × %@" : {
@@ -656,6 +649,14 @@
       "shouldTranslate" : false
     },
     "%lld%%" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld%%"
+          }
+        }
+      },
       "shouldTranslate" : false
     },
     "%lld×" : {
@@ -719,7 +720,15 @@
     "0" : {
       "shouldTranslate" : false
     },
-    "00:00:00" : {
+    "0 ISK (%@: %@)" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "0 ISK (%1$@: %2$@)"
+          }
+        }
+      },
       "shouldTranslate" : false
     },
     "0.0" : {
@@ -3109,23 +3118,6 @@
         }
       }
     },
-    "AllInOne_SystemFinder_System_Score" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "System Score: %.1f"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "星系评分: %.1f"
-          }
-        }
-      }
-    },
     "AllInOne_SystemFinder_Title" : {
       "comment" : "查找 All-in-One 星系",
       "localizations" : {
@@ -3158,6 +3150,9 @@
           }
         }
       }
+    },
+    "APP" : {
+      "shouldTranslate" : false
     },
     "App_Icon_Current" : {
       "extractionState" : "manual",
@@ -3430,6 +3425,23 @@
         }
       }
     },
+    "Assets_Characters_At_Location" : {
+      "comment" : "在此地点有资产的人物",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Characters at this location"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在此地点有资产的人物"
+          }
+        }
+      }
+    },
     "Assets_Data_From_Cache" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3492,6 +3504,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "导出"
+          }
+        }
+      }
+    },
+    "Assets_Export_Fitting_Confirm_Message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save the fitting of \"%@\" to local configurations?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "将「%@」的装配保存到本地配置？"
+          }
+        }
+      }
+    },
+    "Assets_Export_Fitting_Confirm_Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save Fitting"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存装配"
           }
         }
       }
@@ -3572,6 +3616,86 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "是"
+          }
+        }
+      }
+    },
+    "Assets_Filter_Active_Summary" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filtering: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在过滤：%@"
+          }
+        }
+      }
+    },
+    "Assets_Filter_All_Groups" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Groups"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部分组"
+          }
+        }
+      }
+    },
+    "Assets_Filter_Category_Section" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Category"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "过滤目录"
+          }
+        }
+      }
+    },
+    "Assets_Filter_Clear" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除"
+          }
+        }
+      }
+    },
+    "Assets_Filter_Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "过滤"
           }
         }
       }
@@ -3979,6 +4103,86 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "置顶位置"
+          }
+        }
+      }
+    },
+    "Assets_Search_Item_Types_Format" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d item types"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d 种物品"
+          }
+        }
+      }
+    },
+    "Assets_Search_Locations_Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Locations"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存放位置"
+          }
+        }
+      }
+    },
+    "Assets_Search_Occurrences_Format" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d stacks"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d 处"
+          }
+        }
+      }
+    },
+    "Assets_Search_Total_Quantity_Format" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Total ×%d"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "共 %d 个"
+          }
+        }
+      }
+    },
+    "Assets_Settings_Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置"
           }
         }
       }
@@ -4937,13 +5141,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Success Rate: %d%%"
+            "value" : "Success Rate:"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "成功率: %d%%"
+            "value" : "成功率:"
           }
         }
       }
@@ -5032,6 +5236,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "工业"
+          }
+        }
+      }
+    },
+    "Calculator_Mutation" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mutation Calculator"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "突变计算器"
           }
         }
       }
@@ -5824,6 +6044,7 @@
     },
     "Calendar_Notification_Time" : {
       "comment" : "Notification Time",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -6076,7 +6297,7 @@
       }
     },
     "Calendar_Reminder_Event_Time" : {
-      "comment" : "Event Time\nEvent Time: ",
+      "comment" : "Event Time: ",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -6965,6 +7186,23 @@
         }
       }
     },
+    "Character_Description" : {
+      "comment" : "Character description section title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Description"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "角色描述"
+          }
+        }
+      }
+    },
     "Character_Detail_Alliance_History" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7242,6 +7480,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "奖章"
+          }
+        }
+      }
+    },
+    "Character_Name_Expired_Format" : {
+      "comment" : "角色名（已过期）格式，%@ 为角色名",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ (Expired)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@（已过期）"
           }
         }
       }
@@ -7606,13 +7861,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Please enter discount (0-99999), e.g. 90 means 10% off(90%)"
+            "value" : "Please enter discount (0-99999), e.g. 90 means %@ off (%@)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "请输入折扣百分比（0-99999），例如90表示九折(90%)"
+            "value" : "请输入折扣百分比（0-99999），例如90表示%1$@（实付%2$@）"
           }
         }
       }
@@ -7682,6 +7937,7 @@
       }
     },
     "Contract_Appraisal_ESI_Result" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -7693,6 +7949,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "吉他市场估价"
+          }
+        }
+      }
+    },
+    "Contract_Appraisal_Included_Result" : {
+      "comment" : "提供的物品估价结果 section header",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Included Items Appraisal"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "提供的物品估价"
           }
         }
       }
@@ -7741,6 +8014,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "确定"
+          }
+        }
+      }
+    },
+    "Contract_Appraisal_Required_Result" : {
+      "comment" : "索取的物品估价结果 section header",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Required Items Appraisal"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "索取的物品估价"
           }
         }
       }
@@ -8232,6 +8522,57 @@
         }
       }
     },
+    "Contract_Empty_Alliance" : {
+      "comment" : "空状态：暂无联盟合同",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No alliance contracts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂无联盟合同"
+          }
+        }
+      }
+    },
+    "Contract_Empty_Corporation" : {
+      "comment" : "空状态：暂无军团合同",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No corporation contracts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂无军团合同"
+          }
+        }
+      }
+    },
+    "Contract_Empty_Personal" : {
+      "comment" : "空状态：暂无个人合同",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No personal contracts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂无个人合同"
+          }
+        }
+      }
+    },
     "Contract_End_Location" : {
       "localizations" : {
         "en" : {
@@ -8537,6 +8878,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在获取第%d页合同日志"
+          }
+        }
+      }
+    },
+    "Contract_Loading_Type" : {
+      "comment" : "正在加载%@合同...",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading %@ contracts..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载%@合同..."
           }
         }
       }
@@ -10645,12 +11003,6 @@
         }
       }
     },
-    "DPH" : {
-      "shouldTranslate" : false
-    },
-    "DPS" : {
-      "shouldTranslate" : false
-    },
     "DroneBay" : {
       "comment" : "无人机舱",
       "localizations" : {
@@ -10754,7 +11106,6 @@
     },
     "Environment_Abyssal_Type_CausticToxin" : {
       "comment" : "异种粒子",
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -10772,7 +11123,6 @@
     },
     "Environment_Abyssal_Type_Darkness" : {
       "comment" : "暗物质场",
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -10790,7 +11140,6 @@
     },
     "Environment_Abyssal_Type_ElectricStorm" : {
       "comment" : "电子风暴",
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -10808,7 +11157,6 @@
     },
     "Environment_Abyssal_Type_Infernal" : {
       "comment" : "等离子火焰风暴",
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -10826,7 +11174,6 @@
     },
     "Environment_Abyssal_Type_XenonGas" : {
       "comment" : "伽玛射线余波",
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -10844,7 +11191,6 @@
     },
     "Environment_Category_Abyssal" : {
       "comment" : "深渊",
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -10862,7 +11208,6 @@
     },
     "Environment_Category_Other" : {
       "comment" : "其他",
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -10880,7 +11225,6 @@
     },
     "Environment_Category_Wormhole" : {
       "comment" : "虫洞",
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -11976,199 +12320,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "执行公司"
-          }
-        }
-      }
-    },
-    "Exit" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "退出"
-          }
-        }
-      }
-    },
-    "ExtraDB_Builtin" : {
-      "comment" : "内置",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Built-in"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Встроенный"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "内置"
-          }
-        }
-      }
-    },
-    "ExtraDB_Download" : {
-      "comment" : "下载",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Download"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Загрузить"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "下载"
-          }
-        }
-      }
-    },
-    "ExtraDB_Error_NoMetadata" : {
-      "comment" : "未找到该语言的元数据",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Metadata not found for this language"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未找到该语言的元数据"
-          }
-        }
-      }
-    },
-    "ExtraDB_Error_NoRecordID" : {
-      "comment" : "无法获取 CloudKit 记录",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unable to get CloudKit record"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "无法获取 CloudKit 记录"
-          }
-        }
-      }
-    },
-    "ExtraDB_Error_SHA256" : {
-      "comment" : "文件校验失败",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "File verification failed"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "文件校验失败"
-          }
-        }
-      }
-    },
-    "ExtraDB_Error_Unsupported" : {
-      "comment" : "不支持的语言",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unsupported language"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "不支持的语言"
-          }
-        }
-      }
-    },
-    "ExtraDB_Manage_Delete" : {
-      "comment" : "管理",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Manage"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Управление"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "管理"
-          }
-        }
-      }
-    },
-    "ExtraDB_NotDownloaded" : {
-      "comment" : "未下载",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Not Downloaded"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Не загружено"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未下载"
-          }
-        }
-      }
-    },
-    "ExtraDB_Update" : {
-      "comment" : "Update",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Update"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Обновить"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更新"
           }
         }
       }
@@ -17073,6 +17224,54 @@
         }
       }
     },
+    "Incursions_State_Established" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Established"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "立足"
+          }
+        }
+      }
+    },
+    "Incursions_State_Mobilizing" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mobilizing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "动员"
+          }
+        }
+      }
+    },
+    "Incursions_State_Withdrawing" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Withdrawing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "撤退"
+          }
+        }
+      }
+    },
     "Industry" : {
       "comment" : "Industry Activity Status",
       "localizations" : {
@@ -17685,42 +17884,9 @@
         }
       }
     },
-    "Industry_Settings_Multi_Character" : {
-      "comment" : "多人物聚合",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Multi-Character Aggregation"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "多人物聚合"
-          }
-        }
-      }
-    },
-    "Industry_Settings_Multi_Character_Description" : {
-      "comment" : "聚合显示多个角色的工业项目数据",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aggregate industry job data from multiple characters"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "聚合显示多个角色的工业项目数据"
-          }
-        }
-      }
-    },
     "Industry_Settings_Select_Characters" : {
       "comment" : "选择角色",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -18523,13 +18689,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "+7.5% to PVP drop rates * corruption stage (applies to pirate aligned pilots)"
+            "value" : "%@ to PVP drop rates * corruption stage (applies to pirate aligned pilots)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "PvP掉率+7.5%*腐化阶段（适用于投靠海盗的飞行员）"
+            "value" : "PvP掉率%@*腐化阶段（适用于投靠海盗的飞行员）"
           }
         }
       }
@@ -18603,13 +18769,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "+5% to pirate NPC bounties and security status gain"
+            "value" : "%@ to pirate NPC bounties and security status gain"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "海盗NPC的赏金获取量和安全等级增加5%"
+            "value" : "海盗NPC的赏金获取量和安全等级增加%@"
           }
         }
       }
@@ -18619,13 +18785,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "+5% to militia LP gains in system * (suppression stage -1)"
+            "value" : "%@ to militia LP gains in system * (suppression stage -1)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "星系内国民卫队忠诚点获取量增加5%*（镇压阶段-1）"
+            "value" : "星系内国民卫队忠诚点获取量增加%@*（镇压阶段-1）"
           }
         }
       }
@@ -18635,13 +18801,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "-30% to corruption gains in system"
+            "value" : "%@ to corruption gains in system"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "星系内的腐蚀增益-30%"
+            "value" : "星系内的腐蚀增益%@"
           }
         }
       }
@@ -18651,13 +18817,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "+10% bonus to webber and scrambler range for militia-aligned pilots"
+            "value" : "%@ bonus to webber and scrambler range for militia-aligned pilots"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "国民卫队部队飞行员的停滞光束和扰频器范围增加10%"
+            "value" : "国民卫队部队飞行员的停滞光束和扰频器范围增加%@"
           }
         }
       }
@@ -19540,7 +19706,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "数据来自zkillboard and ESI"
+            "value" : "数据来自zkillboard 和 ESI"
           }
         }
       }
@@ -21359,6 +21525,7 @@
       }
     },
     "Location_Player_Structure" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -23349,6 +23516,7 @@
       }
     },
     "Main_Database_published" : {
+      "comment" : "已发布",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -23388,6 +23556,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "随机产出"
+          }
+        }
+      }
+    },
+    "Main_Database_refine_Source" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reprocess Source"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reprocess Source"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "精炼来源"
           }
         }
       }
@@ -23594,28 +23784,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "技能等级细节"
-          }
-        }
-      }
-    },
-    "Main_Database_Source" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reprocess Source"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reprocess Source"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "精炼来源"
           }
         }
       }
@@ -24835,29 +25003,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已发送"
-          }
-        }
-      }
-    },
-    "Main_EVE_Mail_Spam" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Spam"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Спам"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "垃圾邮件"
           }
         }
       }
@@ -26180,6 +26325,7 @@
       }
     },
     "Main_Language_Map_Type_Region" : {
+      "comment" : "星域",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -27617,6 +27763,22 @@
         }
       }
     },
+    "Main_Market_Watch_List_Delete_Confirm" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Are you sure you want to delete \"%@\"? This cannot be undone."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确定要删除「%@」吗？此操作无法撤销。"
+          }
+        }
+      }
+    },
     "Main_Market_Watch_List_Edit_Item_Quantity" : {
       "localizations" : {
         "en" : {
@@ -29031,6 +29193,7 @@
       }
     },
     "Main_Search_Status_Finding_Alliances" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -29063,6 +29226,7 @@
       }
     },
     "Main_Search_Status_Finding_Corporations" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -30921,6 +31085,40 @@
         }
       }
     },
+    "Main_Setting_Notification_Manage" : {
+      "comment" : "Notification management entry in settings",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通知管理"
+          }
+        }
+      }
+    },
+    "Main_Setting_Notification_Manage_Detail" : {
+      "comment" : "Notification management entry detail",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View and manage all scheduled notifications"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看并管理所有待发送通知"
+          }
+        }
+      }
+    },
     "Main_Setting_Others" : {
       "localizations" : {
         "en" : {
@@ -30961,6 +31159,7 @@
       }
     },
     "Main_Setting_Reset_Icons" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -30977,6 +31176,7 @@
       }
     },
     "Main_Setting_Reset_Icons_Detail" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -30993,6 +31193,7 @@
       }
     },
     "Main_Setting_Reset_Icons_Message" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -31009,6 +31210,7 @@
       }
     },
     "Main_Setting_Reset_Icons_Title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -31484,8 +31686,42 @@
         }
       }
     },
+    "Main_Setting_View_Token" : {
+      "comment" : "查看 Token",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View Tokens"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看 Token"
+          }
+        }
+      }
+    },
+    "Main_Setting_View_Token_Detail" : {
+      "comment" : "查看 refresh token 与 access token",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View refresh and access tokens"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看 refresh token 与 access token"
+          }
+        }
+      }
+    },
     "Main_Setting_View_Token_Scopes" : {
-      "comment" : "查看 token scopes",
+      "comment" : "查看 Token scopes",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -31496,7 +31732,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "查看 token scopes"
+            "value" : "查看 Token scopes"
           }
         }
       }
@@ -31846,6 +32082,38 @@
         }
       }
     },
+    "Main_Skills_Optimal_Attributes_Info" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Based on skills still to train, this shows how to split your 14 remappable points (each attribute starts at 17) for the shortest total training time.\n\nGreen +N means: after a remap, put N points into that attribute (base = 17 + N).\n\nExample: Perception +7 means your remapped base Perception should be 24 (17+7), not “add 7 to whatever your sheet shows now.” If your sheet already shows 24 or higher for Perception, that stat is likely already fine.\n\nAll 14 points must be spent, e.g. Perception +7, Memory +4, Willpower +3, others stay at 17. Implant bonuses are separate. If you use an attribute booster, time saved is estimated without the booster effect."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据待训练技能，计算怎样分配 14 个可分配点能最快练完。\n\n绿色 +N 的含义：建议把 N 点投入该属性，即基础值 = 17 + N。\n\n举例：列表显示「感知 +7」，表示感知基础值应为 24（17+7），而不是在你当前面板数值上再加 7。若你当前感知面板已是 24 或更高，说明这项分配已接近最优。\n\n14 点需全部分完，例如感知 +7、记忆 +4、意志 +3，其余两项保持 17。植入体加成不纳入计算；若使用属性加速器，「可节省时间」按无加速器口径估算。"
+          }
+        }
+      }
+    },
+    "Main_Skills_Optimal_Attributes_Info_Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About Optimal Attributes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关于最优属性分配"
+          }
+        }
+      }
+    },
     "Main_Skills_Optimal_Attributes_Loading" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -31925,6 +32193,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "优化后可节省: %@"
+          }
+        }
+      }
+    },
+    "Main_Skills_Optimal_Attributes_Time_Saved_With_Total" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Time saved with optimization: %1$@ (total after optimization: %2$@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "优化后可节省: %1$@（优化后总耗时 %2$@）"
           }
         }
       }
@@ -32213,6 +32497,57 @@
         }
       }
     },
+    "Main_Skills_Plan_Fresh_Queue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fresh Queue"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全新队列"
+          }
+        }
+      }
+    },
+    "Main_Skills_Plan_Fresh_Queue_Description" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calculate all queue metrics assuming no skills trained"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以全0技能为基准，计算完整队列的各项指标"
+          }
+        }
+      }
+    },
+    "Main_Skills_Plan_Fresh_Queue_Description_Current" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calculate missing metrics based on current character skills"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "以当前人物技能为基准，计算缺失部分的指标"
+          }
+        }
+      }
+    },
     "Main_Skills_Plan_Has_Dependencies" : {
       "comment" : "此技能被其他技能依赖，无法删除",
       "localizations" : {
@@ -32359,22 +32694,6 @@
         }
       }
     },
-    "Main_Skills_Plan_Loading_Fetching_Injector_SP" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading character skill points…"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在获取角色技能点…"
-          }
-        }
-      }
-    },
     "Main_Skills_Plan_Loading_Fetching_Skills" : {
       "localizations" : {
         "en" : {
@@ -32420,6 +32739,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "计划名称"
+          }
+        }
+      }
+    },
+    "Main_Skills_Plan_Optimal_Include_Completed_Short" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Include Completed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "计算已完成"
           }
         }
       }
@@ -34223,6 +34559,7 @@
     },
     "Mining_Filter_Select_All" : {
       "comment" : "全选",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -34359,6 +34696,7 @@
     },
     "Mining_Settings_Select_Characters" : {
       "comment" : "选择角色",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -35028,6 +35366,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%d级"
+          }
+        }
+      }
+    },
+    "Misc_Load_Failed" : {
+      "comment" : "加载失败（网络错误等，下次会重试）",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Load failed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "加载失败"
           }
         }
       }
@@ -35909,6 +36264,40 @@
         }
       }
     },
+    "MultiCharacter_Select_All" : {
+      "comment" : "全选",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select All"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全选"
+          }
+        }
+      }
+    },
+    "MultiCharacter_Select_Characters" : {
+      "comment" : "选择角色",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select Characters"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择角色"
+          }
+        }
+      }
+    },
     "N/A" : {
       "shouldTranslate" : false
     },
@@ -36111,6 +36500,125 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无图表数据"
+          }
+        }
+      }
+    },
+    "Notifications_Category_EVEEvent" : {
+      "comment" : "EVE event notification category display name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EVE Events"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "EVE 活动事件"
+          }
+        }
+      }
+    },
+    "Notifications_Category_SkillQueue" : {
+      "comment" : "Skill queue notification category display name",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skill Queue"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "技能队列"
+          }
+        }
+      }
+    },
+    "Notifications_SkillQueue_Enable" : {
+      "comment" : "Enable skill queue notifications",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enable Skill Queue Notifications"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "启用技能队列通知"
+          }
+        }
+      }
+    },
+    "Notifications_SkillQueue_Footer_Hint" : {
+      "comment" : "Skill queue footer hint",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Calculated from cached skill queue data fetched by the app; may differ from in-game real-time data."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "基于应用拉取的技能队列数据计算，与游戏内实时数据可能不一致。"
+          }
+        }
+      }
+    },
+    "Notifications_SkillQueue_Info_Body" : {
+      "comment" : "Skill queue notification info sheet body",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skill queue notifications are based on the data last fetched by this app.\n\nSince the app cannot refresh skill queue in the background and ESI has cache delays, if you adjust your skill queue in-game without re-fetching in this app, notification timing may be inaccurate."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "技能队列通知基于本应用最近一次刷新的数据生成。\n\n由于应用无后台刷新技能的能力，且 ESI 存在缓存延迟，若您在游戏内调整了技能队列但未在本应用中重新拉取，那么通知时间可能不准确。"
+          }
+        }
+      }
+    },
+    "Notifications_SkillQueue_Info_Title" : {
+      "comment" : "Skill queue notification info sheet title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About Skill Queue Notifications"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关于技能队列通知"
+          }
+        }
+      }
+    },
+    "Notifications_Title" : {
+      "comment" : "Notifications",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notifications"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "通知管理"
           }
         }
       }
@@ -36847,22 +37355,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "税额"
-          }
-        }
-      }
-    },
-    "Ore_Refinery_Result_Tax_Zero" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "0 ISK (Tax rate: %.1f%%)"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "0 ISK (税率: %.1f%%)"
           }
         }
       }
@@ -38179,13 +38671,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Resource Coverage: %.1f%%"
+            "value" : "Resource Coverage:"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "资源覆盖情况：%.1f%%"
+            "value" : "资源覆盖情况："
           }
         }
       }
@@ -38241,6 +38733,7 @@
     },
     "Planetary_Filter_Select_All" : {
       "comment" : "全选",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -38588,6 +39081,7 @@
     },
     "Planetary_Settings_Select_Characters" : {
       "comment" : "选择角色",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -39743,6 +40237,249 @@
         }
       }
     },
+    "RateLimit_Monitor_Clear" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Очистить"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除"
+          }
+        }
+      }
+    },
+    "RateLimit_Monitor_Clear_Message" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove all discovered rate-limit groups and endpoints?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить все обнаруженные группы и эндпоинты лимитов?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "删除所有已发现的限流组与端点记录？"
+          }
+        }
+      }
+    },
+    "RateLimit_Monitor_Clear_Title" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear Rate Limit Records"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Очистить записи лимитов"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "清除限流记录"
+          }
+        }
+      }
+    },
+    "RateLimit_Monitor_Detail" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Discover ESI rate-limit groups and endpoints from live responses"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обнаружение групп и эндпоинтов лимитов ESI по ответам"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "根据实时响应发现 ESI 限流组与端点"
+          }
+        }
+      }
+    },
+    "RateLimit_Monitor_Empty" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No rate-limited endpoints discovered yet. Use the app normally and they will appear here."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Лимитированные эндпоинты пока не найдены. Они появятся после обычного использования приложения."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "尚未发现带限流的端点。正常使用 App 后会在此显示。"
+          }
+        }
+      }
+    },
+    "RateLimit_Monitor_HoursAgo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%dh ago"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d ч назад"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d 小时前"
+          }
+        }
+      }
+    },
+    "RateLimit_Monitor_JustNow" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "just now"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "только что"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刚刚"
+          }
+        }
+      }
+    },
+    "RateLimit_Monitor_MinutesAgo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%dm ago"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d мин назад"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d 分钟前"
+          }
+        }
+      }
+    },
+    "RateLimit_Monitor_SecondsAgo" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%ds ago"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d с назад"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d 秒前"
+          }
+        }
+      }
+    },
+    "RateLimit_Monitor_Title" : {
+      "comment" : "Rate limit monitor in settings",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Network Rate Limit Monitor"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Монитор лимитов API"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网络限流监视器"
+          }
+        }
+      }
+    },
+    "RateLimit_Monitor_Window" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ window"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "окно %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 窗口"
+          }
+        }
+      }
+    },
     "Reason" : {
       "localizations" : {
         "en" : {
@@ -40019,6 +40756,38 @@
         }
       }
     },
+    "SDE_Already_Latest_Hint" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data package is up to date"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据包已是最新"
+          }
+        }
+      }
+    },
+    "SDE_Check_Hint" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap to check for data package and icon updates"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点按检查数据包与图标更新"
+          }
+        }
+      }
+    },
     "SDE_Check_Update" : {
       "comment" : "检查 SDE 更新",
       "localizations" : {
@@ -40038,6 +40807,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "检查 SDE 更新"
+          }
+        }
+      }
+    },
+    "SDE_Checking_Subtitle" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Connecting to CloudKit…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在连接 CloudKit…"
           }
         }
       }
@@ -40149,6 +40934,22 @@
         }
       }
     },
+    "SDE_Last_Checked" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last checked: %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "上次检查：%@"
+          }
+        }
+      }
+    },
     "SDE_Latest_Version" : {
       "comment" : "最新版本",
       "localizations" : {
@@ -40166,35 +40967,18 @@
         }
       }
     },
-    "SDE_Log_Checking_Requirements" : {
+    "SDE_Log_Calculating_SHA" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Checking update requirements..."
+            "value" : "Calculating SHA256…"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "检查更新需求..."
-          }
-        }
-      }
-    },
-    "SDE_Log_Clearing_Directory" : {
-      "comment" : "SDE Update Progress Logs",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Clearing download directory..."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "清理下载目录..."
+            "value" : "正在计算 SHA256…"
           }
         }
       }
@@ -40215,24 +40999,8 @@
         }
       }
     },
-    "SDE_Log_Downloading_ExtraDB" : {
-      "comment" : "正在下载 %@ 数据库...",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Downloading %@ database from CloudKit..."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "从 CloudKit 下载 %@ 数据库..."
-          }
-        }
-      }
-    },
     "SDE_Log_Downloading_Icons" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -40248,23 +41016,8 @@
         }
       }
     },
-    "SDE_Log_Downloading_Metadata" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Downloading metadata_file.json..."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "下载 metadata_file.json..."
-          }
-        }
-      }
-    },
     "SDE_Log_Downloading_SDE" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -40281,6 +41034,7 @@
       }
     },
     "SDE_Log_Extract_Icons_Success" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -40297,6 +41051,7 @@
       }
     },
     "SDE_Log_Extract_SDE_Success" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -40312,24 +41067,8 @@
         }
       }
     },
-    "SDE_Log_Extracting_ExtraDB" : {
-      "comment" : "正在解压 %@ 数据库...",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Extracting %@ database..."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在解压 %@ 数据库..."
-          }
-        }
-      }
-    },
     "SDE_Log_Extracting_Icons" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -40346,6 +41085,7 @@
       }
     },
     "SDE_Log_Extracting_SDE" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -40357,39 +41097,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "解压 sde.zip..."
-          }
-        }
-      }
-    },
-    "SDE_Log_ExtraDB_Success" : {
-      "comment" : "%@ 数据库更新完成",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ database updated successfully!"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@ 数据库更新完成！"
-          }
-        }
-      }
-    },
-    "SDE_Log_Icons_Need_Update" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Icons need update: %@ (current v%d, latest v%d)"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "图标需要更新: %@ (当前 v%d, 最新 v%d)"
           }
         }
       }
@@ -40443,6 +41150,7 @@
       }
     },
     "SDE_Log_Preparing_Icons" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -40459,6 +41167,7 @@
       }
     },
     "SDE_Log_Preparing_SDE" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -40470,22 +41179,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "准备 sde.zip..."
-          }
-        }
-      }
-    },
-    "SDE_Log_SDE_Needs_Update" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SDE needs update: %@ (current: %@, latest: %@)"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "SDE需要更新: %@ (当前: %@, 最新: %@)"
           }
         }
       }
@@ -40555,6 +41248,7 @@
       }
     },
     "SDE_Log_Verifying_Icons_SHA" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -40571,6 +41265,7 @@
       }
     },
     "SDE_Log_Verifying_SDE_SHA" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -40748,6 +41443,54 @@
         }
       }
     },
+    "SDE_Status_Latest" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Latest"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最新"
+          }
+        }
+      }
+    },
+    "SDE_Status_Pending" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pending"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "等待中"
+          }
+        }
+      }
+    },
+    "SDE_Status_Update" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可更新"
+          }
+        }
+      }
+    },
     "SDE_Update" : {
       "comment" : "更新",
       "localizations" : {
@@ -40765,22 +41508,6 @@
         }
       }
     },
-    "SDE_Update_Completed" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Update completed successfully!"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更新完成！"
-          }
-        }
-      }
-    },
     "SDE_Update_Details" : {
       "comment" : "SDE更新详情",
       "localizations" : {
@@ -40794,6 +41521,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "SDE更新详情"
+          }
+        }
+      }
+    },
+    "SDE_Update_Failed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update Failed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更新失败"
+          }
+        }
+      }
+    },
+    "SDE_View_Update" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View Available Update"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看可用更新"
           }
         }
       }
@@ -40953,6 +41712,74 @@
         }
       }
     },
+    "Settings_Merge_Locations" : {
+      "comment" : "合并相同地点的数据",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Merge Same Locations"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合并相同地点的数据"
+          }
+        }
+      }
+    },
+    "Settings_Merge_Locations_Description" : {
+      "comment" : "按地点去重，合并多人物资产",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deduplicate by location, merge assets from multiple characters"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按地点去重，合并多人物资产"
+          }
+        }
+      }
+    },
+    "Settings_Multi_Character" : {
+      "comment" : "多人物聚合",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Multi-Character Aggregation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "多人物聚合"
+          }
+        }
+      }
+    },
+    "Settings_Multi_Character_Description" : {
+      "comment" : "聚合显示多个角色的工业项目数据",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggregate data from multiple characters"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "聚合显示多个角色的数据"
+          }
+        }
+      }
+    },
     "ShipHangar" : {
       "comment" : "舰船机库",
       "localizations" : {
@@ -40976,6 +41803,92 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未找到技能组"
+          }
+        }
+      }
+    },
+    "SkillQueue_3Day_Body" : {
+      "comment" : "%1$@ character name, %2$@ finish date",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@'s skill queue expires in 3 days (%2$@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 的技能队列将在3天后到期（%2$@）"
+          }
+        }
+      }
+    },
+    "SkillQueue_3Day_Title" : {
+      "comment" : "Skill queue completing soon title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skill Queue Expires in 3 Days"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "技能队列3天后到期"
+          }
+        }
+      }
+    },
+    "SkillQueue_Due_Body" : {
+      "comment" : "%1$@ character name, %2$@ finish date",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@'s skill queue expires today (%2$@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 的技能队列今日到期（%2$@）"
+          }
+        }
+      }
+    },
+    "SkillQueue_Due_Title" : {
+      "comment" : "Skill queue completing today title",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skill Queue Expires Today"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "技能队列今日到期"
+          }
+        }
+      }
+    },
+    "SkillQueue_Finish_Time_Label" : {
+      "comment" : "Queue Finish",
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Queue Finish"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "队列完成时间"
           }
         }
       }
@@ -41536,6 +42449,7 @@
     },
     "StarMap_Clear_Search" : {
       "comment" : "清除",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -41553,6 +42467,7 @@
     },
     "StarMap_Export_Error" : {
       "comment" : "Export Failed",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -41570,6 +42485,7 @@
     },
     "StarMap_Export_Error_Message" : {
       "comment" : "Failed to export map",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -41587,6 +42503,7 @@
     },
     "StarMap_Export_Success" : {
       "comment" : "Export Success",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -41604,6 +42521,7 @@
     },
     "StarMap_Export_Success_Message" : {
       "comment" : "Map exported to photo library",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -41824,7 +42742,7 @@
       }
     },
     "StarMap_No_Results" : {
-      "comment" : "未找到匹配的星域",
+      "comment" : "No matching results",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -41842,6 +42760,7 @@
     },
     "StarMap_Processing" : {
       "comment" : "Processing star map data",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -43425,6 +44344,7 @@
     },
     "Structure_Orders_Load" : {
       "comment" : "获取市场订单",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -43442,6 +44362,7 @@
     },
     "Structure_Orders_Loading" : {
       "comment" : "正在加载订单...",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -43862,22 +44783,6 @@
         }
       }
     },
-    "Time_Day" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "d"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "天"
-          }
-        }
-      }
-    },
     "Time_Days" : {
       "comment" : "%dd",
       "localizations" : {
@@ -43902,23 +44807,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%d days ago"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d天前"
-          }
-        }
-      }
-    },
-    "Time_Days_Ago_shord" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%dd ago"
           }
         },
         "zh-Hans" : {
@@ -44040,39 +44928,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%d天%d秒"
-          }
-        }
-      }
-    },
-    "Time_Format_Days" : {
-      "comment" : "%d天 %02d:%02d:%02d",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d days %02d:%02d:%02d"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d天 %02d:%02d:%02d"
-          }
-        }
-      }
-    },
-    "Time_Hour" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "h"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "时"
           }
         }
       }
@@ -44215,22 +45070,6 @@
         }
       }
     },
-    "Time_Minute" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "m"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "分"
-          }
-        }
-      }
-    },
     "Time_Minutes" : {
       "comment" : "%dm",
       "localizations" : {
@@ -44296,22 +45135,6 @@
         }
       }
     },
-    "Time_Month" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "mon"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "月"
-          }
-        }
-      }
-    },
     "Time_Remaining" : {
       "localizations" : {
         "en" : {
@@ -44324,22 +45147,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "剩余时间:"
-          }
-        }
-      }
-    },
-    "Time_Second" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "s"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "秒"
           }
         }
       }
@@ -44360,23 +45167,6 @@
         }
       }
     },
-    "Time_Seconds_Ago" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d seconds ago"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%d秒前"
-          }
-        }
-      }
-    },
     "Time_Seconds_Ago_short" : {
       "localizations" : {
         "en" : {
@@ -44389,22 +45179,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%d秒前"
-          }
-        }
-      }
-    },
-    "Time_Year" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "y"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "年"
           }
         }
       }
@@ -44500,6 +45274,74 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "搜索权限..."
+          }
+        }
+      }
+    },
+    "Token_Viewer_Expired_Tag" : {
+      "comment" : "已过期",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expired"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已过期"
+          }
+        }
+      }
+    },
+    "Token_Viewer_Force_Expire" : {
+      "comment" : "强制过期",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Force Expire"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "强制过期"
+          }
+        }
+      }
+    },
+    "Token_Viewer_Force_Expire_Confirm" : {
+      "comment" : "确定要强制使此角色的 token 过期吗？此操作会清除 token 缓存但保留角色。",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Force expire this character's token? This will clear token cache but keep the character."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确定要强制使此角色的 token 过期吗？此操作会清除 token 缓存但保留角色。"
+          }
+        }
+      }
+    },
+    "Token_Viewer_No_Token" : {
+      "comment" : "无",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "None"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无"
           }
         }
       }
@@ -44638,7 +45480,7 @@
       }
     },
     "Unknown_Item" : {
-
+      "shouldTranslate" : false
     },
     "Unknown_Location" : {
       "comment" : "未知位置",
@@ -44685,16 +45527,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未命名"
-          }
-        }
-      }
-    },
-    "Update failed" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "升级失败"
           }
         }
       }
@@ -45709,10 +46541,16 @@
       }
     },
     "zKB" : {
-
+      "shouldTranslate" : false
     },
     "zKillboard" : {
       "shouldTranslate" : false
+    },
+    "其他邮件" : {
+
+    },
+    "近期邮件" : {
+
     }
   },
   "version" : "1.1"

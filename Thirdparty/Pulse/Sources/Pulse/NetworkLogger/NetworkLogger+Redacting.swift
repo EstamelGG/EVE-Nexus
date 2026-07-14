@@ -69,7 +69,7 @@ extension LoggerStore.Event {
 // MARK: - Redacting Headers
 
 extension NetworkLogger.Request {
-    /// Soft-deprecated in Pulse 3.0
+    // Soft-deprecated in Pulse 3.0
     public func redactingSensitiveHeaders(_ redactedHeaders: Set<String>) -> Self {
         var copy = self
         copy.headers = _redactingSensitiveHeaders(redactedHeaders, from: headers)
@@ -84,7 +84,7 @@ extension NetworkLogger.Request {
 }
 
 extension NetworkLogger.Response {
-    /// Soft-deprecated in Pulse 3.0
+    // Soft-deprecated in Pulse 3.0
     public func redactingSensitiveHeaders(_ redactedHeaders: Set<String>) -> Self {
         var copy = self
         copy.headers = _redactingSensitiveHeaders(redactedHeaders, from: headers)

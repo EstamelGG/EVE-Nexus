@@ -6,7 +6,7 @@ class JWTTokenValidator {
 
     private init() {}
 
-    // 解析JWT令牌并提取信息
+    /// 解析JWT令牌并提取信息
     func parseToken(_ token: String) -> EVECharacterInfo? {
         do {
             let jwt = try JWTDecode.decode(jwt: token)
@@ -32,7 +32,7 @@ class JWTTokenValidator {
             let expiresOn = jwt.expiresAt?.timeIntervalSince1970.description ?? ""
             let scopesJoined = scopes.joined(separator: " ")
 
-            let characterInfo = EVECharacterInfo(
+            return EVECharacterInfo(
                 CharacterID: characterIDInt,
                 CharacterName: characterName,
                 ExpiresOn: expiresOn,
@@ -40,29 +40,19 @@ class JWTTokenValidator {
                 TokenType: "Bearer",
                 CharacterOwnerHash: ownerHash
             )
-
-            return characterInfo
         } catch {
             Logger.error("JWT令牌解析失败: \(error)")
             return nil
         }
     }
 
-    // 验证令牌是否有效（检查过期时间）
-    func isTokenValid(_ token: String) -> Bool {
+    /// 解析 JWT 过期时间；非 JWT 或缺 exp 时返回 nil
+    func expirationDate(of token: String) -> Date? {
         do {
             let jwt = try JWTDecode.decode(jwt: token)
-
-            // 检查令牌是否已过期
-            if let expiresAt = jwt.expiresAt, expiresAt > Date() {
-                return true
-            } else {
-                Logger.error("JWT令牌已过期")
-                return false
-            }
+            return jwt.expiresAt
         } catch {
-            Logger.error("JWT令牌验证失败: \(error)")
-            return false
+            return nil
         }
     }
 }

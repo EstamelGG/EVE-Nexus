@@ -1,6 +1,6 @@
 import Foundation
 
-// 星堡详细信息模型
+/// 星堡详细信息模型
 public struct StarbaseDetailInfo: Codable {
     public let allow_alliance_members: Bool
     public let allow_corporation_members: Bool
@@ -18,13 +18,13 @@ public struct StarbaseDetailInfo: Codable {
     public let use_alliance_standings: Bool
 }
 
-// 星堡燃料信息模型
+/// 星堡燃料信息模型
 public struct StarbaseFuel: Codable {
     public let quantity: Int
     public let type_id: Int
 }
 
-// 星堡查询参数
+/// 星堡查询参数
 public struct StarbaseQueryParams: Hashable, Codable {
     public let starbaseId: Int
     public let corporationId: Int
@@ -37,7 +37,7 @@ public struct StarbaseQueryParams: Hashable, Codable {
     }
 }
 
-// 缓存数据结构
+/// 缓存数据结构
 private struct StarbaseDetailCacheData: Codable {
     let data: StarbaseDetailInfo
     let timestamp: Date

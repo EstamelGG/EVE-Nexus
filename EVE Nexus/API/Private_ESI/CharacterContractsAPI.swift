@@ -20,25 +20,25 @@ class CharacterContractsAPI {
         }
     }
 
-    // 获取合同缓存目录
+    /// 获取合同缓存目录
     private func getContractCacheDirectory() -> URL {
         let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         return documentsPath.appendingPathComponent("CharContractCache")
     }
 
-    // 获取合同缓存文件路径
+    /// 获取合同缓存文件路径
     private func getContractCacheFilePath(characterId: Int) -> URL {
         let cacheDirectory = getContractCacheDirectory()
         return cacheDirectory.appendingPathComponent("CharContract_\(characterId).json")
     }
 
-    // 获取合同物品缓存文件路径
+    /// 获取合同物品缓存文件路径
     private func getContractItemsCacheFilePath(contractId: Int) -> URL {
         let cacheDirectory = getContractCacheDirectory()
         return cacheDirectory.appendingPathComponent("ContractItems_\(contractId).json")
     }
 
-    // 检查合同缓存是否过期
+    /// 检查合同缓存是否过期
     private func isContractCacheExpired(characterId: Int) -> Bool {
         let filePath = getContractCacheFilePath(characterId: characterId)
 
@@ -68,7 +68,7 @@ class CharacterContractsAPI {
         return true
     }
 
-    // 使指定角色的合同相关缓存失效
+    /// 使指定角色的合同相关缓存失效
     private func invalidateCharacterContractCache(characterId: Int) {
         let contractFilePath = getContractCacheFilePath(characterId: characterId)
 
@@ -83,7 +83,7 @@ class CharacterContractsAPI {
         }
     }
 
-    // 从缓存文件获取合同列表
+    /// 从缓存文件获取合同列表
     private func getContractsFromCache(characterId: Int) -> [ContractInfo]? {
         let filePath = getContractCacheFilePath(characterId: characterId)
 
@@ -105,17 +105,19 @@ class CharacterContractsAPI {
             return contracts
         } catch {
             Logger.error(
-                "读取合同缓存文件失败 - 角色ID: \(characterId), 错误: \(error), 文件路径: \(filePath.path)")
+                "读取合同缓存文件失败 - 角色ID: \(characterId), 错误: \(error), 文件路径: \(filePath.path)"
+            )
             return nil
         }
     }
 
-    // 保存合同列表到缓存文件
+    /// 保存合同列表到缓存文件
     private func saveContractsToCache(characterId: Int, contracts: [ContractInfo]) -> Bool {
         let filePath = getContractCacheFilePath(characterId: characterId)
 
         Logger.info(
-            "开始保存合同到缓存文件 - 角色ID: \(characterId), 合同数量: \(contracts.count), 文件路径: \(filePath.path)")
+            "开始保存合同到缓存文件 - 角色ID: \(characterId), 合同数量: \(contracts.count), 文件路径: \(filePath.path)"
+        )
 
         do {
             let encoder = JSONEncoder()
@@ -129,12 +131,13 @@ class CharacterContractsAPI {
             return true
         } catch {
             Logger.error(
-                "保存合同到缓存文件失败 - 角色ID: \(characterId), 错误: \(error), 文件路径: \(filePath.path)")
+                "保存合同到缓存文件失败 - 角色ID: \(characterId), 错误: \(error), 文件路径: \(filePath.path)"
+            )
             return false
         }
     }
 
-    // 从缓存文件获取合同列表，如果数据过期则在后台刷新
+    /// 从缓存文件获取合同列表，如果数据过期则在后台刷新
     private func getContractsFromCacheOrRefresh(characterId: Int) async -> [ContractInfo]? {
         let contracts = getContractsFromCache(characterId: characterId)
 
@@ -160,7 +163,7 @@ class CharacterContractsAPI {
         return contracts
     }
 
-    // 从缓存文件获取合同物品
+    /// 从缓存文件获取合同物品
     private func getContractItemsFromCache(contractId: Int) -> [ContractItemInfo]? {
         let filePath = getContractItemsCacheFilePath(contractId: contractId)
 
@@ -181,17 +184,19 @@ class CharacterContractsAPI {
             return items
         } catch {
             Logger.error(
-                "读取合同物品缓存文件失败 - 合同ID: \(contractId), 错误: \(error), 文件路径: \(filePath.path)")
+                "读取合同物品缓存文件失败 - 合同ID: \(contractId), 错误: \(error), 文件路径: \(filePath.path)"
+            )
             return nil
         }
     }
 
-    // 保存合同物品到缓存文件
+    /// 保存合同物品到缓存文件
     private func saveContractItemsToCache(contractId: Int, items: [ContractItemInfo]) -> Bool {
         let filePath = getContractItemsCacheFilePath(contractId: contractId)
 
         Logger.info(
-            "开始保存合同物品到缓存文件 - 合同ID: \(contractId), 物品数量: \(items.count), 文件路径: \(filePath.path)")
+            "开始保存合同物品到缓存文件 - 合同ID: \(contractId), 物品数量: \(items.count), 文件路径: \(filePath.path)"
+        )
 
         do {
             let encoder = JSONEncoder()
@@ -204,12 +209,13 @@ class CharacterContractsAPI {
             return true
         } catch {
             Logger.error(
-                "保存合同物品到缓存文件失败 - 合同ID: \(contractId), 错误: \(error), 文件路径: \(filePath.path)")
+                "保存合同物品到缓存文件失败 - 合同ID: \(contractId), 错误: \(error), 文件路径: \(filePath.path)"
+            )
             return false
         }
     }
 
-    // 获取合同列表（公开方法）
+    /// 获取合同列表（公开方法）
     func fetchContracts(
         characterId: Int, forceRefresh: Bool = false, progressCallback: ((Int) -> Void)? = nil
     ) async throws -> [ContractInfo] {
@@ -225,10 +231,9 @@ class CharacterContractsAPI {
         // 如果数据为空、强制刷新或缓存过期，则从网络获取
         if !cacheExists || forceRefresh || isContractCacheExpired(characterId: characterId) {
             Logger.debug("合同数据为空、强制刷新或缓存过期，从网络获取数据")
-            let contracts = try await fetchContractsFromServer(
+            return try await fetchContractsFromServer(
                 characterId: characterId, progressCallback: progressCallback
             )
-            return contracts
         }
 
         // 从缓存获取数据并返回
@@ -238,7 +243,7 @@ class CharacterContractsAPI {
         return []
     }
 
-    // 获取合同物品（公开方法）
+    /// 获取合同物品（公开方法）
     func fetchContractItems(characterId: Int, contractId: Int, forceRefresh: Bool = false)
         async throws -> [ContractItemInfo]
     {
@@ -273,7 +278,7 @@ class CharacterContractsAPI {
         return items
     }
 
-    // 从服务器获取合同列表
+    /// 从服务器获取合同列表
     private func fetchContractsFromServer(
         characterId: Int, progressCallback: ((Int) -> Void)? = nil
     ) async throws -> [ContractInfo] {
@@ -316,7 +321,7 @@ class CharacterContractsAPI {
         return contracts
     }
 
-    // 合同物品信息模型
+    /// 合同物品信息模型
     struct ContractItemInfo: Codable, Identifiable {
         let is_included: Bool
         let is_singleton: Bool
@@ -325,10 +330,12 @@ class CharacterContractsAPI {
         let type_id: Int
         let raw_quantity: Int?
 
-        var id: Int64 { record_id }
+        var id: Int64 {
+            record_id
+        }
     }
 
-    // 从服务器获取合同物品
+    /// 从服务器获取合同物品
     private func fetchContractItemsFromServer(characterId: Int, contractId: Int) async throws
         -> [ContractItemInfo]
     {
@@ -370,7 +377,7 @@ class CharacterContractsAPI {
     }
 }
 
-// 合同信息模型
+/// 合同信息模型
 struct ContractInfo: Codable, Identifiable, Hashable {
     let acceptor_id: Int?
     let assignee_id: Int?
@@ -395,9 +402,11 @@ struct ContractInfo: Codable, Identifiable, Hashable {
     let type: String
     let volume: Double
 
-    var id: Int { contract_id }
+    var id: Int {
+        contract_id
+    }
 
-    // 实现 Hashable
+    /// 实现 Hashable
     func hash(into hasher: inout Hasher) {
         hasher.combine(contract_id)
     }

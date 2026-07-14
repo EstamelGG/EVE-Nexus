@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 星系选择器Sheet - 复用JumpNavigationView中的SystemSelectorSheet
+/// 星系选择器Sheet - 复用JumpNavigationView中的SystemSelectorSheet
 struct PISolarSystemSelectorSheet: View {
     let title: String
     let onSelect: (Int, String) -> Void // 接收星系ID和名称
@@ -55,56 +55,41 @@ struct PISolarSystemSelectorSheet: View {
         }
     }
 
-    // 加载所有星系数据
+    /// 加载所有星系数据
     private func loadAllSystemsData() {
         DispatchQueue.global(qos: .userInitiated).async {
-            // 查询所有星系，包含中英文名称，不限制跳跃门条件
             let query = """
-                SELECT u.solarsystem_id, s.solarSystemName, s.solarSystemName_en, s.solarSystemName_zh,
-                       u.system_security, r.regionName, u.x, u.y, u.z
-                FROM universe u
-                JOIN solarsystems s ON s.solarSystemID = u.solarsystem_id
-                JOIN regions r ON r.regionID = u.region_id
-                ORDER BY s.solarSystemName
+                SELECT solarsystem_id, system_security, region_id, x, y, z
+                FROM universe
             """
 
             var systems: [JumpSystemData] = []
 
             if case let .success(rows) = databaseManager.executeQuery(query) {
                 for row in rows {
-                    if let id = row["solarsystem_id"] as? Int,
-                       let name = row["solarSystemName"] as? String,
-                       let nameEN = row["solarSystemName_en"] as? String,
-                       let security = row["system_security"] as? Double,
-                       let region = row["regionName"] as? String,
-                       let x = row["x"] as? Double,
-                       let y = row["y"] as? Double,
-                       let z = row["z"] as? Double
-                    {
-                        // 获取中文名，如果为nil则使用英文名
-                        let nameZH = (row["solarSystemName_zh"] as? String) ?? nameEN
+                    guard let id = row["solarsystem_id"] as? Int,
+                          let security = row["system_security"] as? Double,
+                          let regionId = row["region_id"] as? Int,
+                          let x = row["x"] as? Double,
+                          let y = row["y"] as? Double,
+                          let z = row["z"] as? Double
+                    else { continue }
 
-                        // 计算显示安全等级
-                        let displaySec = calculateDisplaySecurity(security)
-
-                        systems.append(
-                            JumpSystemData(
-                                id: id,
-                                name: name,
-                                nameEN: nameEN,
-                                nameZH: nameZH,
-                                security: displaySec,
-                                region: region,
-                                x: x,
-                                y: y,
-                                z: z
-                            )
+                    systems.append(
+                        JumpSystemData(
+                            id: id,
+                            security: calculateDisplaySecurity(security),
+                            regionId: regionId,
+                            x: x,
+                            y: y,
+                            z: z
                         )
-                    }
+                    )
                 }
             }
 
-            // 在主线程更新UI
+            systems.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
+
             DispatchQueue.main.async {
                 allSystems = systems
                 isLoadingData = false

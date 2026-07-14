@@ -153,18 +153,7 @@ class EquipmentClassifier {
         if let cached = effectCache[typeId] {
             return cached
         }
-
-        let query = "SELECT effect_id FROM typeEffects WHERE type_id = ?"
-        var effects: Set<Int> = []
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]) {
-            for row in rows {
-                if let effectId = row["effect_id"] as? Int {
-                    effects.insert(effectId)
-                }
-            }
-        }
-
+        let effects = Set(SDEMemoryStore.effectIDs(forType: typeId))
         effectCache[typeId] = effects
         return effects
     }
@@ -174,17 +163,7 @@ class EquipmentClassifier {
         if let cached = groupCache[typeId] {
             return cached
         }
-
-        let query = "SELECT groupID FROM types WHERE type_id = ?"
-        var groupId = 0
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]),
-           let row = rows.first,
-           let id = row["groupID"] as? Int
-        {
-            groupId = id
-        }
-
+        let groupId = ItemInfoMap.typeInfo(for: typeId)?.groupID ?? 0
         groupCache[typeId] = groupId
         return groupId
     }
@@ -194,23 +173,7 @@ class EquipmentClassifier {
         if let cached = categoryCache[typeId] {
             return cached
         }
-
-        let query = """
-            SELECT c.category_id 
-            FROM types t 
-            JOIN groups g ON t.groupID = g.group_id 
-            JOIN categories c ON g.categoryID = c.category_id 
-            WHERE t.type_id = ?
-        """
-        var categoryId = 0
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]),
-           let row = rows.first,
-           let id = row["categoryID"] as? Int
-        {
-            categoryId = id
-        }
-
+        let categoryId = ItemInfoMap.typeInfo(for: typeId)?.categoryID ?? 0
         categoryCache[typeId] = categoryId
         return categoryId
     }
@@ -219,44 +182,17 @@ class EquipmentClassifier {
     private func preloadCache(for typeIds: [Int]) {
         guard !typeIds.isEmpty else { return }
 
-        let typeIdsString = typeIds.map { String($0) }.joined(separator: ",")
-
-        // 批量加载effects
-        let effectQuery =
-            "SELECT type_id, effect_id FROM typeEffects WHERE type_id IN (\(typeIdsString))"
-        if case let .success(rows) = databaseManager.executeQuery(effectQuery) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let effectId = row["effect_id"] as? Int
-                {
-                    if effectCache[typeId] == nil {
-                        effectCache[typeId] = Set<Int>()
-                    }
-                    effectCache[typeId]?.insert(effectId)
-                }
-            }
+        for typeId in typeIds {
+            effectCache[typeId] = Set(SDEMemoryStore.effectIDs(forType: typeId))
         }
 
-        // 批量加载types信息
-        let typeQuery = """
-            SELECT t.type_id, t.groupID, t.marketGroupID, c.category_id 
-            FROM types t 
-            JOIN groups g ON t.groupID = g.group_id 
-            JOIN categories c ON g.categoryID = c.category_id 
-            WHERE t.type_id IN (\(typeIdsString))
-        """
-        if case let .success(rows) = databaseManager.executeQuery(typeQuery) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let groupId = row["groupID"] as? Int,
-                   let categoryId = row["category_id"] as? Int
-                {
-                    groupCache[typeId] = groupId
-                    categoryCache[typeId] = categoryId
-                    // marketGroupID 可能为 null，所以使用可选类型
-                    marketGroupCache[typeId] = row["marketGroupID"] as? Int
-                }
+        for typeId in typeIds {
+            guard let info = SDEMemoryStore.type(for: typeId) else { continue }
+            if let groupId = info.groupID {
+                groupCache[typeId] = groupId
             }
+            categoryCache[typeId] = info.categoryID
+            marketGroupCache[typeId] = info.marketGroupID
         }
 
         Logger.info("预加载了 \(typeIds.count) 个装备的分类数据")

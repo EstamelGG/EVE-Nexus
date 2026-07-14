@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 钱包流水条目模型
+/// 钱包流水条目模型
 struct WalletJournalEntry: Codable, Identifiable {
     let id: Int64
     let amount: Double
@@ -15,7 +15,7 @@ struct WalletJournalEntry: Codable, Identifiable {
     let context_id_type: String?
 }
 
-// 按日期分组的钱包流水
+/// 按日期分组的钱包流水
 struct WalletJournalGroup: Identifiable {
     let id = UUID()
     let date: Date
@@ -92,7 +92,7 @@ final class WalletJournalViewModel: ObservableObject {
         loadingTask?.cancel()
     }
 
-    // 计算总收支
+    /// 计算总收支
     private func calculateTotals(from entries: [WalletJournalEntry]) {
         var income: Double = 0
         var expense: Double = 0
@@ -128,7 +128,7 @@ final class WalletJournalViewModel: ObservableObject {
         totalExpense = expense
     }
 
-    // 只更新总收支
+    /// 只更新总收支
     func updateTotals() {
         let allEntries = journalGroups.flatMap { $0.entries }
         calculateTotals(from: allEntries)
@@ -244,7 +244,7 @@ final class WalletJournalViewModel: ObservableObject {
         await loadingTask?.value
     }
 
-    // 获取所有可用的 ref_type，按交易次数排序
+    /// 获取所有可用的 ref_type，按交易次数排序
     var availableRefTypes: [String] {
         let allTypes = journalGroups.flatMap { $0.entries }.map { $0.ref_type }
 
@@ -266,7 +266,7 @@ final class WalletJournalViewModel: ObservableObject {
         }
     }
 
-    // 获取过滤后的日志组
+    /// 获取过滤后的日志组
     var filteredJournalGroups: [WalletJournalGroup] {
         return journalGroups.map { group in
             let filteredEntries = group.entries.filter { entry in
@@ -296,7 +296,7 @@ final class WalletJournalViewModel: ObservableObject {
     }
 }
 
-// 特定日期的钱包流水详情视图
+/// 特定日期的钱包流水详情视图
 struct WalletJournalDayDetailView: View {
     let group: WalletJournalGroup
     @State private var displayedEntries: [WalletJournalEntry] = []
@@ -418,7 +418,7 @@ struct WalletJournalView: View {
         )
     }
 
-    // 添加过滤视图组件
+    /// 添加过滤视图组件
     private var filterView: some View {
         NavigationView {
             List {
@@ -562,8 +562,7 @@ struct WalletJournalView: View {
     var body: some View {
         List {
             if viewModel.isLoading {
-                ProgressView()
-                    .frame(maxWidth: .infinity)
+                WalletJournalSkeleton()
             } else if viewModel.journalGroups.isEmpty {
                 Section {
                     NoDataSection()
@@ -608,7 +607,8 @@ struct WalletJournalView: View {
                                     .font(.caption)
                                     .foregroundColor(
                                         dayNetIncome > 0
-                                            ? .green : dayNetIncome < 0 ? .red : .secondary)
+                                            ? .green : dayNetIncome < 0 ? .red : .secondary
+                                    )
                                 }
                                 .padding(.vertical, 4)
                             }
@@ -663,7 +663,7 @@ struct WalletJournalView: View {
     }
 }
 
-// 钱包流水条目行视图
+/// 钱包流水条目行视图
 struct WalletJournalEntryRow: View {
     let entry: WalletJournalEntry
 

@@ -14,7 +14,6 @@ struct SearcherView: View {
     // 过滤条件
     @State private var corporationFilter = ""
     @State private var allianceFilter = ""
-    @State private var tickerFilter = ""
     @State private var selectedStructureType = StructureType.all
 
     // 过滤开关
@@ -32,7 +31,7 @@ struct SearcherView: View {
             NSLocalizedString(rawValue, comment: "")
         }
 
-        // 转换为MailRecipient.RecipientType
+        /// 转换为MailRecipient.RecipientType
         var recipientType: MailRecipient.RecipientType {
             switch self {
             case .character:
@@ -57,7 +56,7 @@ struct SearcherView: View {
         }
     }
 
-    // 搜索结果数据模型
+    /// 搜索结果数据模型
     struct SearchResult: Identifiable {
         let id: Int
         let name: String
@@ -68,13 +67,13 @@ struct SearcherView: View {
         var corporationId: Int?
         var structureType: StructureType?
         var locationInfo: (security: Double, systemName: String, regionName: String)?
-        var typeInfo: String? // 图标文件名
+        var typeId: Int? // 建筑/空间站类型 ID，用于查询图标
         var additionalInfo: String?
 
         init(
             id: Int, name: String, type: SearchType, structureType: StructureType? = nil,
             locationInfo: (security: Double, systemName: String, regionName: String)? = nil,
-            typeInfo: String? = nil,
+            typeId: Int? = nil,
             additionalInfo: String? = nil,
             allianceId: Int? = nil,
             corporationId: Int? = nil
@@ -84,14 +83,14 @@ struct SearcherView: View {
             self.type = type
             self.structureType = structureType
             self.locationInfo = locationInfo
-            self.typeInfo = typeInfo
+            self.typeId = typeId
             self.additionalInfo = additionalInfo
             self.allianceId = allianceId
             self.corporationId = corporationId
         }
     }
 
-    // 搜索响应数据结构
+    /// 搜索响应数据结构
     struct SearchResponse: Codable {
         let character: [Int]?
         let corporation: [Int]?
@@ -137,7 +136,7 @@ struct SearcherView: View {
                 )
 
                 // 如果有搜索文本，则重新搜索
-                if !searchText.isEmpty && !(searchText.count < minSearchLength) {
+                if !searchText.isEmpty && searchText.count >= minSearchLength {
                     viewModel.processSearchInput(searchText)
                 }
 
@@ -217,16 +216,8 @@ struct SearcherView: View {
                             } else {
                                 ForEach(viewModel.filteredResults) { result in
                                     if result.type == .structure {
-                                        if !viewModel.filteredResults.isEmpty {
-                                            SearchResultRow(result: result, character: character)
-                                                .environmentObject(viewModel)
-                                        } else {
-                                            Text(
-                                                NSLocalizedString(
-                                                    "Main_Search_No_Results", comment: ""
-                                                ))
-                                        }
-
+                                        SearchResultRow(result: result, character: character)
+                                            .environmentObject(viewModel)
                                     } else {
                                         NavigationLink(destination: {
                                             switch result.type {
@@ -256,7 +247,8 @@ struct SearcherView: View {
                                     }
                                 }
                                 .listRowInsets(
-                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18)
+                                )
                             }
                         } else if searchText.count < minSearchLength {
                             Text(
@@ -307,7 +299,7 @@ struct SearcherView: View {
         .searchable(
             text: $searchText,
             isPresented: $isSearchActive,
-            placement: .navigationBarDrawer(displayMode: .always),
+            // placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text(NSLocalizedString("Main_Search_Placeholder", comment: ""))
         )
         .toolbar {
@@ -402,7 +394,7 @@ struct SearcherView: View {
                 showOnlyMyAlliance: showOnlyMyAlliance,
                 strictMatch: strictMatch
             )
-            if !searchText.isEmpty && !(searchText.count < minSearchLength) {
+            if !searchText.isEmpty && searchText.count >= minSearchLength {
                 viewModel.processSearchInput(searchText)
             }
         }
@@ -476,7 +468,6 @@ struct SearcherView: View {
     private func clearFilters() {
         corporationFilter = ""
         allianceFilter = ""
-        tickerFilter = ""
         selectedStructureType = .all
         showOnlyMyCorporation = false
         showOnlyMyAlliance = false
@@ -506,32 +497,29 @@ struct SearcherView: View {
     }
 }
 
-// 搜索结果行视图
+/// 搜索结果行视图
 struct SearchResultRow: View {
     let result: SearcherView.SearchResult
     let character: EVECharacterInfo
     @State private var allianceName: String?
-    @State private var isLoadingAlliance = false
     @State private var allianceId: Int?
-    @State private var isLoadingCorpInfo = false
-    @State private var hasAttemptedCorpInfoLoad = false
-    @State private var hasAttemptedAllianceLoad = false
     @State private var loadTask: Task<Void, Never>?
     @State private var standingIcon: String = "ColorTag-Neutral"
-    @State private var corporationLogo: UIImage?
-    @State private var allianceLogo: UIImage?
 
-    // 获取父视图的ViewModel
+    /// 获取父视图的ViewModel
     @EnvironmentObject private var viewModel: SearcherViewModel
 
     var body: some View {
         HStack(spacing: 12) {
             // 头像/图标
-            if let iconFilename = result.typeInfo {
-                IconManager.shared.loadImage(for: iconFilename)
-                    .resizable()
-                    .frame(width: 38, height: 38)
-                    .cornerRadius(6)
+            if let typeId = result.typeId {
+                IconManager.shared.loadImage(
+                    for: DatabaseManager.shared.getItemIconFileName(for: typeId)
+                        ?? IconManager.defaultItemIcon
+                )
+                .resizable()
+                .frame(width: 38, height: 38)
+                .cornerRadius(6)
             } else {
                 UniversePortrait(
                     id: result.id, type: result.type.recipientType, size: 64, displaySize: 32
@@ -565,11 +553,11 @@ struct SearchResultRow: View {
                 if result.type == .character {
                     if let corpName = result.corporationName {
                         HStack(spacing: 4) {
-                            if let logo = corporationLogo {
-                                Image(uiImage: logo)
-                                    .resizable()
-                                    .frame(width: 16, height: 16)
-                                    .clipShape(RoundedRectangle(cornerRadius: 2))
+                            if let corpId = result.corporationId {
+                                UniversePortrait(
+                                    id: corpId, type: .corporation, size: 64, displaySize: 16,
+                                    cornerRadius: 2
+                                )
                             }
                             Text(corpName)
                                 .foregroundColor(.secondary)
@@ -582,11 +570,11 @@ struct SearchResultRow: View {
                     }
                     if let allianceName = result.allianceName {
                         HStack(spacing: 4) {
-                            if let logo = allianceLogo {
-                                Image(uiImage: logo)
-                                    .resizable()
-                                    .frame(width: 16, height: 16)
-                                    .clipShape(RoundedRectangle(cornerRadius: 2))
+                            if let allianceId = result.allianceId {
+                                UniversePortrait(
+                                    id: allianceId, type: .alliance, size: 64, displaySize: 16,
+                                    cornerRadius: 2
+                                )
                             }
                             Text("\(allianceName)")
                                 .foregroundColor(.secondary)
@@ -599,14 +587,12 @@ struct SearchResultRow: View {
                     }
                 } else if result.type == .corporation {
                     // 军团搜索时显示联盟信息
-                    if let allianceName = allianceName {
+                    if let allianceName = allianceName, let allianceId = allianceId {
                         HStack(spacing: 4) {
-                            if let logo = allianceLogo {
-                                Image(uiImage: logo)
-                                    .resizable()
-                                    .frame(width: 16, height: 16)
-                                    .clipShape(RoundedRectangle(cornerRadius: 2))
-                            }
+                            UniversePortrait(
+                                id: allianceId, type: .alliance, size: 64, displaySize: 16,
+                                cornerRadius: 2
+                            )
                             Text("[\(allianceName)]")
                                 .foregroundColor(.secondary)
                                 .font(.caption)
@@ -642,10 +628,14 @@ struct SearchResultRow: View {
         }
         .padding(.vertical, 4)
         .onAppear {
-            scheduleLoad()
-            // 使用ViewModel计算声望
             if viewModel.isContactsLoaded && result.type != .structure {
                 standingIcon = viewModel.determineStandingIcon(for: result, character: character)
+            }
+            // 角色结果的军团/联盟名称与 ID 已在搜索阶段备好，图标走 UniversePortrait 全局缓存。
+            // 仅军团搜索需要补充联盟信息。
+            if result.type == .corporation {
+                restoreCorporationEnrichmentFromCache()
+                scheduleCorporationEnrichmentIfNeeded()
             }
         }
         .onChange(of: viewModel.isContactsLoaded) { _, isLoaded in
@@ -659,132 +649,106 @@ struct SearchResultRow: View {
         }
     }
 
-    private func scheduleLoad() {
-        loadTask?.cancel()
-        loadTask = Task {
-            try? await Task.sleep(nanoseconds: 500_000_000) // 500ms delay
-            if !Task.isCancelled {
-                // 加载军团图标（如果是角色搜索结果且有军团ID）
-                if result.type == .character && result.corporationId != nil {
-                    await loadCorporationLogo(corporationId: result.corporationId!)
-                }
-
-                // 加载联盟图标（如果是角色搜索结果且有联盟ID）
-                if result.type == .character && result.allianceId != nil {
-                    await loadAllianceLogo(allianceId: result.allianceId!)
-                }
-
-                // 只有当结果类型是军团时才加载军团信息
-                if result.type == .corporation && !hasAttemptedCorpInfoLoad {
-                    await loadCorporationInfo()
-                    // 如果加载到了联盟ID，继续加载联盟名称和图标
-                    if allianceId != nil && !hasAttemptedAllianceLoad {
-                        await loadAllianceName()
-                        // 加载联盟图标
-                        await loadAllianceLogo(allianceId: allianceId!)
-                        // 只有在军团信息和联盟名称都加载完成后，才更新声望图标
-                        if !Task.isCancelled && viewModel.isContactsLoaded {
-                            await MainActor.run {
-                                standingIcon = viewModel.determineStandingIcon(
-                                    for: result, character: character
-                                )
-                            }
-                        }
-                    } else {
-                        // 如果军团没有联盟，也可以更新声望图标了
-                        if !Task.isCancelled && viewModel.isContactsLoaded {
-                            await MainActor.run {
-                                standingIcon = viewModel.determineStandingIcon(
-                                    for: result, character: character
-                                )
-                            }
-                        }
-                    }
-                }
-                // 如果是角色搜索结果且已有联盟ID，直接加载联盟名称
-                else if result.type == .character && result.allianceId != nil
-                    && !hasAttemptedAllianceLoad
-                {
-                    allianceId = result.allianceId
-                    await loadAllianceName()
-                }
-            }
-        }
-    }
-
-    // 加载军团图标
-    private func loadCorporationLogo(corporationId: Int) async {
-        do {
-            let logo = try await CorporationAPI.shared.fetchCorporationLogo(
-                corporationId: corporationId)
-            if !Task.isCancelled {
-                await MainActor.run {
-                    self.corporationLogo = logo
-                }
-            }
-        } catch {
-            Logger.error("加载军团图标失败: \(error)")
-        }
-    }
-
-    // 加载联盟图标
-    private func loadAllianceLogo(allianceId: Int) async {
-        do {
-            let logo = try await AllianceAPI.shared.fetchAllianceLogo(allianceID: allianceId)
-            if !Task.isCancelled {
-                await MainActor.run {
-                    self.allianceLogo = logo
-                }
-            }
-        } catch {
-            Logger.error("加载联盟图标失败: \(error)")
-        }
-    }
-
-    private func loadCorporationInfo() async {
-        guard !isLoadingCorpInfo, !hasAttemptedCorpInfoLoad else { return }
-
-        isLoadingCorpInfo = true
-        hasAttemptedCorpInfoLoad = true
-        do {
-            if let corpInfo = try? await CorporationAPI.shared.fetchCorporationInfo(
-                corporationId: result.id)
+    private func restoreCorporationEnrichmentFromCache() {
+        if let cachedAllianceId = viewModel.corpAllianceIdCache[result.id] {
+            allianceId = cachedAllianceId
+            if let cachedAllianceId,
+               let name = viewModel.allianceNameCache[cachedAllianceId]
             {
-                if !Task.isCancelled {
-                    await MainActor.run {
-                        self.allianceId = corpInfo.alliance_id
-                    }
-                }
+                allianceName = name
             }
         }
-        isLoadingCorpInfo = false
     }
 
-    private func loadAllianceName() async {
-        guard let allianceId = allianceId, !isLoadingAlliance, !hasAttemptedAllianceLoad else {
+    private func scheduleCorporationEnrichmentIfNeeded() {
+        // 已有完整联盟信息（含无联盟）则不再请求
+        if viewModel.corpAllianceIdCache.keys.contains(result.id) {
+            if let aid = allianceId, allianceName == nil {
+                // 有联盟 ID 但缺名称，只补名称
+                loadTask?.cancel()
+                loadTask = Task { await loadAllianceName(allianceId: aid) }
+            }
             return
         }
 
-        isLoadingAlliance = true
-        hasAttemptedAllianceLoad = true
+        loadTask?.cancel()
+        loadTask = Task {
+            try? await Task.sleep(nanoseconds: 300_000_000) // 快速滑动时跳过即将离屏行
+            guard !Task.isCancelled else { return }
+            await loadCorporationEnrichment()
+        }
+    }
+
+    private func loadCorporationEnrichment() async {
+        if let cached = viewModel.corpAllianceIdCache[result.id] {
+            await MainActor.run {
+                allianceId = cached
+                if let cached, let name = viewModel.allianceNameCache[cached] {
+                    allianceName = name
+                }
+            }
+            if let cached, viewModel.allianceNameCache[cached] == nil {
+                await loadAllianceName(allianceId: cached)
+            }
+            return
+        }
+
+        guard
+            let corpInfo = try? await CorporationAPI.shared.fetchCorporationInfo(
+                corporationId: result.id
+            )
+        else {
+            await MainActor.run {
+                viewModel.corpAllianceIdCache[result.id] = nil
+            }
+            return
+        }
+
+        let aid = corpInfo.alliance_id
+        await MainActor.run {
+            viewModel.corpAllianceIdCache[result.id] = aid
+            allianceId = aid
+        }
+
+        if let aid {
+            await loadAllianceName(allianceId: aid)
+            if !Task.isCancelled, viewModel.isContactsLoaded {
+                await MainActor.run {
+                    standingIcon = viewModel.determineStandingIcon(
+                        for: result, character: character
+                    )
+                }
+            }
+        } else if !Task.isCancelled, viewModel.isContactsLoaded {
+            await MainActor.run {
+                standingIcon = viewModel.determineStandingIcon(for: result, character: character)
+            }
+        }
+    }
+
+    private func loadAllianceName(allianceId: Int) async {
+        if let cached = viewModel.allianceNameCache[allianceId] {
+            await MainActor.run { allianceName = cached }
+            return
+        }
+
         do {
-            let allianceNamesWithCategories = try await UniverseAPI.shared.getNamesWithFallback(
-                ids: [allianceId])
-            if let allianceName = allianceNamesWithCategories[allianceId]?.name {
-                if !Task.isCancelled {
-                    await MainActor.run {
-                        self.allianceName = allianceName
+            let names = try await UniverseAPI.shared.getNamesWithFallback(ids: [allianceId])
+            if let name = names[allianceId]?.name {
+                await MainActor.run {
+                    viewModel.allianceNameCache[allianceId] = name
+                    if !Task.isCancelled {
+                        allianceName = name
                     }
                 }
             }
         } catch {
             Logger.error("加载联盟名称失败: \(error)")
         }
-        isLoadingAlliance = false
     }
 }
 
-// 视图模型
+/// 视图模型
 @MainActor
 class SearcherViewModel: ObservableObject {
     @Published var searchResults: [SearcherView.SearchResult] = []
@@ -802,6 +766,11 @@ class SearcherViewModel: ObservableObject {
     var corporationContacts: [ContactInfo] = []
     var allianceContacts: [ContactInfo] = []
 
+    /// 军团搜索结果补充信息缓存（避免 List 复用导致重复请求）
+    /// value 为 nil 表示已确认无联盟
+    var corpAllianceIdCache: [Int: Int?] = [:]
+    var allianceNameCache: [Int: String] = [:]
+
     private var currentCorpFilter = ""
     private var currentAllianceFilter = ""
     private var currentStructureType: SearcherView.StructureType = .all
@@ -814,6 +783,9 @@ class SearcherViewModel: ObservableObject {
     private var currentShowOnlyMyAlliance = false
     private var currentStrictMatch = false
 
+    /// 当前搜索任务（用于取消旧任务，实现"最新优先"）
+    private var currentSearchTask: Task<Void, Never>?
+
     init() {
         setupSearch()
     }
@@ -825,7 +797,9 @@ class SearcherViewModel: ObservableObject {
                 guard let self = self,
                       let character = self.currentCharacter
                 else { return }
-                Task {
+                // 取消旧的搜索任务，确保只有最新的搜索结果会显示
+                self.currentSearchTask?.cancel()
+                self.currentSearchTask = Task {
                     await self.search(
                         characterId: character.CharacterID,
                         searchText: query,
@@ -840,11 +814,12 @@ class SearcherViewModel: ObservableObject {
             .store(in: &cancellables)
     }
 
-    // 添加计算URL编码长度的方法
+    /// 添加计算URL编码长度的方法
     func getUrlEncodedLength(_ string: String) -> Int {
         guard
             let encodedString = string.addingPercentEncoding(
-                withAllowedCharacters: .urlQueryAllowed)
+                withAllowedCharacters: .urlQueryAllowed
+            )
         else {
             return string.count
         }
@@ -877,13 +852,13 @@ class SearcherViewModel: ObservableObject {
         currentStrictMatch = strictMatch
     }
 
-    // 更新过滤条件
+    /// 更新过滤条件
     func updateFilters(corporationFilter: String, allianceFilter: String) {
         currentCorpFilter = corporationFilter
         currentAllianceFilter = allianceFilter
     }
 
-    // 加载联系人数据的方法
+    /// 加载联系人数据的方法
     func loadContactsData(character: EVECharacterInfo) async {
         // 如果已经加载过，则不再重复加载
         if isContactsLoaded || isLoadingContacts {
@@ -895,7 +870,8 @@ class SearcherViewModel: ObservableObject {
         do {
             // 并行加载所有联系人数据
             async let charContacts = GetCharContacts.shared.fetchContacts(
-                characterId: character.CharacterID)
+                characterId: character.CharacterID
+            )
             async let corpContacts = GetCorpContacts.shared.fetchContacts(
                 characterId: character.CharacterID, corporationId: character.corporationId ?? 0
             )
@@ -934,7 +910,7 @@ class SearcherViewModel: ObservableObject {
         isLoadingContacts = false
     }
 
-    // 计算声望的方法
+    /// 计算声望的方法
     func determineStandingIcon(for result: SearcherView.SearchResult, character: EVECharacterInfo)
         -> String
     {
@@ -1166,7 +1142,7 @@ class SearcherViewModel: ObservableObject {
         return "ColorTag-Neutral"
     }
 
-    // 获取声望图标的辅助方法
+    /// 获取声望图标的辅助方法
     private func getStandingIcon(standing: Double) -> String {
         let standingValues = [-10.0, -5.0, 0.0, 5.0, 10.0]
         let icons = [
@@ -1189,13 +1165,33 @@ class SearcherViewModel: ObservableObject {
         return icons[closestIndex]
     }
 
+    // MARK: - Binding 辅助方法
+
+    // 提取四个搜索视图共享的 Binding 创建逻辑，消除重复代码
+
+    private func searchResultsBinding() -> Binding<[SearcherView.SearchResult]> {
+        Binding(get: { self.searchResults }, set: { self.searchResults = $0 })
+    }
+
+    private func filteredResultsBinding() -> Binding<[SearcherView.SearchResult]> {
+        Binding(get: { self.filteredResults }, set: { self.filteredResults = $0 })
+    }
+
+    private func searchingStatusBinding() -> Binding<String> {
+        Binding(get: { self.searchingStatus }, set: { self.searchingStatus = $0 })
+    }
+
+    private func errorBinding() -> Binding<Error?> {
+        Binding(get: { self.error }, set: { self.error = $0 })
+    }
+
     func search(
         characterId: Int, searchText: String, type: SearcherView.SearchType,
-        character: EVECharacterInfo, showOnlyMyCorp: Bool, showOnlyMyAlliance: Bool,
+        character: EVECharacterInfo, showOnlyMyCorp _: Bool, showOnlyMyAlliance _: Bool,
         strictMatch: Bool = false
     ) async {
         // 先检查搜索文本是否有效（使用URL编码后的长度）
-        guard !searchText.isEmpty, !(getUrlEncodedLength(searchText) < minSearchLength) else {
+        guard !searchText.isEmpty, getUrlEncodedLength(searchText) >= minSearchLength else {
             searchResults = []
             filteredResults = []
             searchingStatus = ""
@@ -1214,106 +1210,50 @@ class SearcherViewModel: ObservableObject {
                 let characterSearch = CharacterSearchView(
                     characterId: characterId,
                     searchText: searchText,
-                    searchResults: Binding(
-                        get: { self.searchResults },
-                        set: { self.searchResults = $0 }
-                    ),
-                    filteredResults: Binding(
-                        get: { self.filteredResults },
-                        set: { self.filteredResults = $0 }
-                    ),
-                    searchingStatus: Binding(
-                        get: { self.searchingStatus },
-                        set: { self.searchingStatus = $0 }
-                    ),
-                    error: Binding(
-                        get: { self.error },
-                        set: { self.error = $0 }
-                    ),
+                    searchResults: searchResultsBinding(),
+                    filteredResults: filteredResultsBinding(),
+                    searchingStatus: searchingStatusBinding(),
+                    error: errorBinding(),
                     corporationFilter: currentCorpFilter,
                     allianceFilter: currentAllianceFilter,
                     strictMatch: strictMatch
                 )
                 await characterSearch.search()
-                // 应用角色搜索过滤
+
+                if Task.isCancelled { return }
+
+                // 使用 viewModel 当前的过滤条件（最新值），避免搜索期间过滤开关变更导致不同步
                 filterSearchResults(
                     characterInfo: character,
-                    showOnlyMyCorp: showOnlyMyCorp,
-                    showOnlyMyAlliance: showOnlyMyAlliance,
+                    showOnlyMyCorp: currentShowOnlyMyCorp,
+                    showOnlyMyAlliance: currentShowOnlyMyAlliance,
                     corporationFilter: currentCorpFilter,
                     allianceFilter: currentAllianceFilter
                 )
 
-            case .corporation:
-                let corporationSearch = CorporationSearchView(
+            case .corporation, .alliance:
+                // 军团和联盟搜索逻辑统一由 EntitySearchView 处理
+                let entitySearch = EntitySearchView(
                     characterId: characterId,
                     searchText: searchText,
-                    searchResults: Binding(
-                        get: { self.searchResults },
-                        set: { self.searchResults = $0 }
-                    ),
-                    filteredResults: Binding(
-                        get: { self.filteredResults },
-                        set: { self.filteredResults = $0 }
-                    ),
-                    searchingStatus: Binding(
-                        get: { self.searchingStatus },
-                        set: { self.searchingStatus = $0 }
-                    ),
-                    error: Binding(
-                        get: { self.error },
-                        set: { self.error = $0 }
-                    ),
+                    entityType: type,
+                    searchResults: searchResultsBinding(),
+                    filteredResults: filteredResultsBinding(),
+                    searchingStatus: searchingStatusBinding(),
+                    error: errorBinding(),
                     strictMatch: strictMatch
                 )
-                await corporationSearch.search()
-            // 军团搜索不需要额外过滤，CorporationSearchView已经直接设置filteredResults
-
-            case .alliance:
-                let allianceSearch = AllianceSearchView(
-                    characterId: characterId,
-                    searchText: searchText,
-                    searchResults: Binding(
-                        get: { self.searchResults },
-                        set: { self.searchResults = $0 }
-                    ),
-                    filteredResults: Binding(
-                        get: { self.filteredResults },
-                        set: { self.filteredResults = $0 }
-                    ),
-                    searchingStatus: Binding(
-                        get: { self.searchingStatus },
-                        set: { self.searchingStatus = $0 }
-                    ),
-                    error: Binding(
-                        get: { self.error },
-                        set: { self.error = $0 }
-                    ),
-                    strictMatch: strictMatch
-                )
-                await allianceSearch.search()
-            // 联盟搜索不需要额外过滤，AllianceSearchView已经直接设置filteredResults
+                await entitySearch.search()
+                // 军团/联盟搜索不需要额外过滤，EntitySearchView 已经直接设置 filteredResults
 
             case .structure:
                 let structureSearch = StructureSearchView(
                     characterId: characterId,
                     searchText: searchText,
-                    searchResults: Binding(
-                        get: { self.searchResults },
-                        set: { self.searchResults = $0 }
-                    ),
-                    filteredResults: Binding(
-                        get: { self.filteredResults },
-                        set: { self.filteredResults = $0 }
-                    ),
-                    searchingStatus: Binding(
-                        get: { self.searchingStatus },
-                        set: { self.searchingStatus = $0 }
-                    ),
-                    error: Binding(
-                        get: { self.error },
-                        set: { self.error = $0 }
-                    ),
+                    searchResults: searchResultsBinding(),
+                    filteredResults: filteredResultsBinding(),
+                    searchingStatus: searchingStatusBinding(),
+                    error: errorBinding(),
                     structureType: currentStructureType,
                     strictMatch: strictMatch
                 )

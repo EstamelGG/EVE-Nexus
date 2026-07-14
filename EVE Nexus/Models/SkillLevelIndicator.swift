@@ -6,7 +6,7 @@ struct SkillLevelIndicator: View {
     let isTraining: Bool
     let queuedLevels: Set<Int> // 队列中的等级集合
 
-    // 动画状态
+    /// 动画状态
     @State private var isBlinking = false
 
     init(currentLevel: Int, trainingLevel: Int, isTraining: Bool, queuedLevels: Set<Int> = []) {
@@ -60,7 +60,7 @@ struct SkillLevelIndicator: View {
         }
     }
 
-    // 确定方块颜色
+    /// 确定方块颜色
     private func blockColor(for index: Int) -> Color {
         let level = index + 1 // index是0-4，对应等级1-5
 
@@ -81,7 +81,7 @@ struct SkillLevelIndicator: View {
         return .clear
     }
 
-    // 确定方块透明度
+    /// 确定方块透明度
     private func blockOpacity(for index: Int) -> Double {
         if isTraining && index == trainingLevel - 1 {
             return isBlinking ? 0.3 : 1.0

@@ -1,6 +1,22 @@
 import SwiftUI
 
-// 扩展Set以支持AppStorage
+/// 根据合同状态返回对应的颜色
+func contractStatusColor(_ status: String) -> Color {
+    switch status {
+    case "deleted":
+        return .secondary
+    case "rejected", "failed", "reversed":
+        return .red
+    case "outstanding", "in_progress":
+        return .blue // 进行中和待处理状态显示为蓝色
+    case "finished", "finished_issuer", "finished_contractor":
+        return .green // 所有完成状态显示为绿色
+    default:
+        return .primary // 其他状态使用主色调
+    }
+}
+
+/// 扩展Set以支持AppStorage
 extension Set: @retroactive RawRepresentable where Element: Codable {
     public init?(rawValue: String) {
         guard let data = rawValue.data(using: .utf8),
@@ -21,7 +37,7 @@ extension Set: @retroactive RawRepresentable where Element: Codable {
     }
 }
 
-// 按日期分组的合同
+/// 按日期分组的合同
 struct ContractGroup: Identifiable {
     let id = UUID()
     let date: Date
@@ -37,522 +53,6 @@ struct ContractGroup: Identifiable {
         self.contracts = contracts
         self.startLocation = startLocation
         self.endLocation = endLocation
-    }
-}
-
-@MainActor
-final class PersonalContractsViewModel: ObservableObject {
-    @Published var contractGroups: [ContractGroup] = []
-    @Published var isLoading = false
-    @Published var errorMessage: String?
-    @Published var currentLoadingPage: Int?
-    // 合同类型枚举
-    enum ContractType: Int, CaseIterable {
-        case personal = 0
-        case corporation = 1
-        case alliance = 2
-
-        var localizedName: String {
-            switch self {
-            case .personal:
-                return NSLocalizedString("Contracts_Personal", comment: "")
-            case .corporation:
-                return NSLocalizedString("Contracts_Corporation", comment: "")
-            case .alliance:
-                return NSLocalizedString("Contracts_Alliance", comment: "")
-            }
-        }
-    }
-
-    // 分组方式枚举
-    enum GroupingMode: Int, CaseIterable {
-        case byIssueDate = 0
-        case byCompletionDate = 1
-
-        var localizedName: String {
-            switch self {
-            case .byIssueDate:
-                return NSLocalizedString("Contract_Group_By_Issue_Date", comment: "")
-            case .byCompletionDate:
-                return NSLocalizedString("Contract_Group_By_Completion_Date", comment: "")
-            }
-        }
-    }
-
-    @Published var selectedContractType: ContractType = .personal {
-        didSet {
-            Logger.debug("合同类型切换: \(selectedContractType.localizedName)")
-        }
-    }
-
-    @Published var groupingMode: GroupingMode = .byIssueDate {
-        didSet {
-            // 保存设置到 UserDefaults
-            UserDefaults.standard.set(groupingMode.rawValue, forKey: "groupingMode_\(characterId)")
-            // 当切换分组方式时，重新分组
-            Task {
-                let contracts =
-                    switch self.selectedContractType {
-                    case .personal:
-                        self.cachedPersonalContracts
-                    case .corporation:
-                        self.cachedCorporationContracts
-                    case .alliance:
-                        self.cachedAllianceContracts
-                    }
-                let groups = await processContractGroups(contracts)
-                await MainActor.run {
-                    self.contractGroups = groups
-                }
-            }
-        }
-    }
-
-    @Published var isInitialized = false
-
-    @Published var hasCorporationAccess = false
-    @Published var hasAllianceAccess = false
-    @Published var courierMode = false {
-        didSet {
-            // 保存设置到 UserDefaults
-            UserDefaults.standard.set(courierMode, forKey: "courierMode_\(characterId)")
-            // 当切换模式时，重新分组但不立即更新 UI
-            Task {
-                // 使用缓存的合同数据重新处理分组
-                let contracts =
-                    switch self.selectedContractType {
-                    case .personal:
-                        self.cachedPersonalContracts
-                    case .corporation:
-                        self.cachedCorporationContracts
-                    case .alliance:
-                        self.cachedAllianceContracts
-                    }
-                // 先处理数据
-                let groups = await processContractGroups(contracts)
-                // 一次性更新 UI
-                await MainActor.run {
-                    self.contractGroups = groups
-                }
-            }
-        }
-    }
-
-    private var loadingTask: Task<Void, Never>?
-    private var personalContractsInitialized = false
-    private var corporationContractsInitialized = false
-    private var allianceContractsInitialized = false
-    private var cachedPersonalContracts: [ContractInfo] = []
-    private var cachedCorporationContracts: [ContractInfo] = []
-    private var cachedAllianceContracts: [ContractInfo] = []
-    let characterId: Int
-    let character: EVECharacterInfo
-    let databaseManager: DatabaseManager
-    private lazy var locationLoader: LocationInfoLoader = .init(
-        databaseManager: databaseManager, characterId: Int64(characterId)
-    )
-
-    // 添加一个标志来跟踪是否正在进行强制刷新
-    private var isForceRefreshing = false
-
-    private let calendar: Calendar = {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = TimeZone.current // 使用本地时区
-        return calendar
-    }()
-
-    // 添加地点名称缓存
-    private var locationCache: [Int64: String] = [:]
-    // 添加地点名称加载状态追踪
-    private var locationLoadingTasks: Set<Int64> = []
-
-    init(characterId: Int, character: EVECharacterInfo) {
-        self.characterId = characterId
-        self.character = character
-        databaseManager = DatabaseManager()
-        // 初始化时检查军团和联盟访问权限
-        Task {
-            await checkCorporationAccess()
-            await checkAllianceAccess()
-        }
-
-        // 从 UserDefaults 读取快递模式设置
-        if let courierModeSetting = UserDefaults.standard.value(
-            forKey: "courierMode_\(characterId)") as? Bool
-        {
-            courierMode = courierModeSetting
-        }
-
-        // 从 UserDefaults 读取分组方式设置
-        if let groupingModeValue = UserDefaults.standard.value(
-            forKey: "groupingMode_\(characterId)") as? Int,
-            let savedGroupingMode = GroupingMode(rawValue: groupingModeValue)
-        {
-            groupingMode = savedGroupingMode
-        }
-    }
-
-    // 检查是否有军团合同访问权限
-    private func checkCorporationAccess() async {
-        // 直接从全局缓存获取军团ID
-        if character.corporationId != nil {
-            hasCorporationAccess = true
-        } else {
-            hasCorporationAccess = false
-            if selectedContractType == .corporation {
-                selectedContractType = .personal
-            }
-        }
-    }
-
-    // 检查是否有联盟合同访问权限
-    private func checkAllianceAccess() async {
-        // 直接从全局缓存获取联盟ID
-        if character.allianceId != nil {
-            hasAllianceAccess = true
-        } else {
-            hasAllianceAccess = false
-            if selectedContractType == .alliance {
-                selectedContractType = .personal
-            }
-        }
-    }
-
-    private func updateContractGroups(with contracts: [ContractInfo]) async {
-        let groups = await processContractGroups(contracts)
-        await MainActor.run {
-            self.contractGroups = groups
-        }
-    }
-
-    func loadContractsData(forceRefresh: Bool = false) async {
-        // 如果已经在加载中且不是强制刷新，则直接返回
-        if isLoading, !forceRefresh {
-            return
-        }
-
-        // 如果是强制刷新，设置标志
-        if forceRefresh {
-            isForceRefreshing = true
-        }
-
-        // 如果已经加载过且不是强制刷新，直接使用缓存
-        if !forceRefresh {
-            switch selectedContractType {
-            case .personal:
-                if personalContractsInitialized {
-                    await updateContractGroups(with: cachedPersonalContracts)
-                    return
-                }
-            case .corporation:
-                if corporationContractsInitialized {
-                    await updateContractGroups(with: cachedCorporationContracts)
-                    return
-                }
-            case .alliance:
-                if allianceContractsInitialized {
-                    await updateContractGroups(with: cachedAllianceContracts)
-                    return
-                }
-            }
-        }
-
-        // 在开始加载前一次性更新 UI 状态
-        await MainActor.run {
-            isLoading = true
-            errorMessage = nil
-            currentLoadingPage = nil
-            // 只有在非强制刷新（非下拉刷新）时才清空列表
-            // 下拉刷新时保留旧数据，直到新数据加载完成
-            if !forceRefresh {
-                contractGroups = []
-            }
-        }
-
-        do {
-            let contracts: [ContractInfo]
-
-            // 使用 Task.detached 在后台线程加载数据
-            let loadedContracts = try await Task.detached(priority: .userInitiated) {
-                switch await self.selectedContractType {
-                case .personal:
-                    // 获取个人合同
-                    do {
-                        return try await CharacterContractsAPI.shared.fetchContracts(
-                            characterId: self.characterId,
-                            forceRefresh: forceRefresh,
-                            progressCallback: { page in
-                                Task { @MainActor in
-                                    self.currentLoadingPage = page
-                                }
-                            }
-                        )
-                    } catch is CancellationError {
-                        throw CancellationError()
-                    }
-                case .corporation:
-                    // 获取军团合同
-                    do {
-                        return try await CorporationContractsAPI.shared.fetchContracts(
-                            characterId: self.characterId,
-                            forceRefresh: forceRefresh,
-                            progressCallback: { page in
-                                Task { @MainActor in
-                                    self.currentLoadingPage = page
-                                }
-                            }
-                        )
-                    } catch is CancellationError {
-                        throw CancellationError()
-                    }
-                case .alliance:
-                    // 获取联盟合同
-                    do {
-                        guard let corporationId = await self.character.corporationId,
-                              let allianceId = await self.character.allianceId
-                        else {
-                            throw NetworkError.authenticationError("无法获取军团ID或联盟ID")
-                        }
-                        return try await AllianceContractsAPI.shared.fetchContracts(
-                            characterId: self.characterId,
-                            corporationId: corporationId,
-                            allianceId: allianceId,
-                            forceRefresh: forceRefresh,
-                            progressCallback: { page in
-                                Task { @MainActor in
-                                    self.currentLoadingPage = page
-                                }
-                            }
-                        )
-                    } catch is CancellationError {
-                        throw CancellationError()
-                    }
-                }
-            }.value
-
-            // 检查任务是否被取消
-            if Task.isCancelled {
-                await MainActor.run {
-                    isLoading = false
-                    currentLoadingPage = nil
-                    isForceRefreshing = false
-                }
-                return
-            }
-
-            contracts = loadedContracts
-
-            // 更新缓存
-            switch selectedContractType {
-            case .personal:
-                cachedPersonalContracts = contracts
-                personalContractsInitialized = true
-            case .corporation:
-                cachedCorporationContracts = contracts
-                corporationContractsInitialized = true
-            case .alliance:
-                cachedAllianceContracts = contracts
-                allianceContractsInitialized = true
-            }
-
-            // 先处理数据，再一次性更新 UI
-            let processedGroups = await processContractGroups(contracts)
-
-            // 一次性更新所有 UI 状态
-            await MainActor.run {
-                self.contractGroups = processedGroups
-                isLoading = false
-                currentLoadingPage = nil
-                isForceRefreshing = false
-                isInitialized = true
-            }
-
-        } catch {
-            if !(error is CancellationError) {
-                await MainActor.run {
-                    self.errorMessage = error.localizedDescription
-                    Logger.error("加载\(self.selectedContractType.localizedName)合同数据失败: \(error)")
-                    self.isLoading = false
-                    self.currentLoadingPage = nil
-                    self.isForceRefreshing = false
-                }
-            } else {
-                await MainActor.run {
-                    self.isLoading = false
-                    self.currentLoadingPage = nil
-                    self.isForceRefreshing = false
-                }
-            }
-        }
-    }
-
-    deinit {
-        loadingTask?.cancel()
-    }
-
-    // 修改获取地点名称的方法
-    private func getLocationName(_ locationId: Int64) async -> String {
-        if let cached = locationCache[locationId] {
-            return cached
-        }
-
-        // 如果已经在加载中，等待加载完成
-        if locationLoadingTasks.contains(locationId) {
-            // 最多等待3秒
-            for _ in 0 ..< 30 {
-                if let cached = locationCache[locationId] {
-                    return cached
-                }
-                try? await Task.sleep(nanoseconds: 100_000_000) // 等待100ms
-            }
-            // 如果等待超时，返回未知
-            return NSLocalizedString("Unknown", comment: "")
-        }
-
-        // 标记为正在加载
-        locationLoadingTasks.insert(locationId)
-
-        let locationInfos = await locationLoader.loadLocationInfo(locationIds: Set([locationId]))
-        if let locationInfo = locationInfos[locationId] {
-            let name = locationInfo.solarSystemName
-            locationCache[locationId] = name
-            locationLoadingTasks.remove(locationId)
-            return name
-        }
-        locationLoadingTasks.remove(locationId)
-        return NSLocalizedString("Unknown", comment: "")
-    }
-
-    // 修改按路线分组合同的方法
-    private func groupContractsByRoute(_ contracts: [ContractInfo]) async -> [ContractGroup] {
-        // 按路线分组
-        var groupedContracts: [String: [ContractInfo]] = [:]
-        var routeNames: [String: (start: String, end: String)] = [:]
-
-        // 第一步：收集所有合同并获取位置名称
-        for contract in contracts {
-            let startId = contract.start_location_id
-            let endId = contract.end_location_id
-            let routeKey = "\(startId)-\(endId)"
-
-            if groupedContracts[routeKey] == nil {
-                groupedContracts[routeKey] = []
-
-                // 异步获取位置名称
-                let startName = await getLocationName(startId)
-                let endName = await getLocationName(endId)
-                routeNames[routeKey] = (start: startName, end: endName)
-            }
-            groupedContracts[routeKey]?.append(contract)
-        }
-
-        // 第二步：创建分组
-        var result: [ContractGroup] = []
-        for (routeKey, contracts) in groupedContracts {
-            let sortedContracts = contracts.sorted { $0.reward > $1.reward }
-            if let first = sortedContracts.first,
-               let routeName = routeNames[routeKey]
-            {
-                result.append(
-                    ContractGroup(
-                        date: first.date_issued,
-                        contracts: sortedContracts,
-                        startLocation: routeName.start,
-                        endLocation: routeName.end
-                    ))
-            }
-        }
-
-        // 第三步：按照奖励排序
-        return result.sorted { $0.contracts[0].reward > $1.contracts[0].reward }
-    }
-
-    // 新增方法：处理合同数据并返回分组，但不更新 UI
-    private func processContractGroups(_ contracts: [ContractInfo]) async -> [ContractGroup] {
-        if courierMode {
-            // 快递模式
-            return await groupContractsByRoute(contracts)
-        } else {
-            // 根据分组方式选择不同的分组逻辑
-            switch groupingMode {
-            case .byIssueDate:
-                return groupContractsByIssueDate(contracts)
-            case .byCompletionDate:
-                return groupContractsByCompletionDate(contracts)
-            }
-        }
-    }
-
-    // 按发起时间分组
-    private func groupContractsByIssueDate(_ contracts: [ContractInfo]) -> [ContractGroup] {
-        var groupedContracts: [Date: [ContractInfo]] = [:]
-        for contract in contracts {
-            let date = calendar.startOfDay(for: contract.date_issued)
-            if groupedContracts[date] == nil {
-                groupedContracts[date] = []
-            }
-            groupedContracts[date]?.append(contract)
-        }
-
-        // 创建分组并排序
-        return groupedContracts.map { date, contracts in
-            ContractGroup(
-                date: date,
-                contracts: contracts.sorted { $0.date_issued > $1.date_issued }
-            )
-        }.sorted { $0.date > $1.date }
-    }
-
-    // 按完成时间分组
-    private func groupContractsByCompletionDate(_ contracts: [ContractInfo]) -> [ContractGroup] {
-        var result: [ContractGroup] = []
-
-        // 第一组：未完成的合同（outstanding 和 in_progress）
-        let incompleteContracts = contracts.filter { contract in
-            contract.status == "outstanding" || contract.status == "in_progress"
-        }.sorted { $0.contract_id > $1.contract_id }
-
-        if !incompleteContracts.isEmpty {
-            // 使用一个特殊的日期表示"未完成"分组
-            result.append(ContractGroup(
-                date: Date.distantFuture,
-                contracts: incompleteContracts
-            ))
-        }
-
-        // 其他已完成的合同按完成时间分组
-        let completedContracts = contracts.filter { contract in
-            contract.status != "outstanding" && contract.status != "in_progress"
-        }
-
-        var groupedContracts: [Date: [ContractInfo]] = [:]
-        for contract in completedContracts {
-            // 使用完成时间，如果没有完成时间则使用发起时间
-            let date: Date
-            if let completedDate = contract.date_completed {
-                date = calendar.startOfDay(for: completedDate)
-            } else {
-                // 如果没有完成时间，使用发起时间
-                date = calendar.startOfDay(for: contract.date_issued)
-            }
-
-            if groupedContracts[date] == nil {
-                groupedContracts[date] = []
-            }
-            groupedContracts[date]?.append(contract)
-        }
-
-        // 创建已完成合同的分组并排序
-        let completedGroups = groupedContracts.map { date, contracts in
-            ContractGroup(
-                date: date,
-                contracts: contracts.sorted { $0.contract_id > $1.contract_id }
-            )
-        }.sorted { $0.date > $1.date }
-
-        result.append(contentsOf: completedGroups)
-
-        return result
     }
 }
 
@@ -625,7 +125,7 @@ struct PersonalContractsView: View {
         }
     }
 
-    // 修改过滤逻辑
+    /// 修改过滤逻辑
     private var filteredContractGroups: [ContractGroup] {
         if courierMode {
             // 快递模式：只显示未完成的快递合同
@@ -711,7 +211,8 @@ struct PersonalContractsView: View {
                             contracts: limitedContracts,
                             startLocation: group.startLocation,
                             endLocation: group.endLocation
-                        ))
+                        )
+                    )
                     break
                 }
             }
@@ -720,43 +221,158 @@ struct PersonalContractsView: View {
         }
     }
 
+    // MARK: - 状态判断
+
+    /// 列表为空 + 正在加载：显示加载 overlay
+    private var showsLoadingOverlay: Bool {
+        filteredContractGroups.isEmpty && viewModel.isLoading
+    }
+
+    /// 列表为空 + 有错误 + 未在加载：显示错误 overlay
+    private var showsErrorOverlay: Bool {
+        filteredContractGroups.isEmpty
+            && viewModel.errorMessage != nil
+            && !viewModel.isLoading
+    }
+
+    /// 空状态文案：区分"无数据"和"无匹配筛选"
+    private var emptyStateMessage: String {
+        if !viewModel.contractGroups.isEmpty {
+            // 有数据但被筛选过滤
+            return NSLocalizedString("Misc_No_Matched_Data", comment: "")
+        }
+        // 完全无数据，按合同类型显示针对性提示
+        switch viewModel.selectedContractType {
+        case .personal:
+            return NSLocalizedString("Contract_Empty_Personal", comment: "")
+        case .corporation:
+            return NSLocalizedString("Contract_Empty_Corporation", comment: "")
+        case .alliance:
+            return NSLocalizedString("Contract_Empty_Alliance", comment: "")
+        }
+    }
+
+    // MARK: - Overlay 视图
+
+    /// 加载状态 overlay：居中卡片式 loading，带文本描述和分页进度
+    private var loadingOverlayView: some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .progressViewStyle(.circular)
+
+            VStack(spacing: 6) {
+                Text(
+                    String(
+                        format: NSLocalizedString("Contract_Loading_Type", comment: ""),
+                        viewModel.selectedContractType.localizedName
+                    )
+                )
+                .font(.subheadline)
+                .foregroundColor(.secondary)
+
+                if let currentPage = viewModel.currentLoadingPage {
+                    Text(
+                        String(
+                            format: NSLocalizedString(
+                                "Contract_Loading_Fetching", comment: ""
+                            ), currentPage
+                        )
+                    )
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemGroupedBackground))
+        .allowsHitTesting(false)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(
+            String(
+                format: NSLocalizedString("Contract_Loading_Type", comment: ""),
+                viewModel.selectedContractType.localizedName
+            )
+        )
+    }
+
+    /// 错误状态 overlay：错误图标 + 描述 + 重试按钮
+    private var errorOverlayView: some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 44))
+                .foregroundColor(.orange)
+
+            VStack(spacing: 6) {
+                Text(NSLocalizedString("Contract_Load_Error_Title", comment: ""))
+                    .font(.headline)
+                    .foregroundColor(.primary)
+
+                if let errorMessage = viewModel.errorMessage {
+                    Text(errorMessage)
+                        .font(.subheadline)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                }
+            }
+
+            Button {
+                Task {
+                    await viewModel.loadContractsData(forceRefresh: true)
+                }
+            } label: {
+                Text(NSLocalizedString("ESI_Status_Retry", comment: ""))
+                    .font(.body.weight(.medium))
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 10)
+                    .background(Color.accentColor)
+                    .foregroundColor(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background(Color(.systemGroupedBackground))
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            List {
-                // 加载进度部分
-                if viewModel.isLoading || viewModel.currentLoadingPage != nil {
-                    Section {
-                        HStack {
-                            Spacer()
-                            if let currentPage = viewModel.currentLoadingPage {
-                                let text = String(
-                                    format: NSLocalizedString(
-                                        "Contract_Loading_Fetching", comment: "正在获取第 %d 页数据"
-                                    ), currentPage
-                                )
+            ZStack {
+                // 主列表：始终渲染，保证 .refreshable 在所有状态下都可用
+                List {
+                    // 顶部加载指示器（仅在有数据时显示，用于下拉刷新场景）
+                    if !filteredContractGroups.isEmpty
+                        && (viewModel.isLoading || viewModel.currentLoadingPage != nil)
+                    {
+                        Section {
+                            HStack {
+                                Spacer()
+                                if let currentPage = viewModel.currentLoadingPage {
+                                    let text = String(
+                                        format: NSLocalizedString(
+                                            "Contract_Loading_Fetching", comment: "正在获取第 %d 页数据"
+                                        ), currentPage
+                                    )
 
-                                Text(text)
-                                    .font(.footnote)
-                                    .foregroundColor(.secondary)
-                                    .padding(.vertical, 8)
-                                    .padding(.horizontal, 12)
-                                    .background(Color(.secondarySystemGroupedBackground))
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                            } else if viewModel.isLoading {
-                                ProgressView()
-                                    .progressViewStyle(.circular)
+                                    Text(text)
+                                        .font(.footnote)
+                                        .foregroundColor(.secondary)
+                                        .padding(.vertical, 8)
+                                        .padding(.horizontal, 12)
+                                        .background(Color(.secondarySystemGroupedBackground))
+                                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                                } else if viewModel.isLoading {
+                                    ProgressView()
+                                        .progressViewStyle(.circular)
+                                }
+                                Spacer()
                             }
-                            Spacer()
+                            .padding(.vertical, 12)
+                            .listRowBackground(Color.clear)
+                            .listRowInsets(EdgeInsets())
                         }
-                        .padding(.vertical, 12)
-                        .listRowBackground(Color.clear)
-                        .listRowInsets(EdgeInsets())
                     }
-                }
 
-                if filteredContractGroups.isEmpty && !viewModel.isLoading {
-                    emptyView
-                } else if !viewModel.isLoading || viewModel.isInitialized {
                     ForEach(filteredContractGroups) { group in
                         Section {
                             ForEach(group.contracts) { contract in
@@ -805,16 +421,48 @@ struct PersonalContractsView: View {
                             }
                         }
                     }
+
+                    // 空状态提示（无数据且非加载中且无错误）：作为 List 行显示，不遮挡下拉刷新
+                    if filteredContractGroups.isEmpty && !viewModel.isLoading && viewModel.errorMessage == nil {
+                        Section {
+                            VStack(spacing: 12) {
+                                Image(systemName: "doc.text.magnifyingglass")
+                                    .font(.system(size: 44))
+                                    .foregroundColor(.secondary)
+                                Text(emptyStateMessage)
+                                    .font(.subheadline)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 60)
+                            .listRowBackground(Color.clear)
+                        }
+                    }
+                }
+                .listStyle(.insetGrouped)
+                .refreshable {
+                    // 在刷新时重置加载状态
+                    await MainActor.run {
+                        viewModel.currentLoadingPage = nil
+                    }
+                    await viewModel.loadContractsData(forceRefresh: true)
+                }
+
+                // 状态 overlay：加载中（allowsHitTesting(false) 让下拉刷新穿透）
+                if showsLoadingOverlay {
+                    loadingOverlayView
+                        .transition(.opacity)
+                }
+
+                // 状态 overlay：错误（保留交互以支持重试按钮）
+                if showsErrorOverlay {
+                    errorOverlayView
+                        .transition(.opacity)
                 }
             }
-            .listStyle(.insetGrouped)
-            .refreshable {
-                // 在刷新时重置加载状态
-                await MainActor.run {
-                    viewModel.currentLoadingPage = nil
-                }
-                await viewModel.loadContractsData(forceRefresh: true)
-            }
+            .animation(.easeInOut(duration: 0.25), value: showsLoadingOverlay)
+            .animation(.easeInOut(duration: 0.25), value: showsErrorOverlay)
         }
         .safeAreaInset(edge: .top, spacing: 0) {
             VStack(spacing: 0) {
@@ -964,9 +612,11 @@ struct PersonalContractsView: View {
                                         .transition(
                                             .asymmetric(
                                                 insertion: .opacity.combined(
-                                                    with: .move(edge: .top)),
+                                                    with: .move(edge: .top)
+                                                ),
                                                 removal: .opacity.combined(with: .move(edge: .top))
-                                            ))
+                                            )
+                                        )
                                     }
                                 }
                                 .padding(.horizontal)
@@ -1121,7 +771,8 @@ struct PersonalContractsView: View {
                             Text(NSLocalizedString("Contract_Display_300", comment: "")).tag(300)
                             Text(NSLocalizedString("Contract_Display_500", comment: "")).tag(500)
                             Text(NSLocalizedString("Contract_Display_Unlimited", comment: "")).tag(
-                                Int.max)
+                                Int.max
+                            )
                         }
                         .pickerStyle(.navigationLink)
                     } header: {
@@ -1218,7 +869,7 @@ struct PersonalContractsView: View {
                                             )
                                         )
                                         .font(.caption)
-                                        .foregroundColor(getStatusColor(contractStatus))
+                                        .foregroundColor(contractStatusColor(contractStatus))
                                         .padding(.horizontal, 6)
                                         .padding(.vertical, 2)
                                         .background(
@@ -1341,11 +992,7 @@ struct PersonalContractsView: View {
         }
     }
 
-    private var emptyView: some View {
-        NoDataSection(text: NSLocalizedString("Misc_No_Matched_Data", comment: ""))
-    }
-
-    // 价格筛选检查方法
+    /// 价格筛选检查方法
     private func checkPriceFilter(for contract: ContractInfo) -> Bool {
         // 如果没有设置价格筛选，则通过筛选
         if minPrice.isEmpty && maxPrice.isEmpty {
@@ -1378,600 +1025,5 @@ struct PersonalContractsView: View {
         }
 
         return true
-    }
-
-    // 根据状态返回对应的颜色，与ContractRow中的逻辑保持一致
-    private func getStatusColor(_ status: String) -> Color {
-        switch status {
-        case "deleted":
-            return .secondary
-        case "rejected", "failed", "reversed":
-            return .red
-        case "outstanding", "in_progress":
-            return .blue // 进行中和待处理状态显示为蓝色
-        case "finished", "finished_issuer", "finished_contractor":
-            return .green // 所有完成状态显示为绿色
-        default:
-            return .primary // 其他状态使用主色调
-        }
-    }
-}
-
-struct ContractRow: View {
-    let contract: ContractInfo
-    let contractType: PersonalContractsViewModel.ContractType
-    let databaseManager: DatabaseManager
-    let groupingMode: PersonalContractsViewModel.GroupingMode
-    @AppStorage("currentCharacterId") private var currentCharacterId: Int = 0
-
-    // 使用FormatUtil进行日期处理，无需自定义格式化器
-
-    private func formatContractType(_ type: String) -> String {
-        return NSLocalizedString("Contract_Type_\(type)", comment: "")
-    }
-
-    private func formatContractStatus(_ status: String) -> String {
-        // 将所有finished相关状态统一显示为"finished"
-        let normalizedStatus: String
-        switch status {
-        case "finished", "finished_issuer", "finished_contractor":
-            normalizedStatus = "finished"
-        default:
-            normalizedStatus = status
-        }
-        return NSLocalizedString("Contract_Status_\(normalizedStatus)", comment: "")
-    }
-
-    // 根据状态返回对应的颜色
-    private func getStatusColor(_ status: String) -> Color {
-        switch status {
-        case "deleted":
-            return .secondary
-        case "rejected", "failed", "reversed":
-            return .red
-        case "outstanding", "in_progress":
-            return .blue // 进行中和待处理状态显示为蓝色
-        case "finished", "finished_issuer", "finished_contractor":
-            return .green // 完成状态显示为绿色
-        default:
-            return .primary // 其他状态使用主色调
-        }
-    }
-
-    // 判断当前角色是否是合同发布者
-    private var isIssuer: Bool {
-        switch contractType {
-        case .personal:
-            // 个人合同：检查是否是当前角色发布的
-            return contract.issuer_id == currentCharacterId
-        case .corporation:
-            // 军团合同：检查是否是军团发布的合同
-            return contract.for_corporation
-        case .alliance:
-            // 联盟合同：检查是否是当前角色发布的
-            return contract.issuer_id == currentCharacterId
-        }
-    }
-
-    // 判断当前角色是否是合同接收者
-    private var isAcceptor: Bool {
-        switch contractType {
-        case .personal:
-            // 个人合同：检查是否是指定给当前角色的
-            return contract.acceptor_id == currentCharacterId
-        case .corporation:
-            // 军团合同：检查是否是指定给军团的
-            return contract.assignee_id == contract.issuer_corporation_id
-        case .alliance:
-            // 联盟合同：检查是否是指定给联盟的
-            return contract.acceptor_id == currentCharacterId
-        }
-    }
-
-    // 字段显示信息
-    private struct FieldDisplayInfo {
-        let value: Double // 字段值
-        let prefix: String // 符号：+、- 或空字符串
-        let color: Color // 颜色
-    }
-
-    // 合同价格显示信息：包含要显示的所有字段
-    private struct ContractPriceDisplayInfo {
-        let fields: [FieldDisplayInfo] // 要显示的字段列表（可能包含 price 和/或 reward）
-    }
-
-    /*
-     * 合同价格显示逻辑说明
-     * ===================
-     *
-     * 1. 物品交换合同 (item_exchange)
-     *    - 角色：发起人/接收者
-     *    - price 字段：发起人显示收入（绿色+），接收者显示支出（红色-）
-     *    - reward 字段：发起人显示支出（红色-），接收者显示收入（绿色+）
-     *
-     *    场景1：price > 0 && reward > 0
-     *      - 发起人：显示 [+price 绿色] [-reward 红色]
-     *      - 接收者：显示 [-price 红色] [+reward 绿色]
-     *
-     *    场景2：只有 price > 0
-     *      - 发起人：显示 [+price 绿色]
-     *      - 接收者：显示 [-price 红色]
-     *
-     *    场景3：只有 reward > 0
-     *      - 发起人：显示 [-reward 红色]
-     *      - 接收者：显示 [+reward 绿色]
-     *
-     *    场景4：price = 0 && reward = 0
-     *      - 发起人：显示 [+0 绿色]（显示 price）
-     *      - 接收者：显示 [-0 红色]（显示 price）
-     *
-     * 2. 运输合同 (courier)
-     *    - 角色：发起人/接收者
-     *    - reward 字段：发起人显示支出（红色-），接收者显示收入（绿色+）
-     *    - price 字段：通常不使用，如果出现则显示为灰色无符号
-     *
-     *    场景1：price > 0 && reward > 0
-     *      - 发起人：显示 [price 灰色] [-reward 红色]
-     *      - 接收者：显示 [price 灰色] [+reward 绿色]
-     *
-     *    场景2：只有 reward > 0
-     *      - 发起人：显示 [-reward 红色]
-     *      - 接收者：显示 [+reward 绿色]
-     *
-     *    场景3：只有 price > 0（不常见）
-     *      - 显示 [price 灰色]
-     *
-     *    场景4：price = 0 && reward = 0
-     *      - 发起人：显示 [-0 红色]（显示 reward）
-     *      - 接收者：显示 [+0 绿色]（显示 reward）
-     *
-     * 3. 拍卖合同 (auction)
-     *    - 角色：发起人/接收者/其他角色
-     *    - price 字段：
-     *      * 发起人：收入（绿色+）
-     *      * 接收者：支出（红色-）
-     *      * 其他角色：无符号，橙色
-     *    - reward 字段：始终为收入（绿色+）
-     *
-     *    场景1：price > 0 && reward > 0
-     *      - 发起人：显示 [+price 绿色] [+reward 绿色]
-     *      - 接收者：显示 [-price 红色] [+reward 绿色]
-     *      - 其他角色：显示 [price 橙色] [+reward 绿色]
-     *
-     *    场景2：只有 price > 0
-     *      - 发起人：显示 [+price 绿色]
-     *      - 接收者：显示 [-price 红色]
-     *      - 其他角色：显示 [price 橙色]
-     *
-     *    场景3：只有 reward > 0
-     *      - 所有角色：显示 [+reward 绿色]
-     *
-     *    场景4：price = 0 && reward = 0
-     *      - 发起人：显示 [+0 绿色]（显示 price）
-     *      - 接收者：显示 [-0 红色]（显示 price）
-     *      - 其他角色：显示 [0 橙色]（显示 price）
-     */
-
-    // 统一的显示信息计算函数：根据合同类型、字段值和角色决定显示哪些字段及其格式
-    private func getContractPriceDisplayInfo(
-        contractType: String,
-        price: Double,
-        reward: Double,
-        contractTypeEnum: PersonalContractsViewModel.ContractType
-    ) -> ContractPriceDisplayInfo {
-        let hasPrice = price > 0
-        let hasReward = reward > 0
-        let isCurrentUserIssuer = contract.issuer_id == currentCharacterId
-        var fields: [FieldDisplayInfo] = []
-
-        switch contractType {
-        case "item_exchange":
-            // 物品交换合同
-            if hasPrice && hasReward {
-                // 两个字段都有值：都显示
-                // price 字段：发布者显示收入（绿色+），接收者显示支出（红色-）
-                let pricePrefix: String
-                let priceColor: Color
-                switch contractTypeEnum {
-                case .personal:
-                    pricePrefix = isIssuer ? "+" : "-"
-                    priceColor = isIssuer ? .green : .red
-                case .corporation, .alliance:
-                    pricePrefix = isCurrentUserIssuer ? "+" : "-"
-                    priceColor = isCurrentUserIssuer ? .green : .red
-                }
-                fields.append(FieldDisplayInfo(value: price, prefix: pricePrefix, color: priceColor))
-
-                // reward 字段：发布者显示支出（红色-），接收者显示收入（绿色+）
-                let rewardPrefix: String
-                let rewardColor: Color
-                switch contractTypeEnum {
-                case .personal:
-                    rewardPrefix = isIssuer ? "-" : "+"
-                    rewardColor = isIssuer ? .red : .green
-                case .corporation, .alliance:
-                    rewardPrefix = isCurrentUserIssuer ? "-" : "+"
-                    rewardColor = isCurrentUserIssuer ? .red : .green
-                }
-                fields.append(FieldDisplayInfo(value: reward, prefix: rewardPrefix, color: rewardColor))
-            } else if hasPrice {
-                // 只有 price 有值
-                let prefix: String
-                let color: Color
-                switch contractTypeEnum {
-                case .personal:
-                    prefix = isIssuer ? "+" : "-"
-                    color = isIssuer ? .green : .red
-                case .corporation, .alliance:
-                    prefix = isCurrentUserIssuer ? "+" : "-"
-                    color = isCurrentUserIssuer ? .green : .red
-                }
-                fields.append(FieldDisplayInfo(value: price, prefix: prefix, color: color))
-            } else if hasReward {
-                // 只有 reward 有值
-                let prefix: String
-                let color: Color
-                switch contractTypeEnum {
-                case .personal:
-                    prefix = isIssuer ? "-" : "+"
-                    color = isIssuer ? .red : .green
-                case .corporation, .alliance:
-                    prefix = isCurrentUserIssuer ? "-" : "+"
-                    color = isCurrentUserIssuer ? .red : .green
-                }
-                fields.append(FieldDisplayInfo(value: reward, prefix: prefix, color: color))
-            } else {
-                // 两个都为0：显示 price
-                let prefix: String
-                let color: Color
-                switch contractTypeEnum {
-                case .personal:
-                    prefix = isIssuer ? "+" : "-"
-                    color = isIssuer ? .green : .red
-                case .corporation, .alliance:
-                    prefix = isCurrentUserIssuer ? "+" : "-"
-                    color = isCurrentUserIssuer ? .green : .red
-                }
-                fields.append(FieldDisplayInfo(value: price, prefix: prefix, color: color))
-            }
-
-        case "courier":
-            // 运输合同：主要显示 reward
-            if hasPrice && hasReward {
-                // 两个字段都有值：都显示（price 使用默认格式）
-                fields.append(FieldDisplayInfo(value: price, prefix: "", color: .secondary))
-
-                // reward 字段：发布者显示支出（红色-），接收者显示收入（绿色+）
-                let rewardPrefix: String
-                let rewardColor: Color
-                switch contractTypeEnum {
-                case .personal:
-                    rewardPrefix = isIssuer ? "-" : "+"
-                    rewardColor = isIssuer ? .red : .green
-                case .corporation, .alliance:
-                    rewardPrefix = isCurrentUserIssuer ? "-" : "+"
-                    rewardColor = isCurrentUserIssuer ? .red : .green
-                }
-                fields.append(FieldDisplayInfo(value: reward, prefix: rewardPrefix, color: rewardColor))
-            } else if hasReward {
-                // 只有 reward 有值
-                let prefix: String
-                let color: Color
-                switch contractTypeEnum {
-                case .personal:
-                    prefix = isIssuer ? "-" : "+"
-                    color = isIssuer ? .red : .green
-                case .corporation, .alliance:
-                    prefix = isCurrentUserIssuer ? "-" : "+"
-                    color = isCurrentUserIssuer ? .red : .green
-                }
-                fields.append(FieldDisplayInfo(value: reward, prefix: prefix, color: color))
-            } else if hasPrice {
-                // 只有 price 有值（不常见）
-                fields.append(FieldDisplayInfo(value: price, prefix: "", color: .secondary))
-            } else {
-                // 两个都为0：显示 reward
-                let prefix: String
-                let color: Color
-                switch contractTypeEnum {
-                case .personal:
-                    prefix = isIssuer ? "-" : "+"
-                    color = isIssuer ? .red : .green
-                case .corporation, .alliance:
-                    prefix = isCurrentUserIssuer ? "-" : "+"
-                    color = isCurrentUserIssuer ? .red : .green
-                }
-                fields.append(FieldDisplayInfo(value: reward, prefix: prefix, color: color))
-            }
-
-        case "auction":
-            // 拍卖合同
-            if hasPrice && hasReward {
-                // 两个字段都有值：都显示
-                // price 字段
-                let pricePrefix: String
-                let priceColor: Color
-                if isIssuer {
-                    pricePrefix = "+"
-                    priceColor = .green
-                } else if isAcceptor {
-                    pricePrefix = "-"
-                    priceColor = .red
-                } else {
-                    pricePrefix = ""
-                    priceColor = .orange
-                }
-                fields.append(FieldDisplayInfo(value: price, prefix: pricePrefix, color: priceColor))
-
-                // reward 字段：拍卖合同的 reward 通常为收入（绿色+）
-                fields.append(FieldDisplayInfo(value: reward, prefix: "+", color: .green))
-            } else if hasPrice {
-                // 只有 price 有值
-                let prefix: String
-                let color: Color
-                if isIssuer {
-                    prefix = "+"
-                    color = .green
-                } else if isAcceptor {
-                    prefix = "-"
-                    color = .red
-                } else {
-                    prefix = ""
-                    color = .orange
-                }
-                fields.append(FieldDisplayInfo(value: price, prefix: prefix, color: color))
-            } else if hasReward {
-                // 只有 reward 有值
-                fields.append(FieldDisplayInfo(value: reward, prefix: "+", color: .green))
-            } else {
-                // 两个都为0：显示 price
-                let prefix: String
-                let color: Color
-                if isIssuer {
-                    prefix = "+"
-                    color = .green
-                } else if isAcceptor {
-                    prefix = "-"
-                    color = .red
-                } else {
-                    prefix = ""
-                    color = .orange
-                }
-                fields.append(FieldDisplayInfo(value: price, prefix: prefix, color: color))
-            }
-
-        default:
-            // 其他合同类型：默认显示 price
-            if hasPrice {
-                fields.append(FieldDisplayInfo(value: price, prefix: "", color: .secondary))
-            } else if hasReward {
-                fields.append(FieldDisplayInfo(value: reward, prefix: "", color: .secondary))
-            }
-        }
-
-        return ContractPriceDisplayInfo(fields: fields)
-    }
-
-    // 根据字段显示信息创建文本视图
-    @ViewBuilder
-    private func createFieldText(_ fieldInfo: FieldDisplayInfo) -> some View {
-        Text("\(fieldInfo.prefix)\(FormatUtil.format(fieldInfo.value)) ISK")
-            .foregroundColor(fieldInfo.color)
-            .font(.system(.caption, design: .monospaced))
-    }
-
-    @ViewBuilder
-    private func priceView() -> some View {
-        let displayInfo = getContractPriceDisplayInfo(
-            contractType: contract.type,
-            price: contract.price,
-            reward: contract.reward,
-            contractTypeEnum: contractType
-        )
-
-        if displayInfo.fields.isEmpty {
-            EmptyView()
-        } else if displayInfo.fields.count == 1 {
-            // 只显示一个字段
-            createFieldText(displayInfo.fields[0])
-        } else {
-            // 显示多个字段（用 HStack 排列）
-            HStack(spacing: 8) {
-                ForEach(Array(displayInfo.fields.enumerated()), id: \.offset) { _, fieldInfo in
-                    createFieldText(fieldInfo)
-                }
-            }
-        }
-    }
-
-    var body: some View {
-        // 修改为传统的 NavigationLink
-        NavigationLink {
-            ContractDetailView(
-                characterId: currentCharacterId,
-                contract: contract,
-                databaseManager: databaseManager,
-                contractType: contractType
-            )
-        } label: {
-            VStack(alignment: .leading, spacing: 4) {
-                if DeviceUtils.shouldUseCompactLayout {
-                    // iPad或横屏iPhone：紧凑布局，状态标签在左侧
-                    HStack {
-                        Text(formatContractStatus(contract.status))
-                            .font(.caption)
-                            .foregroundColor(getStatusColor(contract.status))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(Color.gray.opacity(0.2))
-                            )
-                        Text(formatContractType(contract.type))
-                            .font(.body)
-                            .lineLimit(1)
-                        Spacer()
-                        priceView()
-                    }
-
-                    HStack {
-                        Text(
-                            NSLocalizedString("Contract_Title", comment: "") + ": "
-                                + (contract.title.isEmpty
-                                    ? "[\(NSLocalizedString("Contract_No_Title", comment: ""))]"
-                                    : contract.title)
-                        )
-                        .font(.caption)
-                        .foregroundColor(contract.title.isEmpty ? .secondary : .secondary)
-                        .lineLimit(1)
-
-                        Spacer()
-                    }
-                } else {
-                    // 小屏幕：分离布局，类型和状态分开
-                    // 第一行：类型和状态
-                    HStack {
-                        Text(formatContractType(contract.type))
-                            .font(.body)
-                            .lineLimit(1)
-
-                        Spacer()
-
-                        Text(formatContractStatus(contract.status))
-                            .font(.caption)
-                            .foregroundColor(getStatusColor(contract.status))
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 2)
-                            .background(
-                                RoundedRectangle(cornerRadius: 4)
-                                    .fill(Color.gray.opacity(0.2))
-                            )
-                    }
-
-                    // 第二行：标题和价格
-                    HStack {
-                        Text(
-                            NSLocalizedString("Contract_Title", comment: "") + ": "
-                                + (contract.title.isEmpty
-                                    ? "[\(NSLocalizedString("Contract_No_Title", comment: ""))]"
-                                    : contract.title)
-                        )
-                        .font(.caption)
-                        .foregroundColor(contract.title.isEmpty ? .secondary : .secondary)
-                        .lineLimit(1)
-
-                        Spacer()
-
-                        priceView()
-                    }
-                }
-                HStack {
-                    Text(
-                        NSLocalizedString("Contract_Volume", comment: "")
-                            + ": \(FormatUtil.format(contract.volume)) m³"
-                    )
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                    .lineLimit(1)
-                    Spacer()
-
-                    // 根据分组方式决定显示的时间
-                    if groupingMode == .byIssueDate {
-                        // 按发起时间分组：显示发起时间
-                        if contract.status == "outstanding" {
-                            // 计算剩余天数
-                            let remainingDays =
-                                Calendar.current.dateComponents(
-                                    [.day],
-                                    from: Date(),
-                                    to: contract.date_expired
-                                ).day ?? 0
-
-                            if remainingDays > 0 {
-                                Text(
-                                    "\(FormatUtil.formatDateToLocalTime(contract.date_issued)) (\(String.localizedStringWithFormat(NSLocalizedString("Contract_Days_Remaining", comment: ""), remainingDays)))"
-                                )
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                            } else if remainingDays == 0 {
-                                Text(
-                                    "\(FormatUtil.formatDateToLocalTime(contract.date_issued)) (\(NSLocalizedString("Contract_Expires_Today", comment: "")))"
-                                )
-                                .font(.caption)
-                                .foregroundColor(.orange)
-                            } else {
-                                Text(
-                                    "\(FormatUtil.formatDateToLocalTime(contract.date_issued)) (\(NSLocalizedString("Contract_Expired", comment: "")))"
-                                )
-                                .font(.caption)
-                                .foregroundColor(.red)
-                            }
-                        } else {
-                            Text("\(FormatUtil.formatDateToLocalTime(contract.date_issued))")
-                                .font(.caption)
-                                .foregroundColor(.gray)
-                        }
-                    } else {
-                        // 按完成时间分组
-                        if contract.status == "outstanding" || contract.status == "in_progress" {
-                            // 未完成的合同：只显示剩余天数
-                            if contract.status == "outstanding" {
-                                // 计算剩余天数
-                                let remainingDays =
-                                    Calendar.current.dateComponents(
-                                        [.day],
-                                        from: Date(),
-                                        to: contract.date_expired
-                                    ).day ?? 0
-
-                                if remainingDays > 0 {
-                                    Text(String.localizedStringWithFormat(NSLocalizedString("Contract_Days_Remaining_Full", comment: ""), remainingDays))
-                                        .font(.caption)
-                                        .foregroundColor(.gray)
-                                } else if remainingDays == 0 {
-                                    Text(NSLocalizedString("Contract_Expires_Today", comment: ""))
-                                        .font(.caption)
-                                        .foregroundColor(.orange)
-                                } else {
-                                    Text(NSLocalizedString("Contract_Expired", comment: ""))
-                                        .font(.caption)
-                                        .foregroundColor(.red)
-                                }
-                            } else {
-                                // in_progress 状态显示进行中
-                                Text(NSLocalizedString("Contract_Status_in_progress", comment: ""))
-                                    .font(.caption)
-                                    .foregroundColor(.blue)
-                            }
-                        } else {
-                            // 已完成的合同：显示完成时间
-                            if let completedDate = contract.date_completed {
-                                Text("\(FormatUtil.formatDateToLocalTime(completedDate))")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            } else {
-                                // 如果没有完成时间，降级显示发起时间
-                                Text("\(FormatUtil.formatDateToLocalTime(contract.date_issued))")
-                                    .font(.caption)
-                                    .foregroundColor(.gray)
-                            }
-                        }
-                    }
-                }
-            }
-            .padding(.vertical, 2)
-            .contextMenu {
-                if !contract.title.isEmpty {
-                    Button {
-                        UIPasteboard.general.string = contract.title
-                    } label: {
-                        Label(
-                            NSLocalizedString("Misc_Copy_Contract_Title", comment: ""),
-                            systemImage: "doc.on.doc"
-                        )
-                    }
-                }
-            }
-        }
     }
 }

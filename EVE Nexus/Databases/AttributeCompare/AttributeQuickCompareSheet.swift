@@ -58,46 +58,15 @@ struct AttributeQuickCompareSheet: View {
                     }
 
                     if isCalculating {
-                        Section {
-                            HStack {
-                                Spacer()
-                                ProgressView()
-                                    .padding()
-                                Spacer()
-                            }
-                        } header: {
-                            Text(NSLocalizedString("Misc_Calculating", comment: ""))
-                        }
+                        CalculatingSection()
                     }
 
                     if let result = compareResult {
-                        let allAttributes = result.publishedAttributeInfo
-                        let sortedAttributeIDs = allAttributes.keys.sorted {
-                            (Int($0) ?? 0) < (Int($1) ?? 0)
-                        }
-                        let attributesToShow =
-                            showOnlyDifferences
-                                ? attributeIDsWithDifferences(result) : sortedAttributeIDs
-                        let filteredAttributes = sortedAttributeIDs.filter {
-                            attributesToShow.contains($0)
-                        }
-
-                        ForEach(filteredAttributes, id: \.self) { attributeID in
-                            if let attributeValues = result.compareResult[attributeID],
-                               let attributeName = allAttributes[attributeID]
-                            {
-                                AttributeCompareSection(
-                                    attributeName: attributeName,
-                                    attributeID: attributeID,
-                                    values: attributeValues,
-                                    typeInfo: result.typeInfo,
-                                    items: items,
-                                    attributeIcons: result.attributeIcons,
-                                    highIsGood: result.attributeHighIsGood[attributeID] ?? true
-                                )
-                            }
-                        }
-                        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                        AttributeCompareResultSections(
+                            result: result,
+                            items: items,
+                            showOnlyDifferences: showOnlyDifferences
+                        )
                     }
                 }
             }
@@ -138,33 +107,5 @@ struct AttributeQuickCompareSheet: View {
                 self.isCalculating = false
             }
         }
-    }
-
-    private func attributeIDsWithDifferences(_ result: AttributeCompareUtil.CompareResult) -> [String] {
-        let totalItemCount = items.count
-        var attributesWithDifferences: [String] = []
-
-        for (attributeID, values) in result.compareResult {
-            if values.count != totalItemCount {
-                attributesWithDifferences.append(attributeID)
-                continue
-            }
-
-            var allSame = true
-            let firstValue = values.values.first?.value
-
-            for (_, info) in values {
-                if info.value != firstValue {
-                    allSame = false
-                    break
-                }
-            }
-
-            if !allSame {
-                attributesWithDifferences.append(attributeID)
-            }
-        }
-
-        return attributesWithDifferences.sorted { Int($0) ?? 0 < Int($1) ?? 0 }
     }
 }

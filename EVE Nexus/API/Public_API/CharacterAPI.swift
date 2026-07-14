@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-// 角色公开信息数据模型
+/// 角色公开信息数据模型
 struct CharacterPublicInfo: Codable {
     let alliance_id: Int?
     let birthday: String
@@ -13,13 +13,14 @@ struct CharacterPublicInfo: Codable {
     let race_id: Int
     let security_status: Double?
     let title: String?
+    let description: String?
 
-    // 添加CodingKeys来忽略API返回的description字段
     private enum CodingKeys: String, CodingKey {
         case alliance_id
         case birthday
         case bloodline_id
         case corporation_id
+        case description
         case faction_id
         case gender
         case name
@@ -29,7 +30,7 @@ struct CharacterPublicInfo: Codable {
     }
 }
 
-// 角色雇佣历史记录数据模型
+/// 角色雇佣历史记录数据模型
 struct CharacterEmploymentHistory: Codable {
     let corporation_id: Int
     let record_id: Int
@@ -42,14 +43,14 @@ final class CharacterAPI: @unchecked Sendable {
         // 使用 ImageCacheManager，无需初始化配置
     }
 
-    // 保存角色信息到数据库
+    /// 保存角色信息到数据库
     private func saveCharacterInfoToCache(_ info: CharacterPublicInfo, characterId: Int) -> Bool {
         let query = """
             INSERT OR REPLACE INTO character_info (
                 character_id, alliance_id, birthday, bloodline_id, corporation_id,
-                faction_id, gender, name, race_id, security_status, title,
+                faction_id, gender, name, race_id, security_status, title, description,
                 last_updated
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         """
 
         let parameters: [Any] = [
@@ -64,6 +65,7 @@ final class CharacterAPI: @unchecked Sendable {
             info.race_id,
             info.security_status as Any? ?? NSNull(),
             info.title as Any? ?? NSNull(),
+            info.description as Any? ?? NSNull(),
         ]
 
         // 字段名称数组，与参数数组顺序对应
@@ -79,6 +81,7 @@ final class CharacterAPI: @unchecked Sendable {
             "race_id",
             "security_status",
             "title",
+            "description",
         ]
 
         if case let .error(error) = CharacterDatabaseManager.shared.executeQuery(
@@ -96,13 +99,21 @@ final class CharacterAPI: @unchecked Sendable {
         return true
     }
 
-    // 从数据库读取角色信息
-    private func loadCharacterInfoFromCache(characterId: Int) -> CharacterPublicInfo? {
-        let query = """
-            SELECT * FROM character_info 
-            WHERE character_id = ? 
-            AND datetime(last_updated) > datetime('now', '-1 hour')
-        """
+    /// 从数据库读取角色信息
+    private func loadCharacterInfoFromCache(characterId: Int, ignoreExpiry: Bool = false) -> CharacterPublicInfo? {
+        let query: String
+        if ignoreExpiry {
+            query = """
+                SELECT * FROM character_info
+                WHERE character_id = ?
+            """
+        } else {
+            query = """
+                SELECT * FROM character_info
+                WHERE character_id = ?
+                AND datetime(last_updated) > datetime('now', '-1 hour')
+            """
+        }
 
         if case let .success(rows) = CharacterDatabaseManager.shared.executeQuery(
             query, parameters: [characterId]
@@ -126,6 +137,7 @@ final class CharacterAPI: @unchecked Sendable {
             let factionId = (row["faction_id"] as? Int64).map { Int($0) }
             let securityStatus = row["security_status"] as? Double
             let title = row["title"] as? String
+            let description = row["description"] as? String
 
             return CharacterPublicInfo(
                 alliance_id: allianceId,
@@ -137,13 +149,20 @@ final class CharacterAPI: @unchecked Sendable {
                 name: name,
                 race_id: raceId,
                 security_status: securityStatus,
-                title: title
+                title: title,
+                description: description
             )
         }
         return nil
     }
 
-    // 获取角色公开信息
+    /// 读取缓存的角色信息（忽略过期时间）。
+    /// 用于"先用缓存再刷新"模式：在 `fetchCharacterPublicInfo` 返回前，先用缓存启动关联信息加载。
+    func loadCachedCharacterInfo(characterId: Int) -> CharacterPublicInfo? {
+        return loadCharacterInfoFromCache(characterId: characterId, ignoreExpiry: true)
+    }
+
+    /// 获取角色公开信息
     func fetchCharacterPublicInfo(characterId: Int, forceRefresh: Bool = false) async throws
         -> CharacterPublicInfo
     {
@@ -181,7 +200,8 @@ final class CharacterAPI: @unchecked Sendable {
                     name: info.name,
                     race_id: info.race_id,
                     security_status: info.security_status,
-                    title: info.title
+                    title: info.title,
+                    description: info.description
                 )
             }
         } catch {
@@ -197,13 +217,14 @@ final class CharacterAPI: @unchecked Sendable {
         return info
     }
 
-    // 获取角色头像URL
+    /// 获取角色头像URL
     private func getPortraitURL(characterId: Int, size: Int) -> URL {
         return URL(
-            string: "https://images.evetech.net/characters/\(characterId)/portrait?size=\(size)")!
+            string: "https://images.evetech.net/characters/\(characterId)/portrait?size=\(size)"
+        )!
     }
 
-    // 获取角色头像
+    /// 获取角色头像
     func fetchCharacterPortrait(
         characterId: Int, size: Int = 128, forceRefresh: Bool = false, catchImage _: Bool = true
     ) async throws -> UIImage {
@@ -227,7 +248,7 @@ final class CharacterAPI: @unchecked Sendable {
         }
     }
 
-    // 获取角色雇佣历史
+    /// 获取角色雇佣历史
     func fetchEmploymentHistory(characterId: Int) async throws -> [CharacterEmploymentHistory] {
         let urlString =
             "https://esi.evetech.net/characters/\(characterId)/corporationhistory/?datasource=tranquility"

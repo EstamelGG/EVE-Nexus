@@ -1,6 +1,6 @@
 import Foundation
 
-// 定义行星P0资源信息结构体
+/// 定义行星P0资源信息结构体
 struct P0ResourceInfo: Identifiable {
     var id = UUID()
     var resourceId: Int
@@ -11,7 +11,7 @@ struct P0ResourceInfo: Identifiable {
     var iconFileName: String
 }
 
-// 定义P1资源信息结构体
+/// 定义P1资源信息结构体
 struct P1ResourceInfo: Identifiable {
     var id = UUID()
     var resourceId: Int
@@ -21,7 +21,7 @@ struct P1ResourceInfo: Identifiable {
     var canProduce: Bool // 是否可以使用当前可用的P0资源生产
 }
 
-// 定义P2资源信息结构体
+/// 定义P2资源信息结构体
 struct P2ResourceInfo: Identifiable {
     var id = UUID()
     var resourceId: Int
@@ -31,7 +31,7 @@ struct P2ResourceInfo: Identifiable {
     var canProduce: Bool // 是否可以使用当前可用的P1资源生产
 }
 
-// 定义P3资源信息结构体
+/// 定义P3资源信息结构体
 struct P3ResourceInfo: Identifiable {
     var id = UUID()
     var resourceId: Int
@@ -41,7 +41,7 @@ struct P3ResourceInfo: Identifiable {
     var canProduce: Bool // 是否可以使用当前可用的P2资源生产
 }
 
-// 定义P4资源信息结构体
+/// 定义P4资源信息结构体
 struct P4ResourceInfo: Identifiable {
     var id = UUID()
     var resourceId: Int
@@ -51,7 +51,7 @@ struct P4ResourceInfo: Identifiable {
     var canProduce: Bool // 是否可以使用当前可用的P3资源生产
 }
 
-// 定义行星资源等级枚举
+/// 定义行星资源等级枚举
 enum PIResourceLevel: Int, CaseIterable {
     case p0 = 0
     case p1 = 1
@@ -74,68 +74,52 @@ enum PIResourceLevel: Int, CaseIterable {
     }
 }
 
-// 全局缓存类，用于存储查询结果
+/// 全局缓存类，用于存储查询结果
 class PIResourceCache {
     static let shared = PIResourceCache()
 
-    // 资源基本信息缓存
+    /// 资源基本信息缓存
     private var resourceInfoCache: [Int: (name: String, iconFileName: String, marketGroupId: Int)] =
         [:]
 
-    // 资源等级缓存 (P0-P4)
+    /// 资源等级缓存 (P0-P4)
     private var resourceLevelCache: [Int: PIResourceLevel] = [:]
 
-    // P0资源缓存
+    /// P0资源缓存
     private var p0ResourceCache: [Int: Bool] = [:]
 
-    // 资源配方缓存
+    /// 资源配方缓存
     private var schematicCache: [Int: (outputValue: Int, inputTypeIds: [Int], inputValues: [Int])] =
         [:]
 
-    // 星系信息缓存
-    private var systemInfoCache: [Int: (name: String, security: Double, region: String)] = [:]
+    /// 星系信息缓存
+    private var systemInfoCache: [Int: (security: Double, regionId: Int)] = [:]
 
-    // 加载状态标志，防止重复加载
+    /// 加载状态标志，防止重复加载
     private var isPreloaded = false
 
-    // 私有初始化方法
+    /// 私有初始化方法
     private init() {}
 
-    // 预加载所有资源信息（只加载一次）
+    /// 预加载所有资源信息（只加载一次）
     func preloadResourceInfo() {
         // 如果已经加载过，直接返回
         guard !isPreloaded else { return }
 
-        // 预加载所有P0-P4资源信息
-        let query = """
-            SELECT type_id, name, icon_filename, marketGroupID
-            FROM types
-            WHERE marketGroupID IN (1333, 1334, 1335, 1336, 1337)
-        """
-
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(query) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let iconFileName = row["icon_filename"] as? String,
-                   let marketGroupId = row["marketGroupID"] as? Int
-                {
-                    // 缓存资源基本信息
-                    resourceInfoCache[typeId] = (
-                        name: name,
-                        iconFileName: iconFileName.isEmpty ? "not_found" : iconFileName,
-                        marketGroupId: marketGroupId
-                    )
-
-                    // 缓存资源等级
-                    if let level = determineResourceLevel(marketGroupId: marketGroupId) {
-                        resourceLevelCache[typeId] = level
-
-                        // 同时更新P0资源缓存
-                        if level == .p0 {
-                            p0ResourceCache[typeId] = true
-                        }
-                    }
+        let marketGroups: Set = [1333, 1334, 1335, 1336, 1337]
+        for (typeId, info) in SDEMemoryStore.types {
+            guard let marketGroupId = info.marketGroupID,
+                  marketGroups.contains(marketGroupId)
+            else { continue }
+            resourceInfoCache[typeId] = (
+                name: info.name,
+                iconFileName: info.iconFilename.isEmpty ? "not_found" : info.iconFilename,
+                marketGroupId: marketGroupId
+            )
+            if let level = determineResourceLevel(marketGroupId: marketGroupId) {
+                resourceLevelCache[typeId] = level
+                if level == .p0 {
+                    p0ResourceCache[typeId] = true
                 }
             }
         }
@@ -148,7 +132,7 @@ class PIResourceCache {
         Logger.info("PIResourceCache: 资源信息预加载完成")
     }
 
-    // 根据marketGroupId确定资源等级
+    /// 根据marketGroupId确定资源等级
     private func determineResourceLevel(marketGroupId: Int) -> PIResourceLevel? {
         let level = PlanetaryUtils.determineResourceLevel(marketGroupId: marketGroupId)
         switch level {
@@ -161,7 +145,7 @@ class PIResourceCache {
         }
     }
 
-    // 获取资源等级
+    /// 获取资源等级
     func getResourceLevel(for resourceId: Int) -> PIResourceLevel? {
         // 首先检查资源等级缓存
         if let level = resourceLevelCache[resourceId] {
@@ -172,48 +156,45 @@ class PIResourceCache {
         return nil
     }
 
-    // 获取资源信息
+    /// 获取资源信息
     func getResourceInfo(for resourceId: Int) -> (
         name: String, iconFileName: String, marketGroupId: Int
     )? {
         return resourceInfoCache[resourceId]
     }
 
-    // 获取所有缓存的资源信息
+    /// 获取所有缓存的资源信息
     func getAllResourceInfo() -> [(Int, (name: String, iconFileName: String, marketGroupId: Int))] {
         return Array(resourceInfoCache)
     }
 
-    // 获取资源配方
+    /// 获取资源配方
     func getSchematic(for resourceId: Int) -> (
         outputValue: Int, inputTypeIds: [Int], inputValues: [Int]
     )? {
         return schematicCache[resourceId]
     }
 
-    // 获取星系信息
-    func getSystemInfo(for systemId: Int) -> (name: String, security: Double, region: String)? {
+    /// 获取星系信息
+    func getSystemInfo(for systemId: Int) -> (security: Double, regionId: Int)? {
         if let cachedInfo = systemInfoCache[systemId] {
             return cachedInfo
         }
 
         let query = """
-            SELECT s.solarSystemName, u.system_security, r.regionName
-            FROM solarsystems s
-            JOIN universe u ON s.solarSystemID = u.solarsystem_id
-            JOIN regions r ON r.regionID = u.region_id
-            WHERE s.solarSystemID = ?
+            SELECT system_security, region_id
+            FROM universe
+            WHERE solarsystem_id = ?
         """
 
         if case let .success(rows) = DatabaseManager.shared.executeQuery(
             query, parameters: [systemId]
         ),
             let row = rows.first,
-            let name = row["solarSystemName"] as? String,
             let security = row["system_security"] as? Double,
-            let region = row["regionName"] as? String
+            let regionId = row["region_id"] as? Int
         {
-            let info = (name: name, security: security, region: region)
+            let info = (security: security, regionId: regionId)
             systemInfoCache[systemId] = info
             return info
         }
@@ -221,7 +202,7 @@ class PIResourceCache {
         return nil
     }
 
-    // 预加载配方信息（统一将数据库结果转为 Int 类型）
+    /// 预加载配方信息（统一将数据库结果转为 Int 类型）
     private func preloadSchematicInfo() {
         let query = """
             SELECT output_typeid, output_value, input_typeid, input_value

@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-// 军团信息数据模型
+/// 军团信息数据模型
 struct CorporationInfo: Codable {
     let name: String
     let ticker: String
@@ -18,7 +18,7 @@ struct CorporationInfo: Codable {
     let faction_id: Int?
 }
 
-// 军团联盟历史记录数据模型
+/// 军团联盟历史记录数据模型
 struct CorporationAllianceHistory: Codable {
     let alliance_id: Int?
     let record_id: Int
@@ -37,13 +37,14 @@ class CorporationAPI {
         // 使用 ImageCacheManager，无需初始化配置
     }
 
-    // 获取军团图标URL
+    /// 获取军团图标URL
     private func getLogoURL(corporationId: Int, size: Int = 64) -> URL {
         return URL(
-            string: "https://images.evetech.net/corporations/\(corporationId)/logo?size=\(size)")!
+            string: "https://images.evetech.net/corporations/\(corporationId)/logo?size=\(size)"
+        )!
     }
 
-    // 获取军团图标
+    /// 获取军团图标
     func fetchCorporationLogo(corporationId: Int, size: Int = 64, forceRefresh: Bool = false)
         async throws -> UIImage
     {
@@ -92,7 +93,8 @@ class CorporationAPI {
             if let localName = localCorporationName {
                 cachedInfo = updateCorporationInfoName(info: cachedInfo, newName: localName)
                 Logger.info(
-                    "使用文件缓存的军团信息，但名称使用本地数据库: \(localName) - 军团ID: \(corporationId)")
+                    "使用文件缓存的军团信息，但名称使用本地数据库: \(localName) - 军团ID: \(corporationId)"
+                )
             } else {
                 Logger.info("使用文件缓存的军团信息，保持原缓存名称 - 军团ID: \(corporationId)")
             }
@@ -190,23 +192,15 @@ class CorporationAPI {
             )
         } catch {
             Logger.error(
-                "保存军团信息到文件失败: \(error) - 文件: \(filePath.lastPathComponent)")
+                "保存军团信息到文件失败: \(error) - 文件: \(filePath.lastPathComponent)"
+            )
         }
     }
 
     /// 获取本地数据库中的军团名称
     private func getLocalCorporationName(corporationId: Int) -> String? {
-        let npcQuery = "SELECT name FROM npcCorporations WHERE corporation_id = \(corporationId)"
-        let npcResult = DatabaseManager.shared.executeQuery(npcQuery)
-
-        if case let .success(rows) = npcResult,
-           let row = rows.first,
-           let localName = row["name"] as? String
-        {
-            return localName
-        }
-
-        return nil
+        let name = SDEMemoryStore.npcCorporation(for: corporationId)?.name
+        return (name?.isEmpty == false) ? name : nil
     }
 
     /// 更新军团信息中的名称
@@ -239,7 +233,8 @@ class CorporationAPI {
         // 创建缓存目录
         let cacheDirectory = getAllianceHistoryCacheDirectory()
         let cacheFilePath = cacheDirectory.appendingPathComponent(
-            "alliancehistory_\(corporationId).json")
+            "alliancehistory_\(corporationId).json"
+        )
 
         // 检查文件缓存
         if !forceRefresh, let cachedHistory = loadAllianceHistoryFromFile(filePath: cacheFilePath) {
@@ -264,7 +259,8 @@ class CorporationAPI {
         saveAllianceHistoryToFile(history: sortedHistory, filePath: cacheFilePath)
 
         Logger.info(
-            "成功获取军团联盟历史 - 军团ID: \(corporationId), 记录数: \(sortedHistory.count)")
+            "成功获取军团联盟历史 - 军团ID: \(corporationId), 记录数: \(sortedHistory.count)"
+        )
         return sortedHistory
     }
 
@@ -303,7 +299,8 @@ class CorporationAPI {
                 let hoursSinceModification = Date().timeIntervalSince(modificationDate) / 3600
                 if hoursSinceModification > 12 {
                     Logger.info(
-                        "军团联盟历史缓存文件已过期 - 军团ID: \(filePath.lastPathComponent)")
+                        "军团联盟历史缓存文件已过期 - 军团ID: \(filePath.lastPathComponent)"
+                    )
                     return nil
                 } else {
                     let remainingHours = 12 - hoursSinceModification
@@ -319,7 +316,8 @@ class CorporationAPI {
             return history
         } catch {
             Logger.error(
-                "加载军团联盟历史缓存文件失败: \(error) - 文件: \(filePath.lastPathComponent)")
+                "加载军团联盟历史缓存文件失败: \(error) - 文件: \(filePath.lastPathComponent)"
+            )
             return nil
         }
     }
@@ -334,7 +332,8 @@ class CorporationAPI {
             )
         } catch {
             Logger.error(
-                "保存军团联盟历史到文件失败: \(error) - 文件: \(filePath.lastPathComponent)")
+                "保存军团联盟历史到文件失败: \(error) - 文件: \(filePath.lastPathComponent)"
+            )
         }
     }
 }

@@ -12,22 +12,11 @@ struct StructureInfoRowView: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            // 建筑图标
-            if let iconFilename = structure.iconFilename {
-                IconManager.shared.loadImage(for: iconFilename)
-                    .resizable()
-                    .frame(width: 40, height: 40)
-                    .cornerRadius(8)
-            } else {
-                // 默认建筑图标
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 40, height: 40)
-                    .overlay(
-                        Image(systemName: "building.2")
-                            .foregroundColor(.secondary)
-                    )
-            }
+            // 建筑图标（按 typeId 查询）
+            IconManager.shared.loadImage(for: structure.iconFileName)
+                .resizable()
+                .frame(width: 40, height: 40)
+                .cornerRadius(8)
 
             // 建筑信息
             VStack(alignment: .leading, spacing: 4) {
@@ -85,9 +74,19 @@ struct StructureInfoRowView: View {
                     TimelineView(.periodic(from: Date(), by: 60.0)) { timeline in
                         let minutesAgo = Int(timeline.date.timeIntervalSince(updateDate) / 60)
                         if minutesAgo >= 0 {
-                            Text(formatTimeAgo(minutesAgo))
-                                .foregroundColor(.secondary)
-                                .font(.caption2)
+                            Text(
+                                FormatUtil.formatMinutesSinceUpdate(
+                                    minutesAgo,
+                                    justUpdated: NSLocalizedString(
+                                        "Structure_Market_Just_Updated", comment: "刚刚更新"
+                                    ),
+                                    minutesAgoFormat: NSLocalizedString(
+                                        "Structure_Market_Minutes_Ago", comment: "%d分钟前更新"
+                                    )
+                                )
+                            )
+                            .foregroundColor(.secondary)
+                            .font(.caption2)
                         }
                     }
                 }
@@ -103,18 +102,6 @@ struct StructureInfoRowView: View {
             )
         }
         .padding(.vertical, 4)
-    }
-
-    // 格式化时间差为"X分钟前更新"
-    private func formatTimeAgo(_ minutes: Int) -> String {
-        if minutes < 1 {
-            return NSLocalizedString("Structure_Market_Just_Updated", comment: "刚刚更新")
-        } else {
-            return String.localizedStringWithFormat(
-                NSLocalizedString("Structure_Market_Minutes_Ago", comment: "%d分钟前更新"),
-                minutes
-            )
-        }
     }
 }
 
@@ -242,7 +229,7 @@ struct GroupItemRowView: View {
                     .font(.caption)
                     .foregroundColor(.secondary)
 
-                Text("\(NSLocalizedString("Structure_Market_Items_Count", comment: "物品数")): \(formatNumber(item.totalVolume))")
+                Text("\(NSLocalizedString("Structure_Market_Items_Count", comment: "物品数")): \(FormatUtil.formatInteger(item.totalVolume))")
                     .font(.caption)
                     .foregroundColor(.secondary)
             }
@@ -257,7 +244,7 @@ struct GroupItemRowView: View {
                 Spacer()
 
                 HStack(spacing: 4) {
-                    Text(formatPrice(structurePrice))
+                    Text(FormatUtil.formatPreciseISK(structurePrice))
                         .font(.system(.body, design: .monospaced))
                         .foregroundColor(.blue)
 
@@ -281,7 +268,7 @@ struct GroupItemRowView: View {
 
             if let jitaPrice = item.jitaPrice {
                 HStack(spacing: 4) {
-                    Text(formatPrice(jitaPrice))
+                    Text(FormatUtil.formatPreciseISK(jitaPrice))
                         .font(.system(.body, design: .monospaced))
                         .foregroundColor(.blue)
 
@@ -305,7 +292,7 @@ struct GroupItemRowView: View {
                     MarketItemDetailView(
                         databaseManager: DatabaseManager.shared,
                         itemID: item.typeId,
-                        selectedRegionID: -Int(structureId)
+                        selectedRegionID: MarketLocation.structure(structureId).virtualRegionID
                     )
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
@@ -323,7 +310,7 @@ struct GroupItemRowView: View {
                 MarketItemDetailView(
                     databaseManager: DatabaseManager.shared,
                     itemID: item.typeId,
-                    selectedRegionID: 10_000_002
+                    selectedRegionID: MarketManager.theForgeRegionID
                 )
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -335,21 +322,5 @@ struct GroupItemRowView: View {
                 }
             }
         }
-    }
-
-    // 格式化数字，添加千位分隔符
-    private func formatNumber(_ number: Int) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        return formatter.string(from: NSNumber(value: number)) ?? "\(number)"
-    }
-
-    // 格式化价格，添加千位分隔符
-    private func formatPrice(_ price: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
-        return formatter.string(from: NSNumber(value: price)) ?? String(format: "%.2f", price)
     }
 }

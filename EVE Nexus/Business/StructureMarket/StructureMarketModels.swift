@@ -25,13 +25,13 @@ struct ItemOrderInfo: Identifiable, Hashable {
     let orderCount: Int
     let orderType: MarketOrderType // 订单类型：buy 或 sell
 
-    // Hashable 实现
+    /// Hashable 实现
     func hash(into hasher: inout Hasher) {
         hasher.combine(id)
         hasher.combine(orderType)
     }
 
-    // Equatable 实现
+    /// Equatable 实现
     static func == (lhs: ItemOrderInfo, rhs: ItemOrderInfo) -> Bool {
         return lhs.id == rhs.id && lhs.orderType == rhs.orderType
     }
@@ -45,7 +45,7 @@ struct CategoryOrderData: Identifiable {
     let orderCount: Int
     let iconFileName: String
 
-    init(id: Int, name: String, orderCount: Int, iconFileName: String = DatabaseConfig.defaultIcon) {
+    init(id: Int, name: String, orderCount: Int, iconFileName: String = IconManager.defaultIcon) {
         self.id = id
         self.name = name
         self.orderCount = orderCount
@@ -65,7 +65,9 @@ struct GroupOrderData: Identifiable {
 // MARK: - 分组物品数据模型
 
 struct GroupItemInfo: Identifiable {
-    var id: Int { typeId } // typeId
+    var id: Int {
+        typeId
+    } // typeId
     let typeId: Int
     let name: String
     let iconFileName: String

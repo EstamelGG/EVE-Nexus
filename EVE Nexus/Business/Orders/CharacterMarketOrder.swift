@@ -33,5 +33,7 @@ public struct CharacterMarketOrder: Identifiable, Codable {
         case volumeTotal = "volume_total"
     }
 
-    public var id: Int64 { orderId }
+    public var id: Int64 {
+        orderId
+    }
 }

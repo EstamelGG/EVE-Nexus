@@ -1,6 +1,6 @@
 import Foundation
 
-// 月矿提取信息模型
+/// 月矿提取信息模型
 public struct MoonExtractionInfo: Codable {
     public let chunk_arrival_time: String
     public let extraction_start_time: String
@@ -9,7 +9,7 @@ public struct MoonExtractionInfo: Codable {
     public let structure_id: Int64
 }
 
-// 缓存数据结构
+/// 缓存数据结构
 private struct MoonExtractionCacheData: Codable {
     let data: [MoonExtractionInfo]
     let timestamp: Date
@@ -38,7 +38,8 @@ public class CorpMoonExtractionAPI {
         // 1. 获取角色的军团ID
         guard
             let corporationId = try await CharacterDatabaseManager.shared.getCharacterCorporationId(
-                characterId: characterId)
+                characterId: characterId
+            )
         else {
             throw NetworkError.authenticationError("无法获取军团ID")
         }

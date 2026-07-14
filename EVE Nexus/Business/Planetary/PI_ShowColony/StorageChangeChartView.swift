@@ -27,7 +27,7 @@ struct StorageChangeChartView: View {
     @State private var cachedFixedMaxVolume: Double = 0 // 固定上限（capacity * 1.2）
     @State private var useDynamicMax: Bool = true // 是否使用动态上限（自动选择）
 
-    // 计算数据键，用于判断是否需要重新计算
+    /// 计算数据键，用于判断是否需要重新计算
     private func computeDataKey() -> String {
         guard let pinCache = storageVolumeCache[pinId] else {
             return "\(pinId)_empty"
@@ -36,17 +36,17 @@ struct StorageChangeChartView: View {
         return "\(pinId)_\(sortedHours)"
     }
 
-    // 从缓存中获取图表数据（只在数据变化时计算一次）
+    /// 从缓存中获取图表数据（只在数据变化时计算一次）
     private var chartData: [(hour: Int, volume: Double)] {
         return cachedChartData
     }
 
-    // 获取最大体积（用于Y轴）
+    /// 获取最大体积（用于Y轴）
     private var maxVolume: Double {
         return useDynamicMax ? cachedDynamicMaxVolume : cachedFixedMaxVolume
     }
 
-    // 将数值向上取整到整十位数（如 10, 20, 30, 100, 200, 1000, 2000 等）
+    /// 将数值向上取整到整十位数（如 10, 20, 30, 100, 200, 1000, 2000 等）
     private func roundUpToTens(_ value: Double) -> Double {
         if value <= 0 {
             return 10
@@ -63,7 +63,7 @@ struct StorageChangeChartView: View {
         return units * magnitude
     }
 
-    // 更新缓存数据（只在数据真正变化时调用）
+    /// 更新缓存数据（只在数据真正变化时调用）
     private func updateCachedData() {
         let newDataKey = computeDataKey()
         if newDataKey != cachedDataKey {

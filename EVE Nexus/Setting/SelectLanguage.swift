@@ -1,57 +1,26 @@
 import SwiftUI
 
-// MARK: - 圆环进度指示器
-
-struct CircularProgressView: View {
-    let progress: Double
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .stroke(lineWidth: 2.5)
-                .opacity(0.2)
-                .foregroundColor(.accentColor)
-            Circle()
-                .trim(from: 0.0, to: min(max(progress, 0), 1.0))
-                .stroke(style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
-                .foregroundColor(.accentColor)
-                .rotationEffect(.degrees(-90))
-        }
-        .frame(width: 22, height: 22)
-    }
-}
-
 // MARK: - 数据库语言数据模型
 
 private struct DBLanguage: Identifiable {
     let code: String
     let name: String
     let englishName: String?
-    let isBuiltin: Bool
-    var id: String { code }
+    var id: String {
+        code
+    }
 }
 
 private let allDBLanguages: [DBLanguage] = [
-    DBLanguage(code: "en", name: "English", englishName: nil, isBuiltin: true),
-    DBLanguage(code: "zh-Hans", name: "中文", englishName: nil, isBuiltin: true),
-    DBLanguage(code: "de", name: "Deutsch (Beta)", englishName: "German", isBuiltin: false),
-    DBLanguage(code: "es", name: "Español (Beta)", englishName: "Spanish", isBuiltin: false),
-    DBLanguage(code: "fr", name: "Français (Beta)", englishName: "French", isBuiltin: false),
-    DBLanguage(code: "ja", name: "日本語 (Beta)", englishName: "Japanese", isBuiltin: false),
-    DBLanguage(code: "ko", name: "한국어 (Beta)", englishName: "Korean", isBuiltin: false),
-    DBLanguage(code: "ru", name: "Русский (Beta)", englishName: "Russian", isBuiltin: false),
+    DBLanguage(code: "en", name: "English", englishName: nil),
+    DBLanguage(code: "zh-Hans", name: "中文", englishName: nil),
+    DBLanguage(code: "de", name: "Deutsch", englishName: "German"),
+    DBLanguage(code: "es", name: "Español", englishName: "Spanish"),
+    DBLanguage(code: "fr", name: "Français", englishName: "French"),
+    DBLanguage(code: "ja", name: "日本語", englishName: "Japanese"),
+    DBLanguage(code: "ko", name: "한국어", englishName: "Korean"),
+    DBLanguage(code: "ru", name: "Русский", englishName: "Russian"),
 ]
-
-// MARK: - 语言行右侧操作状态
-
-private enum LanguageActionState {
-    case selected
-    case updatable
-    case downloadable
-    case downloading(Double)
-    case processing
-    case none
-}
 
 // MARK: - APP 语言选项
 
@@ -66,17 +35,23 @@ struct LanguageOptionView: View {
             Spacer()
             if isSelected {
                 Image(systemName: "checkmark")
-                    .foregroundColor(.blue)
+                    .foregroundColor(.accentColor)
+                    .transition(.scale.combined(with: .opacity))
             }
         }
         .contentShape(Rectangle())
         .onTapGesture(perform: onTap)
+        .animation(.spring(response: 0.32, dampingFraction: 0.7), value: isSelected)
     }
 }
 
 // MARK: - SelectLanguageView
 
 struct SelectLanguageView: View {
+    private enum CheckFeedback: Equatable {
+        case idle, checking, upToDate
+    }
+
     let appLanguages: [(code: String, name: String)] = [
         ("en", "English"),
         ("zh-Hans", "中文"),
@@ -86,14 +61,19 @@ struct SelectLanguageView: View {
     @AppStorage("selectedLanguage") private var selectedLanguage: String = "en"
     @AppStorage("selectedDatabaseLanguage") private var selectedDatabaseLanguage: String = "en"
     @ObservedObject var databaseManager: DatabaseManager
-    @StateObject private var extraDBManager = ExtraLanguageDBManager.shared
     @StateObject private var updateChecker = SDEUpdateChecker.shared
     @State private var showingSDEUpdateSheet = false
-    @State private var isDeleteMode = false
+    @State private var checkFeedback: CheckFeedback = .idle
+    @State private var checkIconBounce = 0
+    @State private var successPulse = false
+    @State private var switchingDatabaseLanguage: String? = nil
 
     var body: some View {
         List {
-            // APP 语言设置
+            Section {
+                checkUpdateRow
+            }
+
             Section {
                 ForEach(appLanguages, id: \.code) { lang in
                     LanguageOptionView(
@@ -107,72 +87,163 @@ struct SelectLanguageView: View {
                     )
                 }
             } header: {
-                Text(NSLocalizedString("Main_Setting_Language", comment: ""))
+                Text("APP")
                     .font(.headline)
                     .foregroundColor(.primary)
             }
 
-            // 数据库语言设置
             Section {
                 ForEach(allDBLanguages) { lang in
                     databaseLanguageRow(lang)
                 }
             } header: {
-                HStack {
-                    Text(NSLocalizedString("Main_Setting_Database_Language", comment: "数据库语言"))
-                        .font(.headline)
-                        .foregroundColor(.primary)
-                    Spacer()
-                    Button {
-                        withAnimation { isDeleteMode.toggle() }
-                    } label: {
-                        Text(isDeleteMode
-                            ? NSLocalizedString("Common_Done", comment: "完成")
-                            : NSLocalizedString("ExtraDB_Manage_Delete", comment: "管理"))
-                            .font(.subheadline)
-                            .foregroundColor(.blue)
-                    }
-                }
-            }
-
-            // 检查 SDE 更新
-            Section {
-                Button {
-                    Task { await checkSDEUpdate() }
-                } label: {
-                    HStack {
-                        Spacer()
-                        if updateChecker.isChecking {
-                            ProgressView()
-                                .padding(.trailing, 8)
-                            Text(NSLocalizedString("SDE_Checking_Update", comment: "正在检查更新..."))
-                                .foregroundColor(.secondary)
-                        } else {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                            Text(NSLocalizedString("SDE_Check_Update", comment: "检查 SDE 更新"))
-                        }
-                        Spacer()
-                    }
-                }
-                .disabled(updateChecker.isChecking || updateChecker.isButtonDisabled)
+                Text(NSLocalizedString("Main_Setting_Database_Language", comment: "数据库语言"))
+                    .font(.headline)
+                    .foregroundColor(.primary)
             }
         }
         .navigationTitle(NSLocalizedString("Main_Setting_Select_Language", comment: ""))
+        .animation(.easeInOut(duration: 0.25), value: updateChecker.updateStatus)
+        .animation(.spring(response: 0.35, dampingFraction: 0.78), value: checkFeedback)
         .sheet(isPresented: $showingSDEUpdateSheet) {
             SDEUpdateDetailView()
         }
+        .sensoryFeedback(.success, trigger: checkFeedback) { _, new in
+            new == .upToDate
+        }
     }
 
-    // MARK: - 数据库语言行
+    private var checkUpdateRow: some View {
+        Button {
+            Task { await checkSDEUpdate() }
+        } label: {
+            HStack(spacing: 14) {
+                ZStack {
+                    Circle()
+                        .fill(checkIconBackground)
+                        .frame(width: 36, height: 36)
+                        .scaleEffect(successPulse ? 1.08 : 1)
+
+                    Group {
+                        switch checkFeedback {
+                        case .checking:
+                            ProgressView()
+                                .controlSize(.small)
+                        case .upToDate:
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.title3)
+                                .foregroundStyle(.green)
+                                .symbolEffect(.bounce, value: checkIconBounce)
+                        case .idle:
+                            Image(systemName: updateChecker.updateStatus == .hasUpdate
+                                ? "arrow.down.circle.fill"
+                                : "arrow.triangle.2.circlepath")
+                                .font(.title3)
+                                .foregroundStyle(updateChecker.updateStatus == .hasUpdate ? Color.orange : Color.accentColor)
+                                .symbolEffect(.rotate, options: .nonRepeating, value: checkIconBounce)
+                        }
+                    }
+                    .id(checkFeedback)
+                    .transition(.scale.combined(with: .opacity))
+                }
+                .animation(.spring(response: 0.34, dampingFraction: 0.62), value: successPulse)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(checkTitle)
+                        .font(.body.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .contentTransition(.numericText())
+
+                    Text(checkSubtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .contentTransition(.opacity)
+                }
+
+                Spacer(minLength: 8)
+
+                trailingBadge
+            }
+            .padding(.vertical, 4)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .disabled(checkFeedback == .checking || updateChecker.isButtonDisabled)
+    }
+
+    private var checkIconBackground: Color {
+        switch checkFeedback {
+        case .upToDate: return Color.green.opacity(0.12)
+        case .checking: return Color.accentColor.opacity(0.1)
+        case .idle:
+            return updateChecker.updateStatus == .hasUpdate
+                ? Color.orange.opacity(0.12)
+                : Color.accentColor.opacity(0.1)
+        }
+    }
+
+    private var checkTitle: String {
+        switch checkFeedback {
+        case .checking:
+            return NSLocalizedString("SDE_Checking_Update", comment: "正在检查更新...")
+        case .upToDate:
+            return NSLocalizedString("SDE_Already_Latest", comment: "")
+        case .idle:
+            return updateChecker.updateStatus == .hasUpdate
+                ? String(localized: "SDE_View_Update", defaultValue: "查看可用更新")
+                : NSLocalizedString("SDE_Check_Update", comment: "检查 SDE 更新")
+        }
+    }
+
+    private var checkSubtitle: String {
+        switch checkFeedback {
+        case .checking:
+            return String(localized: "SDE_Checking_Subtitle", defaultValue: "正在连接 CloudKit…")
+        case .upToDate:
+            return String(localized: "SDE_Already_Latest_Hint", defaultValue: "数据包已是最新")
+        case .idle:
+            if let last = updateChecker.lastCheckTime {
+                return String(
+                    format: String(localized: "SDE_Last_Checked", defaultValue: "上次检查：%@"),
+                    last.formatted(date: .abbreviated, time: .shortened)
+                )
+            }
+            return String(localized: "SDE_Check_Hint", defaultValue: "点按检查数据包与图标更新")
+        }
+    }
+
+    @ViewBuilder
+    private var trailingBadge: some View {
+        switch checkFeedback {
+        case .upToDate:
+            Text(String(localized: "SDE_Status_Latest", defaultValue: "最新"))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.green)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.green.opacity(0.12), in: Capsule())
+                .transition(.scale.combined(with: .opacity))
+        case .idle where updateChecker.updateStatus == .hasUpdate:
+            Text(String(localized: "SDE_Status_Update", defaultValue: "可更新"))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.orange)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Color.orange.opacity(0.12), in: Capsule())
+                .transition(.scale.combined(with: .opacity))
+        case .checking, .idle:
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
+        }
+    }
 
     @ViewBuilder
     private func databaseLanguageRow(_ lang: DBLanguage) -> some View {
         let isSelected = selectedDatabaseLanguage == lang.code
-        let isInstalled = lang.isBuiltin || extraDBManager.isExtraDBAvailable(languageCode: lang.code)
-        let status = extraDBManager.languageStatus[lang.code]
-        let actionState = resolveActionState(isSelected: isSelected, isInstalled: isInstalled, status: status)
-        let isInProgress = status?.isInProgress == true
-        let canDelete = isDeleteMode && !lang.isBuiltin && isInstalled && !isInProgress
+        let isSwitching = switchingDatabaseLanguage == lang.code
 
         HStack {
             VStack(alignment: .leading, spacing: 2) {
@@ -185,132 +256,54 @@ struct SelectLanguageView: View {
                 }
             }
             Spacer()
-
-            if isDeleteMode {
-                if lang.isBuiltin {
-                    tagLabel(NSLocalizedString("ExtraDB_Builtin", comment: "内置"), color: Color(red: 0.4, green: 0.7, blue: 1.0))
-                } else if canDelete {
-                    Button(role: .destructive) {
-                        deleteExtraDB(lang: lang)
-                    } label: {
-                        Image(systemName: "minus.circle.fill")
-                            .foregroundColor(.red)
-                            .font(.system(size: 20))
-                    }
-                    .buttonStyle(.plain)
-                } else if !isInstalled {
-                    tagLabel(NSLocalizedString("ExtraDB_NotDownloaded", comment: "未下载"), color: .secondary)
-                }
-            } else {
-                actionIndicator(actionState)
+            if isSwitching {
+                ProgressView()
+                    .controlSize(.small)
+                    .transition(.scale.combined(with: .opacity))
+            } else if isSelected {
+                Image(systemName: "checkmark")
+                    .foregroundColor(.accentColor)
+                    .transition(.scale.combined(with: .opacity))
             }
         }
         .contentShape(Rectangle())
+        .animation(.spring(response: 0.32, dampingFraction: 0.72), value: isSelected)
+        .animation(.spring(response: 0.32, dampingFraction: 0.72), value: isSwitching)
         .onTapGesture {
-            guard !isInProgress && !isDeleteMode else { return }
-            handleRowTap(lang: lang, isInstalled: isInstalled)
-        }
-    }
-
-    private func resolveActionState(
-        isSelected: Bool,
-        isInstalled: Bool,
-        status: ExtraLanguageDBManager.DownloadStatus?
-    ) -> LanguageActionState {
-        if let status = status {
-            if case let .downloading(p) = status { return .downloading(p) }
-            if status.isInProgress { return .processing }
-        }
-        if updateChecker.updateStatus == .hasUpdate && isInstalled { return .updatable }
-        if !isInstalled { return .downloadable }
-        if isSelected { return .selected }
-        return .none
-    }
-
-    @ViewBuilder
-    private func actionIndicator(_ state: LanguageActionState) -> some View {
-        switch state {
-        case .selected:
-            Image(systemName: "checkmark")
-                .foregroundColor(.blue)
-        case .updatable:
-            actionBadge(
-                title: NSLocalizedString("ExtraDB_Update", comment: "Update"),
-                color: .orange
-            )
-        case .downloadable:
-            actionBadge(
-                title: NSLocalizedString("ExtraDB_Download", comment: "下载"),
-                color: .blue
-            )
-        case let .downloading(progress):
-            CircularProgressView(progress: progress)
-        case .processing:
-            ProgressView()
-                .controlSize(.small)
-        case .none:
-            EmptyView()
-        }
-    }
-
-    private func actionBadge(title: String, color: Color) -> some View {
-        Text(title)
-            .font(.system(size: 13, weight: .medium))
-            .foregroundColor(color)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(color.opacity(0.12))
-            .cornerRadius(12)
-    }
-
-    private func tagLabel(_ title: String, color: Color) -> some View {
-        Text(title)
-            .font(.system(size: 11))
-            .foregroundColor(.white)
-            .padding(.horizontal, 6)
-            .padding(.vertical, 2)
-            .background(color)
-            .cornerRadius(4)
-    }
-
-    // MARK: - 行点击处理
-
-    private func handleRowTap(lang: DBLanguage, isInstalled: Bool) {
-        if updateChecker.updateStatus == .hasUpdate, isInstalled {
-            showingSDEUpdateSheet = true
-        } else if !isInstalled {
-            Task {
-                await extraDBManager.downloadAndInstall(languageCode: lang.code)
-                if extraDBManager.isExtraDBAvailable(languageCode: lang.code) {
-                    applyDatabaseLanguageChange(code: lang.code)
-                }
-            }
-        } else {
+            guard !isSelected, switchingDatabaseLanguage == nil else { return }
             applyDatabaseLanguageChange(code: lang.code)
         }
     }
 
-    // MARK: - 删除额外语言数据库
-
-    private func deleteExtraDB(lang: DBLanguage) {
-        let wasSelected = selectedDatabaseLanguage == lang.code
-        extraDBManager.removeExtraDB(languageCode: lang.code)
-
-        if wasSelected {
-            applyDatabaseLanguageChange(code: "en")
-        }
-    }
-
-    // MARK: - 检查 SDE 更新
-
     private func checkSDEUpdate() async {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+            checkFeedback = .checking
+        }
+        checkIconBounce += 1
+
         await updateChecker.forceCheckForUpdates()
+
         if updateChecker.updateStatus == .hasUpdate {
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+                checkFeedback = .idle
+            }
             showingSDEUpdateSheet = true
+            return
+        }
+
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.68)) {
+            checkFeedback = .upToDate
+            successPulse = true
+        }
+        checkIconBounce += 1
+
+        try? await Task.sleep(nanoseconds: 2_200_000_000)
+
+        withAnimation(.easeInOut(duration: 0.28)) {
+            successPulse = false
+            checkFeedback = .idle
         }
     }
-
-    // MARK: - 语言切换
 
     private func applyLanguageChange(code: String) {
         selectedLanguage = code
@@ -323,7 +316,6 @@ struct SelectLanguageView: View {
             Bundle.setLanguage(code)
         }
 
-        DatabaseBrowserView.clearCache()
         databaseManager.clearCache()
         databaseManager.loadDatabase()
 
@@ -335,16 +327,20 @@ struct SelectLanguageView: View {
     }
 
     private func applyDatabaseLanguageChange(code: String) {
-        selectedDatabaseLanguage = code
+        switchingDatabaseLanguage = code
+        Task { @MainActor in
+            await Task.yield() // 先让对勾位显示加载指示器
 
-        DatabaseBrowserView.clearCache()
-        databaseManager.clearCache()
-        databaseManager.loadDatabase()
+            selectedDatabaseLanguage = code
+            databaseManager.clearCache()
+            databaseManager.loadDatabase()
+            switchingDatabaseLanguage = nil
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            NotificationCenter.default.post(
-                name: NSNotification.Name("DatabaseLanguageChanged"), object: nil
-            )
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                NotificationCenter.default.post(
+                    name: NSNotification.Name("DatabaseLanguageChanged"), object: nil
+                )
+            }
         }
     }
 }

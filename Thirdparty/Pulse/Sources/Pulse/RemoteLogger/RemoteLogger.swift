@@ -8,11 +8,11 @@ import Combine
 import SwiftUI
 import OSLog
 
-/// Connects to the remote server and sends logs remotely. In the current version,
-/// a server is a Pulse Pro app for macOS).
+// Connects to the remote server and sends logs remotely. In the current version,
+// a server is a Pulse Pro app for macOS).
 @MainActor
 public final class RemoteLogger: ObservableObject, RemoteLoggerConnectionDelegate {
-    /// The store that the logger was initialized with.
+    // The store that the logger was initialized with.
     public private(set) var store: LoggerStore?
 
     @Published
@@ -34,9 +34,9 @@ public final class RemoteLogger: ObservableObject, RemoteLoggerConnectionDelegat
     @AppStorage("com-github-kean-pulse-selected-server")
     private var preferredServer = ""
 
-    /// The servers that you previously connected to. The logger will prioritize
-    /// connecting to the ``RemoteLogger/selectedServerName``, but if it's not found
-    /// it'll pick the first server from the ``RemoteLogger/knownServers``.
+    // The servers that you previously connected to. The logger will prioritize
+    // connecting to the ``RemoteLogger/selectedServerName``, but if it's not found
+    // it'll pick the first server from the ``RemoteLogger/knownServers``.
     @Published
     public private(set) var knownServers: [String] = []
 
@@ -104,11 +104,10 @@ public final class RemoteLogger: ObservableObject, RemoteLoggerConnectionDelegat
         }
     }
 
-    /// If enabled, the logger will automatically connect to the first available
-    /// Pulse Mac app and remember it for the next runs.
-    ///
-    /// - warning: Never use this option in production as, since discovery
-    /// requires Bluetooth, it will trigger a prompt on the first app run.
+    // If enabled, the logger will automatically connect to the first available
+    // Pulse Mac app and remember it for the next runs.
+    //     // - warning: Never use this option in production as, since discovery
+    // requires Bluetooth, it will trigger a prompt on the first app run.
     public var isAutomaticConnectionEnabled = false {
         didSet {
             guard isAutomaticConnectionEnabled else { return }
@@ -118,8 +117,8 @@ public final class RemoteLogger: ObservableObject, RemoteLoggerConnectionDelegat
 
     public static let shared = RemoteLogger()
 
-    /// - parameter store: The store to be synced with the server. By default,
-    /// ``LoggerStore/shared``. Only one store can be synced at at time.
+    // - parameter store: The store to be synced with the server. By default,
+    // ``LoggerStore/shared``. Only one store can be synced at at time.
     public func initialize(store: LoggerStore = .shared) {
         os_log("Initialize with store at %{private}@", log: log, "\(store.storeURL)")
 
@@ -169,8 +168,8 @@ public final class RemoteLogger: ObservableObject, RemoteLoggerConnectionDelegat
         }
     }
 
-    /// Enables remote logging. The logger will start searching for available
-    /// servers.
+    // Enables remote logging. The logger will start searching for available
+    // servers.
     public func enable() {
         guard !isEnabled else { return }
         isEnabled = true
@@ -181,7 +180,7 @@ public final class RemoteLogger: ObservableObject, RemoteLoggerConnectionDelegat
         startBrowser()
     }
 
-    /// Disables remote logging and disconnects from the server.
+    // Disables remote logging and disconnects from the server.
     public func disable() {
         guard isEnabled else { return }
         isEnabled = false
@@ -307,15 +306,14 @@ public final class RemoteLogger: ObservableObject, RemoteLoggerConnectionDelegat
 
     // MARK: Connection
 
-    /// Returns `true` if the server is selected.
+    // Returns `true` if the server is selected.
     public func isSelected(_ server: NWBrowser.Result) -> Bool {
         server.name == selectedServerName
     }
 
-    /// Connects to the selected server.
-    ///
-    /// If the connection is successful, the server is saved to the list of
-    /// "known" servers and the passcode is stored in the keychain.
+    // Connects to the selected server.
+    //     // If the connection is successful, the server is saved to the list of
+    // "known" servers and the passcode is stored in the keychain.
     public func connect(to server: NWBrowser.Result, passcode: String? = nil, _ completion: ((Result<Void, ConnectionError>) -> Void)? = nil) {
         guard let name = server.name else {
             return os_log("Server name is missing", log: log, type: .error)
@@ -348,8 +346,8 @@ public final class RemoteLogger: ObservableObject, RemoteLoggerConnectionDelegat
         disconnect()
     }
 
-    /// Forget the server with the given name, disconnecting it, removing the
-    /// passcode, and removing it from the list of known servers.
+    // Forget the server with the given name, disconnecting it, removing the
+    // passcode, and removing it from the list of known servers.
     public func forgetServer(named name: String) {
         os_log("Forget server  %{private}@", log: log, name)
         knownServers.removeAll(where: { $0 == name })
@@ -426,12 +424,12 @@ public final class RemoteLogger: ObservableObject, RemoteLoggerConnectionDelegat
 
     // MARK: 
 
-    /// Returns passcode for the sever with the given name.
+    // Returns passcode for the sever with the given name.
     public func getPasscode(forServerNamed name: String) -> String? {
         keychain.string(forKey: name)
     }
 
-    /// Sets or removed passcode for the server with the given name.
+    // Sets or removed passcode for the server with the given name.
     public func setPasscode(_ passcode: String?, forServerNamed name: String) {
         if let passcode {
             try? keychain.set(passcode, forKey: name)

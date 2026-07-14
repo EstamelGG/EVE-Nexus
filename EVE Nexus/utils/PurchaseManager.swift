@@ -11,16 +11,16 @@ class PurchaseManager: ObservableObject {
     @Published var errorMessage: String?
     @Published var purchasingBadge: String? = nil // 正在购买的角标
 
-    // 产品ID定义 - 只保留一个赞助产品ID，购买后解锁 Factions/Deadspace/Officers
+    /// 产品ID定义 - 只保留一个赞助产品ID，购买后解锁 Factions/Deadspace/Officers
     private let sponsorProductID = "com.evenexus.badge.rank_officer"
 
-    // 免费角标的rank列表（T1, T2, T3）
+    /// 免费角标的rank列表（T1, T2, T3）
     private let freeRanks: Set<Int> = [1, 2, 3]
 
-    // 赞助后解锁的rank列表（Factions, Deadspace, Officers）
+    /// 赞助后解锁的rank列表（Factions, Deadspace, Officers）
     private let sponsorUnlockedRanks: Set<Int> = [4, 5, 6]
 
-    // 角标到rank的映射
+    /// 角标到rank的映射
     let badgeToRank: [String: Int] = [
         "T1": 1,
         "T2": 2,
@@ -50,7 +50,7 @@ class PurchaseManager: ObservableObject {
         }
     }
 
-    // 检查已购买的产品
+    /// 检查已购买的产品
     private func checkPurchasedProducts() async {
         // 保存旧的购买记录用于对比
         let oldPurchasedRanks = purchasedRanks
@@ -83,7 +83,7 @@ class PurchaseManager: ObservableObject {
         savePurchasedRanks()
     }
 
-    // 监听交易更新
+    /// 监听交易更新
     private func listenForTransactions() async {
         for await result in Transaction.updates {
             do {
@@ -114,7 +114,7 @@ class PurchaseManager: ObservableObject {
         }
     }
 
-    // 加载已购买的rank
+    /// 加载已购买的rank
     private func loadPurchasedRanks() {
         if let data = UserDefaults.standard.data(forKey: purchasedRanksKey),
            let ranks = try? JSONDecoder().decode(Set<Int>.self, from: data)
@@ -125,14 +125,14 @@ class PurchaseManager: ObservableObject {
         purchasedRanks.formUnion(freeRanks)
     }
 
-    // 保存已购买的rank
+    /// 保存已购买的rank
     private func savePurchasedRanks() {
         if let data = try? JSONEncoder().encode(purchasedRanks) {
             UserDefaults.standard.set(data, forKey: purchasedRanksKey)
         }
     }
 
-    // 检查角标是否已解锁
+    /// 检查角标是否已解锁
     func isBadgeUnlocked(_ badge: String) -> Bool {
         guard let rank = badgeToRank[badge] else { return false }
         // T1, T2, T3 始终免费
@@ -143,7 +143,7 @@ class PurchaseManager: ObservableObject {
         return purchasedRanks.contains(rank)
     }
 
-    // 获取角标对应的产品ID（只有付费角标需要产品ID）
+    /// 获取角标对应的产品ID（只有付费角标需要产品ID）
     func getProductID(for badge: String) -> String? {
         guard let rank = badgeToRank[badge] else { return nil }
         // 免费角标不需要产品ID
@@ -154,7 +154,7 @@ class PurchaseManager: ObservableObject {
         return sponsorProductID
     }
 
-    // 加载产品信息
+    /// 加载产品信息
     func loadProducts() async {
         isLoading = true
         errorMessage = nil
@@ -170,7 +170,7 @@ class PurchaseManager: ObservableObject {
         isLoading = false
     }
 
-    // 购买产品（赞助）
+    /// 购买产品（赞助）
     func purchase(_ product: Product, for badge: String) async -> Bool {
         isLoading = true
         purchasingBadge = badge
@@ -222,7 +222,7 @@ class PurchaseManager: ObservableObject {
         }
     }
 
-    // 恢复购买
+    /// 恢复购买
     func restorePurchases() async {
         isLoading = true
         errorMessage = nil
@@ -269,7 +269,7 @@ class PurchaseManager: ObservableObject {
         isLoading = false
     }
 
-    // 验证交易
+    /// 验证交易
     private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
         switch result {
         case .unverified:
@@ -279,7 +279,7 @@ class PurchaseManager: ObservableObject {
         }
     }
 
-    // 获取产品价格字符串
+    /// 获取产品价格字符串
     func getPriceString(for badge: String) -> String? {
         guard let rank = badgeToRank[badge] else {
             return nil

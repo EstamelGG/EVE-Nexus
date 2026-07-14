@@ -12,7 +12,7 @@ enum CharacterSkillsType: Equatable {
     case all0 // 所有技能全部0级
     case character(Int) // 指定角色的技能等级
 
-    // 实现Equatable协议的唯一方法
+    /// 实现Equatable协议的唯一方法
     static func == (lhs: CharacterSkillsType, rhs: CharacterSkillsType) -> Bool {
         switch (lhs, rhs) {
         case (.current_char, .current_char):
@@ -76,8 +76,7 @@ enum CharacterSkillsUtils {
     }
 
     /// 将技能队列合并到技能等级字典
-    ///
-    /// - **已完成**（`finish_date <= now`）：视为该 `finished_level` 已达成，可弥补 ESI `/characters/.../skills` 的延迟。
+    ///     // - **已完成**（`finish_date <= now`）：视为该 `finished_level` 已达成，可弥补 ESI `/characters/.../skills` 的延迟。
     /// - **未完成**（等待中或正在训练）：仅对该技能在队列中的**第一条**未完成项使用 `max(0, finished_level - 1)`，
     ///   表示「下一档要练到的等级」所隐含的至少已具备等级；**不会**对后续排队项再累加，
     ///   避免出现「已训 1、队列排着 2/3/4」却被算成 3 级的情况。
@@ -88,7 +87,7 @@ enum CharacterSkillsUtils {
         var result = baseSkills
         let now = Date()
         let sorted = queue.sorted { $0.queue_position < $1.queue_position }
-        /// 每个技能仅对第一条「未完成」队列项应用 targetLevel-1 启发式
+        // 每个技能仅对第一条「未完成」队列项应用 targetLevel-1 启发式
         var appliedFirstIncompleteHeuristic: Set<Int> = []
 
         for item in sorted {
@@ -196,20 +195,21 @@ enum CharacterSkillsUtils {
 /// 角色选择和技能获取视图。
 /// 该视图展示所有可用角色，并在选择后返回对应角色的技能列表。
 struct CharacterSkillsSelectorView: View {
-    // 数据库管理器
+    /// 数据库管理器
     let databaseManager: DatabaseManager
 
-    // 回调函数，用于返回所选角色的技能列表
+    /// 回调函数，用于返回所选角色的技能列表
     var onSelectSkills: ([Int: Int], String, Int) -> Void
 
-    // 环境变量
+    /// 环境变量
     @Environment(\.dismiss) private var dismiss
 
     // 状态变量
     @State private var characters: [(id: Int, name: String)] = []
     @State private var loadingCharacterId: Int? = nil
     @State private var currentCharacterId: Int = UserDefaults.standard.integer(
-        forKey: "currentCharacterId")
+        forKey: "currentCharacterId"
+    )
     @State private var currentCharacterName: String = ""
 
     var body: some View {
@@ -338,7 +338,7 @@ struct CharacterSkillsSelectorView: View {
         }
     }
 
-    // 加载角色技能
+    /// 加载角色技能
     private func loadCharacterSkills(characterId: Int, characterName: String) {
         // 设置加载状态
         loadingCharacterId = characterId
@@ -371,7 +371,7 @@ struct CharacterSkillsSelectorView: View {
     }
 }
 
-// 角色头像视图组件
+/// 角色头像视图组件
 struct CharacterPortraitView: View {
     let characterId: Int
     @State private var portrait: UIImage?
@@ -425,7 +425,7 @@ struct CharacterPortraitView: View {
     }
 }
 
-// 角色选择行组件
+/// 角色选择行组件
 struct CharacterSelectionRow: View {
     let characterId: Int
     let characterName: String

@@ -1,12 +1,11 @@
 import SwiftUI
 
-// 浏览层级
+/// 浏览层级
 enum BrowserLevel: Hashable {
-    case categories // 分类层级
-    case groups(categoryID: Int, categoryName: String) // 组层级
-    case items(groupID: Int, groupName: String) // 物品层级
+    case categories
+    case groups(categoryID: Int, categoryName: String)
+    case items(groupID: Int, groupName: String)
 
-    // 实现 Hashable
     func hash(into hasher: inout Hasher) {
         switch self {
         case .categories:
@@ -22,63 +21,26 @@ enum BrowserLevel: Hashable {
 }
 
 struct DatabaseBrowserView: View {
+    private typealias CachePayload = ([DatabaseListItem], [Int: String], [Int: String])
+
     @ObservedObject var databaseManager: DatabaseManager
     let level: BrowserLevel
 
-    // 静态缓存
-    private static var navigationCache:
-        [BrowserLevel: ([DatabaseListItem], [Int: String], [Int: String])] = [:]
-    private static let maxCacheSize = 10 // 最大缓存层级数
-    private static var cacheAccessTime: [BrowserLevel: Date] = [:] // 记录访问时间
-
-    // 清除缓存的方法
-    static func clearCache() {
-        navigationCache.removeAll()
-        cacheAccessTime.removeAll()
-    }
-
-    // 更新缓存访问时间
-    private static func updateAccessTime(for level: BrowserLevel) {
-        cacheAccessTime[level] = Date()
-
-        // 如果超出最大缓存大小，移除最旧的缓存
-        if navigationCache.count > maxCacheSize {
-            let oldestLevel = cacheAccessTime.sorted { $0.value < $1.value }.first?.key
-            if let oldestLevel = oldestLevel {
-                navigationCache.removeValue(forKey: oldestLevel)
-                cacheAccessTime.removeValue(forKey: oldestLevel)
-            }
-        }
-    }
-
-    // 获取缓存数据
-    private func getCachedData(for level: BrowserLevel) -> (
-        [DatabaseListItem], [Int: String], [Int: String]
-    )? {
-        if let cachedData = Self.navigationCache[level] {
-            // 更新访问时间
-            Self.updateAccessTime(for: level)
-            Logger.info("使用导航缓存: \(level)")
-            return cachedData
-        }
-        return nil
-    }
-
-    // 设置缓存数据
-    private func setCacheData(
-        for level: BrowserLevel, data: ([DatabaseListItem], [Int: String], [Int: String])
-    ) {
-        Self.navigationCache[level] = data
-        Self.updateAccessTime(for: level)
-    }
-
-    // 根据层级返回分组类型
     private var groupingType: GroupingType {
         switch level {
-        case .categories, .groups:
-            return .publishedOnly
-        case .items:
-            return .metaGroups
+        case .categories, .groups: .publishedOnly
+        case .items: .metaGroups
+        }
+    }
+
+    private var title: String {
+        switch level {
+        case .categories:
+            NSLocalizedString("Main_Database_title", comment: "")
+        case let .groups(_, categoryName):
+            categoryName
+        case let .items(_, groupName):
+            groupName
         }
     }
 
@@ -87,93 +49,61 @@ struct DatabaseBrowserView: View {
             DatabaseListView(
                 databaseManager: databaseManager,
                 title: title,
-                groupingType: groupingType, // 使用根据层级确定的分组类型
+                groupingType: groupingType,
                 loadData: { dbManager in
-                    // 检查缓存
-                    if let cachedData = getCachedData(for: level) {
-                        return (cachedData.0, cachedData.1)
-                    }
-
-                    // 如果没有缓存，加载数据并缓存
                     let data = loadDataForLevel(dbManager)
-                    setCacheData(for: level, data: data)
-
-                    // 预加载图标
-                    if case .categories = level {
-                        // 预加载分类图标
-                        let icons = data.0.map { $0.iconFileName }
-                        IconManager.shared.preloadCommonIcons(icons: icons)
-                    }
-
                     return (data.0, data.1)
                 },
                 searchData: { dbManager, searchText in
-                    // 搜索不使用缓存
-                    let searchResult: ([DatabaseListItem], [Int: String], [Int: String])
-
-                    switch level {
-                    case .categories:
-                        searchResult = dbManager.searchItems(searchText: searchText)
-                    case let .groups(categoryID, _):
-                        searchResult = dbManager.searchItems(
-                            searchText: searchText, categoryID: categoryID
-                        )
-                    case let .items(groupID, _):
-                        searchResult = dbManager.searchItems(
-                            searchText: searchText, groupID: groupID
-                        )
-                    }
-
-                    let (items, metaGroupNames, _) = searchResult
-
-                    // 对搜索结果进行排序：先按科技等级，再按名称
-                    let sortedItems = items.sorted { item1, item2 in
-                        // 首先按科技等级排序
-                        if item1.metaGroupID != item2.metaGroupID {
-                            return (item1.metaGroupID ?? -1) < (item2.metaGroupID ?? -1)
-                        }
-                        // 科技等级相同时按名称排序
-                        return item1.name.localizedCaseInsensitiveCompare(item2.name)
-                            == .orderedAscending
-                    }
-
-                    return (sortedItems, metaGroupNames, [:])
-                }
+                    let (items, metaGroupNames, _) = searchItems(dbManager, searchText)
+                    return (Self.sortedByMetaThenName(items), metaGroupNames, [:])
+                },
+                searchTreeContent: directoryContentProvider
             )
-        }
-        .onDisappear {
-            // 当视图消失时，保留当前层级和上一层级的缓存，清除其他缓存
-            cleanupCache()
         }
     }
 
-    // 根据层级加载数据
-    private func loadDataForLevel(_ dbManager: DatabaseManager) -> (
-        [DatabaseListItem], [Int: String], [Int: String]
-    ) {
-        // 检查缓存
-        if let cachedData = getCachedData(for: level) {
-            return cachedData
+    /// 目录模式内容（结果数超阈值时）：类目/分组层提供层级目录，物品层无更深层级故平铺
+    private var directoryContentProvider: (([DatabaseListItem]) -> AnyView)? {
+        switch level {
+        case .categories:
+            return { items in
+                AnyView(
+                    DatabaseSearchCategoryRows(items: items, databaseManager: databaseManager)
+                )
+            }
+        case let .groups(categoryID, _):
+            return { items in
+                AnyView(
+                    DatabaseSearchGroupRows(
+                        items: items, categoryID: categoryID, databaseManager: databaseManager
+                    )
+                )
+            }
+        case .items:
+            return nil
         }
+    }
 
-        // 如果没有缓存，加载数据并缓存
+    // MARK: - Load
+
+    private func loadDataForLevel(_ dbManager: DatabaseManager) -> CachePayload {
         let data = loadDataFromDatabase(dbManager)
-        setCacheData(for: level, data: data)
 
-        // 预加载图标
         if case .categories = level {
-            // 预加载分类图标
-            let icons = data.0.map { $0.iconFileName }
-            IconManager.shared.preloadCommonIcons(icons: icons)
+            IconManager.shared.preloadCommonIcons(icons: data.0.map(\.iconFileName))
         }
-
         return data
     }
 
-    // 从数据库加载数据
-    private func loadDataFromDatabase(_ dbManager: DatabaseManager) -> (
-        [DatabaseListItem], [Int: String], [Int: String]
-    ) {
+    private func searchItems(
+        _ dbManager: DatabaseManager, _ searchText: String
+    ) -> CachePayload {
+        // 始终全库搜索，不再按当前浏览层级限定 categoryID/groupID
+        dbManager.searchItems(searchText: searchText)
+    }
+
+    private func loadDataFromDatabase(_ dbManager: DatabaseManager) -> CachePayload {
         switch level {
         case .categories:
             let (published, unpublished) = dbManager.loadCategories()
@@ -184,28 +114,13 @@ struct DatabaseBrowserView: View {
                     enName: category.enName,
                     iconFileName: category.iconFileNew,
                     published: category.published,
-                    categoryID: nil,
-                    groupID: nil,
-                    groupName: nil,
-                    pgNeed: nil,
-                    cpuNeed: nil,
-                    rigCost: nil,
-                    emDamage: nil,
-                    themDamage: nil,
-                    kinDamage: nil,
-                    expDamage: nil,
-                    highSlot: nil,
-                    midSlot: nil,
-                    lowSlot: nil,
-                    rigSlot: nil,
-                    gunSlot: nil,
-                    missSlot: nil,
-                    metaGroupID: nil,
-                    marketGroupID: nil,
                     navigationDestination: AnyView(
                         DatabaseBrowserView(
                             databaseManager: databaseManager,
-                            level: .groups(categoryID: category.id, categoryName: category.name)
+                            level: .groups(
+                                categoryID: category.id,
+                                categoryName: category.name
+                            )
                         )
                     )
                 )
@@ -224,21 +139,6 @@ struct DatabaseBrowserView: View {
                     categoryID: group.categoryID,
                     groupID: group.id,
                     groupName: group.name,
-                    pgNeed: nil,
-                    cpuNeed: nil,
-                    rigCost: nil,
-                    emDamage: nil,
-                    themDamage: nil,
-                    kinDamage: nil,
-                    expDamage: nil,
-                    highSlot: nil,
-                    midSlot: nil,
-                    lowSlot: nil,
-                    rigSlot: nil,
-                    gunSlot: nil,
-                    missSlot: nil,
-                    metaGroupID: nil,
-                    marketGroupID: nil,
                     navigationDestination: AnyView(
                         DatabaseBrowserView(
                             databaseManager: databaseManager,
@@ -250,118 +150,303 @@ struct DatabaseBrowserView: View {
             return (items, [:], [:])
 
         case let .items(groupID, groupName):
-            let (published, unpublished, metaGroupNames) = dbManager.loadItems(for: groupID)
-            // 对物品进行排序：先按科技等级，再按名称
-            let sortedItems = (published + unpublished).sorted { item1, item2 in
-                // 首先按科技等级排序
-                if item1.metaGroupID != item2.metaGroupID {
-                    return (item1.metaGroupID) < (item2.metaGroupID)
-                }
-                // 科技等级相同时按名称排序
-                return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
-            }
-
-            let items = sortedItems.map { item in
-                DatabaseListItem(
-                    id: item.id,
-                    name: item.name,
-                    enName: item.enName,
-                    iconFileName: item.iconFileName,
-                    published: item.published,
-                    categoryID: item.categoryID,
-                    groupID: groupID,
-                    groupName: groupName,
-                    pgNeed: item.pgNeed,
-                    cpuNeed: item.cpuNeed,
-                    rigCost: item.rigCost,
-                    emDamage: item.emDamage,
-                    themDamage: item.themDamage,
-                    kinDamage: item.kinDamage,
-                    expDamage: item.expDamage,
-                    highSlot: item.highSlot,
-                    midSlot: item.midSlot,
-                    lowSlot: item.lowSlot,
-                    rigSlot: item.rigSlot,
-                    gunSlot: item.gunSlot,
-                    missSlot: item.missSlot,
-                    metaGroupID: item.metaGroupID,
-                    marketGroupID: nil,
-                    navigationDestination: ItemInfoMap.getItemInfoView(
-                        itemID: item.id,
-                        databaseManager: databaseManager
-                    )
-                )
-            }
+            let (items, metaGroupNames) = dbManager.loadItems(for: groupID, groupName: groupName)
             return (items, metaGroupNames, [:])
         }
     }
 
-    // 清理缓存，只保留当前层级和上一层级的数据
-    private func cleanupCache() {
-        let keysToKeep = getRelevantLevels()
-        Self.navigationCache = Self.navigationCache.filter { keysToKeep.contains($0.key) }
-    }
-
-    // 获取需要保留的层级
-    private func getRelevantLevels() -> Set<BrowserLevel> {
-        var levels = Set<BrowserLevel>([level])
-
-        // 添加上一层级
-        switch level {
-        case .categories:
-            break // 没有上一层级
-        case .groups:
-            levels.insert(.categories)
-        case let .items(_, groupName):
-            // 尝试从组名推断出分类ID
-            if let categoryID = getCategoryIDFromGroupName(groupName) {
-                levels.insert(.groups(categoryID: categoryID, categoryName: ""))
-            }
-        }
-
-        return levels
-    }
-
-    // 从组名推断分类ID（这个方法需要根据你的数据结构来实现）
-    private func getCategoryIDFromGroupName(_: String) -> Int? {
-        // TODO: 实现从组名获取分类ID的逻辑
-        return nil
-    }
-
-    // 根据层级返回标题
-    private var title: String {
-        switch level {
-        case .categories:
-            return NSLocalizedString("Main_Database_title", comment: "")
-        case let .groups(_, categoryName):
-            return categoryName
-        case let .items(_, groupName):
-            return groupName
+    private static func sortedByMetaThenName(_ items: [DatabaseListItem]) -> [DatabaseListItem] {
+        items.sorted { a, b in
+            let metaA = a.metaGroupID ?? -1
+            let metaB = b.metaGroupID ?? -1
+            if metaA != metaB { return metaA < metaB }
+            return a.name.localizedCaseInsensitiveCompare(b.name) == .orderedAscending
         }
     }
 }
 
-// 数据库列表项视图
+// MARK: - 搜索目录模式（结果数超阈值时：与原浏览一致的层级下钻，仅保留含命中的分支）
+
+/// 目录行：图标 + 名称 + 命中数，样式与浏览列表行一致
+private struct DatabaseSearchDirectoryRow: View {
+    let iconFileName: String
+    let name: String
+    let count: Int
+
+    var body: some View {
+        HStack {
+            Image(uiImage: IconManager.shared.loadUIImage(for: iconFileName))
+                .resizable()
+                .frame(width: 32, height: 32)
+                .cornerRadius(6)
+            Text(name)
+                .foregroundColor(.primary)
+            Spacer()
+            Text("\(count)")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+/// 类目层目录行集合（类目按 EVE 客户端优先级排序，已发布/未发布分 section）
+private struct DatabaseSearchCategoryRows: View {
+    let items: [DatabaseListItem]
+    let databaseManager: DatabaseManager
+
+    private var countByCategory: [Int: Int] {
+        var counts: [Int: Int] = [:]
+        for item in items {
+            counts[item.categoryID ?? 0, default: 0] += 1
+        }
+        return counts
+    }
+
+    private var sortedCategoryIDs: [Int] {
+        countByCategory.keys.sorted { a, b in
+            let indexA = MarketManager.categoryPriority.firstIndex(of: a) ?? Int.max
+            let indexB = MarketManager.categoryPriority.firstIndex(of: b) ?? Int.max
+            return indexA == indexB ? a < b : indexA < indexB
+        }
+    }
+
+    private var publishedCategoryIDs: [Int] {
+        sortedCategoryIDs.filter { SDEMemoryStore.category(for: $0)?.published == true }
+    }
+
+    private var unpublishedCategoryIDs: [Int] {
+        sortedCategoryIDs.filter { SDEMemoryStore.category(for: $0)?.published == false }
+    }
+
+    var body: some View {
+        if !publishedCategoryIDs.isEmpty {
+            Section(
+                header: Text(NSLocalizedString("Main_Database_published", comment: "已发布"))
+                    .fontWeight(.semibold)
+                    .font(.system(size: 18))
+                    .foregroundColor(.primary)
+                    .textCase(.none)
+            ) {
+                categoryRows(for: publishedCategoryIDs)
+            }
+        }
+        if !unpublishedCategoryIDs.isEmpty {
+            Section(
+                header: Text(NSLocalizedString("Main_Database_unpublished", comment: "未发布"))
+                    .fontWeight(.semibold)
+                    .font(.system(size: 18))
+                    .foregroundColor(.primary)
+                    .textCase(.none)
+            ) {
+                categoryRows(for: unpublishedCategoryIDs)
+            }
+        }
+    }
+
+    private func categoryRows(for ids: [Int]) -> some View {
+        ForEach(ids, id: \.self) { categoryID in
+            let info = SDEMemoryStore.category(for: categoryID)
+            NavigationLink {
+                DatabaseSearchGroupsView(
+                    categoryID: categoryID,
+                    categoryName: info?.name ?? "Category \(categoryID)",
+                    items: items,
+                    databaseManager: databaseManager
+                )
+            } label: {
+                DatabaseSearchDirectoryRow(
+                    iconFileName: info?.iconFilename ?? IconManager.defaultIcon,
+                    name: info?.name ?? "Category \(categoryID)",
+                    count: countByCategory[categoryID] ?? 0
+                )
+            }
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+        }
+    }
+}
+
+/// 类目下钻页：该类目中含命中的分组列表
+private struct DatabaseSearchGroupsView: View {
+    let categoryID: Int
+    let categoryName: String
+    let items: [DatabaseListItem]
+    let databaseManager: DatabaseManager
+
+    var body: some View {
+        List {
+            DatabaseSearchGroupRows(
+                items: items, categoryID: categoryID, databaseManager: databaseManager
+            )
+        }
+        .navigationTitle(categoryName)
+    }
+}
+
+/// 分组层目录行集合（限定类目，分组按 groupID 排序，已发布/未发布分 section）
+private struct DatabaseSearchGroupRows: View {
+    let items: [DatabaseListItem]
+    let categoryID: Int
+    let databaseManager: DatabaseManager
+
+    private var itemsByGroup: [Int: [DatabaseListItem]] {
+        Dictionary(grouping: items.filter { ($0.categoryID ?? 0) == categoryID }) { $0.groupID ?? 0 }
+    }
+
+    private var sortedGroupIDs: [Int] {
+        itemsByGroup.keys.sorted()
+    }
+
+    private var publishedGroupIDs: [Int] {
+        sortedGroupIDs.filter { SDEMemoryStore.group(for: $0)?.published == true }
+    }
+
+    private var unpublishedGroupIDs: [Int] {
+        sortedGroupIDs.filter { SDEMemoryStore.group(for: $0)?.published == false }
+    }
+
+    var body: some View {
+        if !publishedGroupIDs.isEmpty {
+            Section(
+                header: Text(NSLocalizedString("Main_Database_published", comment: "已发布"))
+                    .fontWeight(.semibold)
+                    .font(.system(size: 18))
+                    .foregroundColor(.primary)
+                    .textCase(.none)
+            ) {
+                groupRows(for: publishedGroupIDs)
+            }
+        }
+        if !unpublishedGroupIDs.isEmpty {
+            Section(
+                header: Text(NSLocalizedString("Main_Database_unpublished", comment: "未发布"))
+                    .fontWeight(.semibold)
+                    .font(.system(size: 18))
+                    .foregroundColor(.primary)
+                    .textCase(.none)
+            ) {
+                groupRows(for: unpublishedGroupIDs)
+            }
+        }
+    }
+
+    private func groupRows(for ids: [Int]) -> some View {
+        ForEach(ids, id: \.self) { groupID in
+            let groupItems = itemsByGroup[groupID] ?? []
+            let info = SDEMemoryStore.group(for: groupID)
+            NavigationLink {
+                DatabaseSearchItemsView(
+                    groupName: info?.name ?? "Group \(groupID)",
+                    items: groupItems
+                )
+            } label: {
+                DatabaseSearchDirectoryRow(
+                    iconFileName: info?.iconFilename ?? IconManager.defaultIcon,
+                    name: info?.name ?? "Group \(groupID)",
+                    count: groupItems.count
+                )
+            }
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+        }
+    }
+}
+
+/// 叶子页：某分组下的全部命中物品（已发布按 metaGroup 分组 + 未发布独立 section）
+private struct DatabaseSearchItemsView: View {
+    let groupName: String
+    let items: [DatabaseListItem]
+
+    private let metaGroupNames: [Int: String] = SDEMemoryStore.localizedMetaGroupNames
+
+    private var publishedItems: [DatabaseListItem] {
+        items.filter(\.published)
+    }
+
+    private var unpublishedItems: [DatabaseListItem] {
+        items.filter { !$0.published }
+    }
+
+    private var itemsByMetaGroup: [(id: Int, name: String, items: [DatabaseListItem])] {
+        var grouped: [Int: [DatabaseListItem]] = [:]
+        for item in publishedItems {
+            grouped[item.metaGroupID ?? 0, default: []].append(item)
+        }
+        return grouped.sorted { $0.key < $1.key }.map { metaGroupID, groupItems in
+            let name: String
+            if metaGroupID == 0 {
+                name = NSLocalizedString("Main_Database_base", comment: "基础物品")
+            } else if let groupName = metaGroupNames[metaGroupID] {
+                name = groupName
+            } else {
+                name = "MetaGroup \(metaGroupID)"
+            }
+            return (id: metaGroupID, name: name, items: groupItems)
+        }
+    }
+
+    var body: some View {
+        List {
+            // 已发布物品按 metaGroup 分组
+            ForEach(itemsByMetaGroup, id: \.id) { group in
+                Section(
+                    header: Text(group.name)
+                        .fontWeight(.semibold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                ) {
+                    ForEach(group.items) { item in
+                        NavigationLink(destination: item.navigationDestination) {
+                            DatabaseListItemView(item: item, showDetails: true)
+                        }
+                        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                    }
+                }
+            }
+            // 未发布物品
+            if !unpublishedItems.isEmpty {
+                Section(
+                    header: Text(NSLocalizedString("Main_Database_unpublished", comment: "未发布"))
+                        .fontWeight(.semibold)
+                        .font(.system(size: 18))
+                        .foregroundColor(.primary)
+                        .textCase(.none)
+                ) {
+                    ForEach(unpublishedItems) { item in
+                        NavigationLink(destination: item.navigationDestination) {
+                            DatabaseListItemView(item: item, showDetails: true)
+                        }
+                        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                    }
+                }
+            }
+        }
+        .navigationTitle(groupName)
+    }
+}
+
+// MARK: - List Item Row
+
 struct DatabaseListItemView: View {
+    private enum CategoryID {
+        static let ship = 6
+        static let module = 7
+        static let charge = 8
+        static let drone = 18
+        static let structureModule = 66
+    }
+
     let item: DatabaseListItem
     let showDetails: Bool
-    /// 是否在名称后显示货舱图标（表示该物品在货舱中）
     var showCargoIndicator: Bool = false
-    /// 由市场浏览器在加载目录树后传入：可属性快速比对的市场组 ID（见 `AttributeCompareMarketPolicy.eligibleMarketGroupIDs`）
-    var attributeCompareEligibleMarketGroupIDs: Set<Int> = []
-    /// 非 nil 且物品 `marketGroupID` 属于上方集合时，上下文菜单显示「快速比对」
     var onAttributeQuickCompare: ((Int) -> Void)? = nil
 
     private var showsAttributeQuickCompareMenuItem: Bool {
-        guard onAttributeQuickCompare != nil else { return false }
-        guard let mg = item.marketGroupID else { return false }
-        return attributeCompareEligibleMarketGroupIDs.contains(mg)
+        onAttributeQuickCompare != nil && item.attributeCompareEligible
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                // 加载并显示图标
                 Image(uiImage: IconManager.shared.loadUIImage(for: item.iconFileName))
                     .resizable()
                     .frame(width: 32, height: 32)
@@ -376,122 +461,22 @@ struct DatabaseListItemView: View {
             }
 
             if showDetails, let categoryID = item.categoryID {
-                VStack(alignment: .leading, spacing: 2) {
-                    // 装备、建筑装备和改装件
-                    if categoryID == 7 || categoryID == 66 {
-                        HStack(spacing: 8) {
-                            if let pgNeed = item.pgNeed {
-                                IconWithValueView(
-                                    iconName: "pg", numericValue: Int(pgNeed), unit: " MW"
-                                )
-                            }
-                            if let cpuNeed = item.cpuNeed {
-                                IconWithValueView(
-                                    iconName: "cpu", numericValue: Int(cpuNeed), unit: " Tf"
-                                )
-                            }
-                            if let rigCost = item.rigCost {
-                                IconWithValueView(
-                                    iconName: "rigcost", numericValue: rigCost
-                                )
-                            }
-                        }
-                    }
-                    // 弹药和无人机
-                    else if categoryID == 18 || categoryID == 8 {
-                        if hasAnyDamage { // 添加检查是否有任何伤害值
-                            HStack(spacing: 8) { // 增加整体的间距
-                                // 电磁伤害
-                                HStack(spacing: 4) { // 增加图标和条之间的间距
-                                    Image("em")
-                                        .resizable()
-                                        .frame(width: 18, height: 18)
-                                    DamageBarView(
-                                        percentage: calculateDamagePercentage(item.emDamage ?? 0),
-                                        color: Color(
-                                            red: 74 / 255, green: 128 / 255, blue: 192 / 255
-                                        )
-                                    )
-                                }
-
-                                // 热能伤害
-                                HStack(spacing: 4) { // 增加图标和条之间的间距
-                                    Image("th")
-                                        .resizable()
-                                        .frame(width: 18, height: 18)
-                                    DamageBarView(
-                                        percentage: calculateDamagePercentage(item.themDamage ?? 0),
-                                        color: Color(
-                                            red: 176 / 255, green: 53 / 255, blue: 50 / 255
-                                        )
-                                    )
-                                }
-
-                                // 动能伤害
-                                HStack(spacing: 4) { // 增加图标和条之间的间距
-                                    Image("ki")
-                                        .resizable()
-                                        .frame(width: 18, height: 18)
-                                    DamageBarView(
-                                        percentage: calculateDamagePercentage(item.kinDamage ?? 0),
-                                        color: Color(
-                                            red: 155 / 255, green: 155 / 255, blue: 155 / 255
-                                        )
-                                    )
-                                }
-
-                                // 爆炸伤害
-                                HStack(spacing: 4) { // 增加图标和条之间的间距
-                                    Image("ex")
-                                        .resizable()
-                                        .frame(width: 18, height: 18)
-                                    DamageBarView(
-                                        percentage: calculateDamagePercentage(item.expDamage ?? 0),
-                                        color: Color(
-                                            red: 185 / 255, green: 138 / 255, blue: 62 / 255
-                                        )
-                                    )
-                                }
-                            }
-                        }
-                    }
-                    // 舰船
-                    else if categoryID == 6 {
-                        HStack(spacing: 8) { // 减小槽位之间的间距
-                            if let highSlot = item.highSlot, highSlot != 0 {
-                                IconWithValueView(iconName: "highSlot", numericValue: highSlot)
-                            }
-                            if let midSlot = item.midSlot, midSlot != 0 {
-                                IconWithValueView(iconName: "midSlot", numericValue: midSlot)
-                            }
-                            if let lowSlot = item.lowSlot, lowSlot != 0 {
-                                IconWithValueView(iconName: "lowSlot", numericValue: lowSlot)
-                            }
-                            if let rigSlot = item.rigSlot, rigSlot != 0 {
-                                IconWithValueView(iconName: "rigSlot", numericValue: rigSlot)
-                            }
-                            if let gunSlot = item.gunSlot, gunSlot != 0 {
-                                IconWithValueView(iconName: "gunSlot", numericValue: gunSlot)
-                            }
-                            if let missSlot = item.missSlot, missSlot != 0 {
-                                IconWithValueView(iconName: "missSlot", numericValue: missSlot)
-                            }
-                        }
-                    }
-                }
-                .font(.caption)
-                .foregroundColor(.secondary)
+                detailRow(for: categoryID)
+                    .font(.caption)
+                    .foregroundColor(.secondary)
             }
-        }.contextMenu {
+        }
+        .contextMenu {
             if !item.name.isEmpty {
                 Button {
                     UIPasteboard.general.string = item.name
                 } label: {
                     Label(
-                        NSLocalizedString("Misc_Copy_Name", comment: ""), systemImage: "doc.on.doc"
+                        NSLocalizedString("Misc_Copy_Name", comment: ""),
+                        systemImage: "doc.on.doc"
                     )
                 }
-                if let enName = item.enName, !enName.isEmpty && enName != item.name {
+                if let enName = item.enName, !enName.isEmpty, enName != item.name {
                     Button {
                         UIPasteboard.general.string = enName
                     } label: {
@@ -515,38 +500,93 @@ struct DatabaseListItemView: View {
         }
     }
 
-    private var hasAnyDamage: Bool {
-        let damages = [item.emDamage, item.themDamage, item.kinDamage, item.expDamage]
-        return !damages.contains(nil) && damages.compactMap { $0 }.contains { $0 > 0 }
+    @ViewBuilder
+    private func detailRow(for categoryID: Int) -> some View {
+        switch categoryID {
+        case CategoryID.module, CategoryID.structureModule:
+            HStack(spacing: 8) {
+                if let pgNeed = item.pgNeed {
+                    IconWithValueView(iconName: "pg", numericValue: Int(pgNeed), unit: " MW")
+                }
+                if let cpuNeed = item.cpuNeed {
+                    IconWithValueView(iconName: "cpu", numericValue: Int(cpuNeed), unit: " Tf")
+                }
+                if let rigCost = item.rigCost {
+                    IconWithValueView(iconName: "rigcost", numericValue: rigCost)
+                }
+            }
+
+        case CategoryID.charge, CategoryID.drone:
+            if hasAnyDamage {
+                HStack(spacing: 8) {
+                    ForEach(0 ..< 4, id: \.self) { index in
+                        HStack(spacing: 4) {
+                            Image(DamageTypePalette.damageIcons[index])
+                                .resizable()
+                                .frame(width: 18, height: 18)
+                            DamageBarView(
+                                percentage: damagePercentage(at: index),
+                                color: DamageTypePalette.colors[index]
+                            )
+                        }
+                    }
+                }
+            }
+
+        case CategoryID.ship:
+            HStack(spacing: 8) {
+                ForEach(shipSlotEntries, id: \.icon) { entry in
+                    IconWithValueView(iconName: entry.icon, numericValue: entry.value)
+                }
+            }
+
+        default:
+            EmptyView()
+        }
     }
 
-    private func calculateDamagePercentage(_ damage: Double) -> Int {
-        let damages = [
-            item.emDamage,
-            item.themDamage,
-            item.kinDamage,
-            item.expDamage,
-        ].compactMap { $0 }
+    private var shipSlotEntries: [(icon: String, value: Int)] {
+        [
+            ("highSlot", item.highSlot),
+            ("midSlot", item.midSlot),
+            ("lowSlot", item.lowSlot),
+            ("rigSlot", item.rigSlot),
+            ("gunSlot", item.gunSlot),
+            ("missSlot", item.missSlot),
+        ]
+        .compactMap { icon, value in
+            guard let value, value != 0 else { return nil }
+            return (icon, value)
+        }
+    }
 
-        let totalDamage = damages.reduce(0, +)
-        guard totalDamage > 0 else { return 0 }
+    private var damageValues: [Double?] {
+        [item.emDamage, item.themDamage, item.kinDamage, item.expDamage]
+    }
 
-        // 直接计算百分比并四舍五入
-        return Int(round((damage / totalDamage) * 100))
+    private var hasAnyDamage: Bool {
+        let values = damageValues
+        guard values.allSatisfy({ $0 != nil }) else { return false }
+        return values.compactMap { $0 }.contains { $0 > 0 }
+    }
+
+    private func damagePercentage(at index: Int) -> Int {
+        let damages = damageValues.compactMap { $0 }
+        let total = damages.reduce(0, +)
+        guard total > 0, index < damages.count else { return 0 }
+        return Int(round((damages[index] / total) * 100))
     }
 }
 
-// 图标和数值的组合图
+/// 图标和数值的组合
 struct IconWithValueView: View {
     let iconName: String
     let value: String
 
-    // 添加一个便利初始化方法，用于处理数值类型
     init(iconName: String, numericValue: Int, unit: String? = nil) {
         self.iconName = iconName
-        value =
-            unit.map { "\(FormatUtil.format(Double(numericValue)))\($0)" }
-                ?? FormatUtil.format(Double(numericValue))
+        value = unit.map { "\(FormatUtil.format(Double(numericValue)))\($0)" }
+            ?? FormatUtil.format(Double(numericValue))
     }
 
     var body: some View {

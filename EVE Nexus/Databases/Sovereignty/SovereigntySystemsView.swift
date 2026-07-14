@@ -1,6 +1,6 @@
 import SwiftUI
 
-// 主权势力星系详情视图
+/// 主权势力星系详情视图
 struct SovereigntySystemsView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let sovereigntyInfo: SovereigntyInfo
@@ -13,13 +13,11 @@ struct SovereigntySystemsView: View {
     @State private var errorMessage: String? = nil
     @State private var showError: Bool = false
 
-    // 星系信息结构
+    /// 星系信息结构
     struct SystemInfo: Identifiable {
         let id: Int
         let systemId: Int
         let systemName: String
-        let systemNameEn: String
-        let systemNameZh: String
         let regionName: String
         let regionId: Int
         let security: Double
@@ -64,7 +62,7 @@ struct SovereigntySystemsView: View {
         .searchable(
             text: $searchText,
             isPresented: $isSearchActive,
-            placement: .navigationBarDrawer(displayMode: .always),
+            // placement: .navigationBarDrawer(displayMode: .always),
             prompt: NSLocalizedString("System_Search_Placeholder", comment: "搜索星系...")
         )
         .navigationTitle(sovereigntyInfo.name)
@@ -93,7 +91,7 @@ struct SovereigntySystemsView: View {
         )
     }
 
-    // 过滤后的分组星系
+    /// 过滤后的分组星系
     private var filteredGroupedSystems: [String: [SystemInfo]] {
         if searchText.isEmpty {
             return groupedSystems
@@ -101,12 +99,10 @@ struct SovereigntySystemsView: View {
             var filtered: [String: [SystemInfo]] = [:]
             for (regionName, regionSystems) in groupedSystems {
                 let filteredSystems = regionSystems.filter { system in
-                    // 搜索星系名称（中英文）
-                    system.systemName.localizedCaseInsensitiveContains(searchText)
-                        || system.systemNameEn.localizedCaseInsensitiveContains(searchText)
-                        || system.systemNameZh.localizedCaseInsensitiveContains(searchText)
-                        // 搜索星域和星座名称
-                        || system.regionName.localizedCaseInsensitiveContains(searchText)
+                    SDEMemoryStore.solarSystemNames[system.systemId]?.matchesSearch(searchText)
+                        == true
+                        || SDEMemoryStore.regionNames[system.regionId]?.matchesSearch(searchText)
+                        == true
                         || system.constellationName.localizedCaseInsensitiveContains(searchText)
                 }
                 if !filteredSystems.isEmpty {
@@ -117,7 +113,7 @@ struct SovereigntySystemsView: View {
         }
     }
 
-    // 加载星系数据
+    /// 加载星系数据
     private func loadSystemsData() {
         isLoading = true
 
@@ -135,7 +131,7 @@ struct SovereigntySystemsView: View {
         }
     }
 
-    // 刷新星系数据
+    /// 刷新星系数据
     private func refreshSystemsData() async {
         do {
             try await loadSystemsDataInternal(forceRefresh: true)
@@ -148,7 +144,7 @@ struct SovereigntySystemsView: View {
         }
     }
 
-    // 内部加载方法
+    /// 内部加载方法
     private func loadSystemsDataInternal(forceRefresh: Bool) async throws {
         // 获取主权数据
         let sovereigntyData = try await SovereigntyDataAPI.shared.fetchSovereigntyData(
@@ -188,25 +184,15 @@ struct SovereigntySystemsView: View {
             databaseManager: databaseManager
         )
 
-        // 批量获取星系中英文名称
-        let systemNamesMap = await getBatchSolarSystemNames(
-            solarSystemIds: controlledSystemIds,
-            databaseManager: databaseManager
-        )
-
         // 转换为SystemInfo数组
         var systemInfoList: [SystemInfo] = []
         for systemId in controlledSystemIds {
-            if let info = systemInfoMap[systemId],
-               let names = systemNamesMap[systemId]
-            {
+            if let info = systemInfoMap[systemId] {
                 systemInfoList.append(
                     SystemInfo(
                         id: systemId,
                         systemId: systemId,
                         systemName: info.systemName,
-                        systemNameEn: names.nameEn,
-                        systemNameZh: names.nameZh,
                         regionName: info.regionName,
                         regionId: info.regionId,
                         security: info.security,
@@ -233,7 +219,7 @@ struct SovereigntySystemsView: View {
     }
 }
 
-// 星系行视图
+/// 星系行视图
 struct SovSystemRow: View {
     let system: SovereigntySystemsView.SystemInfo
 

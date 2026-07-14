@@ -8,16 +8,19 @@ struct MarketStructure: Identifiable, Codable {
     let structureName: String
     let characterId: Int
     let characterName: String
-    let systemId: Int // 改为存储系统ID
-    let regionId: Int // 改为存储星域ID
+    let systemId: Int
+    let regionId: Int
     let security: Double
     let addedDate: Date
-    let iconFilename: String?
+    let structureTypeId: Int?
 
     init(
+        id: UUID = UUID(),
         structureId: Int, structureName: String, characterId: Int, characterName: String,
-        systemId: Int, regionId: Int, security: Double, iconFilename: String? = nil
+        systemId: Int, regionId: Int, security: Double, addedDate: Date = Date(),
+        structureTypeId: Int? = nil
     ) {
+        self.id = id
         self.structureId = structureId
         self.structureName = structureName
         self.characterId = characterId
@@ -25,48 +28,22 @@ struct MarketStructure: Identifiable, Codable {
         self.systemId = systemId
         self.regionId = regionId
         self.security = security
-        addedDate = Date()
-        self.iconFilename = iconFilename
+        self.addedDate = addedDate
+        self.structureTypeId = structureTypeId
     }
 
-    // 通过数据库查询获取系统名称
+    var iconFileName: String {
+        guard let structureTypeId else { return IconManager.defaultItemIcon }
+        return DatabaseManager.shared.getItemIconFileName(for: structureTypeId)
+            ?? IconManager.defaultItemIcon
+    }
+
     var systemName: String {
-        let query = """
-            SELECT solarSystemName
-            FROM solarsystems
-            WHERE solarSystemID = ?
-        """
-
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            query, parameters: [systemId]
-        ),
-            let row = rows.first,
-            let name = row["solarSystemName"] as? String
-        {
-            return name
-        }
-
-        return "Unknown System"
+        SDEMemoryStore.solarSystemName(for: systemId) ?? "Unknown System"
     }
 
-    // 通过数据库查询获取星域名称
     var regionName: String {
-        let query = """
-            SELECT regionName
-            FROM regions
-            WHERE regionID = ?
-        """
-
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            query, parameters: [regionId]
-        ),
-            let row = rows.first,
-            let name = row["regionName"] as? String
-        {
-            return name
-        }
-
-        return "Unknown Region"
+        SDEMemoryStore.regionName(for: regionId) ?? "Unknown Region"
     }
 }
 
@@ -76,6 +53,8 @@ class MarketStructureManager: ObservableObject {
     static let shared = MarketStructureManager()
 
     @Published var structures: [MarketStructure] = []
+    /// 最近一次建筑信息刷新时间，作为 StructureRowView 重新计算缓存状态的信号
+    @Published var lastStructureInfoRefresh: Date? = nil
 
     private let fileManager = FileManager.default
     private let documentsDirectory: URL
@@ -113,10 +92,7 @@ class MarketStructureManager: ObservableObject {
         do {
             let data = try Data(contentsOf: configFilePath)
             var loadedStructures = try JSONDecoder().decode([MarketStructure].self, from: data)
-
-            // 按添加时间排序，先添加的在前面
             loadedStructures.sort { $0.addedDate < $1.addedDate }
-
             structures = loadedStructures
             Logger.info("加载了 \(structures.count) 个市场建筑")
         } catch {
@@ -136,7 +112,6 @@ class MarketStructureManager: ObservableObject {
     }
 
     func addStructure(_ structure: MarketStructure) {
-        // 检查是否已存在相同的建筑
         if !structures.contains(where: { $0.structureId == structure.structureId }) {
             structures.append(structure)
             saveStructures()
@@ -147,6 +122,79 @@ class MarketStructureManager: ObservableObject {
         structures.removeAll { $0.id == structure.id }
         saveStructures()
     }
+
+    /// 强制刷新单个已保存建筑的基本信息
+    @MainActor
+    func refreshStructureInfo(structureId: Int, characterId: Int) async {
+        guard let index = structures.firstIndex(where: { $0.structureId == structureId }) else {
+            return
+        }
+        structures[index] = await Self.fetchUpdatedStructure(
+            from: structures[index], characterId: characterId
+        )
+        saveStructures()
+    }
+
+    /// 强制从 ESI 重新拉取所有已保存建筑的信息
+    @MainActor
+    func refreshStructureInfos() async {
+        guard !structures.isEmpty else { return }
+
+        let current = structures
+        var refreshed = current
+
+        await withTaskGroup(of: (Int, MarketStructure).self) { group in
+            for (index, structure) in current.enumerated() {
+                group.addTask {
+                    (
+                        index,
+                        await Self.fetchUpdatedStructure(
+                            from: structure, characterId: structure.characterId
+                        )
+                    )
+                }
+            }
+            for await (index, structure) in group {
+                refreshed[index] = structure
+            }
+        }
+
+        structures = refreshed
+        saveStructures()
+        lastStructureInfoRefresh = Date()
+        Logger.info("已刷新 \(refreshed.count) 个市场建筑信息")
+    }
+
+    private static func fetchUpdatedStructure(
+        from structure: MarketStructure, characterId: Int
+    ) async -> MarketStructure {
+        do {
+            let info = try await UniverseStructureAPI.shared.fetchStructureInfo(
+                structureId: Int64(structure.structureId),
+                characterId: characterId,
+                forceRefresh: true
+            )
+            let systemInfo = await getSolarSystemInfo(
+                solarSystemId: info.solar_system_id,
+                databaseManager: DatabaseManager.shared
+            )
+            return MarketStructure(
+                id: structure.id,
+                structureId: structure.structureId,
+                structureName: info.name,
+                characterId: structure.characterId,
+                characterName: structure.characterName,
+                systemId: info.solar_system_id,
+                regionId: systemInfo?.regionId ?? structure.regionId,
+                security: systemInfo?.security ?? structure.security,
+                addedDate: structure.addedDate,
+                structureTypeId: info.type_id
+            )
+        } catch {
+            Logger.error("刷新建筑信息失败 - ID: \(structure.structureId), 错误: \(error)")
+            return structure
+        }
+    }
 }
 
 // MARK: - 主视图
@@ -154,10 +202,10 @@ class MarketStructureManager: ObservableObject {
 struct MarketStructureSettingsView: View {
     @StateObject private var manager = MarketStructureManager.shared
     @State private var showingAddStructureSheet = false
+    @State private var isAutoRefreshing = false
 
     var body: some View {
         List {
-            // 添加建筑 Section
             Section {
                 Button(action: {
                     showingAddStructureSheet = true
@@ -179,7 +227,6 @@ struct MarketStructureSettingsView: View {
                 }
             }
 
-            // 已添加的建筑 Section
             if !manager.structures.isEmpty {
                 Section(
                     header: Text(
@@ -188,7 +235,8 @@ struct MarketStructureSettingsView: View {
                                 "Main_Setting_Market_Structure_Added_Count", comment: ""
                             ),
                             manager.structures.count
-                        ))
+                        )
+                    )
                 ) {
                     ForEach(manager.structures) { structure in
                         StructureRowView(structure: structure)
@@ -198,12 +246,21 @@ struct MarketStructureSettingsView: View {
             }
         }
         .listStyle(.insetGrouped)
+        .refreshable {
+            await manager.refreshStructureInfos()
+        }
         .navigationTitle(
             NSLocalizedString("Main_Setting_Market_Structure_Settings_Title", comment: "")
         )
         .navigationBarTitleDisplayMode(.large)
         .sheet(isPresented: $showingAddStructureSheet) {
             AddMarketStructureSheet()
+        }
+        .task {
+            guard !isAutoRefreshing, !manager.structures.isEmpty else { return }
+            isAutoRefreshing = true
+            await manager.refreshStructureInfos()
+            isAutoRefreshing = false
         }
     }
 
@@ -219,6 +276,7 @@ struct MarketStructureSettingsView: View {
 struct StructureRowView: View {
     let structure: MarketStructure
 
+    @ObservedObject private var manager = MarketStructureManager.shared
     @State private var isLoadingOrders = false
     @State private var structureOrdersProgress: StructureOrdersProgress? = nil
     @State private var cacheStatus: StructureMarketManager.CacheStatus = .noData
@@ -230,134 +288,51 @@ struct StructureRowView: View {
     var body: some View {
         HStack(spacing: 12) {
             // 建筑图标
-            if let iconFilename = structure.iconFilename {
-                IconManager.shared.loadImage(for: iconFilename)
-                    .resizable()
-                    .frame(width: 40, height: 40)
-                    .cornerRadius(8)
-            } else {
-                // 默认建筑图标
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(Color.gray.opacity(0.3))
-                    .frame(width: 40, height: 40)
-                    .overlay(
-                        Image(systemName: "building.2")
-                            .foregroundColor(.secondary)
-                    )
-            }
+            IconManager.shared.loadImage(for: structure.iconFileName)
+                .resizable()
+                .frame(width: 40, height: 40)
+                .cornerRadius(8)
 
             // 建筑信息
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 4) {
                 // 建筑名称
                 Text(structure.structureName)
                     .font(.headline)
                     .foregroundColor(.primary)
+                    .lineLimit(1)
 
-                // 位置信息
+                // 位置 + 角色（合并为一行）
                 HStack(spacing: 4) {
                     Text(formatSystemSecurity(structure.security))
                         .foregroundColor(getSecurityColor(structure.security))
-                        .font(.caption)
-
                     Text("\(structure.systemName) / \(structure.regionName)")
                         .foregroundColor(.secondary)
-                        .font(.caption)
+                    Text("·")
+                        .foregroundColor(.secondary)
+                    Image(systemName: "person.circle.fill")
+                        .foregroundColor(.blue)
+                    Text(structure.characterName)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
                 }
+                .font(.caption)
 
-                // 角色信息和缓存更新时间
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack {
-                        Image(systemName: "person.circle")
-                            .foregroundColor(.blue)
-                            .font(.caption)
-
-                        Text(structure.characterName)
-                            .foregroundColor(.secondary)
-                            .font(.caption)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-
-                    // 缓存更新时间和订单统计信息（三行展示）
-                    VStack(alignment: .leading, spacing: 2) {
-                        // 第一行：缓存更新时间
-                        if let updateDate = lastUpdateDate {
-                            let minutesAgo = Int(Date().timeIntervalSince(updateDate) / 60)
-                            if minutesAgo >= 0 {
-                                Text(formatTimeAgo(minutesAgo))
-                                    .foregroundColor(.secondary)
-                                    .fontWeight(.semibold)
-                                    .font(.caption2)
-                            }
-                        } else {
-                            // 没有缓存时显示提示
-                            Text(NSLocalizedString("Structure_Orders_No_Cache", comment: "无缓存"))
-                                .foregroundColor(.secondary)
-                                .font(.caption2)
-                        }
-
-                        // 第二行：订单数
-                        if let ordersCount = ordersCount {
-                            Text(String.localizedStringWithFormat(
-                                NSLocalizedString("Structure_Orders_Count", comment: "%d 个订单"),
-                                ordersCount
-                            ))
-                            .foregroundColor(.secondary)
-                            .font(.caption2)
-                        }
-
-                        // 第三行：物品类别数
-                        if let itemTypesCount = itemTypesCount {
-                            Text(String.localizedStringWithFormat(
-                                NSLocalizedString("Structure_Orders_Item_Types", comment: "%d 种物品"),
-                                itemTypesCount
-                            ))
-                            .foregroundColor(.secondary)
-                            .font(.caption2)
-                        }
-                    }
-                }
+                // 缓存统计（合并为一行）
+                cacheSummaryText
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .animation(.easeInOut(duration: 0.25), value: lastUpdateDate)
             }
 
             Spacer()
 
             // 缓存状态和加载进度指示器
-            VStack(spacing: 4) {
-                if isLoadingOrders {
-                    if let progress = structureOrdersProgress {
-                        switch progress {
-                        case let .loading(currentPage, totalPages):
-                            VStack(spacing: 2) {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                                Text("\(currentPage)/\(totalPages)")
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-                        case .completed:
-                            ProgressView()
-                                .scaleEffect(0.8)
-                        }
-                    } else {
-                        ProgressView()
-                            .scaleEffect(0.8)
-                    }
-                } else {
-                    // 显示缓存状态
-                    switch cacheStatus {
-                    case .valid:
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                            .font(.title2)
-                    case .expired, .noData:
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.red)
-                            .font(.title2)
-                    }
-                }
-            }
+            statusIndicator
+                .animation(.easeInOut(duration: 0.25), value: cacheStatus)
+                .animation(.easeInOut(duration: 0.25), value: isLoadingOrders)
         }
-        .contentShape(Rectangle()) // 确保整行可点击
+        .contentShape(Rectangle())
         .onTapGesture {
             if !isLoadingOrders {
                 showingReloadAlert = true
@@ -375,53 +350,115 @@ struct StructureRowView: View {
             Divider()
 
             Button {
-                Task {
-                    await loadStructureOrders()
-                }
+                Task { await loadStructureOrders() }
             } label: {
-                if isLoadingOrders {
-                    Label(
-                        NSLocalizedString("Structure_Orders_Loading", comment: "正在加载订单..."),
-                        systemImage: "arrow.clockwise"
-                    )
-                } else {
-                    Label(
-                        NSLocalizedString("Structure_Orders_Load", comment: "获取市场订单"),
-                        systemImage: "chart.bar.xaxis"
-                    )
-                }
+                Label(
+                    NSLocalizedString(
+                        isLoadingOrders ? "Structure_Orders_Loading" : "Structure_Orders_Load",
+                        comment: ""
+                    ),
+                    systemImage: isLoadingOrders ? "arrow.clockwise" : "chart.bar.xaxis"
+                )
             }
             .disabled(isLoadingOrders)
         }
         .padding(.vertical, 4)
         .onAppear {
-            cacheStatus = StructureMarketManager.getCacheStatus(
-                structureId: Int64(structure.structureId))
-            lastUpdateDate = StructureMarketManager.getLocalOrdersModificationDate(
-                structureId: Int64(structure.structureId))
-            // 加载本地订单统计信息
-            Task {
-                await loadLocalOrdersStatistics()
-            }
+            refreshCacheState()
+            Task { await loadLocalOrdersStatistics() }
+        }
+        .onChange(of: manager.lastStructureInfoRefresh) {
+            refreshCacheState()
         }
         .alert(
-            NSLocalizedString("Structure_Orders_Reload_Title", comment: "重新加载订单"),
+            NSLocalizedString("Structure_Orders_Reload_Title", comment: ""),
             isPresented: $showingReloadAlert
         ) {
-            Button(
-                NSLocalizedString("Structure_Orders_Reload_Cancel", comment: "取消"), role: .cancel
-            ) {}
-            Button(NSLocalizedString("Structure_Orders_Reload_Confirm", comment: "确认")) {
-                Task {
-                    await loadStructureOrders()
-                }
+            Button(NSLocalizedString("Structure_Orders_Reload_Cancel", comment: ""), role: .cancel) {}
+            Button(NSLocalizedString("Structure_Orders_Reload_Confirm", comment: "")) {
+                Task { await loadStructureOrders() }
             }
         } message: {
-            Text(NSLocalizedString("Structure_Orders_Reload_Message", comment: "是否重新加载该建筑的市场订单数据？"))
+            Text(NSLocalizedString("Structure_Orders_Reload_Message", comment: ""))
         }
     }
 
-    // 加载建筑市场订单
+    /// 缓存统计文本（时间 + 订单数 + 物品数合并展示）
+    private var cacheSummaryText: some View {
+        Group {
+            if let updateDate = lastUpdateDate {
+                let minutesAgo = Int(Date().timeIntervalSince(updateDate) / 60)
+                if minutesAgo >= 0 {
+                    Text(cacheSummaryString(minutesAgo: minutesAgo))
+                        .fontWeight(.semibold)
+                        .transition(.opacity)
+                }
+            } else {
+                Text(NSLocalizedString("Structure_Orders_No_Cache", comment: ""))
+                    .transition(.opacity)
+            }
+        }
+    }
+
+    /// 拼接缓存统计文本（已加载时间 + 订单数 + 物品数）
+    private func cacheSummaryString(minutesAgo: Int) -> String {
+        var parts: [String] = [
+            FormatUtil.formatMinutesSinceUpdate(
+                minutesAgo,
+                justUpdated: NSLocalizedString("Structure_Orders_Just_Updated", comment: ""),
+                minutesAgoFormat: NSLocalizedString("Structure_Orders_Minutes_Ago", comment: "")
+            ),
+        ]
+        if let ordersCount = ordersCount {
+            parts.append(String.localizedStringWithFormat(
+                NSLocalizedString("Structure_Orders_Count", comment: ""), ordersCount
+            ))
+        }
+        if let itemTypesCount = itemTypesCount {
+            parts.append(String.localizedStringWithFormat(
+                NSLocalizedString("Structure_Orders_Item_Types", comment: ""), itemTypesCount
+            ))
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    /// 右侧缓存状态/加载进度指示器
+    @ViewBuilder
+    private var statusIndicator: some View {
+        if isLoadingOrders {
+            if let progress = structureOrdersProgress {
+                switch progress {
+                case let .loading(currentPage, totalPages):
+                    VStack(spacing: 2) {
+                        ProgressView().scaleEffect(0.8)
+                        Text("\(currentPage)/\(totalPages)")
+                            .font(.caption2)
+                            .foregroundColor(.secondary)
+                    }
+                    .transition(.opacity)
+                case .completed:
+                    ProgressView().scaleEffect(0.8).transition(.opacity)
+                }
+            } else {
+                ProgressView().scaleEffect(0.8).transition(.opacity)
+            }
+        } else {
+            switch cacheStatus {
+            case .valid:
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+                    .font(.title2)
+                    .transition(.scale.combined(with: .opacity))
+            case .expired, .noData:
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.red)
+                    .font(.title2)
+                    .transition(.scale.combined(with: .opacity))
+            }
+        }
+    }
+
+    /// 加载建筑市场订单
     private func loadStructureOrders() async {
         isLoadingOrders = true
         structureOrdersProgress = nil
@@ -452,10 +489,7 @@ struct StructureRowView: View {
         }
 
         // 更新缓存状态和更新时间
-        cacheStatus = StructureMarketManager.getCacheStatus(
-            structureId: Int64(structure.structureId))
-        lastUpdateDate = StructureMarketManager.getLocalOrdersModificationDate(
-            structureId: Int64(structure.structureId))
+        refreshCacheState()
 
         // 更新订单统计信息
         await loadLocalOrdersStatistics()
@@ -464,7 +498,17 @@ struct StructureRowView: View {
         structureOrdersProgress = nil
     }
 
-    // 加载本地订单统计信息
+    /// 重新计算缓存状态和更新时间
+    private func refreshCacheState() {
+        cacheStatus = StructureMarketManager.getCacheStatus(
+            structureId: Int64(structure.structureId)
+        )
+        lastUpdateDate = StructureMarketManager.getLocalOrdersModificationDate(
+            structureId: Int64(structure.structureId)
+        )
+    }
+
+    /// 加载本地订单统计信息
     private func loadLocalOrdersStatistics() async {
         // 先检查是否有本地缓存文件（无论是否过期）
         let hasLocal = await StructureMarketManager.shared.hasLocalOrders(structureId: Int64(structure.structureId))
@@ -498,15 +542,6 @@ struct StructureRowView: View {
                 ordersCount = nil
                 itemTypesCount = nil
             }
-        }
-    }
-
-    // 格式化时间差为"X分钟前更新"
-    private func formatTimeAgo(_ minutes: Int) -> String {
-        if minutes < 1 {
-            return NSLocalizedString("Structure_Orders_Just_Updated", comment: "刚刚更新")
-        } else {
-            return String.localizedStringWithFormat(NSLocalizedString("Structure_Orders_Minutes_Ago", comment: "%d分钟前更新"), minutes)
         }
     }
 }

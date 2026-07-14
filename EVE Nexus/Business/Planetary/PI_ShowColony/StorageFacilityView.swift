@@ -18,11 +18,11 @@ struct StorageFacilityView: View {
     let isSnapshotsReady: Bool // 快照是否已计算完成
     let storageVolumeCache: [Int64: [Int: Double]] // 存储设施体积缓存 [pinId: [小时数: 体积]]
     let isColonyStopped: Bool // 殖民地是否已停工
-    /// 仅指挥中心：在类型名称右侧显示 `upgrade_level`（与殖民地列表文案一致）；非指挥中心为 `nil`
+    // 仅指挥中心：在类型名称右侧显示 `upgrade_level`（与殖民地列表文案一致）；非指挥中心为 `nil`
     let commandCenterUpgradeLevel: Int?
     @State private var isChartExpanded = false // 图表是否展开
 
-    // 检查该仓储是否有传入路由
+    /// 检查该仓储是否有传入路由
     private var hasIncomingRoutes: Bool {
         // 优先从实时殖民地检查，如果没有则从快照检查
         if let realtimeColony = realtimeColony {
@@ -35,8 +35,8 @@ struct StorageFacilityView: View {
         return false
     }
 
-    // 获取设施图标文件名
-    // 优先级：1. 根据 groupID 和 en_name 映射的图标 2. typeid 对应的图标（兜底）
+    /// 获取设施图标文件名
+    /// 优先级：1. 根据 groupID 和 en_name 映射的图标 2. typeid 对应的图标（兜底）
     private func getFacilityIconName() -> String? {
         // 尝试使用映射规则获取图标
         if let groupId = typeGroupIds[pin.typeId] {
@@ -228,7 +228,7 @@ struct StorageFacilityView: View {
         }
     }
 
-    // 计算存储设施的总体积
+    /// 计算存储设施的总体积
     private func calculateStorageVolume() -> Double {
         if let simPin = simulatedPin {
             let simContents = simPin.contents.map {
@@ -239,7 +239,7 @@ struct StorageFacilityView: View {
         return calculateTotalVolume(contents: pin.contents)
     }
 
-    // 计算内容物的总体积
+    /// 计算内容物的总体积
     private func calculateTotalVolume(contents: [PlanetaryContent]?) -> Double {
         guard let contents = contents else { return 0 }
         return contents.reduce(0) { sum, content in

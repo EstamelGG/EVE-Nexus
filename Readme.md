@@ -1,4 +1,6 @@
-# EVE Nexus
+# EVE Tritanium
+
+![img.png](img.webp)
 
 [中文](Readme.md) | [English](Readme.en.md)
 
@@ -32,12 +34,8 @@ swiftformat .
 
 ```bash
 periphery scan | grep -v "/Thirdparty/" > log.txt
-```
-
-在 `log.txt` 中执行此正则以过滤出我们需要处理的行
-
-```bash
-grep -E 'Unused (Enum|Property|Function|Initializer|Class|struct)' log.txt
+# 在 `log.txt` 中执行此正则以过滤出我们需要处理的行
+grep -iE 'Unused (Enum|Property|Function|Initializer|Class|struct)' log.txt
 ```
 
 针对这些过滤出的行进行优化即可
@@ -58,4 +56,7 @@ perl -ne 'next if $ARGV =~ /en\.lproj/; print "$ARGV:$_" if /^"(.*)"\s*=\s*"\1";
 
 # 获取应用 / Get App
 
-iOS / iPadOS / macOS: [Tritanium on the App Store](https://apps.apple.com/us/app/tritanium/id6739530875)
+iOS / iPadOS / macOS: 
+
+- [Tritanium on the App Store](https://apps.apple.com/us/app/tritanium/id6739530875)
+- [三钛合金(App Store)](https://apps.apple.com/cn/app/%E4%B8%89%E9%92%9B%E5%90%88%E9%87%91/id6739530875)

@@ -200,7 +200,7 @@ final class ConsoleSearchOperation {
 
 package struct ConsoleSearchMatch {
     package let line: String
-    /// Starts with `1.
+    // Starts with `1.
     package let lineNumber: Int
     package let range: Range<String.Index>
     package let term: ConsoleSearchTerm
@@ -240,7 +240,7 @@ package final class ConsoleSearchService {
     }
 }
 
-/// Wrapping it in a class to make it compatible with `NSCache`.
+// Wrapping it in a class to make it compatible with `NSCache`.
 private final class CachedString {
     let value: String
     init(value: String) { self.value = value }

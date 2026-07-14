@@ -6,7 +6,7 @@ struct BlueprintSelectorView: View {
     let onBlueprintSelected: (DatabaseListItem) -> Void
     let onDismiss: () -> Void
 
-    // 蓝图分类ID
+    /// 蓝图分类ID
     private let blueprintCategoryId = 9
 
     var body: some View {
@@ -31,7 +31,7 @@ struct BlueprintSelectorView: View {
     }
 }
 
-// 重构后的蓝图数据库浏览器视图
+/// 重构后的蓝图数据库浏览器视图
 struct DatabaseBlueprintBrowserView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let categoryId: Int
@@ -100,7 +100,7 @@ struct DatabaseBlueprintBrowserView: View {
         }
     }
 
-    // 获取反应市场组集合 - 复用现有代码
+    /// 获取反应市场组集合 - 复用现有代码
     private func getReactionMarketGroups() -> Set<Int> {
         let reactionRootGroupId = 1849
         var reactionGroups = Set<Int>()
@@ -135,7 +135,7 @@ struct DatabaseBlueprintBrowserView: View {
         return reactionGroups
     }
 
-    // 加载所有蓝图物品
+    /// 加载所有蓝图物品
     private func loadAllBlueprints() -> [DatabaseListItem] {
         let query = """
             SELECT t.type_id as id, t.name, t.en_name, t.published, t.icon_filename as iconFileName,
@@ -187,8 +187,7 @@ struct DatabaseBlueprintBrowserView: View {
                         gunSlot: row["gunSlot"] as? Int,
                         missSlot: row["missSlot"] as? Int,
                         metaGroupID: row["metaGroupID"] as? Int,
-                        marketGroupID: row["marketGroupID"] as? Int, // 现在可以正确获取
-                        navigationDestination: AnyView(EmptyView())
+                        marketGroupID: row["marketGroupID"] as? Int // 现在可以正确获取
                     )
 
                     blueprints.append(blueprint)
@@ -209,7 +208,7 @@ struct DatabaseBlueprintBrowserView: View {
         }
     }
 
-    // 从蓝图列表构建组结构
+    /// 从蓝图列表构建组结构
     private func buildGroupsFromBlueprints(_ blueprints: [DatabaseListItem]) -> [BlueprintGroup] {
         // 按组ID分组
         let groupedBlueprints = Dictionary(grouping: blueprints) { $0.groupID ?? -1 }
@@ -250,7 +249,7 @@ struct DatabaseBlueprintBrowserView: View {
         }
     }
 
-    // 加载组信息
+    /// 加载组信息
     private func loadGroupInfo(groupId: Int) -> (
         name: String, iconFileName: String, published: Bool
     )? {
@@ -274,7 +273,7 @@ struct DatabaseBlueprintBrowserView: View {
     }
 }
 
-// 蓝图组数据模型
+/// 蓝图组数据模型
 struct BlueprintGroup: Hashable, Identifiable {
     let id: Int
     let name: String
@@ -282,7 +281,7 @@ struct BlueprintGroup: Hashable, Identifiable {
     let published: Bool
 }
 
-// 蓝图组列表视图
+/// 蓝图组列表视图
 struct BlueprintGroupsListView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let categoryId: Int
@@ -398,13 +397,14 @@ struct BlueprintGroupsListView: View {
         guard !searchText.isEmpty else { return [] }
 
         return allBlueprints.filter { blueprint in
-            blueprint.name.localizedCaseInsensitiveContains(searchText)
-                || blueprint.enName?.localizedCaseInsensitiveContains(searchText) == true
+            SDEMemoryStore.type(for: blueprint.id)?.names.matchesSearch(searchText) == true
                 || blueprint.groupName?.localizedCaseInsensitiveContains(searchText) == true
         }.sorted { blueprint1, blueprint2 in
             // 优先显示名称匹配的
-            let name1Match = blueprint1.name.localizedCaseInsensitiveContains(searchText)
-            let name2Match = blueprint2.name.localizedCaseInsensitiveContains(searchText)
+            let name1Match =
+                SDEMemoryStore.type(for: blueprint1.id)?.names.matchesSearch(searchText) == true
+            let name2Match =
+                SDEMemoryStore.type(for: blueprint2.id)?.names.matchesSearch(searchText) == true
 
             if name1Match != name2Match {
                 return name1Match
@@ -416,7 +416,7 @@ struct BlueprintGroupsListView: View {
     }
 }
 
-// 蓝图搜索结果行视图
+/// 蓝图搜索结果行视图
 struct BlueprintSearchResultRow: View {
     let blueprint: DatabaseListItem
     let reactionMarketGroups: Set<Int>
@@ -473,7 +473,7 @@ struct BlueprintSearchResultRow: View {
     }
 }
 
-// 蓝图物品列表视图
+/// 蓝图物品列表视图
 struct BlueprintItemsListView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let group: BlueprintGroup
@@ -484,7 +484,7 @@ struct BlueprintItemsListView: View {
     @State private var metaGroupNames: [Int: String] = [:]
     @State private var searchText = ""
 
-    // 使用传入的蓝图数据而不是重新加载
+    /// 使用传入的蓝图数据而不是重新加载
     private var items: [DatabaseListItem] {
         return allBlueprints
     }
@@ -573,7 +573,8 @@ struct BlueprintItemsListView: View {
                     items: groupItems.sorted {
                         $0.name.localizedCompare($1.name) == .orderedAscending
                     }
-                ))
+                )
+            )
         }
 
         // 处理未发布物品
@@ -585,21 +586,22 @@ struct BlueprintItemsListView: View {
                     items: unpublishedItems.sorted {
                         $0.name.localizedCompare($1.name) == .orderedAscending
                     }
-                ))
+                )
+            )
         }
 
         return groups
     }
 }
 
-// 物品组数据模型
+/// 物品组数据模型
 struct ItemGroup {
     let id: Int
     let name: String
     let items: [DatabaseListItem]
 }
 
-// 蓝图物品行视图
+/// 蓝图物品行视图
 struct BlueprintItemRowView: View {
     let item: DatabaseListItem
     let metaGroupNames: [Int: String]

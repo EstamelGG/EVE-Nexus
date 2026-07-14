@@ -10,7 +10,7 @@ struct ExtractorFacilityView: View {
     let typeEnNames: [Int: String]
     let currentTime: Date
 
-    // 计算属性：判断采集器是否过期
+    /// 计算属性：判断采集器是否过期
     private var isExpired: Bool {
         guard let expiryTime = pin.expiryTime,
               let expiryDate = ISO8601DateFormatter().date(from: expiryTime)
@@ -20,8 +20,8 @@ struct ExtractorFacilityView: View {
         return currentTime >= expiryDate
     }
 
-    // 获取设施图标文件名
-    // 优先级：1. 根据 groupID 和 en_name 映射的图标 2. typeid 对应的图标（兜底）
+    /// 获取设施图标文件名
+    /// 优先级：1. 根据 groupID 和 en_name 映射的图标 2. typeid 对应的图标（兜底）
     private func getFacilityIconName() -> String? {
         // 尝试使用映射规则获取图标
         if let groupId = typeGroupIds[pin.typeId] {
@@ -77,7 +77,7 @@ struct ExtractorFacilityView: View {
                                     installTime: installTime, cycleTime: cycleTime
                                 )
                         Text(
-                            "\(formatTimeInterval(elapsedTime)) / \(formatTimeInterval(TimeInterval(cycleTime)))"
+                            "\(FormatUtil.formatElapsedClock(elapsedTime)) / \(FormatUtil.formatElapsedClock(TimeInterval(cycleTime)))"
                         )
                         .foregroundColor(isExpired ? .gray : .secondary)
                         .font(.system(.footnote, design: .monospaced))
@@ -129,7 +129,8 @@ struct ExtractorFacilityView: View {
                         HStack {
                             Text(
                                 NSLocalizedString("Factory_Output", comment: "")
-                                    + " \(typeNames[productTypeId] ?? "")")
+                                    + " \(typeNames[productTypeId] ?? "")"
+                            )
                             Spacer()
                             Text("× \(currentYield)")
                                 .font(.subheadline)
@@ -157,7 +158,8 @@ struct ExtractorFacilityView: View {
 
         // 计算当前周期内已经过去的时间
         let elapsedInCurrentCycle = totalElapsedTime.truncatingRemainder(
-            dividingBy: cycleTimeInterval)
+            dividingBy: cycleTimeInterval
+        )
 
         // 计算进度
         return elapsedInCurrentCycle / cycleTimeInterval
@@ -180,16 +182,5 @@ struct ExtractorFacilityView: View {
 
         // 计算当前周期内已经过去的时间
         return totalElapsedTime.truncatingRemainder(dividingBy: cycleTimeInterval)
-    }
-
-    /// 格式化时间间隔
-    /// - Parameter interval: 时间间隔（秒）
-    /// - Returns: 格式化后的字符串
-    private func formatTimeInterval(_ interval: TimeInterval) -> String {
-        let hours = Int(interval) / 3600
-        let minutes = Int(interval) / 60 % 60
-        let seconds = Int(interval) % 60
-
-        return String(format: "%02d:%02d:%02d", hours, minutes, seconds)
     }
 }

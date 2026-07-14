@@ -35,7 +35,8 @@ struct CorporationLogoView: View {
                 Task {
                     do {
                         corporationLogo = try await CorporationAPI.shared.fetchCorporationLogo(
-                            corporationId: corporationId)
+                            corporationId: corporationId
+                        )
                     } catch {
                         Logger.error("获取军团图标失败: \(error)")
                     }

@@ -1,9 +1,8 @@
-//
+
 //  IncursionsView.swift
 //  EVE Panel
-//
+
 //  Created by GG Estamel on 2024/12/16.
-//
 
 import SwiftUI
 
@@ -73,7 +72,7 @@ final class IncursionsViewModel: ObservableObject {
     private var lastFetchTime: Date?
     private let cacheTimeout: TimeInterval = 300 // 5分钟缓存
 
-    // 缓存所有星系信息，包括受影响的星系
+    /// 缓存所有星系信息，包括受影响的星系
     private var allSystemInfoCache: [Int: SolarSystemInfo] = [:]
 
     // 主权数据缓存
@@ -111,7 +110,8 @@ final class IncursionsViewModel: ObservableObject {
             do {
                 Logger.info("开始获取入侵数据")
                 let incursions = try await IncursionsAPI.shared.fetchIncursions(
-                    forceRefresh: forceRefresh)
+                    forceRefresh: forceRefresh
+                )
 
                 if Task.isCancelled { return }
 
@@ -155,7 +155,8 @@ final class IncursionsViewModel: ObservableObject {
         // 获取主权数据
         do {
             sovereigntyData = try await SovereigntyDataAPI.shared.fetchSovereigntyData(
-                forceRefresh: false)
+                forceRefresh: false
+            )
         } catch {
             Logger.error("获取主权数据失败: \(error)")
         }
@@ -223,15 +224,7 @@ final class IncursionsViewModel: ObservableObject {
 
     private func getFactionInfo(factionId: Int) async -> (iconName: String, name: String)? {
         let iconName = factionId == 500_019 ? "sansha" : "corporations_default"
-
-        let query = "SELECT name FROM factions WHERE id = ?"
-        guard
-            case let .success(rows) = databaseManager.executeQuery(query, parameters: [factionId]),
-            let row = rows.first,
-            let name = row["name"] as? String
-        else {
-            return nil
-        }
+        guard let name = SDEMemoryStore.faction(for: factionId)?.name else { return nil }
         return (iconName, name)
     }
 
@@ -304,13 +297,7 @@ final class IncursionsViewModel: ObservableObject {
             let task = Task {
                 Logger.debug("开始加载派系图标: \(factionId)，影响 \(sovereignties.count) 个入侵")
 
-                let query = "SELECT iconName FROM factions WHERE id = ?"
-                if case let .success(rows) = databaseManager.executeQuery(
-                    query, parameters: [factionId]
-                ),
-                    let row = rows.first,
-                    let iconName = row["iconName"] as? String
-                {
+                if let iconName = SDEMemoryStore.faction(for: factionId)?.iconName {
                     let icon = IconManager.shared.loadImage(for: iconName)
 
                     await MainActor.run {
@@ -334,7 +321,7 @@ final class IncursionsViewModel: ObservableObject {
         }
     }
 
-    // 获取入侵涉及的所有星系名称，已排序
+    /// 获取入侵涉及的所有星系名称，已排序
     func getInfestedSystemNames(for incursion: PreparedIncursion) -> [String] {
         return incursion.incursion.infestedSolarSystems
             .compactMap { systemId in
@@ -343,7 +330,7 @@ final class IncursionsViewModel: ObservableObject {
             .sorted()
     }
 
-    // 导出入侵信息到剪贴板
+    /// 导出入侵信息到剪贴板
     func exportIncursionsToClipboard() async {
         guard !preparedIncursions.isEmpty else {
             Logger.warning("没有可导出的入侵数据")
@@ -383,18 +370,10 @@ final class IncursionsViewModel: ObservableObject {
                 }
             }
 
-            // 获取派系名称（从数据库）
-            if !factionIds.isEmpty {
-                let placeholders = String(repeating: "?,", count: factionIds.count).dropLast()
-                let query = "SELECT id, name FROM factions WHERE id IN (\(placeholders))"
-                if case let .success(rows) = databaseManager.executeQuery(query, parameters: Array(factionIds)) {
-                    for row in rows {
-                        if let id = row["id"] as? Int,
-                           let name = row["name"] as? String
-                        {
-                            sovereigntyNames[Int(id)] = name
-                        }
-                    }
+            // 获取派系名称
+            for factionId in factionIds {
+                if let name = SDEMemoryStore.faction(for: factionId)?.name {
+                    sovereigntyNames[factionId] = name
                 }
             }
 
@@ -455,6 +434,43 @@ struct IncursionCell: View {
     let databaseManager: DatabaseManager
     let viewModel: IncursionsViewModel
 
+    private static let stateOrder = ["established", "mobilizing", "withdrawing"]
+    private static let progressFillColor = Color(red: 64 / 255, green: 168 / 255, blue: 176 / 255)
+
+    private var stateColor: Color {
+        Self.color(for: incursion.incursion.state)
+    }
+
+    private var stateText: String {
+        Self.text(for: incursion.incursion.state)
+    }
+
+    private static func color(for state: String) -> Color {
+        switch state {
+        case "withdrawing":
+            return Color(red: 175 / 255, green: 55 / 255, blue: 54 / 255)
+        case "mobilizing":
+            return Color(red: 223 / 255, green: 100 / 255, blue: 55 / 255)
+        case "established":
+            return Color(red: 96 / 255, green: 179 / 255, blue: 88 / 255)
+        default:
+            return .secondary
+        }
+    }
+
+    private static func text(for state: String) -> String {
+        switch state {
+        case "withdrawing":
+            return NSLocalizedString("Incursions_State_Withdrawing", comment: "")
+        case "mobilizing":
+            return NSLocalizedString("Incursions_State_Mobilizing", comment: "")
+        case "established":
+            return NSLocalizedString("Incursions_State_Established", comment: "")
+        default:
+            return state
+        }
+    }
+
     var body: some View {
         NavigationLink(
             destination: InfestedSystemsView(
@@ -462,109 +478,112 @@ struct IncursionCell: View {
                 systemIds: incursion.incursion.infestedSolarSystems
             )
         ) {
-            HStack(spacing: 12) {
-                ZStack(alignment: .center) {
-                    // 背景圆环
-                    Circle()
-                        .stroke(Color.cyan.opacity(0.3), lineWidth: 4)
-                        .frame(width: 56, height: 56)
-
-                    // 进度圆环
-                    Circle()
-                        .trim(from: 0, to: CGFloat(incursion.incursion.influence))
-                        .stroke(Color.red, lineWidth: 4)
-                        .frame(width: 56, height: 56)
-                        .rotationEffect(.degrees(-90))
-
-                    // 派系图标
-                    IconManager.shared.loadImage(for: incursion.faction.iconName)
-                        .resizable()
+            HStack(alignment: .center, spacing: 12) {
+                if let sovereignty = incursion.sovereignty {
+                    SovereigntyIconView(sovereignty: sovereignty)
+                } else {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.secondary.opacity(0.15))
                         .frame(width: 48, height: 48)
-                        .cornerRadius(6)
                 }
-                .frame(width: 56, height: 56)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 4) {
                     HStack(spacing: 4) {
-                        Text(incursion.faction.name).lineLimit(1)
-                        Text("[\(String(format: "%.1f", incursion.incursion.influence * 100))%]")
-                            .foregroundColor(.secondary)
+                        Text(formatSystemSecurity(incursion.location.security))
+                            .foregroundColor(getSecurityColor(incursion.location.security))
+                            .font(.system(.subheadline, design: .monospaced))
+                        Text(incursion.location.systemName)
+                            .fontWeight(.semibold)
                             .font(.subheadline)
+                            .lineLimit(1)
+                            .contextMenu {
+                                Button {
+                                    UIPasteboard.general.string = incursion.location.systemName
+                                } label: {
+                                    Label(
+                                        NSLocalizedString("Misc_Copy_Staging_Solar", comment: ""),
+                                        systemImage: "doc.on.doc"
+                                    )
+                                }
+                                Button {
+                                    UIPasteboard.general.string =
+                                        incursion.location.constellationName
+                                } label: {
+                                    Label(
+                                        NSLocalizedString("Misc_Copy_Constellation", comment: ""),
+                                        systemImage: "doc.on.doc"
+                                    )
+                                }
+                                Button {
+                                    let systemNames = viewModel.getInfestedSystemNames(
+                                        for: incursion
+                                    )
+                                    let formattedString =
+                                        "\(incursion.location.constellationName) \(NSLocalizedString("Misc_Constellation", comment: "")) (\(systemNames.joined(separator: ",")))"
+                                    UIPasteboard.general.string = formattedString
+                                } label: {
+                                    Label(
+                                        NSLocalizedString(
+                                            "Misc_Copy_Constellation_And_Solar", comment: ""
+                                        ),
+                                        systemImage: "doc.on.doc"
+                                    )
+                                }
+                            }
+                        Text(
+                            "[\(String(format: "%.1f", incursion.incursion.influence * 100))%]"
+                        )
+                        .foregroundColor(.secondary)
+                        .font(.subheadline)
                         if incursion.incursion.hasBoss {
                             IconManager.shared.loadImage(for: "sansha_boss")
                                 .resizable()
-                                .frame(width: 18, height: 18)
+                                .frame(width: 16, height: 16)
                         }
                     }
-                    .font(.headline)
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 4) {
-                            Text(formatSystemSecurity(incursion.location.security))
-                                .foregroundColor(getSecurityColor(incursion.location.security))
-                                .font(.system(.subheadline, design: .monospaced))
-                            Text(incursion.location.systemName)
-                                .fontWeight(.semibold)
-                                .font(.subheadline)
-                                .contextMenu {
-                                    Button {
-                                        UIPasteboard.general.string = incursion.location.systemName
-                                    } label: {
-                                        Label(
-                                            NSLocalizedString(
-                                                "Misc_Copy_Staging_Solar", comment: ""
-                                            ),
-                                            systemImage: "doc.on.doc"
-                                        )
-                                    }
-                                    Button {
-                                        UIPasteboard.general.string =
-                                            incursion.location.constellationName
-                                    } label: {
-                                        Label(
-                                            NSLocalizedString(
-                                                "Misc_Copy_Constellation", comment: ""
-                                            ),
-                                            systemImage: "doc.on.doc"
-                                        )
-                                    }
-                                    Button {
-                                        // 使用缓存的星系信息，无需异步操作
-                                        let systemNames = viewModel.getInfestedSystemNames(
-                                            for: incursion)
+                    Text(
+                        "\(incursion.location.constellationName) / \(incursion.location.regionName)"
+                    )
+                    .foregroundColor(.secondary)
+                    .font(.caption)
 
-                                        // 格式化为: 星座名称(星系1,星系2,星系3)
-                                        let formattedString =
-                                            "\(incursion.location.constellationName) \(NSLocalizedString("Misc_Constellation", comment: "")) (\(systemNames.joined(separator: ",")))"
-
-                                        UIPasteboard.general.string = formattedString
-                                    } label: {
-                                        Label(
-                                            NSLocalizedString(
-                                                "Misc_Copy_Constellation_And_Solar", comment: ""
-                                            ),
-                                            systemImage: "doc.on.doc"
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack(spacing: 6) {
+                            HStack(spacing: 3) {
+                                ForEach(Self.stateOrder, id: \.self) { state in
+                                    RoundedRectangle(cornerRadius: 1)
+                                        .fill(
+                                            state == incursion.incursion.state
+                                                ? Self.color(for: state)
+                                                : Color.secondary.opacity(0.35)
                                         )
-                                    }
+                                        .frame(width: 14, height: 5)
                                 }
+                            }
+                            Text(stateText)
+                                .foregroundColor(stateColor)
+                                .font(.caption)
                         }
 
-                        Text(
-                            "\(incursion.location.constellationName) / \(incursion.location.regionName)"
-                        )
-                        .foregroundColor(.secondary)
-                        .font(.caption)
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                Rectangle()
+                                    .fill(stateColor)
+                                Rectangle()
+                                    .fill(Self.progressFillColor)
+                                    .frame(
+                                        width: geo.size.width
+                                            * CGFloat(incursion.incursion.influence)
+                                    )
+                            }
+                        }
+                        .frame(height: 3)
+                        .clipShape(Capsule())
                     }
-                }
-
-                Spacer()
-
-                // 右侧势力图标
-                if let sovereignty = incursion.sovereignty {
-                    SovereigntyIconView(sovereignty: sovereignty)
                 }
             }
-            .padding(.vertical, 8)
+            .padding(.vertical, 6)
         }
     }
 }
@@ -575,13 +594,17 @@ struct SovereigntyIconView: View {
     var body: some View {
         if sovereignty.isLoadingIcon {
             ProgressView()
-                .frame(width: 32, height: 32)
+                .frame(width: 48, height: 48)
         } else if let icon = sovereignty.icon {
             icon
                 .resizable()
                 .scaledToFit()
-                .frame(width: 32, height: 32)
-                .cornerRadius(4)
+                .frame(width: 48, height: 48)
+                .cornerRadius(6)
+        } else {
+            RoundedRectangle(cornerRadius: 6)
+                .fill(Color.secondary.opacity(0.15))
+                .frame(width: 48, height: 48)
         }
     }
 }

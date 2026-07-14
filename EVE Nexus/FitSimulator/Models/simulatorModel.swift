@@ -29,13 +29,13 @@ struct SimulationInput {
     var effectDetails: [Int: EffectDetail] = [:] // 效果ID: 效果详情
     var effectsByTypeId: [Int: [Int]] = [:] // 物品类型ID: [效果ID]
 
-    // 属性修饰器（由Pass2初始化）
+    /// 属性修饰器（由Pass2初始化）
     var attributeModifiers: [Int: [Int: [SimAttributeModifier]]] = [:]
 
-    // 计算结果（由Pass3初始化）
+    /// 计算结果（由Pass3初始化）
     var calculatedAttributes: [ItemType: [Int: [Int: Double]]] = [:] // 物品类型: [物品索引: [属性ID: 计算后的值]]
 
-    // 技能计算结果（由Pass3初始化）
+    /// 技能计算结果（由Pass3初始化）
     var characterSkillCalculatedAttributes: [Int: [Int: Double]] = [:] // 技能ID: [属性ID: 计算后的值]
 
     init(
@@ -112,10 +112,10 @@ struct SimCharacter {
     var baseAttributes: [Int: Double] = [:] // 属性ID:值，适合高效计算
     var baseAttributesByName: [String: Double] = [:] // 属性名:值，便于可读性和调试
 
-    // 修饰器（由Step3初始化）
+    /// 修饰器（由Step3初始化）
     var attributeModifiers: [Int: [SimAttributeModifier]] = [:] // 属性ID: [修饰器]
 
-    // 如果需要，可以添加默认值，比如默认设置maxActiveDrones
+    /// 如果需要，可以添加默认值，比如默认设置maxActiveDrones
     init(typeId: Int) {
         self.typeId = typeId
         // 设置maxActiveDrones属性的默认值
@@ -136,7 +136,7 @@ struct SimShip {
     let iconFileName: String? // 飞船图标文件名
     let requiredSkills: [Int] // 所需技能ID列表
 
-    // 修饰器（由Step3初始化）
+    /// 修饰器（由Step3初始化）
     var attributeModifiers: [Int: [SimAttributeModifier]] = [:] // 属性ID: [修饰器]
 }
 
@@ -151,7 +151,7 @@ struct SimSkill {
     let groupID: Int // 技能分组ID
     let requiredSkills: [Int] // 所需技能ID列表
 
-    // 修饰器（由Step3初始化）
+    /// 修饰器（由Step3初始化）
     var attributeModifiers: [Int: [SimAttributeModifier]] = [:] // 属性ID: [修饰器]
 }
 
@@ -174,7 +174,7 @@ struct SimModule {
     let name: String // 装备名称
     let iconFileName: String? // 装备图标文件名
 
-    // 修饰器（由Step3初始化）
+    /// 修饰器（由Step3初始化）
     var attributeModifiers: [Int: [SimAttributeModifier]] = [:] // 属性ID: [修饰器]
 
     // 突变相关字段
@@ -187,7 +187,7 @@ struct SimModule {
     /// 完全预热（Spool up）。为 `false` 时 DPS 按 `damageMultiplierBonusMax = 1` 参与 `(1 + bonus)` 修正。
     var isSpoolUpFull: Bool = true
 
-    // 自定义初始化器，允许指定instanceId
+    /// 自定义初始化器，允许指定instanceId
     init(
         instanceId: UUID = UUID(),
         typeId: Int,
@@ -248,7 +248,7 @@ struct SimCharge {
     let name: String // 弹药名称
     let iconFileName: String? // 弹药图标文件名
 
-    // 修饰器（由Step3初始化）
+    /// 修饰器（由Step3初始化）
     var attributeModifiers: [Int: [SimAttributeModifier]] = [:] // 属性ID: [修饰器]
 }
 
@@ -268,7 +268,7 @@ struct SimDrone {
     let name: String // 无人机名称
     let iconFileName: String? // 无人机图标文件名
 
-    // 修饰器（由Step3初始化）
+    /// 修饰器（由Step3初始化）
     var attributeModifiers: [Int: [SimAttributeModifier]] = [:] // 属性ID: [修饰器]
 
     // 突变相关字段
@@ -309,7 +309,7 @@ struct SimImplant {
     let name: String // 植入体名称
     let iconFileName: String? // 植入体图标文件名
 
-    // 修饰器（由Step3初始化）
+    /// 修饰器（由Step3初始化）
     var attributeModifiers: [Int: [SimAttributeModifier]] = [:] // 属性ID: [修饰器]
 }
 
@@ -322,7 +322,7 @@ struct SimEnvironmentEffect {
     let attributesByName: [String: Double] // 属性名:值
     let effects: [Int] // 效果ID列表
 
-    // UI显示字段
+    /// UI显示字段
     let iconFileName: String? // 环境效果图标文件名
 }
 
@@ -342,7 +342,6 @@ struct SimAttributeModifier {
     let effectId: Int? // 来源效果ID
     let effectCategory: Int? // 效果类别（用于确定需要的状态级别）
 
-    // 新增实例ID字段
     let sourceInstanceId: UUID? // 来源物品实例ID
     let targetInstanceId: UUID? // 目标物品实例ID
 }
@@ -382,6 +381,6 @@ struct SimFighterSquad {
     let name: String // 舰载机名称
     let iconFileName: String? // 舰载机图标文件名
 
-    // 修饰器（由Step3初始化）
+    /// 修饰器（由Step3初始化）
     var attributeModifiers: [Int: [SimAttributeModifier]] = [:] // 属性ID: [修饰器]
 }

@@ -31,7 +31,7 @@ class InfestedSystemsViewModel: ObservableObject {
     private var allianceToSystems: [Int: [SystemInfo]] = [:]
     private var factionToSystems: [Int: [SystemInfo]] = [:]
 
-    // 修改缓存结构，只缓存星系ID
+    /// 修改缓存结构，只缓存星系ID
     private static var systemIdsCache: Set<Int> = []
 
     static func clearCache() {
@@ -43,7 +43,7 @@ class InfestedSystemsViewModel: ObservableObject {
         self.systemIds = systemIds
     }
 
-    // 加载数据方法
+    /// 加载数据方法
     func loadData(forceRefresh: Bool = false) async {
         // 检查是否需要重新加载
         let systemIdsSet = Set(systemIds)
@@ -72,7 +72,8 @@ class InfestedSystemsViewModel: ObservableObject {
         var sovereigntyData: [SovereigntyData]?
         do {
             sovereigntyData = try await SovereigntyDataAPI.shared.fetchSovereigntyData(
-                forceRefresh: forceRefresh)
+                forceRefresh: forceRefresh
+            )
         } catch {
             Logger.error("无法获取主权数据: \(error)")
         }
@@ -237,7 +238,8 @@ struct InfestedSystemsView: View {
         _viewModel = StateObject(
             wrappedValue: InfestedSystemsViewModel(
                 databaseManager: databaseManager, systemIds: systemIds
-            ))
+            )
+        )
     }
 
     var body: some View {

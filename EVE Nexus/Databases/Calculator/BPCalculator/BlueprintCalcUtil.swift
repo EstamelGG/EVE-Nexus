@@ -412,7 +412,8 @@ class BlueprintCalcUtil {
                     highSecModifier: attributes.highSec ?? 1.0,
                     lowSecModifier: attributes.lowSec ?? 1.0,
                     nullSecModifier: attributes.nullSec ?? 1.0
-                ))
+                )
+            )
         }
 
         return result
@@ -462,23 +463,18 @@ class BlueprintCalcUtil {
     /// - Returns: 有效的插件ID列表
     static func getEffectiveRigIds(rigIds: [Int], blueprintId: Int) -> [Int] {
         guard !rigIds.isEmpty else {
-            // Logger.info("没有安装插件，跳过插件作用范围检测")
             return []
         }
 
         // 1. 获取蓝图的产品类型ID
         guard let productTypeId = getBlueprintProductTypeId(blueprintId: blueprintId) else {
-            // Logger.warning("无法获取蓝图ID \(blueprintId) 的产品类型，所有插件将被视为无效")
             return []
         }
 
         // 2. 获取产品的分类和分组
         guard let productInfo = getProductCategoryAndGroup(typeId: productTypeId) else {
-            // Logger.warning("无法获取产品ID \(productTypeId) 的分类信息，所有插件将被视为无效")
             return []
         }
-
-        // Logger.info("蓝图产品信息 - 产品ID: \(productTypeId), 分类ID: \(productInfo.categoryId), 分组ID: \(productInfo.groupId)")
 
         // 3. 筛选有效的插件
         var effectiveRigIds: [Int] = []
@@ -488,7 +484,6 @@ class BlueprintCalcUtil {
                 rigId: rigId, categoryId: productInfo.categoryId, groupId: productInfo.groupId
             ) {
                 effectiveRigIds.append(rigId)
-                // Logger.info("插件ID \(rigId) 对当前蓝图产品有效")
             }
         }
 
@@ -555,21 +550,13 @@ class BlueprintCalcUtil {
     /// - Parameter typeId: 产品类型ID
     /// - Returns: 包含分类ID和分组ID的元组，如果查询失败返回nil
     static func getProductCategoryAndGroup(typeId: Int) -> (categoryId: Int, groupId: Int)? {
-        let query = "SELECT groupID, categoryID FROM types WHERE type_id = ?"
-
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            query, parameters: [typeId]
-        ),
-            let row = rows.first,
-            let groupId = row["groupID"] as? Int,
-            let categoryId = row["categoryID"] as? Int
-        {
-            // Logger.info("产品ID \(typeId) 的分类和分组 - 分类ID: \(categoryId), 分组ID: \(groupId)")
-            return (categoryId: categoryId, groupId: groupId)
-        } else {
+        guard let info = ItemInfoMap.typeInfo(for: typeId),
+              let groupId = info.groupID
+        else {
             Logger.error("查询产品ID \(typeId) 的分类和分组失败")
             return nil
         }
+        return (categoryId: info.categoryID, groupId: groupId)
     }
 
     /// 判断插件是否对指定分类和分组的产品有效
@@ -602,16 +589,13 @@ class BlueprintCalcUtil {
                     let groupMatch = (effectGroupId == 0 || effectGroupId == groupId)
 
                     if categoryMatch && groupMatch {
-                        // Logger.info("插件ID \(rigId) 匹配 - 效果分类: \(effectCategory), 效果分组: \(effectGroupId)")
                         return true
                     }
                 }
             }
 
-            // Logger.info("插件ID \(rigId) 不匹配当前产品的分类(\(categoryId))和分组(\(groupId))")
             return false
         } else {
-            // Logger.error("查询插件ID \(rigId) 的作用范围失败")
             return false
         }
     }
@@ -656,7 +640,7 @@ class BlueprintCalcUtil {
         blueprintId: Int, characterSkills: [Int: Int], isReaction: Bool = false
     ) -> [String] {
         // 定义特殊技能ID：这些技能无需考虑蓝图是否需要，直接计算加成（但不对反应蓝图生效）
-        let specialSkillIds: Set<Int> = [3380, 3388]
+        let specialSkillIds: Set = [3380, 3388]
 
         // 1. 获取蓝图所需的技能ID列表
         let requiredSkillIds = getBlueprintRequiredSkills(blueprintId: blueprintId)
@@ -807,7 +791,7 @@ class BlueprintCalcUtil {
         blueprintId: Int, characterSkills: [Int: Int], isReaction: Bool = false
     ) -> StructureBonuses {
         // 定义特殊技能ID：这些技能无需考虑蓝图是否需要，直接计算加成（但不对反应蓝图生效）
-        let specialSkillIds: Set<Int> = [3380, 3388]
+        let specialSkillIds: Set = [3380, 3388]
 
         // 1. 获取蓝图所需的技能ID列表
         let requiredSkillIds = getBlueprintRequiredSkills(blueprintId: blueprintId)
@@ -987,7 +971,8 @@ class BlueprintCalcUtil {
 
         let securityClass = getSecurityClass(trueSec: security)
         Logger.info(
-            "星系ID \(systemId) 安全等级: \(security), 类别: \(getSecurityClassName(securityClass))")
+            "星系ID \(systemId) 安全等级: \(security), 类别: \(getSecurityClassName(securityClass))"
+        )
 
         // 3. 根据安全类别选择对应的修正系数
         let securityModifier: Double
@@ -1428,7 +1413,8 @@ class BlueprintCalcUtil {
         }
 
         Logger.info(
-            "  EIV总计: \(String(format: "%.2f", totalEIV)) ISK [基于单流程原始材料需求，使用adjusted_price]")
+            "  EIV总计: \(String(format: "%.2f", totalEIV)) ISK [基于单流程原始材料需求，使用adjusted_price]"
+        )
         return totalEIV
     }
 
@@ -1458,7 +1444,8 @@ class BlueprintCalcUtil {
         // 找不到则使用默认值
         let defaultCostIndex = 0.0014 // 0.14%
         Logger.info(
-            "  未找到星系 \(solarSystemId) 的成本指数，使用默认值: \(String(format: "%.4f", defaultCostIndex))")
+            "  未找到星系 \(solarSystemId) 的成本指数，使用默认值: \(String(format: "%.4f", defaultCostIndex))"
+        )
         return defaultCostIndex
     }
 

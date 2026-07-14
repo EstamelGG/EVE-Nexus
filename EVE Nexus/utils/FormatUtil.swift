@@ -1,7 +1,7 @@
 import Foundation
 
 enum FormatUtil {
-    // 共享的 NumberFormatter 实例
+    /// 共享的 NumberFormatter 实例
     private static let formatter: NumberFormatter = {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
@@ -13,7 +13,7 @@ enum FormatUtil {
         return formatter
     }()
 
-    // 用于毫秒精度的 NumberFormatter 实例
+    /// 用于毫秒精度的 NumberFormatter 实例
     private static let msFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
@@ -26,7 +26,7 @@ enum FormatUtil {
         return formatter
     }()
 
-    // 用于UI显示的 NumberFormatter 实例（不使用千位分隔符）
+    /// 用于UI显示的 NumberFormatter 实例（不使用千位分隔符）
     private static let uiFormatter: NumberFormatter = {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
@@ -212,49 +212,11 @@ enum FormatUtil {
     ///   formatTimeWithMillisecondPrecision(0.5)     // "1ms"
     ///   ```
     static func formatTimeWithMillisecondPrecision(_ milliseconds: Double) -> String {
-        // 将毫秒转换为秒
         let seconds = milliseconds / 1000.0
-
-        // 如果小于1秒，显示为毫秒
         if seconds < 1 {
-            // 格式化毫秒，去掉末尾的0
-            let formattedMs = formatWithMillisecondPrecision(milliseconds)
-            return "\(formattedMs)ms"
+            return "\(formatWithMillisecondPrecision(milliseconds))ms"
         }
-
-        // 转换为天时分秒
-        let totalSecondsInt = Int(seconds)
-        let days = totalSecondsInt / 86400
-        let hours = (totalSecondsInt % 86400) / 3600
-        let minutes = (totalSecondsInt % 3600) / 60
-        let remainingSeconds = seconds - Double(days * 86400 + hours * 3600 + minutes * 60)
-
-        // 组合时间字符串
-        var result = ""
-
-        if days > 0 {
-            result += "\(days)d "
-        }
-
-        if hours > 0 || (days > 0 && (minutes > 0 || remainingSeconds > 0)) {
-            result += "\(hours)h "
-        }
-
-        if minutes > 0 || (hours > 0 && remainingSeconds > 0) {
-            result += "\(minutes)m "
-        }
-
-        // 秒数部分（保留毫秒精度）
-        if remainingSeconds > 0 || result.isEmpty {
-            // 格式化秒数，保留毫秒精度
-            let formattedSeconds = formatWithMillisecondPrecision(remainingSeconds)
-            result += "\(formattedSeconds)s"
-        } else {
-            // 移除最后的空格
-            result = String(result.dropLast())
-        }
-
-        return result
+        return formatEnglishDurationCore(totalSeconds: seconds, formatRemainingSeconds: formatWithMillisecondPrecision)
     }
 
     /// 格式化时间（保留精度版本）
@@ -269,43 +231,9 @@ enum FormatUtil {
     ///   ```
     static func formatTimeWithPrecision(_ totalSeconds: Double) -> String {
         if totalSeconds < 1 {
-            // 对于小于1秒的情况，保留原始精度
-            let formattedSeconds = format(totalSeconds)
-            return "\(formattedSeconds)s"
+            return "\(format(totalSeconds))s"
         }
-
-        let totalSecondsInt = Int(totalSeconds)
-        let days = totalSecondsInt / 86400
-        let hours = (totalSecondsInt % 86400) / 3600
-        let minutes = (totalSecondsInt % 3600) / 60
-        let seconds = totalSeconds - Double(days * 86400 + hours * 3600 + minutes * 60)
-
-        // 组合时间字符串
-        var result = ""
-
-        if days > 0 {
-            result += "\(days)d "
-        }
-
-        if hours > 0 || (days > 0 && minutes > 0) {
-            result += "\(hours)h "
-        }
-
-        if minutes > 0 || (hours > 0 && seconds > 0) {
-            result += "\(minutes)m "
-        }
-
-        // 秒数保留原始精度
-        if seconds > 0 || result.isEmpty {
-            // 格式化秒数，去掉末尾的0
-            let formattedSeconds = format(seconds)
-            result += "\(formattedSeconds)s"
-        } else {
-            // 移除最后的空格
-            result = String(result.dropLast())
-        }
-
-        return result
+        return formatEnglishDurationCore(totalSeconds: totalSeconds, formatRemainingSeconds: { format($0) })
     }
 
     /// 格式化数字用于UI显示：不使用千位分隔符，自动去除末尾的0
@@ -436,15 +364,15 @@ enum FormatUtil {
         return formatter
     }()
 
-    /// 将UTC日期字符串转换为Date对象
-    /// - Parameter utcDateString: UTC格式的日期字符串
-    /// - Returns: Date对象，如果解析失败返回nil
-    /// - Example:
-    ///   ```
-    ///   parseUTCDate("2024-01-15T10:30:00Z")     // Date对象
-    ///   parseUTCDate("2024-01-15T10:30:00+0000") // Date对象
-    ///   parseUTCDate("2024-01-15")               // Date对象（仅日期格式）
-    ///   ```
+    // 将UTC日期字符串转换为Date对象
+    // - Parameter utcDateString: UTC格式的日期字符串
+    // - Returns: Date对象，如果解析失败返回nil
+    // - Example:
+    //   ```
+    //   parseUTCDate("2024-01-15T10:30:00Z")     // Date对象
+    //   parseUTCDate("2024-01-15T10:30:00+0000") // Date对象
+    //   parseUTCDate("2024-01-15")               // Date对象（仅日期格式）
+    //   ```
     static func parseUTCDate(_ utcDateString: String) -> Date? {
         // 首先尝试标准格式
         if let date = utcDateFormatter.date(from: utcDateString) {
@@ -469,65 +397,469 @@ enum FormatUtil {
         return nil
     }
 
-    /// 将UTC日期字符串转换为本地时间字符串（短格式）
-    /// - Parameter utcDateString: UTC格式的日期字符串
-    /// - Returns: 本地时间字符串，格式：yyyy-MM-dd HH:mm
-    /// - Example:
-    ///   ```
-    ///   formatUTCToLocalTime("2024-01-15T10:30:00Z") // "2024-01-15 18:30" (假设本地时区为+8)
-    ///   ```
+    // 将UTC日期字符串转换为本地时间字符串（短格式）
+    // - Parameter utcDateString: UTC格式的日期字符串
+    // - Returns: 本地时间字符串，格式：yyyy-MM-dd HH:mm
+    // - Example:
+    //   ```
+    //   formatUTCToLocalTime("2024-01-15T10:30:00Z") // "2024-01-15 18:30" (假设本地时区为+8)
+    //   ```
     static func formatUTCToLocalTime(_ utcDateString: String) -> String {
-        guard let date = parseUTCDate(utcDateString) else {
-            return utcDateString
-        }
-        return localDateFormatter.string(from: date)
+        formatUTCString(utcDateString, format: .dateTime)
     }
 
-    /// 将UTC日期字符串转换为本地时间字符串（带星期）
-    /// - Parameter utcDateString: UTC格式的日期字符串
-    /// - Returns: 本地时间字符串，格式：yyyy-MM-dd EEEE HH:mm
-    /// - Example:
-    ///   ```
-    ///   formatUTCToLocalTimeWithWeekday("2024-01-15T10:30:00Z") // "2024-01-15 Monday 18:30"
-    ///   ```
+    // 将UTC日期字符串转换为本地时间字符串（带星期）
+    // - Parameter utcDateString: UTC格式的日期字符串
+    // - Returns: 本地时间字符串，格式：yyyy-MM-dd EEEE HH:mm
+    // - Example:
+    //   ```
+    //   formatUTCToLocalTimeWithWeekday("2024-01-15T10:30:00Z") // "2024-01-15 Monday 18:30"
+    //   ```
     static func formatUTCToLocalTimeWithWeekday(_ utcDateString: String) -> String {
-        guard let date = parseUTCDate(utcDateString) else {
-            return utcDateString
-        }
-
-        // 根据当前语言设置区域
-        localDateFormatterWithWeekday.locale = Locale(
-            identifier: NSLocalizedString("Language_Identifier", comment: "语言标识符")
-        )
-
-        return localDateFormatterWithWeekday.string(from: date)
+        formatUTCString(utcDateString, format: .dateTimeWithWeekday)
     }
 
-    /// 将UTC日期字符串转换为本地时间字符串（仅时间）
-    /// - Parameter utcDateString: UTC格式的日期字符串
-    /// - Returns: 本地时间字符串，格式：HH:mm:ss
-    /// - Example:
-    ///   ```
-    ///   formatUTCToLocalTimeOnly("2024-01-15T10:30:00Z") // "18:30:00" (假设本地时区为+8)
-    ///   ```
+    // 将UTC日期字符串转换为本地时间字符串（仅时间）
+    // - Parameter utcDateString: UTC格式的日期字符串
+    // - Returns: 本地时间字符串，格式：HH:mm:ss
+    // - Example:
+    //   ```
+    //   formatUTCToLocalTimeOnly("2024-01-15T10:30:00Z") // "18:30:00" (假设本地时区为+8)
+    //   ```
     static func formatUTCToLocalTimeOnly(_ utcDateString: String) -> String {
-        guard let date = parseUTCDate(utcDateString) else {
-            return utcDateString
-        }
-        return localTimeOnlyFormatter.string(from: date)
+        formatUTCString(utcDateString, format: .timeOnly)
     }
 
     /// 将Date对象格式化为本地时间字符串（短格式）
     /// - Parameter date: Date对象
     /// - Returns: 本地时间字符串，格式：yyyy-MM-dd HH:mm
     static func formatDateToLocalTime(_ date: Date) -> String {
-        return localDateFormatter.string(from: date)
+        formatLocalDate(date, format: .dateTime)
     }
 
     /// 将Date对象格式化为本地日期字符串（仅日期）
     /// - Parameter date: Date对象
     /// - Returns: 本地日期字符串，格式：yyyy-MM-dd
     static func formatDateToLocalDate(_ date: Date) -> String {
-        return localDateOnlyFormatter.string(from: date)
+        formatLocalDate(date, format: .dateOnly)
+    }
+
+    // MARK: - 整数 / 加载时间
+
+    /// 整数千位分隔（等价于 `format(Double, maxFractionDigits: 0)`）
+    static func formatInteger(_ value: Int) -> String {
+        format(Double(value), false, maxFractionDigits: 0)
+    }
+
+    /// 本地化百分比（`fraction` 为 0–1 比例，如 0.85 → 85%）
+    static func formatPercent(_ fraction: Double, fractionDigits: Int = 1) -> String {
+        let formatter = fractionDigits == 0 ? percentFormatter0 : percentFormatter1
+        return formatter.string(from: NSNumber(value: fraction)) ?? ""
+    }
+
+    /// 本地化百分比（`value` 为 0–100 数值，如 85 → 85%）
+    static func formatPercentFrom100(_ value: Double, fractionDigits: Int = 1) -> String {
+        formatPercent(value / 100, fractionDigits: fractionDigits)
+    }
+
+    /// 带符号的本地化百分比（`value` 为 0–100 数值，如 +7.5 → +7.5%）
+    static func formatSignedPercentFrom100(_ value: Double, fractionDigits: Int = 1) -> String {
+        let formatted = formatPercentFrom100(abs(value), fractionDigits: fractionDigits)
+        if value > 0 { return "+\(formatted)" }
+        if value < 0 { return "-\(formatted)" }
+        return formatted
+    }
+
+    private static let loadTimestampFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM/dd HH:mm"
+        formatter.locale = Locale.current
+        return formatter
+    }()
+
+    /// 数据加载时间等：`MM/dd HH:mm`
+    static func formatLoadTimestamp(_ date: Date) -> String {
+        loadTimestampFormatter.string(from: date)
+    }
+
+    // MARK: - 市场价格
+
+    /// 市场价格：`1.23B (1,234,567,890.00 ISK)` 或完整 ISK
+    static func formatMarketPrice(_ price: Double) -> String {
+        let billion = 1_000_000_000.0
+        let million = 1_000_000.0
+        let formattedFullPrice = formatDecimal(price)
+
+        if price >= billion {
+            return String(format: "%.2fB (%@ ISK)", price / billion, formattedFullPrice)
+        }
+        if price >= million {
+            return String(format: "%.2fM (%@ ISK)", price / million, formattedFullPrice)
+        }
+        return "\(formattedFullPrice) ISK"
+    }
+
+    /// 精确 ISK 价格（2 位小数 + 千位分隔）
+    static func formatPreciseISK(_ price: Double) -> String {
+        formatDecimal(price)
+    }
+
+    // MARK: - 履历 / 搜索详情
+
+    private static let historyDateFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy.MM.dd"
+        return formatter
+    }()
+
+    static func formatHistoryDateRange(start: Date, end: Date?) -> String {
+        let startStr = historyDateFormatter.string(from: start)
+        if let end {
+            return "\(startStr) - \(historyDateFormatter.string(from: end))"
+        }
+        return "\(startStr) - \(NSLocalizedString("Misc_Now", comment: "now"))"
+    }
+
+    static func formatHistoryDuration(start: Date, end: Date?) -> String {
+        let components = Calendar.current.dateComponents([.day, .hour], from: start, to: end ?? Date())
+        let days = components.day ?? 0
+        let hours = components.hour ?? 0
+        if days == 0 {
+            return "(\(String.localizedStringWithFormat(NSLocalizedString("Time_Hours_Long", comment: ""), hours)))"
+        }
+        return "(\(String.localizedStringWithFormat(NSLocalizedString("Time_Days_Long", comment: ""), days)))"
+    }
+
+    // MARK: - 相对时间
+
+    /// 「X 分钟前更新」类文案（仅分钟粒度）
+    static func formatMinutesSinceUpdate(
+        _ minutes: Int, justUpdated: String, minutesAgoFormat: String
+    ) -> String {
+        if minutes < 1 { return justUpdated }
+        return String.localizedStringWithFormat(minutesAgoFormat, minutes)
+    }
+
+    /// 相对过去：天/时/分/秒逐级（ESI 状态等）
+    static func formatRelativeAgoShort(since date: Date, now: Date = Date()) -> String {
+        formatIntervalDuration(now.timeIntervalSince(date), style: .relativePastShort)
+    }
+
+    /// 相对过去：最多两个单位（行星殖民地更新等）
+    static func formatRelativeAgo(since date: Date, now: Date = Date()) -> String {
+        formatRelativeAgo(interval: now.timeIntervalSince(date))
+    }
+
+    static func formatRelativeAgo(interval: TimeInterval) -> String {
+        formatIntervalDuration(interval, style: .relativePast)
+    }
+
+    /// 剩余时间：最多两个单位，不带「前」后缀
+    static func formatRemainingDuration(_ interval: TimeInterval) -> String {
+        formatIntervalDuration(interval, style: .remaining)
+    }
+
+    /// 由 SP 与训练速度推算时长
+    static func formatTrainingDuration(skillPoints: Int, skillPointsPerHour: Double) -> String {
+        guard skillPointsPerHour > 0 else {
+            return NSLocalizedString("Main_Database_Not_Available", comment: "N/A")
+        }
+        return formatCompactDuration(TimeInterval(skillPoints) / skillPointsPerHour * 3600)
+    }
+
+    /// 蓝图/行星周期：紧凑展示（最多 2 个单位）
+    static func formatBlueprintDuration(_ totalSeconds: Int) -> String {
+        formatCompactDuration(TimeInterval(totalSeconds))
+    }
+
+    // MARK: - 紧凑式时长
+
+    enum CompactDurationRounding {
+        /// 截断（系统 `DateComponentsFormatter`）
+        case truncate
+        /// 向上取整到秒，余量向粗单位进位（技能剩余/队列）
+        case ceil
+    }
+
+    /// 紧凑本地化时长：默认最多 2 单位、截断（如 `1小时30分钟`）
+    static func formatCompactDuration(
+        _ interval: TimeInterval,
+        maximumUnitCount: Int = 2,
+        rounding: CompactDurationRounding = .truncate
+    ) -> String {
+        switch rounding {
+        case .ceil:
+            return formatCompactDurationCeil(interval)
+        case .truncate:
+            let value = max(0, interval)
+            let formatter = maximumUnitCount == 1 ? compactDurationFormatter1 : compactDurationFormatter2
+            return formatter.string(from: value)
+                ?? String.localizedStringWithFormat(NSLocalizedString("Time_Seconds", comment: ""), Int(value))
+        }
+    }
+
+    /// PI 周期/剩余（同 `formatCompactDuration`）
+    static func formatClockDuration(_ interval: TimeInterval) -> String {
+        formatCompactDuration(interval)
+    }
+
+    /// PI 周期进度（同 `formatCompactDuration`）
+    static func formatElapsedClock(_ interval: TimeInterval) -> String {
+        formatCompactDuration(interval)
+    }
+
+    /// 蓝图工业计算（同 `formatCompactDuration`）
+    static func formatIndustrialDuration(_ seconds: TimeInterval) -> String {
+        formatCompactDuration(seconds)
+    }
+
+    /// PI 工厂剩余（单单位紧凑，如 `2分钟` / `1小时`）
+    static func formatSimulatedDuration(_ interval: TimeInterval) -> String {
+        formatCompactDuration(abs(interval), maximumUnitCount: 1)
+    }
+
+    private static let compactDurationFormatter2: DateComponentsFormatter = {
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = [.year, .month, .day, .hour, .minute, .second]
+        formatter.unitsStyle = .full
+        formatter.maximumUnitCount = 2
+        formatter.zeroFormattingBehavior = .dropAll
+        return formatter
+    }()
+
+    private static let compactDurationFormatter1: DateComponentsFormatter = {
+        let formatter = DateComponentsFormatter()
+        formatter.allowedUnits = [.day, .hour, .minute, .second]
+        formatter.unitsStyle = .full
+        formatter.maximumUnitCount = 1
+        formatter.zeroFormattingBehavior = .dropAll
+        return formatter
+    }()
+
+    /// 剩余时长向上取整（最多 2 单位，有秒则向粗单位进位）
+    private static func formatCompactDurationCeil(_ interval: TimeInterval) -> String {
+        let totalSeconds = Int(ceil(max(0, interval)))
+        let days = totalSeconds / (24 * 3600)
+        let remainingSeconds = totalSeconds % (24 * 3600)
+        let hours = remainingSeconds / (60 * 60)
+        let remainingAfterHours = remainingSeconds % (60 * 60)
+        let minutes = remainingAfterHours / 60
+        let seconds = remainingAfterHours % 60
+
+        if days > 0 {
+            if hours > 0 || minutes > 0 || seconds > 0 {
+                let adjustedHours = (minutes > 0 || seconds > 0) ? hours + 1 : hours
+                if adjustedHours > 0 {
+                    return String(format: NSLocalizedString("Time_Days_Hours", comment: ""), days, adjustedHours)
+                }
+            }
+            if minutes > 0 || seconds > 0 {
+                let adjustedMinutes = seconds > 0 ? minutes + 1 : minutes
+                if adjustedMinutes > 0 {
+                    return String(format: NSLocalizedString("Time_Days_Minutes", comment: ""), days, adjustedMinutes)
+                }
+            }
+            if seconds > 0 {
+                return String(format: NSLocalizedString("Time_Days_Seconds", comment: ""), days, seconds)
+            }
+            return String.localizedStringWithFormat(NSLocalizedString("Time_Days", comment: ""), days)
+        }
+        if hours > 0 {
+            if minutes > 0 || seconds > 0 {
+                let adjustedMinutes = seconds > 0 ? minutes + 1 : minutes
+                if adjustedMinutes > 0 {
+                    return String(format: NSLocalizedString("Time_Hours_Minutes", comment: ""), hours, adjustedMinutes)
+                }
+            }
+            if seconds > 0 {
+                return String(format: NSLocalizedString("Time_Hours_Seconds", comment: ""), hours, seconds)
+            }
+            return String.localizedStringWithFormat(NSLocalizedString("Time_Hours", comment: ""), hours)
+        }
+        if minutes > 0 {
+            if seconds > 0 {
+                return String(format: NSLocalizedString("Time_Minutes_Seconds", comment: ""), minutes, seconds)
+            }
+            return String.localizedStringWithFormat(NSLocalizedString("Time_Minutes", comment: ""), minutes)
+        }
+        return String.localizedStringWithFormat(NSLocalizedString("Time_Seconds", comment: ""), seconds)
+    }
+
+    // MARK: - Private 参数化核心
+
+    private enum DurationDisplayStyle {
+        case relativePastShort
+        case relativePast
+        case remaining
+    }
+
+    private enum LocalDateFormat {
+        case dateTime
+        case dateTimeWithWeekday
+        case timeOnly
+        case dateOnly
+    }
+
+    private static let preciseDecimalFormatter: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        return formatter
+    }()
+
+    private static let percentFormatter0: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .percent
+        formatter.minimumFractionDigits = 0
+        formatter.maximumFractionDigits = 0
+        formatter.locale = Locale.current
+        return formatter
+    }()
+
+    private static let percentFormatter1: NumberFormatter = {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .percent
+        formatter.minimumFractionDigits = 1
+        formatter.maximumFractionDigits = 1
+        formatter.locale = Locale.current
+        return formatter
+    }()
+
+    private static func formatDecimal(_ value: Double) -> String {
+        preciseDecimalFormatter.string(from: NSNumber(value: value)) ?? String(format: "%.2f", value)
+    }
+
+    private static func formatUTCString(_ utcDateString: String, format: LocalDateFormat) -> String {
+        guard let date = parseUTCDate(utcDateString) else { return utcDateString }
+        return formatLocalDate(date, format: format)
+    }
+
+    private static func formatLocalDate(_ date: Date, format: LocalDateFormat) -> String {
+        switch format {
+        case .dateTime:
+            return localDateFormatter.string(from: date)
+        case .dateTimeWithWeekday:
+            localDateFormatterWithWeekday.locale = Locale(
+                identifier: NSLocalizedString("Language_Identifier", comment: "语言标识符")
+            )
+            return localDateFormatterWithWeekday.string(from: date)
+        case .timeOnly:
+            return localTimeOnlyFormatter.string(from: date)
+        case .dateOnly:
+            return localDateOnlyFormatter.string(from: date)
+        }
+    }
+
+    private static func formatEnglishDurationCore(
+        totalSeconds: Double,
+        formatRemainingSeconds: (Double) -> String
+    ) -> String {
+        let totalSecondsInt = Int(totalSeconds)
+        let days = totalSecondsInt / 86400
+        let hours = (totalSecondsInt % 86400) / 3600
+        let minutes = (totalSecondsInt % 3600) / 60
+        let remainingSeconds = totalSeconds - Double(days * 86400 + hours * 3600 + minutes * 60)
+
+        var result = ""
+        if days > 0 { result += "\(days)d " }
+        if hours > 0 || (days > 0 && (minutes > 0 || remainingSeconds > 0)) {
+            result += "\(hours)h "
+        }
+        if minutes > 0 || (hours > 0 && remainingSeconds > 0) {
+            result += "\(minutes)m "
+        }
+        if remainingSeconds > 0 || result.isEmpty {
+            result += "\(formatRemainingSeconds(remainingSeconds))s"
+        } else {
+            result = String(result.dropLast())
+        }
+        return result
+    }
+
+    private static func formatIntervalDuration(_ interval: TimeInterval, style: DurationDisplayStyle) -> String {
+        switch style {
+        case .relativePastShort:
+            if interval < 0 { return NSLocalizedString("Time_Just_Now", comment: "") }
+            let days = Int(interval / (24 * 3600))
+            if days > 0 {
+                return String.localizedStringWithFormat(NSLocalizedString("Time_Days_Ago_short", comment: ""), days)
+            }
+            let hours = Int(interval / 3600)
+            if hours > 0 {
+                return String.localizedStringWithFormat(NSLocalizedString("Time_Hours_Ago_short", comment: ""), hours)
+            }
+            let minutes = Int(interval / 60)
+            if minutes > 0 {
+                return String.localizedStringWithFormat(NSLocalizedString("Time_Minutes_Ago_short", comment: ""), minutes)
+            }
+            let seconds = Int(interval)
+            if seconds > 0 {
+                return String.localizedStringWithFormat(NSLocalizedString("Time_Seconds_Ago_short", comment: ""), seconds)
+            }
+            return NSLocalizedString("Time_Just_Now", comment: "")
+
+        case .relativePast, .remaining:
+            if interval < 0 {
+                return style == .remaining ? "" : NSLocalizedString("Time_Just_Now", comment: "刚刚")
+            }
+            let totalSeconds = Int(interval)
+            let days = totalSeconds / (24 * 3600)
+            let hours = totalSeconds / 3600 % 24
+            let minutes = totalSeconds / 60 % 60
+            let isPast = style == .relativePast
+
+            if days > 0 {
+                if hours > 0 {
+                    if isPast {
+                        return String.localizedStringWithFormat(
+                            NSLocalizedString("Time_Days_Hours_Ago", comment: ""), days, hours
+                        )
+                    }
+                    return String.localizedStringWithFormat(
+                        NSLocalizedString("Time_Days_Hours", comment: ""), days, hours
+                    )
+                }
+                if isPast {
+                    return String.localizedStringWithFormat(
+                        NSLocalizedString("Time_Days_Ago", comment: ""), days
+                    )
+                }
+                return String.localizedStringWithFormat(
+                    NSLocalizedString("Time_Days", comment: ""), days
+                )
+            }
+            if hours > 0 {
+                if minutes > 0 {
+                    if isPast {
+                        return String.localizedStringWithFormat(
+                            NSLocalizedString("Time_Hours_Minutes_Ago", comment: ""), hours, minutes
+                        )
+                    }
+                    return String.localizedStringWithFormat(
+                        NSLocalizedString("Time_Hours_Minutes", comment: ""), hours, minutes
+                    )
+                }
+                if isPast {
+                    return String.localizedStringWithFormat(
+                        NSLocalizedString("Time_Hours_Ago", comment: ""), hours
+                    )
+                }
+                return String.localizedStringWithFormat(
+                    NSLocalizedString("Time_Hours", comment: ""), hours
+                )
+            }
+            if minutes > 0 {
+                if isPast {
+                    return String.localizedStringWithFormat(
+                        NSLocalizedString("Time_Minutes_Ago", comment: ""), minutes
+                    )
+                }
+                return String.localizedStringWithFormat(
+                    NSLocalizedString("Time_Minutes", comment: ""), minutes
+                )
+            }
+            return NSLocalizedString("Time_Just_Now", comment: "刚刚")
+        }
     }
 }

@@ -6,9 +6,11 @@ private func calculateDynamicHardpoints(simulationInput: SimulationInput) -> (
 ) {
     // 获取基础挂点数
     let baseTurretHardpoints = Int(
-        simulationInput.ship.baseAttributesByName["turretSlotsLeft"] ?? 0)
+        simulationInput.ship.baseAttributesByName["turretSlotsLeft"] ?? 0
+    )
     let baseLauncherHardpoints = Int(
-        simulationInput.ship.baseAttributesByName["launcherSlotsLeft"] ?? 0)
+        simulationInput.ship.baseAttributesByName["launcherSlotsLeft"] ?? 0
+    )
 
     var totalTurretHardpoints = baseTurretHardpoints
     var totalLauncherHardpoints = baseLauncherHardpoints
@@ -69,7 +71,8 @@ func processConfiguration(simulationInput: SimulationInput, databaseManager: Dat
     for module in allModulesInOrder {
         // 获取当前配置的动态挂点数量
         let (turretSlotsNum, launcherSlotsNum) = calculateDynamicHardpoints(
-            simulationInput: processedInput)
+            simulationInput: processedInput
+        )
 
         // 执行装配检查
         let canInstall = canFit(

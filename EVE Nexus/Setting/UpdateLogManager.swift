@@ -19,9 +19,7 @@ struct UpdateLog: Identifiable, Codable {
 class UpdateLogManager: ObservableObject {
     static let shared = UpdateLogManager()
 
-    private init() {
-        // 移除初始化时的加载
-    }
+    private init() {}
 
     // MARK: - 公共方法
 
@@ -67,7 +65,8 @@ class UpdateLogManager: ObservableObject {
                             version: version,
                             date: date,
                             changes: currentChanges
-                        ))
+                        )
+                    )
                 }
 
                 // 解析新版本标题
@@ -96,7 +95,8 @@ class UpdateLogManager: ObservableObject {
                     version: version,
                     date: date,
                     changes: currentChanges
-                ))
+                )
+            )
         }
 
         return logs
