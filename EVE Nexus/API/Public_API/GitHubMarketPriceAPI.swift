@@ -1,4 +1,5 @@
 import Foundation
+import os.lock
 
 // MARK: - 数据模型
 
@@ -24,6 +25,20 @@ class GitHubMarketPriceAPI {
         "https://github.com/EstamelGG/EVE_MarketPrice_Fetch/releases/download/market-prices/market_prices.json"
 
     private let cacheTimeoutInterval: TimeInterval = 0.5 * 60 * 60 // 0.5小时缓存有效期（GitHub数据）
+
+    /// 预加载的市场数据（app 初始化时后台加载，成功后整个会话期间使用，即使过期）
+    /// 使用 OSAllocatedUnfairLock 实现 async-safe 的线程安全访问
+    private let preloadedDataLock = OSAllocatedUnfairLock<
+        [Int: (buy: Double, sell: Double)]?
+    >(initialState: nil)
+
+    /// 返回预加载的市场数据（按 typeIds 过滤）；未加载成功时返回 nil
+    func preloadedPrices(typeIds: [Int]?) -> [Int: (buy: Double, sell: Double)]? {
+        preloadedDataLock.withLock { data in
+            guard let data else { return nil }
+            return filterPrices(data, typeIds: typeIds)
+        }
+    }
 
     /// Documents目录路径
     private var documentsDirectory: URL {
@@ -65,8 +80,19 @@ class GitHubMarketPriceAPI {
         )
     }
 
-    /// 获取市场价格数据（仅 GitHub Release JSON 或其本地缓存）
-    ///     // - Parameters:
+    /// 后台预加载市场价格数据（app 初始化时调用）；成功后整个会话期间使用此数据，即使过期
+    func preloadData() async {
+        do {
+            let data = try await fetchFromURL(Self.jitaPriceListDownloadURLString)
+            preloadedDataLock.withLock { $0 = data }
+            Logger.success("预加载 GitHub 市场价格数据成功，物品数量: \(data.count)")
+        } catch {
+            Logger.warning("预加载 GitHub 市场价格数据失败: \(error.localizedDescription)")
+        }
+    }
+
+    /// 获取市场价格数据（优先使用预加载数据，其次本地缓存，最后网络下载）
+    /// - Parameters:
     ///   - typeIds: 物品ID数组（可选；为 nil 时返回缓存/下载中的全部条目再过滤）
     ///   - forceRefresh: 为 true 时跳过本地缓存，强制重新下载
     /// - Returns: [物品ID: (buy, sell)]
@@ -75,6 +101,13 @@ class GitHubMarketPriceAPI {
         typeIds: [Int]? = nil,
         forceRefresh: Bool = false
     ) async throws -> [Int: (buy: Double, sell: Double)] {
+        // 优先使用预加载数据（整个会话期间使用，即使过期）
+        let cached = preloadedDataLock.withLock { $0 }
+        if let cached {
+            Logger.debug("使用预加载的 GitHub 市场价格数据，物品数量: \(cached.count)")
+            return filterPrices(cached, typeIds: typeIds)
+        }
+
         if !forceRefresh {
             do {
                 if let cachedData = try await loadCachedData() {

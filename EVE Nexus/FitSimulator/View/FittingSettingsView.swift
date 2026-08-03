@@ -516,13 +516,9 @@ struct FittingSettingsView: View {
                         if isDeletingFitting {
                             ProgressView()
                                 .scaleEffect(0.8)
-                                .frame(width: 30, height: 30)
                         } else {
                             Image(systemName: "trash")
                                 .foregroundColor(.red)
-                                .frame(width: 30, height: 30)
-                                .background(Color(.systemBackground))
-                                .clipShape(Circle())
                         }
                     }
                     .disabled(isDeletingFitting)
@@ -535,9 +531,6 @@ struct FittingSettingsView: View {
                 } label: {
                     Image(systemName: "xmark")
                         .foregroundColor(.primary)
-                        .frame(width: 30, height: 30)
-                        .background(Color(.systemBackground))
-                        .clipShape(Circle())
                 }
             }
         }

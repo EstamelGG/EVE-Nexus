@@ -147,12 +147,31 @@ struct MarketItemDetailView: View {
     @State private var isLoadingHistory: Bool = false
     @State private var isFromParent: Bool = true
     @State private var activeSheet: ActiveSheet?
-    @State private var selectedRegionID: Int
-    @State private var selectedRegionName: String = ""
-    @State private var saveSelection: Bool = true
+    @State private var selectedLocation: Int
     @State private var structureOrdersProgress: StructureOrdersProgress? = nil // 建筑订单加载进度
     @State private var selectedTimeRange: PriceHistoryTimeRange = .oneYear // 默认选择近一年
     @Environment(\.horizontalSizeClass) private var horizontalSizeClass
+
+    /// 当前选中的地点类型
+    private var locationType: MarketLocationType? {
+        MarketLocationType.from(id: selectedLocation)
+    }
+
+    /// 显示名称
+    private var selectedRegionName: String {
+        locationType?.displayName ?? ""
+    }
+
+    /// ESI 查询用的星域 ID
+    private var selectedRegionID: Int {
+        locationType?.regionID ?? selectedLocation
+    }
+
+    /// 是否为建筑
+    private var isStructureSelection: Bool {
+        StructureMarketManager.isStructureId(selectedLocation)
+    }
+
     private var chartHeight: CGFloat {
         // 根据设备类型和方向调整高度
         if horizontalSizeClass == .regular {
@@ -164,10 +183,10 @@ struct MarketItemDetailView: View {
         }
     }
 
-    init(databaseManager: DatabaseManager, itemID: Int, selectedRegionID: Int = 0) {
+    init(databaseManager: DatabaseManager, itemID: Int, selectedLocation: Int = 0) {
         self.databaseManager = databaseManager
         self.itemID = itemID
-        _selectedRegionID = State(initialValue: selectedRegionID)
+        _selectedLocation = State(initialValue: selectedLocation)
     }
 
     /// 推迟到下一 run loop 再呈现，避免与 NavigationStack / List / 其它转场叠在一起
@@ -344,8 +363,8 @@ struct MarketItemDetailView: View {
             switch sheet {
             case .regionPicker:
                 MarketRegionPickerView(
-                    selectedRegionID: $selectedRegionID, selectedRegionName: $selectedRegionName,
-                    saveSelection: $saveSelection,
+                    selectedLocation: $selectedLocation,
+                    saveSelection: .constant(true),
                     databaseManager: databaseManager
                 )
             case .itemInfo:
@@ -364,7 +383,7 @@ struct MarketItemDetailView: View {
                 }
             }
         }
-        .onChange(of: selectedRegionID) { _, _ in
+        .onChange(of: selectedLocation) { _, _ in
             Task {
                 await loadAllMarketData()
             }
@@ -372,29 +391,23 @@ struct MarketItemDetailView: View {
         .onAppear {
             let defaults = UserDefaultsManager.shared
 
-            // 验证和设置selectedRegionID
-            if selectedRegionID == 0 {
-                let defaultRegionID = defaults.selectedRegionID
-                // 验证默认选择的区域是否有效
-                if isValidRegionID(defaultRegionID) {
-                    selectedRegionID = defaultRegionID
-                    selectedRegionName = getRegionName(for: defaultRegionID)
+            // 验证和设置 selectedLocation
+            if selectedLocation == 0 {
+                let savedLocation = defaults.selectedLocation
+                if isValidRegionID(savedLocation) {
+                    selectedLocation = savedLocation
                 } else {
-                    // 如果默认区域无效，回退到Jita
-                    Logger.warning("默认选择的区域ID \(defaultRegionID) 无效，回退到Jita")
-                    selectedRegionID = MarketManager.theForgeRegionID // The Forge (Jita)
-                    selectedRegionName = getRegionName(for: selectedRegionID)
-                    // 更新默认设置
-                    defaults.selectedRegionID = selectedRegionID
+                    // 如果默认地点无效，回退到 Jita
+                    Logger.warning("默认选择的地点 ID \(savedLocation) 无效，回退到Jita")
+                    selectedLocation = MarketManager.theForgeRegionID // The Forge (Jita)
+                    defaults.selectedLocation = selectedLocation
                 }
             } else {
-                // 验证当前选择的区域是否有效
-                if isValidRegionID(selectedRegionID) {
-                    selectedRegionName = getRegionName(for: selectedRegionID)
-                } else {
-                    Logger.warning("当前选择的区域ID \(selectedRegionID) 无效，回退到Jita")
-                    selectedRegionID = MarketManager.theForgeRegionID // The Forge (Jita)
-                    selectedRegionName = getRegionName(for: selectedRegionID)
+                // 验证当前选择的地点是否有效
+                if !isValidRegionID(selectedLocation) {
+                    Logger.warning("当前选择的地点 ID \(selectedLocation) 无效，回退到Jita")
+                    selectedLocation = MarketManager.theForgeRegionID // The Forge (Jita)
+                    defaults.selectedLocation = selectedLocation
                 }
             }
 
@@ -423,12 +436,12 @@ struct MarketItemDetailView: View {
             let orders: [MarketOrder]
 
             // 判断是否选择了建筑
-            if StructureMarketManager.isStructureId(selectedRegionID) {
+            if isStructureSelection {
                 // 选择了建筑，使用建筑订单API
                 guard
-                    let structureId = StructureMarketManager.getStructureId(from: selectedRegionID)
+                    let structureId = StructureMarketManager.getStructureId(from: selectedLocation)
                 else {
-                    Logger.error("无效的建筑ID: \(selectedRegionID)")
+                    Logger.error("无效的建筑ID: \(selectedLocation)")
                     marketOrders = []
                     lowestPrice = nil
                     return
@@ -456,7 +469,7 @@ struct MarketItemDetailView: View {
 
                 Logger.info("从建筑 \(structure.structureName) 获取到 \(orders.count) 个订单")
             } else {
-                // 选择了星域，使用原有的API
+                // 选择了星域或星系，使用原有的API（selectedRegionID 对星系返回其所属星域 ID）
                 orders = try await MarketOrdersAPI.shared.fetchMarketOrders(
                     typeID: itemID,
                     regionID: selectedRegionID,
@@ -464,9 +477,13 @@ struct MarketItemDetailView: View {
                 )
             }
 
-            // 更新UI
-            marketOrders = orders
-            let sellOrders = orders.filter { !$0.isBuyOrder }
+            // 更新UI：选中星系时仅显示该星系的订单
+            let systemFilter = locationType?.systemID
+            let filteredOrders = systemFilter.map { sid in
+                orders.filter { $0.systemId == sid }
+            } ?? orders
+            marketOrders = filteredOrders
+            let sellOrders = filteredOrders.filter { !$0.isBuyOrder }
             lowestPrice = sellOrders.map { $0.price }.min()
         } catch {
             Logger.error("加载市场订单失败: \(error)")
@@ -489,19 +506,19 @@ struct MarketItemDetailView: View {
             let historyRegionID: Int
 
             // 判断是否选择了建筑
-            if StructureMarketManager.isStructureId(selectedRegionID) {
+            if isStructureSelection {
                 // 选择了建筑，获取建筑所属的星域ID
-                guard let structureId = StructureMarketManager.getStructureId(from: selectedRegionID),
+                guard let structureId = StructureMarketManager.getStructureId(from: selectedLocation),
                       let structure = getStructureById(structureId)
                 else {
-                    Logger.error("未找到建筑信息，无法获取历史价格: \(selectedRegionID)")
+                    Logger.error("未找到建筑信息，无法获取历史价格: \(selectedLocation)")
                     marketHistory = []
                     return
                 }
                 historyRegionID = structure.regionId
                 Logger.info("使用建筑 \(structure.structureName) 所属星域 \(historyRegionID) 获取历史价格")
             } else {
-                // 选择了星域，直接使用星域ID
+                // 选择了星域或星系，直接使用星域ID（selectedRegionID 对星系返回其所属星域 ID）
                 historyRegionID = selectedRegionID
             }
 
@@ -528,22 +545,6 @@ struct MarketItemDetailView: View {
 
         // 等待两个任务都完成
         await _ = (marketDataTask, historyDataTask)
-    }
-
-    /// 根据区域ID获取区域名称的方法
-    private func getRegionName(for regionID: Int) -> String {
-        // 判断是否是建筑ID
-        if StructureMarketManager.isStructureId(regionID) {
-            guard let structureId = StructureMarketManager.getStructureId(from: regionID),
-                  let structure = getStructureById(structureId)
-            else {
-                return "Unknown Structure"
-            }
-            return structure.structureName
-        }
-
-        // 区域名称走内存
-        return SDEMemoryStore.regionName(for: regionID) ?? "Unknown Region"
     }
 
     /// 根据建筑ID获取建筑信息
@@ -579,70 +580,8 @@ struct MarketItemDetailView: View {
         }
     }
 
-    /// 验证区域ID是否有效（星域或存在的建筑）
-    private func isValidRegionID(_ regionID: Int) -> Bool {
-        // 检查是否是建筑ID（负数表示建筑）
-        if StructureMarketManager.isStructureId(regionID) {
-            // 验证建筑是否存在
-            guard let structureId = StructureMarketManager.getStructureId(from: regionID) else {
-                return false
-            }
-            return getStructureById(structureId) != nil
-        }
-
-        // 检查是否是有效的星域ID
-        if regionID > 0 && regionID < 11_000_000 {
-            return SDEMemoryStore.regionNames[regionID] != nil
-        }
-
-        return false
-    }
-}
-
-// MARK: - 市场建筑行视图
-
-struct MarketStructureRow: View {
-    let structure: MarketStructure
-    let isSelected: Bool
-    let onSelect: () -> Void
-
-    var body: some View {
-        HStack(spacing: 12) {
-            // 建筑图标（按 typeId 查询）
-            IconManager.shared.loadImage(for: structure.iconFileName)
-                .resizable()
-                .frame(width: 32, height: 32)
-                .cornerRadius(6)
-
-            // 建筑信息
-            VStack(alignment: .leading, spacing: 2) {
-                Text(structure.structureName)
-                    .font(.body)
-                    .foregroundColor(.primary)
-                    .lineLimit(1)
-
-                HStack(spacing: 4) {
-                    Text(formatSystemSecurity(structure.security))
-                        .foregroundColor(getSecurityColor(structure.security))
-                        .font(.caption)
-
-                    Text("\(structure.systemName)")
-                        .foregroundColor(.secondary)
-                        .font(.caption)
-                        .lineLimit(1)
-                }
-            }
-
-            Spacer()
-
-            if isSelected {
-                Image(systemName: "checkmark")
-                    .foregroundColor(.blue)
-            }
-        }
-        .contentShape(Rectangle())
-        .onTapGesture {
-            onSelect()
-        }
+    /// 验证地点 ID 是否有效（星域 / 星系 / 建筑）
+    private func isValidRegionID(_ id: Int) -> Bool {
+        MarketLocationType.from(id: id) != nil
     }
 }

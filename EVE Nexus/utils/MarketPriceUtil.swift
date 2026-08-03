@@ -80,27 +80,33 @@ enum MarketPriceUtil {
         }
     }
 
-    /// 使用 GitHub Release Jita 聚合清单取价（LP 商店、建筑溢价等）。清单不可用时抛出，**不会**用 ESI 自造全表。
-    ///     // - Returns: [物品ID: Jita价格]；清单中无数据的 type 不会出现在字典里
+    /// 使用 GitHub 预加载的 Jita 聚合清单取价（LP 商店、建筑溢价等）。
+    /// 预加载数据可用时直接使用；不可用时（预加载失败或尚未完成）回退到 ESI 调用。
+    /// - Returns: [物品ID: Jita价格]；清单中无数据的 type 不会出现在结果字典里
     static func getJitaOrderPricesFromGitHubList(
         typeIds: [Int],
         orderType: OrderType = .sell,
         forceRefresh: Bool = false
-    ) async throws -> [Int: Double] {
+    ) async -> [Int: Double] {
         guard !typeIds.isEmpty else { return [:] }
 
-        let aggregates = try await GitHubMarketPriceAPI.shared.fetchMarketPrices(
-            typeIds: typeIds,
-            forceRefresh: forceRefresh
-        )
-
-        let result = aggregates.compactMapValues { (buy: Double, sell: Double) -> Double? in
-            let price = orderType == .buy ? buy : sell
-            return price > 0 ? price : nil
+        // 检查预加载数据是否可用
+        if let aggregates = GitHubMarketPriceAPI.shared.preloadedPrices(typeIds: typeIds) {
+            let result = aggregates.compactMapValues { (buy: Double, sell: Double) -> Double? in
+                let price = orderType == .buy ? buy : sell
+                return price > 0 ? price : nil
+            }
+            Logger.debug("使用 GitHub 预加载数据获取 \(result.count)/\(typeIds.count) 个物品的\(orderType == .buy ? "买" : "卖")价")
+            return result
         }
 
-        Logger.debug("使用 GitHub 清单获取 \(result.count)/\(typeIds.count) 个物品的\(orderType == .buy ? "买" : "卖")价")
-        return result
+        // 预加载数据不可用，回退到 ESI
+        Logger.info("GitHub 预加载数据不可用，使用 ESI 获取 Jita 价格")
+        return await getJitaOrderPricesFromESI(
+            typeIds: typeIds,
+            orderType: orderType,
+            forceRefresh: forceRefresh
+        )
     }
 
     /// 按物品从 ESI 拉 Forge 订单，计算 Jita 4-4 价（装配价格、属性对比、技能注入器等）。**不使用** GitHub 清单。

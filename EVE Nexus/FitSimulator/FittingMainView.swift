@@ -560,6 +560,8 @@ struct FittingMainView: View {
         // 获取剪贴板内容
         guard let clipboardText = UIPasteboard.general.string, !clipboardText.isEmpty else {
             Logger.warning("剪贴板为空或无文本内容")
+            importErrorMessage = NSLocalizedString("Fitting_Import_Clipboard_Empty", comment: "")
+            showingImportErrorAlert = true
             return
         }
 

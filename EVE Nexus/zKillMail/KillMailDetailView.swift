@@ -7,6 +7,11 @@ private struct KMVictimShipSheetItem: Identifiable {
     }
 }
 
+private struct KMFittingSheetItem: Identifiable {
+    let id = UUID()
+    let fitting: LocalFitting
+}
+
 struct BRKillMailDetailView: View {
     let listEntity: KillMailListEntity
     let character: EVECharacterInfo?
@@ -32,6 +37,7 @@ struct BRKillMailDetailView: View {
     @State private var kmMarketPriceSession: Int = 0
     @State private var showZkbLinkCopiedAlert = false
     @State private var victimShipDetailSheetItem: KMVictimShipSheetItem?
+    @State private var fittingToShow: KMFittingSheetItem?
 
     /// 监听屏幕方向变化
     @State private var orientation = UIDevice.current.orientation
@@ -139,11 +145,32 @@ struct BRKillMailDetailView: View {
                 )
             }
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    UIPasteboard.general.string = zkillboardKillPageURLString(
-                        killId: listEntity.killmailId
-                    )
-                    showZkbLinkCopiedAlert = true
+                Menu {
+                    Button {
+                        UIPasteboard.general.string = zkillboardKillPageURLString(
+                            killId: listEntity.killmailId
+                        )
+                        showZkbLinkCopiedAlert = true
+                    } label: {
+                        Label(
+                            NSLocalizedString("KillMail_ZKB_Copy_Link", comment: ""),
+                            systemImage: "doc.on.doc"
+                        )
+                    }
+
+                    Button {
+                        if let detail = detailData,
+                           let fitting = detail.toLocalFitting()
+                        {
+                            fittingToShow = KMFittingSheetItem(fitting: fitting)
+                        }
+                    } label: {
+                        Label(
+                            NSLocalizedString("KillMail_Simulate_Fitting", comment: ""),
+                            systemImage: "wrench.and.screwdriver"
+                        )
+                    }
+                    .disabled(detailData == nil)
                 } label: {
                     Image(systemName: "square.and.arrow.up")
                 }
@@ -182,6 +209,23 @@ struct BRKillMailDetailView: View {
                     }
                 }
             }
+        }
+        .sheet(item: $fittingToShow) { item in
+            NavigationStack {
+                ShipFittingView(
+                    temporaryFitting: item.fitting,
+                    databaseManager: DatabaseManager.shared
+                )
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarLeading) {
+                        Button(NSLocalizedString("Misc_back", comment: "")) {
+                            fittingToShow = nil
+                        }
+                    }
+                }
+            }
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
         }
         .refreshable {
             await loadBRKillMailDetail()
@@ -720,6 +764,8 @@ struct BRKillMailDetailView: View {
             let depth = itemDepth(item)
             let singleton = item.count > 4 ? item[4] : 0
             let flag = item[0]
+            let chargeTypeId = item.count > 6 ? item[6] : 0
+            let chargeQuantity = item.count > 7 ? item[7] : 0
             if item[2] > 0 {
                 ItemRow(
                     typeId: typeId, quantity: item[2], isDropped: true,
@@ -727,7 +773,9 @@ struct BRKillMailDetailView: View {
                     resolvedUnitPrice: kmMarketUnitPriceByType[typeId],
                     depth: depth,
                     singleton: singleton,
-                    flag: flag
+                    flag: flag,
+                    chargeTypeId: chargeTypeId,
+                    chargeQuantity: chargeQuantity
                 )
             }
             if item[3] > 0 {
@@ -737,7 +785,9 @@ struct BRKillMailDetailView: View {
                     resolvedUnitPrice: kmMarketUnitPriceByType[typeId],
                     depth: depth,
                     singleton: singleton,
-                    flag: flag
+                    flag: flag,
+                    chargeTypeId: chargeTypeId,
+                    chargeQuantity: chargeQuantity
                 )
             }
         }
@@ -1112,7 +1162,6 @@ struct BRKillMailDetailView: View {
     }
 }
 
-/// 修改 ItemRow 视图
 struct ItemRow: View {
     let typeId: Int
     let quantity: Int
@@ -1126,6 +1175,10 @@ struct ItemRow: View {
     var singleton: Int = 0
     /// 物品所在舱位 flag（5=船舱/Cargo）
     var flag: Int = 0
+    /// 装配槽位装备行附带的弹药 type_id（0 表示无弹药）
+    var chargeTypeId: Int = 0
+    /// 装配槽位装备行附带的弹药数量（dropped+destroyed 合并）
+    var chargeQuantity: Int = 0
 
     private var nestedIndent: CGFloat {
         CGFloat(depth) * 16
@@ -1151,6 +1204,16 @@ struct ItemRow: View {
         return info.iconFileName
     }
 
+    /// 是否附带弹药
+    private var hasCharge: Bool {
+        chargeTypeId > 0
+    }
+
+    /// 弹药图标文件名
+    private var chargeIconFileName: String {
+        itemInfoCache[chargeTypeId]?.iconFileName ?? ""
+    }
+
     var body: some View {
         if itemInfoCache[typeId] != nil {
             NavigationLink(destination: {
@@ -1170,6 +1233,9 @@ struct ItemRow: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(SDEMemoryStore.type(for: typeId)?.name ?? "Type \(typeId)")
+                        if hasCharge {
+                            chargeLine
+                        }
                         priceCaptionLine
                     }
 
@@ -1208,6 +1274,25 @@ struct ItemRow: View {
                 }
             }
             .padding(.vertical, 2)
+        }
+    }
+
+    /// 弹药行：图标 + 名称 + 数量（与装配模拟的弹药行设计一致）
+    private var chargeLine: some View {
+        HStack(spacing: 4) {
+            Image(uiImage: IconManager.shared.loadUIImage(for: chargeIconFileName))
+                .resizable()
+                .frame(width: 20, height: 20)
+                .cornerRadius(2)
+            Text(SDEMemoryStore.type(for: chargeTypeId)?.name ?? "Type \(chargeTypeId)")
+                .font(.caption)
+                .foregroundColor(.secondary)
+                .lineLimit(1)
+            if chargeQuantity > 1 {
+                Text("×\(chargeQuantity)")
+                    .font(.caption)
+                    .foregroundColor(.secondary)
+            }
         }
     }
 

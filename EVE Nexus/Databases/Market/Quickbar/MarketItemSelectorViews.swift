@@ -1,280 +1,6 @@
 import Foundation
 import SwiftUI
 
-struct MarketItemSelectorBaseView<Content: View>: View {
-    @ObservedObject var databaseManager: DatabaseManager
-    let title: String
-    let content: () -> Content
-    let searchQuery: (String) -> String
-    let searchParameters: (String) -> [Any]
-    let existingItems: Set<Int>
-    let onItemSelected: (DatabaseListItem) -> Void
-    // 搜索分组「全选」等；为 `nil` 时不显示批量按钮
-    var onBatchItemsSelected: (([DatabaseListItem]) -> Void)? = nil
-    let onItemDeselected: (DatabaseListItem) -> Void
-    let onDismiss: () -> Void
-    let showSelected: Bool // 要不要展示已选/未选的指示图标
-
-    @State private var items: [DatabaseListItem] = []
-    @State private var searchText = ""
-    @State private var isSearchActive = false
-    @State private var isLoading = false
-    @State private var isShowingSearchResults = false
-    @StateObject private var searchController = SearchController()
-
-    /// 搜索结果分组
-    var groupedSearchResults: [SearchResultSection<DatabaseListItem>] {
-        guard !items.isEmpty else { return [] }
-
-        // 精准匹配置顶（与市场浏览器/数据库搜索行为一致）
-        let query = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let exactItems = items.filter {
-            SDEMemoryStore.type(for: $0.id)?.names.matchesExact(query) == true
-        }
-        .sorted { item1, item2 in
-            if item1.metaGroupID != item2.metaGroupID {
-                return (item1.metaGroupID ?? -1) < (item2.metaGroupID ?? -1)
-            }
-            return item1.name.localizedCaseInsensitiveCompare(item2.name) == .orderedAscending
-        }
-        let exactIDs = Set(exactItems.map(\.id))
-        let sourceItems = exactItems.isEmpty ? items : items.filter { !exactIDs.contains($0.id) }
-
-        // 按categoryID和groupID组织数据
-        var groupedByCategory: [Int: [(groupID: Int, name: String, items: [DatabaseListItem])]] =
-            [:]
-
-        // 首先按categoryID和groupID分组
-        for item in sourceItems {
-            let categoryID = item.categoryID ?? 0
-            let groupID = item.groupID ?? 0
-            let groupName = item.groupName ?? "Unknown Group"
-
-            if groupedByCategory[categoryID] == nil {
-                groupedByCategory[categoryID] = []
-            }
-
-            // 在当前分类中查找或创建groupID组
-            if let index = groupedByCategory[categoryID]?.firstIndex(where: {
-                $0.groupID == groupID
-            }) {
-                groupedByCategory[categoryID]?[index].items.append(item)
-            } else {
-                groupedByCategory[categoryID]?.append(
-                    (groupID: groupID, name: groupName, items: [item])
-                )
-            }
-        }
-
-        // 按优先级顺序排序分类（统一引用 MarketManager.categoryPriority）
-        var result: [SearchResultSection<DatabaseListItem>] = []
-        for categoryID in MarketManager.categoryPriority {
-            if let groups = groupedByCategory[categoryID] {
-                for group in groups.sorted(by: { $0.groupID < $1.groupID }) {
-                    // 对每个组内的物品进行排序
-                    let sortedItems = group.items.sorted { item1, item2 in
-                        // 首先按科技等级排序
-                        if item1.metaGroupID != item2.metaGroupID {
-                            return (item1.metaGroupID ?? -1) < (item2.metaGroupID ?? -1)
-                        }
-                        // 科技等级相同时按名称排序
-                        return item1.name.localizedCaseInsensitiveCompare(item2.name)
-                            == .orderedAscending
-                    }
-                    result.append(
-                        SearchResultSection(identity: .group(group.groupID), name: group.name, items: sortedItems)
-                    )
-                }
-            }
-        }
-
-        // 添加未在优先级列表中的分类（按categoryID排序确保稳定顺序）
-        let remainingCategories = groupedByCategory.keys.filter {
-            !MarketManager.categoryPriority.contains($0)
-        }
-        .sorted()
-        for categoryID in remainingCategories {
-            if let groups = groupedByCategory[categoryID] {
-                for group in groups.sorted(by: { $0.groupID < $1.groupID }) {
-                    // 对每个组内的物品进行排序
-                    let sortedItems = group.items.sorted { item1, item2 in
-                        // 首先按科技等级排序
-                        if item1.metaGroupID != item2.metaGroupID {
-                            return (item1.metaGroupID ?? -1) < (item2.metaGroupID ?? -1)
-                        }
-                        // 科技等级相同时按名称排序
-                        return item1.name.localizedCaseInsensitiveCompare(item2.name)
-                            == .orderedAscending
-                    }
-                    result.append(
-                        SearchResultSection(identity: .group(group.groupID), name: group.name, items: sortedItems)
-                    )
-                }
-            }
-        }
-
-        // 精准匹配组置于最前
-        if !exactItems.isEmpty {
-            result.insert(
-                SearchResultSection(
-                    identity: .exactMatch,
-                    name: NSLocalizedString("Main_Database_precise_match_section", comment: "精准匹配"),
-                    items: exactItems
-                ), at: 0
-            )
-        }
-
-        return result
-    }
-
-    var body: some View {
-        List {
-            if isShowingSearchResults {
-                // 搜索结果视图，按市场组分类显示
-                ForEach(groupedSearchResults, id: \.id) { group in
-                    Section {
-                        ForEach(group.items) { item in
-                            Button {
-                                if existingItems.contains(item.id) {
-                                    onItemDeselected(item)
-                                } else {
-                                    onItemSelected(item)
-                                }
-                            } label: {
-                                HStack {
-                                    DatabaseListItemView(
-                                        item: item,
-                                        showDetails: true
-                                    )
-
-                                    Spacer()
-                                    if showSelected {
-                                        Image(
-                                            systemName: existingItems.contains(item.id)
-                                                ? "checkmark.circle.fill" : "circle"
-                                        )
-                                        .foregroundColor(
-                                            existingItems.contains(item.id)
-                                                ? .accentColor : .secondary
-                                        )
-                                    }
-                                }
-                            }
-                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                        }
-                    } header: {
-                        HStack(alignment: .firstTextBaseline) {
-                            Text(group.name)
-                                .fontWeight(.semibold)
-                                .font(.system(size: 18))
-                                .foregroundColor(.primary)
-                                .textCase(.none)
-                            if let batch = onBatchItemsSelected {
-                                Spacer(minLength: 8)
-                                Button {
-                                    let toAdd = group.items.filter { !existingItems.contains($0.id) }
-                                    guard !toAdd.isEmpty else { return }
-                                    batch(toAdd)
-                                } label: {
-                                    Text(
-                                        NSLocalizedString(
-                                            "Main_Market_Select_All_In_Section", comment: ""
-                                        )
-                                    )
-                                    .font(.subheadline.weight(.medium))
-                                }
-                                .buttonStyle(.borderless)
-                            }
-                        }
-                    }
-                }
-            } else {
-                content()
-            }
-        }
-        .searchable(
-            text: $searchText,
-            isPresented: $isSearchActive,
-            prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
-        )
-        .onChange(of: searchText) { _, newValue in
-            if newValue.isEmpty {
-                isShowingSearchResults = false
-                isLoading = false
-                items = []
-            } else {
-                isLoading = true
-                items = []
-                if newValue.count >= 1 {
-                    searchController.processSearchInput(newValue)
-                }
-            }
-        }
-        .overlay {
-            if isLoading {
-                Color(.systemBackground)
-                    .ignoresSafeArea()
-                    .overlay {
-                        VStack {
-                            ProgressView()
-                            Text(NSLocalizedString("Main_Database_Searching", comment: ""))
-                                .foregroundColor(.secondary)
-                                .padding(.top, 8)
-                        }
-                    }
-            } else if items.isEmpty && !searchText.isEmpty {
-                ContentUnavailableView {
-                    Label(
-                        NSLocalizedString("Misc_Not_Found", comment: ""),
-                        systemImage: "magnifyingglass"
-                    )
-                }
-            } else if searchText.isEmpty && isSearchActive {
-                Color.black.opacity(0.2)
-                    .ignoresSafeArea()
-                    .onTapGesture {
-                        isSearchActive = false
-                    }
-            }
-        }
-        .navigationTitle(title)
-        .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button(NSLocalizedString("Misc_Done", comment: "")) {
-                    onDismiss()
-                }
-            }
-        }
-        .onAppear {
-            setupSearch()
-        }
-    }
-
-    private func setupSearch() {
-        searchController.debouncedSearchPublisher
-            .receive(on: DispatchQueue.main)
-            .sink { query in
-                guard !searchText.isEmpty else { return }
-                performSearch(with: query)
-            }
-            .store(in: &searchController.cancellables)
-    }
-
-    private func performSearch(with text: String) {
-        isLoading = true
-
-        let whereClause = searchQuery(text)
-        let parameters = searchParameters(text)
-
-        items = databaseManager.loadMarketItems(
-            whereClause: whereClause, parameters: parameters, limit: 100
-        )
-        isShowingSearchResults = true
-
-        isLoading = false
-    }
-}
-
 /// 市场物品选择器视图
 struct MarketItemSelectorView: View {
     @ObservedObject var databaseManager: DatabaseManager
@@ -301,7 +27,6 @@ struct MarketItemSelectorView: View {
                 onDismiss: { dismiss() },
                 showSelected: showSelected
             )
-            .interactiveDismissDisabled()
         }
     }
 }
@@ -321,7 +46,7 @@ struct MarketItemSelectorGroupView: View {
     let showSelected: Bool
 
     var body: some View {
-        MarketItemSelectorBaseView(
+        MarketBaseView(
             databaseManager: databaseManager,
             title: group.name,
             content: {
@@ -360,12 +85,40 @@ struct MarketItemSelectorGroupView: View {
             searchParameters: { text in
                 LocalizedText.typeLangNameLikeParams(text)
             },
-            existingItems: existingItems,
-            onItemSelected: onItemSelected,
-            onBatchItemsSelected: onBatchItemsSelected,
-            onItemDeselected: onItemDeselected,
-            onDismiss: onDismiss,
-            showSelected: showSelected
+            searchResultRowBuilder: { item in
+                AnyView(
+                    Button {
+                        if existingItems.contains(item.id) {
+                            onItemDeselected(item)
+                        } else {
+                            onItemSelected(item)
+                        }
+                    } label: {
+                        HStack {
+                            DatabaseListItemView(item: item, showDetails: true)
+                            Spacer()
+                            if showSelected {
+                                Image(
+                                    systemName: existingItems.contains(item.id)
+                                        ? "checkmark.circle.fill" : "circle"
+                                )
+                                .foregroundColor(
+                                    existingItems.contains(item.id)
+                                        ? .accentColor : .secondary
+                                )
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                )
+            },
+            sectionBatchAction: onBatchItemsSelected != nil ? { items in
+                let toAdd = items.filter { !existingItems.contains($0.id) }
+                guard !toAdd.isEmpty else { return }
+                onBatchItemsSelected?(toAdd)
+            } : nil,
+            onDismiss: onDismiss
         )
     }
 
@@ -515,7 +268,7 @@ struct MarketItemSelectorItemListView: View {
     }
 
     var body: some View {
-        MarketItemSelectorBaseView(
+        MarketBaseView(
             databaseManager: databaseManager,
             title: title,
             content: {
@@ -548,7 +301,8 @@ struct MarketItemSelectorItemListView: View {
                                     }
                                 }
                             }
-                            .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                            .buttonStyle(.plain)
+                            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     } header: {
                         HStack(alignment: .firstTextBaseline) {
@@ -593,13 +347,49 @@ struct MarketItemSelectorItemListView: View {
             searchParameters: { text in
                 [marketGroupID] + LocalizedText.typeLangNameLikeParams(text)
             },
-            existingItems: existingItems,
-            onItemSelected: onItemSelected,
-            onBatchItemsSelected: onBatchItemsSelected,
-            onItemDeselected: onItemDeselected,
-            onDismiss: onDismiss,
-            showSelected: showSelected
+            searchResultRowBuilder: { item in
+                AnyView(
+                    Button {
+                        if existingItems.contains(item.id) {
+                            onItemDeselected(item)
+                        } else {
+                            onItemSelected(item)
+                        }
+                    } label: {
+                        HStack {
+                            DatabaseListItemView(item: item, showDetails: true)
+                            Spacer()
+                            if showSelected {
+                                Image(
+                                    systemName: existingItems.contains(item.id)
+                                        ? "checkmark.circle.fill" : "circle"
+                                )
+                                .foregroundColor(
+                                    existingItems.contains(item.id)
+                                        ? .accentColor : .secondary
+                                )
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                )
+            },
+            sectionBatchAction: onBatchItemsSelected != nil ? { items in
+                let toAdd = items.filter { !existingItems.contains($0.id) }
+                guard !toAdd.isEmpty else { return }
+                onBatchItemsSelected?(toAdd)
+            } : nil
         )
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    onDismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                }
+            }
+        }
         .onAppear {
             loadItems()
         }
@@ -643,7 +433,7 @@ struct MarketItemSelectorIntegratedView: View {
     @State private var validMarketGroups: Set<Int> = [] // 缓存有效的市场组ID
 
     var body: some View {
-        MarketItemSelectorBaseView(
+        MarketBaseView(
             databaseManager: databaseManager,
             title: title,
             content: {
@@ -691,13 +481,50 @@ struct MarketItemSelectorIntegratedView: View {
             searchParameters: { text in
                 LocalizedText.typeLangNameLikeParams(text) + [text]
             },
-            existingItems: existingItems,
-            onItemSelected: onItemSelected,
-            onBatchItemsSelected: onBatchItemsSelected,
-            onItemDeselected: onItemDeselected,
-            onDismiss: onDismiss,
-            showSelected: showSelected
+            searchTree: marketTree,
+            searchResultRowBuilder: { item in
+                AnyView(
+                    Button {
+                        if existingItems.contains(item.id) {
+                            onItemDeselected(item)
+                        } else {
+                            onItemSelected(item)
+                        }
+                    } label: {
+                        HStack {
+                            DatabaseListItemView(item: item, showDetails: true)
+                            Spacer()
+                            if showSelected {
+                                Image(
+                                    systemName: existingItems.contains(item.id)
+                                        ? "checkmark.circle.fill" : "circle"
+                                )
+                                .foregroundColor(
+                                    existingItems.contains(item.id)
+                                        ? .accentColor : .secondary
+                                )
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                )
+            },
+            sectionBatchAction: onBatchItemsSelected != nil ? { items in
+                let toAdd = items.filter { !existingItems.contains($0.id) }
+                guard !toAdd.isEmpty else { return }
+                onBatchItemsSelected?(toAdd)
+            } : nil
         )
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    onDismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                }
+            }
+        }
         .onAppear {
             // 一次性加载所有市场组并构建索引树；后续导航不再触碰 SQL
             marketTree = MarketManager.shared.buildTree(

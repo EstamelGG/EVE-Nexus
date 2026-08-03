@@ -39,12 +39,9 @@ struct BlueprintCalculatorResultView: View {
         self.originalCharacterId = originalCharacterId
     }
 
-    @State private var selectedRegionID: Int = MarketManager.theForgeRegionID // 默认 The Forge
-    @State private var selectedRegionName: String = ""
+    @State private var selectedLocation: Int = MarketManager.theForgeRegionID // 默认 The Forge
     @State private var showRegionPicker = false
-    @State private var saveSelection = false // 不保存默认市场位置
     @State private var orderType: OrderType = .sell
-    @State private var regions: [(id: Int, name: String)] = []
     @State private var marketOrders: [Int: [MarketOrder]] = [:]
     @State private var isLoadingOrders = false
     @State private var hasLoadedOrders = false
@@ -52,14 +49,43 @@ struct BlueprintCalculatorResultView: View {
     @State private var itemVolumes: [Int: Double] = [:]
     @State private var considerOrderQuantity = true // 是否考虑订单数量，默认选中
 
+    /// 材料市场：当前选中地点的类型信息（星域/星系/建筑）
+    private var locationType: MarketLocationType? {
+        MarketLocationType.from(id: selectedLocation)
+    }
+
+    /// 材料市场：选中地点的显示名称
+    private var selectedRegionName: String {
+        locationType?.displayName ?? ""
+    }
+
+    /// 材料市场：ESI 查询用的星域 ID（对星系返回其所属星域 ID，对建筑返回虚拟 ID）
+    private var selectedRegionID: Int {
+        locationType?.regionID ?? selectedLocation
+    }
+
     // 产品市场设置
-    @State private var productSelectedRegionID: Int = MarketManager.theForgeRegionID // 默认 The Forge
-    @State private var productSelectedRegionName: String = ""
+    @State private var productSelectedLocation: Int = MarketManager.theForgeRegionID // 默认 The Forge
     @State private var showProductRegionPicker = false
     @State private var productOrderType: OrderType = .sell
     @State private var productMarketOrders: [MarketOrder] = []
     @State private var isLoadingProductOrders = false
     @State private var productOrdersProgress: StructureOrdersProgress? = nil
+
+    /// 产品市场：当前选中地点的类型信息（星域/星系/建筑）
+    private var productLocationType: MarketLocationType? {
+        MarketLocationType.from(id: productSelectedLocation)
+    }
+
+    /// 产品市场：选中地点的显示名称
+    private var productSelectedRegionName: String {
+        productLocationType?.displayName ?? ""
+    }
+
+    /// 产品市场：ESI 查询用的星域 ID（对星系返回其所属星域 ID，对建筑返回虚拟 ID）
+    private var productSelectedRegionID: Int {
+        productLocationType?.regionID ?? productSelectedLocation
+    }
 
     // 材料源蓝图信息
     @State private var materialBlueprintMapping: [Int: [Int]] = [:]
@@ -186,7 +212,7 @@ struct BlueprintCalculatorResultView: View {
                         MarketItemDetailView(
                             databaseManager: databaseManager,
                             itemID: product.typeId,
-                            selectedRegionID: productSelectedRegionID
+                            selectedLocation: productSelectedLocation
                         )
                     } label: {
                         HStack(spacing: 12) {
@@ -539,23 +565,20 @@ struct BlueprintCalculatorResultView: View {
         }
         .sheet(isPresented: $showRegionPicker) {
             MarketRegionPickerView(
-                selectedRegionID: $selectedRegionID,
-                selectedRegionName: $selectedRegionName,
-                saveSelection: $saveSelection,
+                selectedLocation: $selectedLocation,
+                saveSelection: .constant(false),
                 databaseManager: databaseManager
             )
         }
         .sheet(isPresented: $showProductRegionPicker) {
             MarketRegionPickerView(
-                selectedRegionID: $productSelectedRegionID,
-                selectedRegionName: $productSelectedRegionName,
-                saveSelection: $saveSelection,
+                selectedLocation: $productSelectedLocation,
+                saveSelection: .constant(false),
                 databaseManager: databaseManager
             )
         }
-        .onChange(of: selectedRegionID) { oldValue, newValue in
+        .onChange(of: selectedLocation) { oldValue, newValue in
             if oldValue != newValue {
-                updateRegionName()
                 Task {
                     await loadAllMarketOrders()
                 }
@@ -564,18 +587,14 @@ struct BlueprintCalculatorResultView: View {
         .onChange(of: orderType) { _, _ in
             // 订单类型改变时不需要重新加载，只需要重新计算价格
         }
-        .onChange(of: productSelectedRegionID) { oldValue, newValue in
+        .onChange(of: productSelectedLocation) { oldValue, newValue in
             if oldValue != newValue {
-                updateProductRegionName()
                 Task {
                     await loadProductMarketOrders()
                 }
             }
         }
         .task {
-            loadRegions()
-            updateRegionName()
-            updateProductRegionName()
             loadItemVolumes()
             loadMaterialBlueprints()
             if !hasLoadedOrders {
@@ -598,36 +617,6 @@ struct BlueprintCalculatorResultView: View {
     }
 
     // MARK: - 私有方法
-
-    private func updateRegionName() {
-        if StructureMarketManager.isStructureId(selectedRegionID) {
-            // 是建筑ID，查找建筑名称
-            if let structureId = StructureMarketManager.getStructureId(from: selectedRegionID),
-               let structure = getStructureById(structureId)
-            {
-                selectedRegionName = structure.structureName
-            } else {
-                selectedRegionName = "Unknown Structure"
-            }
-        } else {
-            // 是星域ID，查找星域名称
-            selectedRegionName = regions.first(where: { $0.id == selectedRegionID })?.name ?? ""
-        }
-    }
-
-    private func getStructureById(_ structureId: Int64) -> MarketStructure? {
-        return MarketStructureManager.shared.structures.first { $0.structureId == Int(structureId) }
-    }
-
-    private func loadRegions() {
-        regions = SDEMemoryStore.regionNames.compactMap { id, text in
-            guard id < 11_000_000 else { return nil }
-            let name = text.resolved()
-            guard !name.isEmpty else { return nil }
-            return (id: id, name: name)
-        }
-        .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-    }
 
     private func loadItemVolumes() {
         var allTypeIDs: [Int] = calculationResult.materials.map(\.typeId)
@@ -825,7 +814,7 @@ struct BlueprintCalculatorResultView: View {
             MarketItemDetailView(
                 databaseManager: databaseManager,
                 itemID: material.typeId,
-                selectedRegionID: selectedRegionID
+                selectedLocation: selectedLocation
             )
         } label: {
             HStack(spacing: 12) {
@@ -940,25 +929,6 @@ struct BlueprintCalculatorResultView: View {
     }
 
     // MARK: - 产品市场相关方法
-
-    private func updateProductRegionName() {
-        if StructureMarketManager.isStructureId(productSelectedRegionID) {
-            // 是建筑ID，查找建筑名称
-            if let structureId = StructureMarketManager.getStructureId(
-                from: productSelectedRegionID
-            ),
-                let structure = getStructureById(structureId)
-            {
-                productSelectedRegionName = structure.structureName
-            } else {
-                productSelectedRegionName = "Unknown Structure"
-            }
-        } else {
-            // 是星域ID，查找星域名称
-            productSelectedRegionName =
-                regions.first(where: { $0.id == productSelectedRegionID })?.name ?? ""
-        }
-    }
 
     private func loadProductMarketOrders(forceRefresh: Bool = false) async {
         guard let product = calculationResult.product else { return }

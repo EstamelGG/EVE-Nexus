@@ -58,31 +58,48 @@ struct MarketQuickbarDestinationPickerView: View {
     @State private var successWatchlistName = ""
     @State private var showTypeLimitAlert = false
     @State private var showAlreadyInListAlert = false
+    @State private var isShowingCreateAlert = false
+    @State private var newQuickbarName = ""
 
     var body: some View {
         Group {
             if quickbars.isEmpty {
-                ContentUnavailableView {
-                    Label(
-                        NSLocalizedString("Main_Market_Watch_List_Empty", comment: ""),
-                        systemImage: "list.bullet.rectangle"
-                    )
+                VStack(spacing: 16) {
+                    Image(systemName: "list.bullet.rectangle")
+                        .font(.system(size: 48))
+                        .foregroundColor(.secondary)
+                    Text(NSLocalizedString("Main_Market_Watch_List_Empty", comment: ""))
+                        .foregroundColor(.secondary)
+                    Button {
+                        newQuickbarName = ""
+                        isShowingCreateAlert = true
+                    } label: {
+                        Label(
+                            NSLocalizedString("Main_Market_Watch_List_Add", comment: ""),
+                            systemImage: "plus"
+                        )
+                    }
+                    .buttonStyle(.borderedProminent)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 List {
                     ForEach(quickbars) { quickbar in
+                        let alreadyContains = quickbar.items.contains(where: { $0.typeID == typeID })
                         Button {
                             selectedQuickbarID = quickbar.id
                         } label: {
                             MarketQuickbarPickerRowView(
                                 quickbar: quickbar,
                                 databaseManager: databaseManager,
-                                isSelected: selectedQuickbarID == quickbar.id
+                                isSelected: selectedQuickbarID == quickbar.id,
+                                alreadyContainsTypeID: alreadyContains
                             )
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
+                        .disabled(alreadyContains)
                     }
                     .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
@@ -91,11 +108,20 @@ struct MarketQuickbarDestinationPickerView: View {
         .navigationTitle(NSLocalizedString("Main_Market_Add_To_Watchlist_Picker_Title", comment: ""))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .confirmationAction) {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    newQuickbarName = ""
+                    isShowingCreateAlert = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+            }
+
+            ToolbarItem(placement: .navigationBarTrailing) {
                 Button(NSLocalizedString("Common_Confirm", comment: "")) {
                     confirmSelection()
                 }
-                .disabled(selectedQuickbarID == nil || quickbars.isEmpty)
+                .disabled(selectedQuickbarID == nil)
             }
         }
         .onAppear {
@@ -143,6 +169,36 @@ struct MarketQuickbarDestinationPickerView: View {
         } message: {
             Text(NSLocalizedString("Main_Market_Add_To_Watchlist_Already_Message", comment: ""))
         }
+        .alert(
+            NSLocalizedString("Main_Market_Watch_List_Add", comment: ""),
+            isPresented: $isShowingCreateAlert
+        ) {
+            TextField(
+                NSLocalizedString("Main_Market_Watch_List_Name", comment: ""),
+                text: $newQuickbarName
+            )
+            Button(NSLocalizedString("Misc_Done", comment: "")) {
+                createNewListAndAddItem()
+            }
+            .disabled(newQuickbarName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            Button(NSLocalizedString("Main_EVE_Mail_Cancel", comment: ""), role: .cancel) {
+                newQuickbarName = ""
+            }
+        }
+    }
+
+    /// 创建新关注列表并添加当前物品，然后显示成功提示
+    private func createNewListAndAddItem() {
+        let trimmed = newQuickbarName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+
+        var newQuickbar = MarketQuickbar(name: trimmed)
+        newQuickbar.items.append(QuickbarItem(typeID: typeID, quantity: 1))
+        MarketQuickbarManager.shared.saveQuickbar(newQuickbar)
+
+        successWatchlistName = trimmed
+        newQuickbarName = ""
+        showAddSuccessAlert = true
     }
 
     private func confirmSelection() {
@@ -177,11 +233,17 @@ struct MarketQuickbarPickerRowView: View {
     let quickbar: MarketQuickbar
     @ObservedObject var databaseManager: DatabaseManager
     var isSelected: Bool = false
+    /// 此列表是否已包含目标物品（已包含时显示绿色勾选并禁用选择）
+    var alreadyContainsTypeID: Bool = false
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             Group {
-                if isSelected {
+                if alreadyContainsTypeID {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                } else if isSelected {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.body)
                         .foregroundStyle(.tint)
@@ -198,17 +260,20 @@ struct MarketQuickbarPickerRowView: View {
                     .resizable()
                     .frame(width: 32, height: 32)
                     .cornerRadius(6)
+                    .saturation(alreadyContainsTypeID ? 0 : 1)
+                    .opacity(alreadyContainsTypeID ? 0.5 : 1)
             } else {
                 Image("Folder")
                     .resizable()
                     .frame(width: 32, height: 32)
                     .cornerRadius(6)
+                    .opacity(alreadyContainsTypeID ? 0.5 : 1)
             }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(quickbar.name)
                     .lineLimit(1)
-                    .foregroundColor(.primary)
+                    .foregroundColor(alreadyContainsTypeID ? .secondary : .primary)
 
                 Text(marketDisplayName(for: quickbar))
                     .font(.caption)
@@ -263,17 +328,6 @@ struct MarketQuickbarPickerRowView: View {
     }
 
     private func marketDisplayName(for quickbar: MarketQuickbar) -> String {
-        let regionID = quickbar.regionID
-        if StructureMarketManager.isStructureId(regionID) {
-            if let structureId = StructureMarketManager.getStructureId(from: regionID),
-               let structure = MarketStructureManager.shared.structures.first(where: {
-                   $0.structureId == Int(structureId)
-               })
-            {
-                return structure.structureName
-            }
-            return "Unknown Structure"
-        }
-        return SDEMemoryStore.regionName(for: regionID) ?? "Unknown Region"
+        MarketLocationType.from(id: quickbar.locationID)?.displayName ?? "Unknown"
     }
 }

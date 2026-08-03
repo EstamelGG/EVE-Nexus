@@ -8,18 +8,16 @@ struct MarketQuickbarDetailView: View {
     @State var items: [DatabaseListItem] = []
     @State private var isEditingQuantity = false
     @State var itemQuantities: [Int: Int64] = [:] // typeID: quantity
-    @State private var selectedRegion: String = "" // 默认不设置，将从数据库获取
-    @State private var regions: [(id: Int, name: String)] = [] // 存储星域列表
     @State private var marketOrders: [Int: [MarketOrder]] = [:] // typeID: orders
     @State private var isLoadingOrders = false
     @State private var orderType: OrderType = .sell // 新增：订单类型选择
     @State private var hasLoadedOrders = false // 标记是否已加载过订单
     @State private var showRegionPicker = false // 新增：控制星域选择器显示
-    @State private var selectedRegionID: Int = 0 // 新增：选中的星域ID
-    @State private var selectedRegionName: String = "" // 新增：选中的星域名称
+    @State private var selectedLocation: Int = 0 // 选中的市场位置ID（星域/星系/建筑）
     @State private var structureOrdersProgress: StructureOrdersProgress? // 建筑订单加载进度
     @State private var loadedOrdersCount: Int = 0 // 已加载订单的物品数量（用于显示进度）
     @State private var itemVolumes: [Int: Double] = [:] // 存储物品体积信息
+    @State private var jitaPrices: [Int: (buy: Double, sell: Double)] = [:] // Jita 市场价格
     @State var isShowingClipboardAlert = false // 新增：控制剪贴板导入提示
     @State var clipboardResult = "" // 新增：存储剪贴板导入结果
     @State var isShowingExportAlert = false // 新增：控制剪贴板导出提示
@@ -41,9 +39,24 @@ struct MarketQuickbarDetailView: View {
         }
     }
 
-    /// 获取当前选择的星域ID
+    /// 当前选中的地点类型
+    private var locationType: MarketLocationType? {
+        MarketLocationType.from(id: selectedLocation)
+    }
+
+    /// 选中的地点显示名称
+    private var selectedRegionName: String {
+        locationType?.displayName ?? ""
+    }
+
+    /// 获取当前选择的星域ID（星系返回其所属星域，建筑返回虚拟ID）
     private var currentRegionID: Int {
-        return quickbar.regionID
+        locationType?.regionID ?? selectedLocation
+    }
+
+    /// 判断选定市场是否就是 Jita（The Forge 星域或 Jita 星系）
+    private var isSelectedMarketJita: Bool {
+        selectedLocation == 30_000_142 || currentRegionID == MarketManager.theForgeRegionID
     }
 
     var sortedItems: [DatabaseListItem] {
@@ -62,12 +75,12 @@ struct MarketQuickbarDetailView: View {
                         Text(NSLocalizedString("Main_Market_Location", comment: ""))
                         Spacer()
                         Button {
-                            // 在打开选择器之前，确保 selectedRegionID 与当前 quickbar.regionID 一致
-                            selectedRegionID = quickbar.regionID
+                            // 在打开选择器之前，确保 selectedLocation 与当前 quickbar.locationID 一致
+                            selectedLocation = quickbar.locationID
                             showRegionPicker = true
                         } label: {
                             HStack {
-                                Text(selectedRegion)
+                                Text(selectedRegionName)
                                     .foregroundColor(.primary)
                                 Image(systemName: "chevron.up.chevron.down")
                                     .foregroundColor(.secondary)
@@ -79,38 +92,12 @@ struct MarketQuickbarDetailView: View {
                             .cornerRadius(8)
                         }
                     }
-                    .onChange(of: quickbar.regionID) { _, newValue in
-                        // 根据是否是建筑ID更新显示
-                        if StructureMarketManager.isStructureId(newValue) {
-                            // 是建筑ID，查找建筑名称
-                            if let structureId = StructureMarketManager.getStructureId(
-                                from: newValue
-                            ),
-                                let structure = getStructureById(structureId)
-                            {
-                                selectedRegion = structure.structureName
-                                selectedRegionName = structure.structureName
-                            } else {
-                                selectedRegion = "Unknown Structure"
-                                selectedRegionName = "Unknown Structure"
-                            }
-                        } else {
-                            // 是星域ID，查找星域名称
-                            if let region = regions.first(where: { $0.id == newValue }) {
-                                selectedRegion = region.name
-                                selectedRegionName = region.name
-                            }
-                        }
-                        // 保存更改
+                    .onChange(of: quickbar.locationID) { _, _ in
                         MarketQuickbarManager.shared.saveQuickbar(quickbar)
-                        // 强制刷新市场订单
-                        Task {
-                            await loadAllMarketOrders()
-                        }
+                        Task { await loadAllMarketOrders() }
                     }
-                    .onChange(of: selectedRegionID) { _, newValue in
-                        // 更新 quickbar 的 regionID
-                        quickbar.regionID = newValue
+                    .onChange(of: selectedLocation) { _, newValue in
+                        quickbar.locationID = newValue
                     }
 
                     // 订单类型选择器
@@ -356,43 +343,15 @@ struct MarketQuickbarDetailView: View {
         }
         .sheet(isPresented: $showRegionPicker) {
             MarketRegionPickerView(
-                selectedRegionID: $selectedRegionID,
-                selectedRegionName: $selectedRegionName,
+                selectedLocation: $selectedLocation,
                 saveSelection: .constant(false), // 通过市场关注列表查看和设置订单信息，不保存默认市场位置
                 databaseManager: databaseManager
             )
         }
         .task {
             loadItems()
-            loadRegions()
 
-            // 验证当前选择的区域ID是否有效
-            if isValidRegionID(currentRegionID) {
-                selectedRegionID = currentRegionID
-            } else {
-                Logger.warning("关注列表中的区域ID \(currentRegionID) 无效，回退到Jita")
-                selectedRegionID = MarketManager.theForgeRegionID // The Forge (Jita)
-                // 更新quickbar的regionID
-                quickbar.regionID = selectedRegionID
-                MarketQuickbarManager.shared.saveQuickbar(quickbar)
-            }
-
-            // 根据是否是建筑ID来设置显示名称
-            if StructureMarketManager.isStructureId(selectedRegionID) {
-                // 是建筑ID，查找建筑名称
-                if let structureId = StructureMarketManager.getStructureId(from: selectedRegionID),
-                   let structure = getStructureById(structureId)
-                {
-                    selectedRegion = structure.structureName
-                } else {
-                    selectedRegion = "Unknown Structure"
-                }
-            } else {
-                // 是星域ID，查找星域名称
-                selectedRegion = regions.first(where: { $0.id == selectedRegionID })?.name ?? ""
-            }
-
-            selectedRegionName = selectedRegion
+            selectedLocation = quickbar.locationID
 
             // 只在第一次加载时获取市场订单
             if !hasLoadedOrders {
@@ -417,8 +376,22 @@ struct MarketQuickbarDetailView: View {
         // 清除旧数据
         marketOrders.removeAll()
 
-        // 使用通用工具类加载订单（自动判断建筑/星域）
         let typeIds = items.map { $0.id }
+        // 选定市场就是 Jita 时无需加载 Jita 对比价格
+        let needsJitaComparison = !isSelectedMarketJita
+
+        // 并行加载选定市场订单和 Jita 价格（Jita 价格与选定市场无关，仅随物品列表变化）
+        let jitaPriceTask = Task { () -> [Int: (buy: Double, sell: Double)] in
+            guard needsJitaComparison else { return [:] }
+            return (try? await GitHubMarketPriceAPI.shared.fetchMarketPrices(
+                typeIds: typeIds,
+                forceRefresh: forceRefresh
+            )) ?? [:]
+        }
+
+        // 使用通用工具类加载订单（自动判断建筑/星域）
+        // 选中星系时仅保留该星系的订单
+        let systemID = locationType?.systemID
         let orders = await MarketOrdersUtil.loadOrders(
             typeIds: typeIds,
             regionID: currentRegionID,
@@ -431,14 +404,23 @@ struct MarketQuickbarDetailView: View {
             itemCallback: { typeId, orders in
                 // 每完成一个物品的订单加载，立即更新UI显示该物品的价格
                 Task { @MainActor in
-                    marketOrders[typeId] = orders
+                    marketOrders[typeId] = systemID.map { sid in
+                        orders.filter { $0.systemId == sid }
+                    } ?? orders
                     loadedOrdersCount += 1
                 }
             }
         )
 
         // 最后确保所有数据都已更新（防止回调遗漏）
-        marketOrders = orders
+        if let sid = systemID {
+            marketOrders = orders.mapValues { $0.filter { $0.systemId == sid } }
+        } else {
+            marketOrders = orders
+        }
+
+        // 更新 Jita 价格（失败或无需加载时为空）
+        jitaPrices = await jitaPriceTask.value
     }
 
     /// 获取列表的总价和库存状态
@@ -479,6 +461,45 @@ struct MarketQuickbarDetailView: View {
 
         // 返回平均单价和库存充足状态
         return (totalPrice / Double(quantity), false)
+    }
+
+    /// 获取指定物品在 Jita 市场的价格（与当前订单类型一致）
+    /// - Returns: 卖单返回最低卖价，买单返回最高买价；无数据返回 nil
+    private func jitaPrice(for typeId: Int) -> Double? {
+        guard let prices = jitaPrices[typeId] else { return nil }
+        if orderType == .buy {
+            return prices.buy > 0 ? prices.buy : nil
+        } else {
+            return prices.sell > 0 ? prices.sell : nil
+        }
+    }
+
+    /// 计算选定市场相对于 Jita 的价格差异百分比
+    /// - Returns: 正数表示选定市场更贵，负数表示更便宜；任一价格缺失返回 nil
+    private func priceDiffPercentage(selectedPrice: Double, jitaPrice: Double) -> Double? {
+        guard jitaPrice > 0 else { return nil }
+        return (selectedPrice / jitaPrice - 1.0) * 100
+    }
+
+    /// Jita 价格对比行：展示 Jita 价格和差异百分比（正数红色=选定市场更贵，负数绿色=更便宜）
+    @ViewBuilder
+    private func jitaComparisonLine(for item: DatabaseListItem, selectedPrice: Double) -> some View {
+        if !isSelectedMarketJita,
+           let jitaPrice = jitaPrice(for: item.id),
+           let diff = priceDiffPercentage(selectedPrice: selectedPrice, jitaPrice: jitaPrice)
+        {
+            HStack(spacing: 4) {
+                Text(
+                    NSLocalizedString("Main_Market_Jita_Price_Label", comment: "")
+                        + FormatUtil.format(jitaPrice) + " ISK"
+                )
+                .font(.caption)
+                .foregroundColor(.secondary)
+                Text(String(format: "%+.1f%%", diff))
+                    .font(.caption)
+                    .foregroundColor(diff > 0 ? .red : .green)
+            }
+        }
     }
 
     @ViewBuilder
@@ -531,6 +552,7 @@ struct MarketQuickbarDetailView: View {
                                     .foregroundColor(.red)
                                 }
                             }
+                            jitaComparisonLine(for: item, selectedPrice: price)
                         } else {
                             Text(NSLocalizedString("Main_Market_No_Orders", comment: ""))
                                 .font(.caption)
@@ -575,7 +597,7 @@ struct MarketQuickbarDetailView: View {
                 MarketItemDetailView(
                     databaseManager: databaseManager,
                     itemID: item.id,
-                    selectedRegionID: currentRegionID // 添加当前选中的星域ID
+                    selectedLocation: selectedLocation // 传递当前选中的市场位置ID
                 )
             } label: {
                 HStack(spacing: 12) {
@@ -626,6 +648,7 @@ struct MarketQuickbarDetailView: View {
                                     .font(.caption)
                                     .foregroundColor(.red)
                                 }
+                                jitaComparisonLine(for: item, selectedPrice: price)
                             } else {
                                 Text(NSLocalizedString("Main_Market_No_Orders", comment: ""))
                                     .font(.caption)
@@ -691,16 +714,6 @@ struct MarketQuickbarDetailView: View {
             // 加载物品体积信息
             loadItemVolumes()
         }
-    }
-
-    private func loadRegions() {
-        regions = SDEMemoryStore.regionNames.compactMap { id, text in
-            guard id < 11_000_000 else { return nil }
-            let name = text.resolved()
-            guard !name.isEmpty else { return nil }
-            return (id: id, name: name)
-        }
-        .sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
     }
 
     /// 计算所有物品的总价格和库存状态

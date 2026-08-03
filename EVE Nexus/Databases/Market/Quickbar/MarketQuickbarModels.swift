@@ -8,35 +8,38 @@ struct MarketQuickbar: Identifiable, Codable {
     var lastUpdated: Date
     var location: MarketLocation // 市场位置（星域或玩家建筑）
 
-    /// 虚拟 regionID（正数=星域 ID，负数=-建筑 ID），保留给既有视图/API 使用
-    var regionID: Int {
+    /// 市场地点 ID（正数=星域或星系，负数=建筑虚拟 ID）
+    /// JSON 序列化仍使用 "regionID" key 以保持向后兼容
+    var locationID: Int {
         get { location.virtualRegionID }
         set { location = MarketLocation(virtualRegionID: newValue) }
     }
 
     init(
         id: UUID = UUID(), name: String, items: [QuickbarItem] = [],
-        regionID: Int = MarketManager.theForgeRegionID // 默认使用 The Forge 星域
+        locationID: Int = MarketManager.theForgeRegionID // 默认使用 The Forge 星域
     ) {
         self.id = id
         self.name = name
         self.items = items
         lastUpdated = Date()
-        location = MarketLocation(virtualRegionID: regionID)
+        location = MarketLocation(virtualRegionID: locationID)
     }
 
-    /// 自定义编码
+    /// 自定义编码：仅保存 marketLocation 整数（locationID）
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(id, forKey: .id)
         try container.encode(name, forKey: .name)
         try container.encode(items, forKey: .items)
         try container.encode(lastUpdated, forKey: .lastUpdated)
-        try container.encode(location.virtualRegionID, forKey: .regionID)
-        try container.encode(location.persistedString, forKey: .marketLocation)
+        try container.encode(locationID, forKey: .marketLocation)
     }
 
-    /// 自定义解码
+    /// 自定义解码：兼容三种历史格式
+    /// 1. 新格式：marketLocation 为整数（locationID）
+    /// 2. 旧格式：regionID 为整数 + marketLocation 为字符串
+    /// 3. 更早格式：仅 marketLocation 为字符串 "region_id:..." / "structure_id:..."
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(UUID.self, forKey: .id)
@@ -44,12 +47,16 @@ struct MarketQuickbar: Identifiable, Codable {
         items = try container.decode([QuickbarItem].self, forKey: .items)
         lastUpdated = try container.decode(Date.self, forKey: .lastUpdated)
 
-        // 优先读取 regionID 整数；兼容更早期仅有 marketLocation 字符串的版本
-        if let virtualRegionID = try? container.decode(Int.self, forKey: .regionID) {
-            location = MarketLocation(virtualRegionID: virtualRegionID)
+        if let locationID = try? container.decode(Int.self, forKey: .marketLocation) {
+            // 新格式：marketLocation 为整数
+            location = MarketLocation(virtualRegionID: locationID)
+        } else if let regionID = try? container.decode(Int.self, forKey: .regionID) {
+            // 旧格式：regionID 为整数
+            location = MarketLocation(virtualRegionID: regionID)
         } else if let persisted = try? container.decode(String.self, forKey: .marketLocation),
                   let parsed = MarketLocation(persistedString: persisted)
         {
+            // 更早格式：marketLocation 为字符串
             location = parsed
         } else {
             location = .region(MarketManager.theForgeRegionID) // 默认值

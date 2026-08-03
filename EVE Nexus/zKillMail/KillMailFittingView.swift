@@ -102,41 +102,16 @@ struct BRKillMailFittingView: View {
         }
     }
 
-    /// 从数据库批量获取图标文件名和类别信息
+    /// 从 SDEMemoryStore 内存缓存批量获取图标文件名和类别信息
     private func getIconFileNames(typeIds: [Int]) -> [Int: (String, Int)] {
-        guard !typeIds.isEmpty else {
-            // Logger.debug("装配图标: 没有需要获取的图标")
-            return [:]
-        }
+        guard !typeIds.isEmpty else { return [:] }
 
-        // 对 typeIds 进行去重
-        let uniqueTypeIds = Array(Set(typeIds))
-        // Logger.debug("装配图标: 原始物品ID数量: \(typeIds.count)，去重后数量: \(uniqueTypeIds.count)")
-
-        let placeholders = String(repeating: "?,", count: uniqueTypeIds.count).dropLast()
-        let query = """
-            SELECT type_id, icon_filename, categoryID
-            FROM types 
-            WHERE type_id IN (\(placeholders))
-        """
-
-        Logger.debug("装配图标: 开始查询 \(uniqueTypeIds.count) 个物品的图标")
         var iconFileNames: [Int: (String, Int)] = [:]
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: uniqueTypeIds) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let categoryId = row["categoryID"] as? Int
-                {
-                    let iconFileName = row["icon_filename"] as? String ?? ""
-                    let finalIconName =
-                        iconFileName.isEmpty ? IconManager.defaultItemIcon : iconFileName
-                    iconFileNames[typeId] = (finalIconName, categoryId)
-                    // Logger.debug("装配图标: 物品ID \(typeId) 的图标文件名为 \(finalIconName), 类别ID: \(categoryId)")
-                }
-            }
+        for typeId in Set(typeIds) {
+            guard let typeInfo = SDEMemoryStore.type(for: typeId) else { continue }
+            let finalIconName = typeInfo.iconFilename.isEmpty ? IconManager.defaultItemIcon : typeInfo.iconFilename
+            iconFileNames[typeId] = (finalIconName, typeInfo.categoryID)
         }
-
-        // Logger.debug("装配图标: 成功获取 \(iconFileNames.count) 个图标文件名")
         return iconFileNames
     }
 
@@ -154,6 +129,10 @@ struct BRKillMailFittingView: View {
             if slotItems[slotId] == nil { slotItems[slotId] = [] }
             slotItems[slotId]?.append(item)
             uniqueTypeIds.insert(typeId)
+            // 装配槽位装备行附带弹药 type_id（item[6]），也需收集以获取图标
+            if item.count > 6, item[6] > 0 {
+                uniqueTypeIds.insert(item[6])
+            }
         }
 
         let typeInfos = getIconFileNames(typeIds: Array(uniqueTypeIds))
@@ -171,9 +150,17 @@ struct BRKillMailFittingView: View {
                 if item.count > 2, item[2] > 0 { hasDropped = true }
                 guard let typeInfo = typeInfos[item[1]] else { continue }
                 if typeInfo.1 == 8 {
+                    // 非装配槽位的弹药（如货仓中的弹药货物）
                     if firstAmmoIcon == nil { firstAmmoIcon = typeInfo.0 }
-                } else if firstNonAmmoIcon == nil {
-                    firstNonAmmoIcon = typeInfo.0
+                } else {
+                    if firstNonAmmoIcon == nil { firstNonAmmoIcon = typeInfo.0 }
+                    // 装配槽位装备行：从 charge 字段（item[6]）读取弹药图标
+                    if item.count > 6, item[6] > 0,
+                       let chargeTypeInfo = typeInfos[item[6]],
+                       firstAmmoIcon == nil
+                    {
+                        firstAmmoIcon = chargeTypeInfo.0
+                    }
                 }
             }
             if hasDropped { newDroppedSlots.insert(slotId) }

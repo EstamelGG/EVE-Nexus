@@ -8,21 +8,6 @@ class Step3 {
     /// 船体(6)、弹药(8)、技能(16)、植入体(20)和子系统(32)
     private let exemptPenaltyCategoryIds: [Int] = [6, 8, 16, 20, 32]
 
-    /// 缓存所有属性的可叠加状态
-    private var attributeStackableCache: [Int: Bool] = [:]
-
-    /// 缓存物品的类别ID
-    private var typeCategoryCache: [Int: Int] = [:]
-
-    /// 缓存属性ID到属性名称的映射
-    private var attributeNameCache: [Int: String] = [:]
-
-    /// 缓存属性ID到highIsGood的映射
-    private var attributeHighIsGoodCache: [Int: Bool] = [:]
-
-    /// 缓存属性ID到默认值的映射
-    private var attributeDefaultValueCache: [Int: Double] = [:]
-
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
     }
@@ -40,13 +25,6 @@ class Step3 {
 
         // 创建输入数据的可变副本
         var updatedInput = input
-
-        // 预加载所有属性信息（名称和可叠加状态）
-        preloadAttributeInfo()
-
-        // 预加载所有相关物品的类别ID和名称（包括技能）
-        let allTypeIds = collectAllTypeIds(input: input, attributeModifiers: attributeModifiers)
-        preloadTypeCategoryIds(typeIds: allTypeIds)
 
         // 初始化技能对象
         initializeSkills(input: &updatedInput)
@@ -469,126 +447,6 @@ class Step3 {
         return updatedInput
     }
 
-    /// 预加载所有属性信息（名称、可叠加状态和默认值）
-    private func preloadAttributeInfo() {
-        let query =
-            "SELECT attribute_id, display_name, name, stackable, highIsGood, defaultValue FROM dogmaAttributes"
-
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            for row in rows {
-                if let attributeId = row["attribute_id"] as? Int {
-                    // 加载属性名称
-                    if let displayName = row["display_name"] as? String, !displayName.isEmpty {
-                        attributeNameCache[attributeId] = displayName
-                    } else if let attributeName = row["name"] as? String {
-                        attributeNameCache[attributeId] = attributeName
-                    }
-
-                    // 加载属性可叠加状态
-                    if let stackable = row["stackable"] as? Int {
-                        attributeStackableCache[attributeId] = (stackable == 1)
-                    }
-
-                    // 加载属性highIsGood状态
-                    if let highIsGood = row["highIsGood"] as? Int {
-                        attributeHighIsGoodCache[attributeId] = (highIsGood == 1)
-                    }
-
-                    // 加载属性默认值
-                    if let defaultValue = row["defaultValue"] as? Double {
-                        attributeDefaultValueCache[attributeId] = defaultValue
-                    }
-                }
-            }
-        }
-
-        Logger.info(
-            "预加载了\(attributeNameCache.count)个属性名称、\(attributeStackableCache.count)个属性的可叠加状态、\(attributeHighIsGoodCache.count)个属性的highIsGood状态和\(attributeDefaultValueCache.count)个属性的默认值"
-        )
-    }
-
-    /// 收集所有物品的TypeID，用于批量查询
-    private func collectAllTypeIds(input: SimulationInput, attributeModifiers: AttributeModifiers)
-        -> [Int]
-    {
-        var typeIds = Set<Int>()
-
-        // 添加飞船
-        typeIds.insert(input.ship.typeId)
-
-        // 添加模块和弹药
-        for module in input.modules {
-            typeIds.insert(module.typeId)
-            if let charge = module.charge {
-                typeIds.insert(charge.typeId)
-            }
-        }
-
-        // 添加无人机
-        for drone in input.drones {
-            typeIds.insert(drone.typeId)
-        }
-
-        // 添加舰载机
-        if let fighters = input.fighters {
-            for fighter in fighters {
-                typeIds.insert(fighter.typeId)
-            }
-        }
-
-        // 添加植入体
-        for implant in input.implants {
-            typeIds.insert(implant.typeId)
-        }
-
-        // 添加环境效果
-        for effect in input.environmentEffects {
-            typeIds.insert(effect.typeId)
-        }
-
-        // 添加技能
-        for skillId in input.characterSkills.keys {
-            typeIds.insert(skillId)
-        }
-
-        // 添加修饰器中的源物品类型
-        for (sourceTypeId, _) in attributeModifiers.allModifiersBySourceType() {
-            typeIds.insert(sourceTypeId)
-        }
-
-        return Array(typeIds)
-    }
-
-    /// 预加载所有相关物品的类别ID和名称
-    private func preloadTypeCategoryIds(typeIds: [Int]) {
-        // 如果没有物品，直接返回
-        if typeIds.isEmpty {
-            return
-        }
-
-        // 创建IN查询的占位符
-        let placeholders = Array(repeating: "?", count: typeIds.count).joined(separator: ",")
-
-        let query = """
-        SELECT t.type_id, g.categoryID 
-        FROM types t
-        JOIN groups g ON t.groupID = g.group_id 
-        WHERE t.type_id IN (\(placeholders))
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: typeIds) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let categoryId = row["categoryID"] as? Int
-                {
-                    typeCategoryCache[typeId] = categoryId
-                }
-            }
-        }
-
-        Logger.info("预加载了\(typeCategoryCache.count)个物品的类别ID")
-    }
-
     /// 初始化技能对象
     private func initializeSkills(input: inout SimulationInput) {
         Logger.info("初始化技能对象...")
@@ -640,7 +498,7 @@ class Step3 {
             }
 
             // 获取技能组ID（如果可能）
-            if let categoryId = typeCategoryCache[skillId] {
+            if let categoryId = SDEMemoryStore.type(for: skillId)?.categoryID {
                 groupID = categoryId
             }
 
@@ -1509,9 +1367,9 @@ class Step3 {
 
     // MARK: - 辅助方法
 
-    /// 判断属性是否可叠加（从缓存中获取）
+    /// 判断属性是否可叠加
     private func isAttributeStackable(attributeId: Int) -> Bool {
-        return attributeStackableCache[attributeId] ?? false
+        return SDEMemoryStore.dogmaAttributes[attributeId]?.stackable ?? false
     }
 
     /// 判断类别是否豁免叠加惩罚
@@ -1519,9 +1377,9 @@ class Step3 {
         return exemptPenaltyCategoryIds.contains(categoryId)
     }
 
-    /// 获取物品类别ID（从缓存中获取）
+    /// 获取物品类别ID（从 SDEMemoryStore 内存缓存获取）
     private func getSourceCategoryId(typeId: Int) -> Int {
-        return typeCategoryCache[typeId] ?? 0
+        return SDEMemoryStore.type(for: typeId)?.categoryID ?? 0
     }
 
     /// 添加修饰器到技能
@@ -1552,12 +1410,7 @@ class Step3 {
 
     /// 判断属性是否为"高值更好"类型
     func isAttributeHighGood(attributeId: Int) -> Bool {
-        return attributeHighIsGoodCache[attributeId] ?? true
-    }
-
-    /// 获取属性默认值缓存
-    func getAttributeDefaultValueCache() -> [Int: Double] {
-        return attributeDefaultValueCache
+        return SDEMemoryStore.dogmaAttributes[attributeId]?.highIsGood ?? true
     }
 
     /// 添加修饰器到角色
@@ -1570,12 +1423,13 @@ class Step3 {
 
         // 确保角色属性字典中有该属性（如果没有则初始化为默认值）
         if !character.baseAttributes.keys.contains(attributeId) {
-            // 从缓存中获取属性的默认值，如果没有则使用0
-            let defaultValue = attributeDefaultValueCache[attributeId] ?? 0.0
+            // 从 SDEMemoryStore 获取属性的默认值，如果没有则使用0
+            let attrInfo = SDEMemoryStore.dogmaAttributes[attributeId]
+            let defaultValue = attrInfo?.defaultValue ?? 0.0
             character.baseAttributes[attributeId] = defaultValue
 
             // 也添加到属性名称字典中
-            let attributeName = attributeNameCache[attributeId] ?? "attribute_\(attributeId)"
+            let attributeName = attrInfo?.name ?? "attribute_\(attributeId)"
             character.baseAttributesByName[attributeName] = defaultValue
         }
 

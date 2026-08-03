@@ -27,7 +27,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>SDEMinimumAppVersion</key>
-	<string>1.13</string>
+	<string>1.13.1</string>
 	<key>SDERecordType</key>
 	<string>SDE_v3</string>
 	<key>UIApplicationSceneManifest</key>

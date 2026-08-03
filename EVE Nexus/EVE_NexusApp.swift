@@ -349,19 +349,48 @@ struct EVE_NexusApp: App {
             }
         }
 
-        await MainActor.run {
-            // 先决策/清理 SDE，再同步配套 texts（二者同版本）
-            databaseManager.loadDatabase()
-            ItemTextStore.shared.syncWithActiveSDE()
-            CharacterDatabaseManager.shared.loadDatabase()
+        // 后台预加载 GitHub 市场价格数据，成功后整个会话期间使用
+        Task.detached(priority: .background) {
+            await GitHubMarketPriceAPI.shared.preloadData()
+        }
 
+        // 阶段4：三步并行加载（不在 MainActor，真正并行）
+        let clock = ContinuousClock()
+        let stageStart = clock.now
+        func ms(_ d: Duration) -> Int64 {
+            let (s, a) = d.components
+            return s * 1000 + a / 1_000_000_000_000_000
+        }
+
+        let dbManager = databaseManager
+        async let mainDBDuration: Duration = Task.detached(priority: .userInitiated) { () -> Duration in
+            ContinuousClock().measure { dbManager.loadDatabase() }
+        }.value
+        async let itemTextDuration: Duration = Task.detached(priority: .userInitiated) { () -> Duration in
+            ContinuousClock().measure { ItemTextStore.shared.syncWithActiveSDE() }
+        }.value
+        async let charDBDuration: Duration = Task.detached(priority: .userInitiated) { () -> Duration in
+            ContinuousClock().measure { CharacterDatabaseManager.shared.loadDatabase() }
+        }.value
+
+        let mainDBMs = ms(await mainDBDuration)
+        Logger.info("主数据库加载完成 (\(mainDBMs)ms)")
+
+        let itemTextMs = ms(await itemTextDuration)
+        Logger.info("物品文本同步完成 (\(itemTextMs)ms)")
+
+        let charDBMs = ms(await charDBDuration)
+        Logger.info("角色数据库加载完成 (\(charDBMs)ms)")
+
+        let totalMs = ms(stageStart.duration(to: clock.now))
+        Logger.info("数据库阶段加载完成: 总耗时 \(totalMs)ms (主库 \(mainDBMs)ms / 文本 \(itemTextMs)ms / 角色库 \(charDBMs)ms)")
+
+        // 后续依赖主库的步骤（MainActor 串行）
+        await MainActor.run {
             // 步骤1：初始化技能树
             SkillTreeManager.shared.initialize(databaseManager: databaseManager)
             Logger.info("技能树初始化完成")
-
-            // 步骤2：物品分类缓存在 loadDatabase 中自动初始化
-
-            // 步骤3：预加载行星资源缓存
+            // 步骤2：预加载行星资源缓存
             PIResourceCache.shared.preloadResourceInfo()
             Logger.info("行星资源缓存初始化完成")
 

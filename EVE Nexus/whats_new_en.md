@@ -457,3 +457,10 @@ Fixes & Improvements:
 9. Redesigned incursions page
 10. New notification manager: view all pending notifications in one place, with automatic skill queue expiration reminders
 11. Performance optimizations
+
+# v1.13.1 August 18, 2026
+
+1. Market watchlists show price differences between the selected market and Jita
+2. Wallet transactions can be filtered by buy/sell
+3. Added an extra attributes table to the detail page of fighters
+

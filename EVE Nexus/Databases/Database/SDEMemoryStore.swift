@@ -186,10 +186,24 @@ enum SDEMemoryStore {
         let unitID: Int?
         let unitNames: LocalizedText
         let highIsGood: Bool
+        let stackable: Bool
+        let defaultValue: Double
 
         var displayName: String? {
             displayNames.resolvedNonEmpty()
         }
+    }
+
+    /// 舰载机能力（已按当前语言解析 name/description）
+    struct FighterAbilityInfo {
+        let slot: Int
+        let abilityID: Int
+        let name: String
+        let description: String
+        let cooldownSeconds: Int?
+        let chargeCount: Int?
+        let rearmTimeSeconds: Int?
+        let iconFilename: String
     }
 
     struct FactionInfo {
@@ -251,6 +265,8 @@ enum SDEMemoryStore {
     private(set) static var dogmaAttributes: [Int: DogmaAttributeInfo] = [:]
     private(set) static var regionNames: [Int: LocalizedText] = [:]
     private(set) static var solarSystemNames: [Int: LocalizedText] = [:]
+    /// 星系 ID → 星域 ID 映射（从 universe 表加载）
+    private(set) static var systemRegionIDs: [Int: Int] = [:]
     private(set) static var constellationNames: [Int: LocalizedText] = [:]
     private(set) static var factions: [Int: FactionInfo] = [:]
     private(set) static var divisionNames: [Int: LocalizedText] = [:]
@@ -267,6 +283,8 @@ enum SDEMemoryStore {
     private(set) static var dynamicMappingsByResulting: [Int: [DynamicItemMapping]] = [:]
     private(set) static var dynamicMappingsByTypeID: [Int: [DynamicItemMapping]] = [:]
     private(set) static var dynamicResultingTypeIDs: Set<Int> = []
+    /// 舰载机能力：typeID → 按 slot 升序的能力列表
+    private(set) static var fighterAbilities: [Int: [FighterAbilityInfo]] = [:]
 
     static func loadAll(databaseManager: DatabaseManager) {
         loadTypes(databaseManager)
@@ -286,9 +304,10 @@ enum SDEMemoryStore {
         loadStations(databaseManager)
         loadTypeEffects(databaseManager)
         loadDynamicItemMappings(databaseManager)
+        loadFighterAbilities(databaseManager)
 
         Logger.info(
-            "SDEMemoryStore 已加载 types=\(types.count) categories=\(categories.count) groups=\(groups.count) meta=\(metaGroupNames.count) market=\(marketGroups.count) dogma=\(dogmaAttributes.count) regions=\(regionNames.count) systems=\(solarSystemNames.count) constellations=\(constellationNames.count) factions=\(factions.count) divisions=\(divisionNames.count) ores=\(oreColors.count) compress=\(originToCompressed.count) npcCorps=\(npcCorporations.count) stations=\(stations.count) typeEffects=\(typeEffectIDs.count) dynMappings=\(dynamicResultingTypeIDs.count)"
+            "SDEMemoryStore 已加载 types=\(types.count) categories=\(categories.count) groups=\(groups.count) meta=\(metaGroupNames.count) market=\(marketGroups.count) dogma=\(dogmaAttributes.count) regions=\(regionNames.count) systems=\(solarSystemNames.count) constellations=\(constellationNames.count) factions=\(factions.count) divisions=\(divisionNames.count) ores=\(oreColors.count) compress=\(originToCompressed.count) npcCorps=\(npcCorporations.count) stations=\(stations.count) typeEffects=\(typeEffectIDs.count) dynMappings=\(dynamicResultingTypeIDs.count) fighterAbilities=\(fighterAbilities.count)"
         )
     }
 
@@ -349,6 +368,10 @@ enum SDEMemoryStore {
 
     static func dogmaAttribute(for id: Int) -> DogmaAttributeInfo? {
         dogmaAttributes[id]
+    }
+
+    static func fighterAbilities(for typeID: Int) -> [FighterAbilityInfo] {
+        fighterAbilities[typeID] ?? []
     }
 
     static func regionName(for id: Int) -> String? {
@@ -547,7 +570,7 @@ enum SDEMemoryStore {
     private static func loadDogmaAttributes(_ db: DatabaseManager) {
         let query = """
             SELECT attribute_id, categoryID, attribute_key, iconID, icon_filename,
-                   unitID, highIsGood,
+                   unitID, highIsGood, stackable, defaultValue,
                    \(nameColumns),
                    unit_de_name, unit_en_name, unit_es_name, unit_fr_name,
                    unit_ja_name, unit_ko_name, unit_ru_name, unit_zh_name
@@ -568,7 +591,9 @@ enum SDEMemoryStore {
                     iconFilename: rawIcon,
                     unitID: row["unitID"] as? Int,
                     unitNames: LocalizedText.units(from: row),
-                    highIsGood: (row["highIsGood"] as? Int) == 1
+                    highIsGood: (row["highIsGood"] as? Int) == 1,
+                    stackable: (row["stackable"] as? Int) == 1,
+                    defaultValue: (row["defaultValue"] as? Double) ?? 0.0
                 )
             }
         }
@@ -602,6 +627,19 @@ enum SDEMemoryStore {
 
     private static func loadSolarSystems(_ db: DatabaseManager) {
         loadLocalizedTable(db, table: "solarsystems", idColumn: "solarSystemID", estimatedCount: 16384, into: &solarSystemNames)
+
+        // 加载星系 → 星域映射（用于市场地点类型判断）
+        if case let .success(rows) = db.executeQuery(
+            "SELECT solarsystem_id, region_id FROM universe", useCache: false
+        ) {
+            for row in rows {
+                if let systemID = row["solarsystem_id"] as? Int,
+                   let regionID = row["region_id"] as? Int
+                {
+                    systemRegionIDs[systemID] = regionID
+                }
+            }
+        }
     }
 
     private static func loadConstellations(_ db: DatabaseManager) {
@@ -724,6 +762,39 @@ enum SDEMemoryStore {
             }
         }
         typeEffectIDs = cache
+    }
+
+    private static func loadFighterAbilities(_ db: DatabaseManager) {
+        var cache: [Int: [FighterAbilityInfo]] = [:]
+        if case let .success(rows) = db.executeQuery(
+            """
+            SELECT type_id, slot, ability_id, name, description,
+                   cooldown_seconds, charge_count, rearm_time_seconds, icon_filename
+            FROM fighterAbilities
+            ORDER BY type_id, slot
+            """,
+            useCache: false
+        ) {
+            for row in rows {
+                guard let typeID = row["type_id"] as? Int,
+                      let slot = row["slot"] as? Int,
+                      let abilityID = row["ability_id"] as? Int
+                else { continue }
+                cache[typeID, default: []].append(
+                    FighterAbilityInfo(
+                        slot: slot,
+                        abilityID: abilityID,
+                        name: (row["name"] as? String) ?? "",
+                        description: (row["description"] as? String) ?? "",
+                        cooldownSeconds: row["cooldown_seconds"] as? Int,
+                        chargeCount: row["charge_count"] as? Int,
+                        rearmTimeSeconds: row["rearm_time_seconds"] as? Int,
+                        iconFilename: (row["icon_filename"] as? String) ?? ""
+                    )
+                )
+            }
+        }
+        fighterAbilities = cache
     }
 
     private static func loadDynamicItemMappings(_ db: DatabaseManager) {

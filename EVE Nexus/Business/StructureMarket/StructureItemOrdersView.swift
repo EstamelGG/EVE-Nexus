@@ -187,7 +187,7 @@ struct StructureItemOrdersView: View {
                 MarketItemDetailView(
                     databaseManager: databaseManager,
                     itemID: itemID,
-                    selectedRegionID: MarketManager.theForgeRegionID
+                    selectedLocation: MarketManager.theForgeRegionID
                 )
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {

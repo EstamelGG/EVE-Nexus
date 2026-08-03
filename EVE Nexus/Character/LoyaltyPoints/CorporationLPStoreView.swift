@@ -304,24 +304,15 @@ struct LPStoreGroupView: View {
             jitaPriceListErrorMessage = nil
         }
 
-        do {
-            let prices = try await MarketPriceUtil.getJitaOrderPricesFromGitHubList(
-                typeIds: Array(typeIds),
-                forceRefresh: forceRefresh
-            )
-            await MainActor.run {
-                self.marketPrices = prices
-                self.isLoadingPrices = false
-                self.hasLoadedPrices = true
-                self.jitaPriceListErrorMessage = nil
-            }
-        } catch {
-            await MainActor.run {
-                self.marketPrices = [:]
-                self.isLoadingPrices = false
-                self.hasLoadedPrices = true
-                self.jitaPriceListErrorMessage = error.localizedDescription
-            }
+        let prices = await MarketPriceUtil.getJitaOrderPricesFromGitHubList(
+            typeIds: Array(typeIds),
+            forceRefresh: forceRefresh
+        )
+        await MainActor.run {
+            self.marketPrices = prices
+            self.isLoadingPrices = false
+            self.hasLoadedPrices = true
+            self.jitaPriceListErrorMessage = nil
         }
     }
 }
@@ -609,24 +600,15 @@ struct CorporationLPStoreView: View {
             jitaPriceListErrorMessage = nil
         }
 
-        do {
-            let prices = try await MarketPriceUtil.getJitaOrderPricesFromGitHubList(
-                typeIds: Array(typeIds),
-                forceRefresh: forceRefresh
-            )
-            await MainActor.run {
-                self.marketPrices = prices
-                self.isLoadingPrices = false
-                self.hasLoadedPrices = true
-                self.jitaPriceListErrorMessage = nil
-            }
-        } catch {
-            await MainActor.run {
-                self.marketPrices = [:]
-                self.isLoadingPrices = false
-                self.hasLoadedPrices = true
-                self.jitaPriceListErrorMessage = error.localizedDescription
-            }
+        let prices = await MarketPriceUtil.getJitaOrderPricesFromGitHubList(
+            typeIds: Array(typeIds),
+            forceRefresh: forceRefresh
+        )
+        await MainActor.run {
+            self.marketPrices = prices
+            self.isLoadingPrices = false
+            self.hasLoadedPrices = true
+            self.jitaPriceListErrorMessage = nil
         }
     }
 }

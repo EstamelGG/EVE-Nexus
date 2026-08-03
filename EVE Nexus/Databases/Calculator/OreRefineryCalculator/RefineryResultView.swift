@@ -10,10 +10,23 @@ struct RefineryResultView: View {
     let remainingItems: [Int: Int64] // 剩余物品ID -> 剩余数量
 
     // 输出市场设置状态变量（精炼后产品的市场）
-    @State private var selectedRegionID: Int = MarketManager.theForgeRegionID // 默认 The Forge
-    @State private var selectedRegionName: String = ""
+    @State private var selectedLocation: Int = MarketManager.theForgeRegionID // 默认 The Forge
     @State private var showRegionPicker = false
-    @State private var saveSelection = false // 不保存默认市场位置
+
+    /// 当前选中地点的类型信息（星域/星系/建筑）
+    private var locationType: MarketLocationType? {
+        MarketLocationType.from(id: selectedLocation)
+    }
+
+    /// 选中地点的显示名称
+    private var selectedRegionName: String {
+        locationType?.displayName ?? ""
+    }
+
+    /// ESI 查询用的星域 ID（对星系返回其所属星域 ID，对建筑返回虚拟 ID）
+    private var selectedRegionID: Int {
+        locationType?.regionID ?? selectedLocation
+    }
 
     // 状态变量
     @State private var isLoadingPrices = false
@@ -283,16 +296,14 @@ struct RefineryResultView: View {
         }
         .sheet(isPresented: $showRegionPicker) {
             MarketRegionPickerView(
-                selectedRegionID: $selectedRegionID,
-                selectedRegionName: $selectedRegionName,
-                saveSelection: $saveSelection,
+                selectedLocation: $selectedLocation,
+                saveSelection: .constant(false),
                 databaseManager: databaseManager
             )
             .presentationDragIndicator(.visible)
         }
-        .onChange(of: selectedRegionID) { oldValue, newValue in
+        .onChange(of: selectedLocation) { oldValue, newValue in
             if oldValue != newValue {
-                updateRegionName()
                 loadPricesAndVolumes()
             }
         }
@@ -311,7 +322,6 @@ struct RefineryResultView: View {
             }
 
             // 初始化默认市场
-            updateRegionName()
             loadPricesAndVolumes()
         }
     }
@@ -516,43 +526,18 @@ struct RefineryResultView: View {
 
     /// 计算订单的平均价格（使用通用工具类）
     private func calculateAveragePrice(from orders: [MarketOrder]) -> Double {
-        // 对于星域市场，只考虑主贸易星系（如Jita）；建筑市场则考虑所有订单
-        let systemID: Int? = StructureMarketManager.isStructureId(selectedRegionID) ? nil : 30_000_142
-        return MarketOrdersUtil.calculateAveragePrice(from: orders, systemId: systemID)
+        // 星系市场按所选星系过滤；星域/建筑市场不限制
+        return MarketOrdersUtil.calculateAveragePrice(from: orders, systemId: locationType?.systemID)
     }
 
     /// 计算市场卖价（使用通用工具类）
     private func calculateSellPrice(from orders: [MarketOrder]) -> Double {
-        let systemID: Int? = StructureMarketManager.isStructureId(selectedRegionID) ? nil : 30_000_142
-        return MarketOrdersUtil.calculatePrice(from: orders, orderType: .sell, quantity: nil, systemId: systemID).price ?? 0.0
+        return MarketOrdersUtil.calculatePrice(from: orders, orderType: .sell, quantity: nil, systemId: locationType?.systemID).price ?? 0.0
     }
 
     /// 计算市场买价（使用通用工具类）
     private func calculateBuyPrice(from orders: [MarketOrder]) -> Double {
-        let systemID: Int? = StructureMarketManager.isStructureId(selectedRegionID) ? nil : 30_000_142
-        return MarketOrdersUtil.calculatePrice(from: orders, orderType: .buy, quantity: nil, systemId: systemID).price ?? 0.0
-    }
-
-    /// 根据建筑ID获取建筑信息
-    private func getStructureById(_ structureId: Int64) -> MarketStructure? {
-        return MarketStructureManager.shared.structures.first { $0.structureId == Int(structureId) }
-    }
-
-    /// 更新区域名称
-    private func updateRegionName() {
-        if StructureMarketManager.isStructureId(selectedRegionID) {
-            // 是建筑ID，查找建筑名称
-            if let structureId = StructureMarketManager.getStructureId(from: selectedRegionID),
-               let structure = getStructureById(structureId)
-            {
-                selectedRegionName = structure.structureName
-            } else {
-                selectedRegionName = "Unknown Structure"
-            }
-        } else {
-            // 是星域ID，查找星域名称
-            selectedRegionName = SDEMemoryStore.regionName(for: selectedRegionID) ?? ""
-        }
+        return MarketOrdersUtil.calculatePrice(from: orders, orderType: .buy, quantity: nil, systemId: locationType?.systemID).price ?? 0.0
     }
 
     // MARK: - EIV价格加载和计算方法

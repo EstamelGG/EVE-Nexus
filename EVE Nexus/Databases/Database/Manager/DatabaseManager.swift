@@ -1,7 +1,7 @@
 import Foundation
 import SwiftUI
 
-class DatabaseManager: ObservableObject {
+class DatabaseManager: ObservableObject, @unchecked Sendable {
     static let shared = DatabaseManager()
     @Published var databaseUpdated = false
     private let sqliteManager = SQLiteManager.shared
@@ -15,7 +15,9 @@ class DatabaseManager: ObservableObject {
         }
 
         if sqliteManager.openDatabase(withName: databaseName) {
-            databaseUpdated.toggle()
+            DispatchQueue.main.async {
+                self.databaseUpdated.toggle()
+            }
             ItemInfoMap.initializeCache(databaseManager: self)
         }
     }

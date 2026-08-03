@@ -70,3 +70,63 @@ enum MarketLocation: Equatable, Codable {
         try container.encode(virtualRegionID)
     }
 }
+
+/// 市场地点类型：星域 / 星系 / 建筑
+/// 从单一 locationID 推断类型，无需额外存储类型信息
+enum MarketLocationType {
+    case region(Int)
+    case system(Int, Int) // systemID, regionID
+    case structure(Int64)
+
+    /// 从 locationID 推断类型：
+    /// - 负数 → 建筑（虚拟 ID）
+    /// - 在 solarSystemNames 中 → 星系
+    /// - 在 regionNames 中 → 星域
+    static func from(id: Int) -> MarketLocationType? {
+        if id < 0 {
+            return .structure(Int64(-id))
+        }
+        if SDEMemoryStore.solarSystemNames[id] != nil,
+           let regionID = SDEMemoryStore.systemRegionIDs[id]
+        {
+            return .system(id, regionID)
+        }
+        if SDEMemoryStore.regionNames[id] != nil {
+            return .region(id)
+        }
+        return nil
+    }
+
+    /// ESI 查询用的星域 ID（星系返回其所属星域，建筑返回虚拟 ID）
+    var regionID: Int {
+        switch self {
+        case let .region(id): return id
+        case let .system(_, regionID): return regionID
+        case let .structure(id): return -Int(id)
+        }
+    }
+
+    /// 星系 ID（仅星系有值，用于订单过滤）
+    var systemID: Int? {
+        if case let .system(id, _) = self { return id }
+        return nil
+    }
+
+    /// 显示名称
+    var displayName: String {
+        switch self {
+        case let .region(id):
+            return SDEMemoryStore.regionName(for: id) ?? "Region \(id)"
+        case let .system(id, _):
+            return SDEMemoryStore.solarSystemName(for: id) ?? "System \(id)"
+        case let .structure(id):
+            return MarketStructureManager.shared.structures
+                .first { $0.structureId == Int(id) }?.structureName ?? "Structure"
+        }
+    }
+
+    var isStructure: Bool {
+        if case .structure = self { return true }
+        return false
+    }
+}

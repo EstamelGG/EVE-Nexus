@@ -292,7 +292,7 @@ struct GroupItemRowView: View {
                     MarketItemDetailView(
                         databaseManager: DatabaseManager.shared,
                         itemID: item.typeId,
-                        selectedRegionID: MarketLocation.structure(structureId).virtualRegionID
+                        selectedLocation: MarketLocation.structure(structureId).virtualRegionID
                     )
                     .navigationBarTitleDisplayMode(.inline)
                     .toolbar {
@@ -310,7 +310,7 @@ struct GroupItemRowView: View {
                 MarketItemDetailView(
                     databaseManager: DatabaseManager.shared,
                     itemID: item.typeId,
-                    selectedRegionID: MarketManager.theForgeRegionID
+                    selectedLocation: MarketManager.theForgeRegionID
                 )
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {

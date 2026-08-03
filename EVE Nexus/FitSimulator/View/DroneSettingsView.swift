@@ -281,9 +281,6 @@ struct DroneSettingsView: View {
                     } label: {
                         Image(systemName: "trash")
                             .foregroundColor(.red)
-                            .frame(width: 30, height: 30)
-                            .background(Color(.systemBackground))
-                            .clipShape(Circle())
                     }
                 }
 
@@ -293,9 +290,6 @@ struct DroneSettingsView: View {
                     } label: {
                         Image(systemName: "xmark")
                             .foregroundColor(.primary)
-                            .frame(width: 30, height: 30)
-                            .background(Color(.systemBackground))
-                            .clipShape(Circle())
                     }
                 }
             }

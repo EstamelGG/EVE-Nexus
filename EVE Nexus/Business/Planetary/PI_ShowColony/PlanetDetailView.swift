@@ -1073,19 +1073,15 @@ struct PlanetDetailView: View {
             return p.averagePrice <= 0 && p.adjustedPrice <= 0
         }
         if !needJita.isEmpty {
-            do {
-                let jita = try await MarketPriceUtil.getJitaOrderPricesFromGitHubList(
-                    typeIds: needJita
-                )
-                for (id, sell) in jita where sell > 0 {
-                    if prices[id] == nil {
-                        prices[id] = MarketPriceData(adjustedPrice: sell, averagePrice: sell)
-                    } else if let p = prices[id], p.averagePrice <= 0, p.adjustedPrice <= 0 {
-                        prices[id] = MarketPriceData(adjustedPrice: sell, averagePrice: sell)
-                    }
+            let jita = await MarketPriceUtil.getJitaOrderPricesFromGitHubList(
+                typeIds: needJita
+            )
+            for (id, sell) in jita where sell > 0 {
+                if prices[id] == nil {
+                    prices[id] = MarketPriceData(adjustedPrice: sell, averagePrice: sell)
+                } else if let p = prices[id], p.averagePrice <= 0, p.adjustedPrice <= 0 {
+                    prices[id] = MarketPriceData(adjustedPrice: sell, averagePrice: sell)
                 }
-            } catch {
-                Logger.warning("仓储估价 Jita 补价失败: \(error)")
             }
         }
         storageContentMarketPrices = prices

@@ -740,17 +740,6 @@ class CharacterAssetsViewModel: ObservableObject {
             return
         }
 
-        let idList = typeIds.sorted().map(String.init).joined(separator: ",")
-        let query = """
-            SELECT t.type_id, t.categoryID, t.groupID,
-                   c.name AS category_name, c.icon_filename AS category_icon,
-                   g.name AS group_name, g.icon_filename AS group_icon
-            FROM types t
-            LEFT JOIN categories c ON t.categoryID = c.category_id
-            LEFT JOIN groups g ON t.groupID = g.group_id
-            WHERE t.type_id IN (\(idList))
-        """
-
         var typeMap: [Int: (categoryId: Int, groupId: Int?)] = [:]
         var categoryGroups: [Int: Set<Int>] = [:]
         var categoryNames: [Int: String] = [:]
@@ -758,24 +747,31 @@ class CharacterAssetsViewModel: ObservableObject {
         var groupNames: [Int: String] = [:]
         var groupIcons: [Int: String] = [:]
 
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            for row in rows {
-                guard let typeId = row["type_id"] as? Int,
-                      let categoryId = row["categoryID"] as? Int
-                else { continue }
-                let groupId = row["groupID"] as? Int
-                typeMap[typeId] = (categoryId, groupId)
-                categoryNames[categoryId] = row["category_name"] as? String ?? "\(categoryId)"
-                if let icon = row["category_icon"] as? String, !icon.isEmpty {
-                    categoryIcons[categoryId] = icon
+        for typeId in typeIds {
+            guard let typeInfo = SDEMemoryStore.type(for: typeId) else { continue }
+            let categoryId = typeInfo.categoryID
+            let groupId = typeInfo.groupID
+            typeMap[typeId] = (categoryId, groupId)
+
+            if let catInfo = SDEMemoryStore.categories[categoryId] {
+                categoryNames[categoryId] = catInfo.name
+                if !catInfo.iconFilename.isEmpty {
+                    categoryIcons[categoryId] = catInfo.iconFilename
                 }
-                if let groupId {
-                    groupNames[groupId] = row["group_name"] as? String ?? "\(groupId)"
-                    if let icon = row["group_icon"] as? String, !icon.isEmpty {
-                        groupIcons[groupId] = icon
+            } else {
+                categoryNames[categoryId] = "\(categoryId)"
+            }
+
+            if let groupId {
+                if let groupInfo = SDEMemoryStore.groups[groupId] {
+                    groupNames[groupId] = groupInfo.name
+                    if !groupInfo.iconFilename.isEmpty {
+                        groupIcons[groupId] = groupInfo.iconFilename
                     }
-                    categoryGroups[categoryId, default: []].insert(groupId)
+                } else {
+                    groupNames[groupId] = "\(groupId)"
                 }
+                categoryGroups[categoryId, default: []].insert(groupId)
             }
         }
 

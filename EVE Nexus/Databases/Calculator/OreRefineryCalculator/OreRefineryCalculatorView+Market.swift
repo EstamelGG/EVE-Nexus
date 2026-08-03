@@ -1,22 +1,6 @@
 import SwiftUI
 
 extension OreRefineryCalculatorView {
-    func loadRegionName() {
-        if StructureMarketManager.isStructureId(selectedRegionID) {
-            // 是建筑ID，查找建筑名称
-            if let structureId = StructureMarketManager.getStructureId(from: selectedRegionID),
-               let structure = getStructureById(structureId)
-            {
-                selectedRegionName = structure.structureName
-            } else {
-                selectedRegionName = "Unknown Structure"
-            }
-        } else {
-            // 是星域ID，查找星域名称
-            selectedRegionName = SDEMemoryStore.regionName(for: selectedRegionID) ?? ""
-        }
-    }
-
     /// 根据建筑ID获取建筑信息
     func getStructureById(_ structureId: Int64) -> MarketStructure? {
         return MarketStructureManager.shared.structures.first { $0.structureId == Int(structureId) }

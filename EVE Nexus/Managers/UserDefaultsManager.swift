@@ -9,8 +9,9 @@ class UserDefaultsManager {
 
     /// 键名常量
     private enum Keys {
-        static let selectedRegionID = "selectedRegionID"
+        static let selectedLocation = "selectedLocation"
         static let pinnedRegionIDs = "pinnedRegionIDs"
+        static let pinnedLocationIDs = "pinnedLocationIDs"
         static let pinnedAssetLocationIDs = "pinnedAssetLocationIDs"
         static let mergeSimilarTransactions = "mergeSimilarTransactions"
         static let refineryTaxRate = "refineryTaxRate"
@@ -18,31 +19,58 @@ class UserDefaultsManager {
 
     private init() {}
 
-    /// 选中的星域ID
-    var selectedRegionID: Int {
+    /// 选中的市场地点 ID（正数=星域或星系，负数=建筑虚拟 ID）
+    /// 类型由 MarketLocationType.from(id:) 在运行时判断，无需额外存储
+    var selectedLocation: Int {
         get {
-            // Logger.debug("正在从 UserDefaults 读取键: \(Keys.selectedRegionID)")
-            return defaults.integer(forKey: Keys.selectedRegionID) == 0
-                ? defaultRegionID : defaults.integer(forKey: Keys.selectedRegionID)
+            if defaults.object(forKey: Keys.selectedLocation) != nil {
+                let val = defaults.integer(forKey: Keys.selectedLocation)
+                return val == 0 ? defaultRegionID : val
+            }
+            // 从旧格式迁移：selectedRegionID → selectedLocation
+            let oldKey = "selectedRegionID"
+            if defaults.object(forKey: oldKey) != nil {
+                let oldVal = defaults.integer(forKey: oldKey)
+                let migrated = oldVal == 0 ? defaultRegionID : oldVal
+                defaults.set(migrated, forKey: Keys.selectedLocation)
+                return migrated
+            }
+            return defaultRegionID
         }
         set {
-            // Logger.debug("正在写入 UserDefaults，键: \(Keys.selectedRegionID), 值: \(newValue), 数据大小: \(MemoryLayout<Int>.size) bytes")
-            defaults.set(newValue, forKey: Keys.selectedRegionID)
+            defaults.set(newValue, forKey: Keys.selectedLocation)
         }
     }
 
-    /// 置顶的星域ID列表
+    /// 置顶的星域ID列表（旧格式，仅存星域ID）
     var pinnedRegionIDs: [Int] {
         get {
-            // Logger.debug("正在从 UserDefaults 读取键: \(Keys.pinnedRegionIDs)")
             if defaults.object(forKey: Keys.pinnedRegionIDs) == nil {
                 return [defaultRegionID]
             }
             return defaults.array(forKey: Keys.pinnedRegionIDs) as? [Int] ?? []
         }
         set {
-            // Logger.debug("正在写入 UserDefaults，键: \(Keys.pinnedRegionIDs), 值: \(newValue), 数据大小: \(MemoryLayout<Int>.size * newValue.count) bytes")
             defaults.set(newValue, forKey: Keys.pinnedRegionIDs)
+        }
+    }
+
+    /// 置顶的地点列表（新格式，支持星域/星系/建筑）
+    /// 格式：region_id:10000002 / system_id:30000142 / structure_id:1034567890123
+    var pinnedLocationIDs: [String] {
+        get {
+            if defaults.object(forKey: Keys.pinnedLocationIDs) != nil {
+                return defaults.stringArray(forKey: Keys.pinnedLocationIDs) ?? []
+            }
+            // 从旧格式迁移：将 pinnedRegionIDs 转为新格式
+            let migrated = pinnedRegionIDs.map { "region_id:\($0)" }
+            if !migrated.isEmpty {
+                defaults.set(migrated, forKey: Keys.pinnedLocationIDs)
+            }
+            return migrated
+        }
+        set {
+            defaults.set(newValue, forKey: Keys.pinnedLocationIDs)
         }
     }
 

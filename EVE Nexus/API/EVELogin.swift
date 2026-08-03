@@ -710,12 +710,14 @@ class EVELogin {
                     UserDefaults.standard.set(encodedData, forKey: charactersKey)
                 }
 
-                // 发送通知以更新UI
-                NotificationCenter.default.post(
-                    name: Notification.Name("CharacterDetailsUpdated"),
-                    object: nil,
-                    userInfo: ["character": updatedCharacter]
-                )
+                // 发送通知以更新UI（必须在主线程执行）
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(
+                        name: Notification.Name("CharacterDetailsUpdated"),
+                        object: nil,
+                        userInfo: ["character": updatedCharacter]
+                    )
+                }
             } else {
                 Logger.info(
                     "人物 \(characterId) 的 refresh token 过期状态为 \(updatedCharacter.refreshTokenExpired), 无需更改"

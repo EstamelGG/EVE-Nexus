@@ -20,12 +20,6 @@ class Step4 {
     /// 递归计算过程中记录的详细信息，用于调试
     private var attributeCalculationProcess: [String: String] = [:]
 
-    /// 属性ID到名称的缓存
-    private var attributeNameCache: [Int: String] = [:]
-
-    /// 从Step3中获取的属性默认值缓存
-    private var attributeDefaultValueCache: [Int: Double] = [:]
-
     /// 属性计算缓存
     private class Cache {
         var ship: [Int: Double] = [:]
@@ -111,8 +105,6 @@ class Step4 {
     init(databaseManager: DatabaseManager, step3: Step3) {
         self.databaseManager = databaseManager
         self.step3 = step3
-        // 从Step3获取属性默认值缓存
-        attributeDefaultValueCache = step3.getAttributeDefaultValueCache()
     }
 
     /// 执行Step4处理 - 递归计算属性最终值
@@ -120,9 +112,6 @@ class Step4 {
     /// - Returns: 更新后的模拟输出数据
     func process(input: SimulationInput) -> SimulationOutput {
         Logger.info("执行Step4 - 递归计算属性最终值")
-
-        // 预加载属性信息
-        preloadAttributeInfo()
 
         // 清空计算过程
         attributeCalculationProcess = [:]
@@ -162,27 +151,9 @@ class Step4 {
         return output
     }
 
-    /// 预加载所有属性信息（参考Step3的做法）
-    private func preloadAttributeInfo() {
-        let query = "SELECT attribute_id, name FROM dogmaAttributes"
-
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            for row in rows {
-                if let attributeId = row["attribute_id"] as? Int {
-                    // 优先使用display_name，如果为空则使用name
-                    if let name = row["name"] as? String {
-                        attributeNameCache[attributeId] = name
-                    }
-                }
-            }
-        }
-
-        Logger.info("Step4预加载了\(attributeNameCache.count)个属性名称")
-    }
-
     /// 根据属性ID获取属性名称
     private func getAttributeName(for attributeId: Int) -> String? {
-        return attributeNameCache[attributeId]
+        return SDEMemoryStore.dogmaAttributes[attributeId]?.name
     }
 
     /// 计算所有物品的属性值
@@ -838,7 +809,7 @@ class Step4 {
         }
 
         // 如果没有找到属性，使用默认值
-        return attributeDefaultValueCache[sourceAttributeId] ?? 0.0
+        return SDEMemoryStore.dogmaAttributes[sourceAttributeId]?.defaultValue ?? 0.0
     }
 
     /// 获取修饰源的属性值
@@ -853,7 +824,7 @@ class Step4 {
         // 必须有sourceInstanceId才能进行查找
         guard let sourceInstanceId = modifier.sourceInstanceId else {
             // 如果没有sourceInstanceId，使用默认值
-            return attributeDefaultValueCache[sourceAttributeId] ?? 0.0
+            return SDEMemoryStore.dogmaAttributes[sourceAttributeId]?.defaultValue ?? 0.0
         }
 
         // 在飞船中查找
@@ -990,7 +961,7 @@ class Step4 {
                     return baseValue
                 }
 
-                return attributeDefaultValueCache[sourceAttributeId] ?? 0.0
+                return SDEMemoryStore.dogmaAttributes[sourceAttributeId]?.defaultValue ?? 0.0
             }
         }
 
@@ -1012,7 +983,7 @@ class Step4 {
         }
 
         // 如果没有找到对应的实例或属性，使用默认值
-        return attributeDefaultValueCache[sourceAttributeId] ?? 0.0
+        return SDEMemoryStore.dogmaAttributes[sourceAttributeId]?.defaultValue ?? 0.0
     }
 
     /// 显示属性计算结果，用于调试和验证

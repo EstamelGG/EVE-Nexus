@@ -4,12 +4,26 @@ struct OreRefineryCalculatorView: View {
     @ObservedObject var databaseManager: DatabaseManager
 
     // 精炼设置相关状态
-    @State var selectedRegionID: Int = MarketManager.theForgeRegionID // 默认The Forge
-    @State var selectedRegionName: String = ""
+    @State var selectedLocation: Int = MarketManager.theForgeRegionID // 默认The Forge
     @State var orderType: OrderType = .sell
     @State var showRegionPicker = false
     @State var showRefinerySettings = false
     @State var isShowingItemSelector = false
+
+    /// 当前选中地点的类型信息（星域/星系/建筑）
+    var locationType: MarketLocationType? {
+        MarketLocationType.from(id: selectedLocation)
+    }
+
+    /// 选中地点的显示名称
+    var selectedRegionName: String {
+        locationType?.displayName ?? ""
+    }
+
+    /// ESI 查询用的星域 ID（对星系返回其所属星域 ID，对建筑返回虚拟 ID）
+    var selectedRegionID: Int {
+        locationType?.regionID ?? selectedLocation
+    }
 
     // 精炼设置参数
     @State var systemSecurity: SystemSecurity = .nullSec
@@ -64,7 +78,6 @@ struct OreRefineryCalculatorView: View {
                         Text(NSLocalizedString("Main_Market_Location", comment: ""))
                         Spacer()
                         Button {
-                            selectedRegionID = selectedRegionID
                             showRegionPicker = true
                         } label: {
                             HStack {
@@ -336,8 +349,7 @@ struct OreRefineryCalculatorView: View {
         }
         .sheet(isPresented: $showRegionPicker) {
             MarketRegionPickerView(
-                selectedRegionID: $selectedRegionID,
-                selectedRegionName: $selectedRegionName,
+                selectedLocation: $selectedLocation,
                 saveSelection: .constant(false),
                 databaseManager: databaseManager
             )
@@ -390,9 +402,8 @@ struct OreRefineryCalculatorView: View {
             )
             .presentationDragIndicator(.visible)
         }
-        .onChange(of: selectedRegionID) { oldValue, newValue in
+        .onChange(of: selectedLocation) { oldValue, newValue in
             if oldValue != newValue {
-                loadRegionName()
                 // 地区变化时重新加载市场订单
                 Task {
                     await loadAllMarketOrders()
@@ -464,7 +475,6 @@ struct OreRefineryCalculatorView: View {
             )
         }
         .onAppear {
-            loadRegionName()
             loadItems()
 
             // 确保税率从UserDefaults正确加载
@@ -594,7 +604,7 @@ struct OreRefineryCalculatorView: View {
                 MarketItemDetailView(
                     databaseManager: databaseManager,
                     itemID: item.id,
-                    selectedRegionID: selectedRegionID // 传递当前选中的星域ID
+                    selectedLocation: selectedLocation // 传递当前选中的地点ID
                 )
             } label: {
                 HStack(spacing: 12) {

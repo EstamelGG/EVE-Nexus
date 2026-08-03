@@ -6042,30 +6042,6 @@
         }
       }
     },
-    "Calendar_Notification_Time" : {
-      "comment" : "Notification Time",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Notification Time"
-          }
-        },
-        "ru" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Время уведомлений"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "通知时间"
-          }
-        }
-      }
-    },
     "Calendar_Notification_Time_Options" : {
       "comment" : "Notification Time Options",
       "localizations" : {
@@ -7932,23 +7908,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "错误"
-          }
-        }
-      }
-    },
-    "Contract_Appraisal_ESI_Result" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Jita Market Appraisal (ESI)"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "吉他市场估价"
           }
         }
       }
@@ -14172,6 +14131,23 @@
         }
       }
     },
+    "Fitting_Import_Clipboard_Empty" : {
+      "comment" : "剪贴板为空",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clipboard is empty"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剪贴板为空"
+          }
+        }
+      }
+    },
     "Fitting_Import_Failed_Message" : {
       "comment" : "导入失败",
       "localizations" : {
@@ -17884,24 +17860,6 @@
         }
       }
     },
-    "Industry_Settings_Select_Characters" : {
-      "comment" : "选择角色",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select Characters"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选择角色"
-          }
-        }
-      }
-    },
     "Industry_Settings_Title" : {
       "comment" : "设置",
       "localizations" : {
@@ -18920,6 +18878,102 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未找到物品详情"
+          }
+        }
+      }
+    },
+    "Ability_Overview" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ability Overview"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "能力概览"
+          }
+        }
+      }
+    },
+    "Charges" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charges"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "装填"
+          }
+        }
+      }
+    },
+    "Cooldown" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cooldown"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "冷却"
+          }
+        }
+      }
+    },
+    "Count_Suffix" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : ""
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "次"
+          }
+        }
+      }
+    },
+    "Rearm" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rearm"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重装"
+          }
+        }
+      }
+    },
+    "Seconds_Suffix" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "s"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "秒"
           }
         }
       }
@@ -20316,6 +20370,38 @@
         }
       }
     },
+    "KillMail_Simulate_Fitting" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Simulate Fitting"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模拟装配"
+          }
+        }
+      }
+    },
+    "KillMail_ZKB_Copy_Link" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Copy zKillboard link"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "复制 zKillboard 链接"
+          }
+        }
+      }
+    },
     "KillMail_ZKB_Copy_Link_A11y" : {
       "localizations" : {
         "en" : {
@@ -21520,23 +21606,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "衣柜"
-          }
-        }
-      }
-    },
-    "Location_Player_Structure" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Player Structure"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "玩家建筑"
           }
         }
       }
@@ -23494,23 +23563,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "舰船"
-          }
-        }
-      }
-    },
-    "Main_Database_precise_match_section" : {
-      "comment" : "精准匹配",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Exact match"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "精准匹配"
           }
         }
       }
@@ -26576,18 +26628,18 @@
         }
       }
     },
-    "Main_Market_Add_Region" : {
+    "Main_Market_Add_Location" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Manage Region"
+            "value" : "Manage Locations"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "管理常用星域"
+            "value" : "管理常用地点"
           }
         }
       }
@@ -27201,6 +27253,23 @@
         }
       }
     },
+    "Main_Market_Jita_Price_Label" : {
+      "comment" : "Jita 价格对比标签",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Jita: "
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "吉他: "
+          }
+        }
+      }
+    },
     "Main_Market_Location" : {
       "comment" : "Market Location",
       "localizations" : {
@@ -27214,6 +27283,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "市场地点"
+          }
+        }
+      }
+    },
+    "Main_Market_Major_Systems" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Major Trade Hubs"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主要贸易星系"
           }
         }
       }
@@ -27302,18 +27387,18 @@
         }
       }
     },
-    "Main_Market_Pinned_Regions" : {
+    "Main_Market_Pinned_Locations" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pinned Regions"
+            "value" : "Pinned Locations"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "常用星域"
+            "value" : "常用地点"
           }
         }
       }
@@ -27577,6 +27662,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "买入"
+          }
+        }
+      }
+    },
+    "Main_Market_Transactions_Filter_All" : {
+      "comment" : "Market Transactions filter: All",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部"
           }
         }
       }
@@ -29192,23 +29294,6 @@
         }
       }
     },
-    "Main_Search_Status_Finding_Alliances" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Finding alliances..."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在查找联盟..."
-          }
-        }
-      }
-    },
     "Main_Search_Status_Finding_Characters" : {
       "localizations" : {
         "en" : {
@@ -29221,23 +29306,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在查找角色..."
-          }
-        }
-      }
-    },
-    "Main_Search_Status_Finding_Corporations" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Finding corporations..."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在查找军团..."
           }
         }
       }
@@ -30987,6 +31055,22 @@
         }
       }
     },
+    "Main_Setting_Market_Structure_Change_Character" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Change Character"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "更换角色"
+          }
+        }
+      }
+    },
     "Main_Setting_Market_Structure_Manage" : {
       "localizations" : {
         "en" : {
@@ -31154,74 +31238,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重置"
-          }
-        }
-      }
-    },
-    "Main_Setting_Reset_Icons" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reset Icons Cache"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重置图标缓存"
-          }
-        }
-      }
-    },
-    "Main_Setting_Reset_Icons_Detail" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete all icon cache and re-release"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "删除图标缓存并重新释放(只有缺失图标时使用)"
-          }
-        }
-      }
-    },
-    "Main_Setting_Reset_Icons_Message" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This will delete all downloaded icon cache and unzip icons. Are you sure?"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "这将重新释放图片资源。是否确认？"
-          }
-        }
-      }
-    },
-    "Main_Setting_Reset_Icons_Title" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reset Icons Cache"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重置图标缓存"
           }
         }
       }
@@ -34557,24 +34573,6 @@
         }
       }
     },
-    "Mining_Filter_Select_All" : {
-      "comment" : "全选",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select All"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "全选"
-          }
-        }
-      }
-    },
     "Mining_Loading" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -34690,24 +34688,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "聚合显示多个角色的挖矿记录数据"
-          }
-        }
-      }
-    },
-    "Mining_Settings_Select_Characters" : {
-      "comment" : "选择角色",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select Characters"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选择角色"
           }
         }
       }
@@ -38731,24 +38711,6 @@
         }
       }
     },
-    "Planetary_Filter_Select_All" : {
-      "comment" : "全选",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select All"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "全选"
-          }
-        }
-      }
-    },
     "Planetary_Harvest_from" : {
       "localizations" : {
         "en" : {
@@ -39075,24 +39037,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "聚合显示多个角色的行星数据"
-          }
-        }
-      }
-    },
-    "Planetary_Settings_Select_Characters" : {
-      "comment" : "选择角色",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Select Characters"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选择角色"
           }
         }
       }
@@ -41875,24 +41819,6 @@
         }
       }
     },
-    "SkillQueue_Finish_Time_Label" : {
-      "comment" : "Queue Finish",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Queue Finish"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "队列完成时间"
-          }
-        }
-      }
-    },
     "Sovereignty_All" : {
       "comment" : "主权势力列表\n所有主权",
       "localizations" : {
@@ -42447,96 +42373,6 @@
         }
       }
     },
-    "StarMap_Clear_Search" : {
-      "comment" : "清除",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Clear"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "清除"
-          }
-        }
-      }
-    },
-    "StarMap_Export_Error" : {
-      "comment" : "Export Failed",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Export Failed"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "导出失败"
-          }
-        }
-      }
-    },
-    "StarMap_Export_Error_Message" : {
-      "comment" : "Failed to export map",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to export map"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "导出地图失败"
-          }
-        }
-      }
-    },
-    "StarMap_Export_Success" : {
-      "comment" : "Export Success",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Export Success"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "导出成功"
-          }
-        }
-      }
-    },
-    "StarMap_Export_Success_Message" : {
-      "comment" : "Map exported to photo library",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Map exported to photo library"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "地图已导出到相册"
-          }
-        }
-      }
-    },
     "StarMap_Filter_All" : {
       "comment" : "All",
       "localizations" : {
@@ -42754,24 +42590,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未找到匹配的星域"
-          }
-        }
-      }
-    },
-    "StarMap_Processing" : {
-      "comment" : "Processing star map data",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading..."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在处理星域数据..."
           }
         }
       }
@@ -43284,6 +43102,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无主权"
+          }
+        }
+      }
+    },
+    "Structure_Info_Refreshing" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Refreshing..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "刷新中..."
           }
         }
       }
@@ -44343,37 +44177,33 @@
       }
     },
     "Structure_Orders_Load" : {
-      "comment" : "获取市场订单",
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Load Market Orders"
+            "value" : "Load Orders"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "获取市场订单"
+            "value" : "加载订单"
           }
         }
       }
     },
     "Structure_Orders_Loading" : {
-      "comment" : "正在加载订单...",
-      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Loading Orders..."
+            "value" : "Loading..."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "正在加载订单..."
+            "value" : "加载中..."
           }
         }
       }

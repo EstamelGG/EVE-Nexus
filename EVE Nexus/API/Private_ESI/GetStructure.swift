@@ -25,6 +25,11 @@ public class UniverseStructureAPI {
     public static let shared = UniverseStructureAPI()
     private let databaseManager = CharacterDatabaseManager.shared
 
+    /// 会话级禁止访问缓存：key 为 "characterId_structureId"，24h 内同一角色不重复请求无权建筑
+    /// 重启后清空（重试成本低），按角色隔离（一个角色 403 不影响其他角色）
+    private var forbiddenCache: [String: Date] = [:]
+    private let forbiddenTTL: TimeInterval = 24 * 3600
+
     private init() {}
 
     // MARK: - Public Methods
@@ -34,13 +39,7 @@ public class UniverseStructureAPI {
     ) async throws
         -> UniverseStructureInfo
     {
-        // 1. 检查禁止访问缓存（优先检查，避免反复查询无权访问的建筑）
-        if !forceRefresh, isStructureForbidden(structureId: structureId) {
-            Logger.info("建筑物在禁止访问缓存中 - 建筑物ID: \(structureId)")
-            throw NetworkError.httpError(statusCode: 403, message: "Forbidden")
-        }
-
-        // 2. 检查数据库缓存
+        // 1. 检查数据库缓存（有效期内，全局共享）
         if !forceRefresh,
            let cachedStructure = loadStructureFromCache(
                structureId: structureId, cacheTimeOut: cacheTimeOut
@@ -50,8 +49,30 @@ public class UniverseStructureAPI {
             return cachedStructure
         }
 
+        // 2. 检查会话级禁止缓存（按角色隔离，避免同一角色 24h 内重复请求无权建筑）
+        if !forceRefresh, isForbidden(characterId: characterId, structureId: structureId) {
+            if let fallback = loadStructureFromCache(structureId: structureId, ignoreTTL: true) {
+                Logger.info("角色\(characterId)无权访问建筑\(structureId)，使用过期缓存")
+                return fallback
+            }
+            throw NetworkError.httpError(statusCode: 403, message: "Forbidden")
+        }
+
         // 3. 从API获取
-        return try await fetchFromAPI(structureId: structureId, characterId: characterId)
+        do {
+            return try await fetchFromAPI(structureId: structureId, characterId: characterId)
+        } catch {
+            // 4. API失败时回退到过期缓存（有旧名称总比"未知建筑"好）
+            if let fallback = loadStructureFromCache(structureId: structureId, ignoreTTL: true) {
+                Logger.info("API失败，使用过期缓存 - 建筑物ID: \(structureId), 错误: \(error)")
+                return fallback
+            }
+            // 5. 403 时标记此角色禁止，24h 内不重复请求
+            if case let NetworkError.httpError(statusCode, _) = error, statusCode == 403 {
+                markForbidden(characterId: characterId, structureId: structureId)
+            }
+            throw error
+        }
     }
 
     private func fetchFromAPI(structureId: Int64, characterId: Int) async throws
@@ -63,53 +84,43 @@ public class UniverseStructureAPI {
             throw NetworkError.invalidURL
         }
 
-        do {
-            let headers = [
-                "Accept": "application/json",
-                "Content-Type": "application/json",
-            ]
+        let headers = [
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        ]
 
-            let data = try await NetworkManager.shared.fetchDataWithToken(
-                from: url,
-                characterId: characterId,
-                headers: headers,
-                noRetryKeywords: ["Forbidden"]
-            )
+        let data = try await NetworkManager.shared.fetchDataWithToken(
+            from: url,
+            characterId: characterId,
+            headers: headers,
+            noRetryKeywords: ["Forbidden"]
+        )
 
-            let structureInfo = try JSONDecoder().decode(UniverseStructureInfo.self, from: data)
+        let structureInfo = try JSONDecoder().decode(UniverseStructureInfo.self, from: data)
 
-            // 保存到数据库缓存
-            saveStructureToCache(structureInfo, structureId: structureId)
+        saveStructureToCache(structureInfo, structureId: structureId)
 
-            Logger.info("从API获取建筑物信息成功 - 建筑物ID: \(structureId)")
-            return structureInfo
-
-        } catch {
-            Logger.error("获取建筑物信息失败 - 建筑物ID: \(structureId), 错误: \(error)")
-
-            // 检查是否是Forbidden错误（403状态码或包含"Forbidden"消息）
-            if isForbiddenError(error) {
-                // 缓存Forbidden结果，避免反复查询无权访问的建筑ID
-                saveForbiddenStructureToCache(structureId: structureId)
-                Logger.info("建筑物访问被禁止，已缓存结果 - 建筑物ID: \(structureId)")
-            }
-
-            throw error
-        }
+        Logger.info("从API获取建筑物信息成功 - 建筑物ID: \(structureId)")
+        return structureInfo
     }
 
     // MARK: - Cache Methods
 
-    private func loadStructureFromCache(structureId: Int64, cacheTimeOut: Int64 = 168)
+    private func loadStructureFromCache(
+        structureId: Int64, cacheTimeOut: Int64 = 168, ignoreTTL: Bool = false
+    )
         -> UniverseStructureInfo?
     {
-        // 在SQL中直接过滤过期缓存（168小时 = 7天）
+        // ignoreTTL=true 时忽略过期时间，用于 API 失败回退（有旧名称总比"未知建筑"好）
+        let ttlCondition = ignoreTTL
+            ? ""
+            : "AND timestamp > datetime('now', '-\(cacheTimeOut) hour')"
         let sql = """
             SELECT name, owner_id, solar_system_id, type_id, timestamp
             FROM structure_cache
             WHERE structure_id = ?
-            AND timestamp > datetime('now', '-\(cacheTimeOut) hour')
-        """ // 自定义缓存超时时间，默认 7 天
+            \(ttlCondition)
+        """
 
         let result = databaseManager.executeQuery(sql, parameters: [structureId])
 
@@ -176,60 +187,21 @@ public class UniverseStructureAPI {
         }
     }
 
-    // MARK: - Forbidden Cache Methods
+    // MARK: - Session Forbidden Cache
 
-    /// 检查建筑物是否在禁止访问缓存中（1天有效期）
-    private func isStructureForbidden(structureId: Int64) -> Bool {
-        let sql = """
-            SELECT structure_id
-            FROM structure_forbidden_cache
-            WHERE structure_id = ?
-            AND timestamp > datetime('now', '-24 hour')
-        """
-
-        let result = databaseManager.executeQuery(sql, parameters: [structureId])
-
-        switch result {
-        case let .success(rows):
-            return !rows.isEmpty
-        case let .error(error):
-            Logger.error("检查禁止访问缓存失败 - 建筑物ID: \(structureId), 错误: \(error)")
-            return false
-        }
+    private func forbiddenKey(characterId: Int, structureId: Int64) -> String {
+        "\(characterId)_\(structureId)"
     }
 
-    /// 保存禁止访问的建筑物ID到缓存
-    private func saveForbiddenStructureToCache(structureId: Int64) {
-        let sql = """
-            INSERT OR REPLACE INTO structure_forbidden_cache (
-                structure_id,
-                timestamp
-            ) VALUES (?, datetime('now'))
-        """
-
-        let result = databaseManager.executeQuery(sql, parameters: [structureId])
-
-        switch result {
-        case .success:
-            Logger.info("成功保存禁止访问的建筑物ID到缓存 - 建筑物ID: \(structureId)")
-        case let .error(error):
-            Logger.error("保存禁止访问缓存失败 - 建筑物ID: \(structureId), 错误: \(error)")
-        }
+    private func isForbidden(characterId: Int, structureId: Int64) -> Bool {
+        guard let date = forbiddenCache[forbiddenKey(characterId: characterId, structureId: structureId)]
+        else { return false }
+        return Date().timeIntervalSince(date) < forbiddenTTL
     }
 
-    /// 检查错误是否是Forbidden错误
-    private func isForbiddenError(_ error: Error) -> Bool {
-        // 检查是否是HTTP 403错误
-        if case let NetworkError.httpError(statusCode, message) = error {
-            if statusCode == 403 {
-                return true
-            }
-            // 检查错误消息中是否包含"Forbidden"
-            if let errorMessage = message, errorMessage.contains("Forbidden") {
-                return true
-            }
-        }
-        return false
+    private func markForbidden(characterId: Int, structureId: Int64) {
+        forbiddenCache[forbiddenKey(characterId: characterId, structureId: structureId)] = Date()
+        Logger.info("标记角色\(characterId) 24h 内不再请求建筑\(structureId)")
     }
 
     // MARK: - Helper Methods

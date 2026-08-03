@@ -246,22 +246,7 @@ struct MarketQuickbarView: View {
 
     /// 获取市场名称的辅助函数
     private func getMarketName(for quickbar: MarketQuickbar) -> String {
-        let regionID = quickbar.regionID
-
-        // 检查是否是建筑ID
-        if StructureMarketManager.isStructureId(regionID) {
-            // 是建筑ID，查找建筑名称
-            if let structureId = StructureMarketManager.getStructureId(from: regionID),
-               let structure = MarketStructureManager.shared.structures.first(where: { $0.structureId == Int(structureId) })
-            {
-                return structure.structureName
-            } else {
-                return "Unknown Structure"
-            }
-        } else {
-            // 是星域ID，查找星域名称
-            return SDEMemoryStore.regionName(for: regionID) ?? "Unknown Region"
-        }
+        MarketLocationType.from(id: quickbar.locationID)?.displayName ?? "Unknown"
     }
 
     private func deleteQuickbar(_ quickbar: MarketQuickbar) {

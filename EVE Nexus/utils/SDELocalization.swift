@@ -240,6 +240,15 @@ enum SDELocalization {
             SELECT s.*, s.\(lang)_name AS stationName
             FROM main.stations s
             """,
+
+            drop("fighterAbilities"),
+            """
+            CREATE TEMP VIEW fighterAbilities AS
+            SELECT f.*,
+                   f.\(lang)_name AS name,
+                   f.\(lang)_tooltip_description AS description
+            FROM main.fighterAbilities f
+            """,
         ]
             + blueprintViews(lang: lang)
     }

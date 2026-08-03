@@ -1,5 +1,23 @@
 import SwiftUI
 
+/// 交易记录筛选类型
+enum TransactionFilter: String, CaseIterable {
+    case all
+    case sell // 卖出（is_buy == false）
+    case buy // 买入（is_buy == true）
+
+    var label: String {
+        switch self {
+        case .all:
+            return NSLocalizedString("Main_Market_Transactions_Filter_All", comment: "")
+        case .sell:
+            return NSLocalizedString("Main_Market_Transactions_Sell", comment: "")
+        case .buy:
+            return NSLocalizedString("Main_Market_Transactions_Buy", comment: "")
+        }
+    }
+}
+
 /// 交易记录条目模型
 struct WalletTransactionEntry: Codable, Identifiable {
     let client_id: Int
@@ -86,6 +104,7 @@ final class WalletTransactionsViewModel: ObservableObject {
     @Published var errorMessage: String?
     @Published var searchText = "" // 添加搜索文本状态
     @Published var showSettings = false // 添加设置显示状态
+    @Published var transactionFilter: TransactionFilter = .all // 交易类型筛选
     @Published var mergeSimilarTransactions: Bool {
         didSet {
             UserDefaultsManager.shared.mergeSimilarTransactions = mergeSimilarTransactions
@@ -301,31 +320,51 @@ final class WalletTransactionsViewModel: ObservableObject {
 
     /// 添加过滤后的交易记录计算属性
     var filteredTransactionGroups: [WalletTransactionGroup] {
-        if searchText.isEmpty {
-            return transactionGroups
-        }
+        transactionGroups.compactMap { group in
+            // 按交易类型筛选
+            let typeFilteredEntries: [WalletTransactionEntry]
+            let typeFilteredMerged: [MergedTransactionEntry]
 
-        return transactionGroups.map { group in
-            if mergeSimilarTransactions {
-                let filteredMergedEntries = group.mergedEntries.filter { entry in
-                    getItemInfo(for: entry.type_id).matches(searchText)
-                }
-                return WalletTransactionGroup(
-                    date: group.date,
-                    entries: group.entries,
-                    mergedEntries: filteredMergedEntries
-                )
-            } else {
-                let filteredEntries = group.entries.filter { entry in
-                    getItemInfo(for: entry.type_id).matches(searchText)
-                }
-                return WalletTransactionGroup(
-                    date: group.date,
-                    entries: filteredEntries,
-                    mergedEntries: group.mergedEntries
-                )
+            switch transactionFilter {
+            case .all:
+                typeFilteredEntries = group.entries
+                typeFilteredMerged = group.mergedEntries
+            case .buy:
+                typeFilteredEntries = group.entries.filter { $0.is_buy }
+                typeFilteredMerged = group.mergedEntries.filter { $0.is_buy }
+            case .sell:
+                typeFilteredEntries = group.entries.filter { !$0.is_buy }
+                typeFilteredMerged = group.mergedEntries.filter { !$0.is_buy }
             }
-        }.filter { mergeSimilarTransactions ? !$0.mergedEntries.isEmpty : !$0.entries.isEmpty }
+
+            // 按搜索文本筛选
+            let finalEntries: [WalletTransactionEntry]
+            let finalMerged: [MergedTransactionEntry]
+
+            if searchText.isEmpty {
+                finalEntries = typeFilteredEntries
+                finalMerged = typeFilteredMerged
+            } else if mergeSimilarTransactions {
+                finalEntries = typeFilteredEntries
+                finalMerged = typeFilteredMerged.filter {
+                    getItemInfo(for: $0.type_id).matches(searchText)
+                }
+            } else {
+                finalEntries = typeFilteredEntries.filter {
+                    getItemInfo(for: $0.type_id).matches(searchText)
+                }
+                finalMerged = typeFilteredMerged
+            }
+
+            let hasContent = mergeSimilarTransactions ? !finalMerged.isEmpty : !finalEntries.isEmpty
+            guard hasContent else { return nil }
+
+            return WalletTransactionGroup(
+                date: group.date,
+                entries: finalEntries,
+                mergedEntries: finalMerged
+            )
+        }
     }
 }
 
@@ -532,10 +571,33 @@ private struct TransactionListView: View {
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
-                Button(action: {
-                    viewModel.showSettings = true
-                }) {
-                    Image(systemName: "gear")
+                HStack(spacing: 12) {
+                    Menu {
+                        ForEach(TransactionFilter.allCases, id: \.self) { filter in
+                            Button {
+                                viewModel.transactionFilter = filter
+                            } label: {
+                                HStack {
+                                    Text(filter.label)
+                                    if viewModel.transactionFilter == filter {
+                                        Image(systemName: "checkmark")
+                                    }
+                                }
+                            }
+                        }
+                    } label: {
+                        Image(
+                            systemName: viewModel.transactionFilter == .all
+                                ? "line.3.horizontal.decrease.circle"
+                                : "line.3.horizontal.decrease.circle.fill"
+                        )
+                    }
+
+                    Button(action: {
+                        viewModel.showSettings = true
+                    }) {
+                        Image(systemName: "gear")
+                    }
                 }
             }
         }

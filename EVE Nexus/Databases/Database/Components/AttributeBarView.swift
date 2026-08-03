@@ -457,6 +457,8 @@ struct AttributeGroupView: View {
 struct AttributesView: View {
     private static let derivativeOreAttributeID = 2711
     private static let skillRequirementsGroupID = 8
+    /// 舰载机能力属性分组 id（dogmaAttributeCategories.attribute_category_id=34）
+    private static let fighterAbilitiesGroupID = 34
 
     let attributeGroups: [AttributeGroup]
     let typeID: Int
@@ -486,6 +488,15 @@ struct AttributesView: View {
             .value
     }
 
+    private var fighterAbilities: [SDEMemoryStore.FighterAbilityInfo] {
+        SDEMemoryStore.fighterAbilities(for: typeID)
+    }
+
+    /// 是否已存在 id==34 的属性分组（决定 fighter abilities section 的插入位置）
+    private var hasFighterAbilitiesGroup: Bool {
+        sortedGroups.contains { $0.id == Self.fighterAbilitiesGroupID }
+    }
+
     var body: some View {
         ForEach(sortedGroups) { group in
             if group.id == Self.skillRequirementsGroupID {
@@ -500,6 +511,15 @@ struct AttributesView: View {
                     databaseManager: databaseManager
                 )
             }
+            // 紧跟在 id==34 的属性分组之后展示舰载机能力概览
+            if group.id == Self.fighterAbilitiesGroupID && !fighterAbilities.isEmpty {
+                FighterAbilitiesSection(abilities: fighterAbilities)
+            }
+        }
+
+        // 无 id==34 分组但有数据时，放到所有属性分组之后
+        if !fighterAbilities.isEmpty && !hasFighterAbilitiesGroup {
+            FighterAbilitiesSection(abilities: fighterAbilities)
         }
 
         if let value = derivativeOreValue {
@@ -527,5 +547,67 @@ struct AttributesView: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - Fighter Abilities Section
+
+/// 舰载机能力概览（每个 slot 一行：图标 + 名称 + 描述 + 冷却/装填/重装）
+private struct FighterAbilitiesSection: View {
+    let abilities: [SDEMemoryStore.FighterAbilityInfo]
+
+    var body: some View {
+        Section(
+            header: Text(NSLocalizedString("Ability_Overview", comment: "")).font(.headline)
+        ) {
+            ForEach(abilities, id: \.slot) { ability in
+                FighterAbilityRow(ability: ability)
+                    .listRowInsets(attributeRowInsets)
+            }
+        }
+    }
+}
+
+private struct FighterAbilityRow: View {
+    let ability: SDEMemoryStore.FighterAbilityInfo
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            IconManager.shared.loadImage(for: ability.iconFilename)
+                .resizable()
+                .frame(width: 32, height: 32)
+                .cornerRadius(6)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(ability.name)
+                    .font(.body)
+                    .foregroundColor(.primary)
+                if !ability.description.isEmpty {
+                    Text(ability.description)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                if let stats = statsLine {
+                    Text(stats)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            Spacer(minLength: 0)
+        }
+    }
+
+    /// 冷却/装填/重装 以圆点拼接，仅有值字段参与；全空返回 nil
+    private var statsLine: String? {
+        var parts: [String] = []
+        if let cooldown = ability.cooldownSeconds {
+            parts.append("\(NSLocalizedString("Cooldown", comment: "")) \(cooldown)\(NSLocalizedString("Seconds_Suffix", comment: ""))")
+        }
+        if let charge = ability.chargeCount {
+            parts.append("\(NSLocalizedString("Charges", comment: "")) \(charge)\(NSLocalizedString("Count_Suffix", comment: ""))")
+        }
+        if let rearm = ability.rearmTimeSeconds {
+            parts.append("\(NSLocalizedString("Rearm", comment: "")) \(rearm)\(NSLocalizedString("Seconds_Suffix", comment: ""))")
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
     }
 }

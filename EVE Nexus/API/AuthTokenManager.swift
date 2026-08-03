@@ -504,7 +504,9 @@ actor AuthTokenManager: NSObject {
         Logger.info("未找到现有认证状态，尝试从 Keychain 加载 refresh token - 角色ID: \(characterId)")
         guard let refreshToken = try? SecureStorage.shared.loadToken(for: characterId) else {
             Logger.error("未找到 refresh token - 角色ID: \(characterId)")
-            throw NetworkError.authenticationError("No refresh token found")
+            // token 缺失等同于过期，需要重新登录
+            handleInvalidGrantError(characterId: characterId)
+            throw NetworkError.refreshTokenExpired
         }
 
         let configuration = try await getConfiguration()

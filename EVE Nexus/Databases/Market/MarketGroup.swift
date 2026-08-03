@@ -76,6 +76,9 @@ class MarketManager {
     /// The Forge（Jita 所在星域）的 regionID，作为全应用的默认市场星域
     static let theForgeRegionID = 10_000_002
 
+    /// Jita 星系的 solarSystemID，用于判断建筑是否位于 Jita
+    static let jitaSolarSystemID = 30_000_142
+
     /// PLEX（30 天欧米伽时间）的 typeID；其订单走全球市场（regionID 19000001），位置信息不可解析
     static let plexTypeID = 44992
 

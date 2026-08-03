@@ -19,6 +19,14 @@ struct MarketBaseView<Content: View>: View {
     var searchTree: MarketTree? = nil
     /// 目录树展示的根节点（nil = 从 roots 开始）
     var searchTreeRootID: Int? = nil
+    /// 属性对比资格过滤；nil 表示不进行过滤（选择器场景）
+    var eligibleMarketGroupIDs: Set<Int>? = nil
+    /// 自定义搜索结果行视图；nil 时使用默认的 `searchResultItemRow`（详情跳转 + 属性对比入口）
+    var searchResultRowBuilder: ((DatabaseListItem) -> AnyView)? = nil
+    /// 分组「全选」回调；nil 时不显示全选按钮
+    var sectionBatchAction: (([DatabaseListItem]) -> Void)? = nil
+    /// 关闭回调；非 nil 时在根页面及目录下钻页面右上角显示关闭按钮
+    var onDismiss: (() -> Void)? = nil
 
     @State private var items: [DatabaseListItem] = []
     @State private var searchText = ""
@@ -98,24 +106,24 @@ struct MarketBaseView<Content: View>: View {
                     MarketSearchDirectoryRows(
                         tree: tree, rootGroupID: searchTreeRootID,
                         itemsByGroup: model.itemsByGroup, matchCount: model.matchCount,
-                        databaseManager: databaseManager
+                        databaseManager: databaseManager,
+                        rowBuilder: searchResultRowBuilder,
+                        batchAction: sectionBatchAction,
+                        onDismiss: onDismiss
                     )
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 } else {
                     // 平铺模式：按分组分 section
                     ForEach(groupMarketSearchItems(items), id: \.id) { group in
                         Section(
-                            header: Text(group.name)
-                                .fontWeight(.semibold)
-                                .font(.system(size: 18))
-                                .foregroundColor(.primary)
-                                .textCase(.none)
+                            header: sectionHeader(for: group)
                         ) {
                             ForEach(group.items) { item in
-                                searchResultItemRow(item)
+                                rowView(for: item)
+                                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                             }
                         }
                     }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
             } else {
                 content()
@@ -150,7 +158,7 @@ struct MarketBaseView<Content: View>: View {
                                 .padding(.top, 8)
                         }
                     }
-            } else if items.isEmpty && !searchText.isEmpty {
+            } else if items.isEmpty && isShowingSearchResults {
                 ContentUnavailableView {
                     Label(NSLocalizedString("Misc_Not_Found", comment: ""), systemImage: "magnifyingglass")
                 }
@@ -161,6 +169,17 @@ struct MarketBaseView<Content: View>: View {
             }
         }
         .navigationTitle(title)
+        .toolbar {
+            if let onDismiss {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        onDismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                }
+            }
+        }
         .sheet(item: $quickCompareID) { id in
             AttributeQuickCompareSheet(databaseManager: databaseManager, marketGroupID: id.id)
         }
@@ -171,7 +190,7 @@ struct MarketBaseView<Content: View>: View {
         // 无数量上限：结果按剪枝目录树承载索引；精确匹配由 SQL 排序优先返回
         items = databaseManager.loadMarketItems(
             whereClause: searchQuery(text), parameters: searchParameters(text),
-            eligibleMarketGroupIDs: AttributeCompareMarketPolicy.eligibleMarketGroupIDs,
+            eligibleMarketGroupIDs: eligibleMarketGroupIDs,
             exactMatchText: text
         )
         isShowingSearchResults = true
@@ -181,6 +200,44 @@ struct MarketBaseView<Content: View>: View {
     private func searchResultItemRow(_ item: DatabaseListItem) -> some View {
         MarketSearchItemRow(item: item, databaseManager: databaseManager) { marketGroupID in
             quickCompareID = QuickCompareID(id: marketGroupID)
+        }
+    }
+
+    /// 搜索结果行：优先使用自定义 builder，否则使用默认行（详情跳转 + 属性对比入口）
+    private func rowView(for item: DatabaseListItem) -> AnyView {
+        if let builder = searchResultRowBuilder {
+            return builder(item)
+        }
+        return AnyView(searchResultItemRow(item))
+    }
+
+    /// 分组 header：始终显示分组名，`sectionBatchAction` 不为 nil 时附加「全选」按钮
+    @ViewBuilder
+    private func sectionHeader(for group: SearchResultSection<DatabaseListItem>) -> some View {
+        if let batch = sectionBatchAction {
+            HStack(alignment: .firstTextBaseline) {
+                Text(group.name)
+                    .fontWeight(.semibold)
+                    .font(.system(size: 18))
+                    .foregroundColor(.primary)
+                    .textCase(.none)
+                Spacer(minLength: 8)
+                Button {
+                    batch(group.items)
+                } label: {
+                    Text(
+                        NSLocalizedString("Main_Market_Select_All_In_Section", comment: "")
+                    )
+                    .font(.subheadline.weight(.medium))
+                }
+                .buttonStyle(.borderless)
+            }
+        } else {
+            Text(group.name)
+                .fontWeight(.semibold)
+                .font(.system(size: 18))
+                .foregroundColor(.primary)
+                .textCase(.none)
         }
     }
 }
@@ -212,10 +269,24 @@ private struct MarketSearchDirectoryRows: View {
     let itemsByGroup: [Int: [DatabaseListItem]]
     let matchCount: [Int: Int]
     let databaseManager: DatabaseManager
+    /// 自定义行视图；nil 时使用默认的 `MarketSearchItemRow`
+    var rowBuilder: ((DatabaseListItem) -> AnyView)? = nil
+    /// 分组「全选」回调；nil 时不显示全选按钮
+    var batchAction: (([DatabaseListItem]) -> Void)? = nil
+    /// 关闭回调；非 nil 时在下钻页面右上角显示关闭按钮
+    var onDismiss: (() -> Void)? = nil
 
     private var visibleGroups: [MarketGroup] {
         let candidates = rootGroupID.map { tree.children(of: $0) } ?? tree.roots
         return candidates.filter { (matchCount[$0.id] ?? 0) > 0 }
+    }
+
+    /// 直属物品行：优先使用自定义 builder，否则使用默认行
+    private func directItemRow(_ item: DatabaseListItem) -> AnyView {
+        if let builder = rowBuilder {
+            return builder(item)
+        }
+        return AnyView(MarketSearchItemRow(item: item, databaseManager: databaseManager) { _ in })
     }
 
     var body: some View {
@@ -224,7 +295,7 @@ private struct MarketSearchDirectoryRows: View {
             ForEach(
                 MarketBaseView<EmptyView>.sortItemsForMarketSearchSection(directItems)
             ) { item in
-                MarketSearchItemRow(item: item, databaseManager: databaseManager) { _ in }
+                directItemRow(item)
             }
         }
 
@@ -234,13 +305,19 @@ private struct MarketSearchDirectoryRows: View {
                     MarketSearchItemsView(
                         title: group.name,
                         items: itemsByGroup[group.id] ?? [],
-                        databaseManager: databaseManager
+                        databaseManager: databaseManager,
+                        rowBuilder: rowBuilder,
+                        batchAction: batchAction,
+                        onDismiss: onDismiss
                     )
                 } else {
                     MarketSearchDirectoryView(
                         group: group, tree: tree,
                         itemsByGroup: itemsByGroup, matchCount: matchCount,
-                        databaseManager: databaseManager
+                        databaseManager: databaseManager,
+                        rowBuilder: rowBuilder,
+                        batchAction: batchAction,
+                        onDismiss: onDismiss
                     )
                 }
             } label: {
@@ -262,17 +339,37 @@ private struct MarketSearchDirectoryView: View {
     let itemsByGroup: [Int: [DatabaseListItem]]
     let matchCount: [Int: Int]
     let databaseManager: DatabaseManager
+    /// 自定义行视图；nil 时使用默认的 `MarketSearchItemRow`
+    var rowBuilder: ((DatabaseListItem) -> AnyView)? = nil
+    /// 分组「全选」回调；nil 时不显示全选按钮
+    var batchAction: (([DatabaseListItem]) -> Void)? = nil
+    /// 关闭回调；非 nil 时在右上角显示关闭按钮
+    var onDismiss: (() -> Void)? = nil
 
     var body: some View {
         List {
             MarketSearchDirectoryRows(
                 tree: tree, rootGroupID: group.id,
                 itemsByGroup: itemsByGroup, matchCount: matchCount,
-                databaseManager: databaseManager
+                databaseManager: databaseManager,
+                rowBuilder: rowBuilder,
+                batchAction: batchAction,
+                onDismiss: onDismiss
             )
             .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
         }
         .navigationTitle(group.name)
+        .toolbar {
+            if let onDismiss {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        onDismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -281,18 +378,70 @@ private struct MarketSearchItemsView: View {
     let title: String
     let items: [DatabaseListItem]
     let databaseManager: DatabaseManager
+    /// 自定义行视图；nil 时使用默认的 `MarketSearchItemRow`
+    var rowBuilder: ((DatabaseListItem) -> AnyView)? = nil
+    /// 分组「全选」回调；nil 时不显示全选按钮
+    var batchAction: (([DatabaseListItem]) -> Void)? = nil
+    /// 关闭回调；非 nil 时在右上角显示关闭按钮
+    var onDismiss: (() -> Void)? = nil
     @State private var quickCompareID: QuickCompareID?
+
+    /// 物品行：优先使用自定义 builder，否则使用默认行（详情跳转 + 属性对比入口）
+    private func itemRow(_ item: DatabaseListItem) -> AnyView {
+        if let builder = rowBuilder {
+            return builder(item)
+        }
+        return AnyView(MarketSearchItemRow(item: item, databaseManager: databaseManager) { marketGroupID in
+            quickCompareID = QuickCompareID(id: marketGroupID)
+        })
+    }
 
     var body: some View {
         List {
-            ForEach(MarketBaseView<EmptyView>.sortItemsForMarketSearchSection(items)) { item in
-                MarketSearchItemRow(item: item, databaseManager: databaseManager) { marketGroupID in
-                    quickCompareID = QuickCompareID(id: marketGroupID)
+            if let batch = batchAction {
+                // 选择器场景：带「全选」按钮的 section header
+                Section {
+                    ForEach(MarketBaseView<EmptyView>.sortItemsForMarketSearchSection(items)) { item in
+                        itemRow(item)
+                    }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+                } header: {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(title)
+                            .fontWeight(.semibold)
+                            .font(.system(size: 18))
+                            .foregroundColor(.primary)
+                            .textCase(.none)
+                        Spacer(minLength: 8)
+                        Button {
+                            batch(items)
+                        } label: {
+                            Text(NSLocalizedString("Main_Market_Select_All_In_Section", comment: ""))
+                                .font(.subheadline.weight(.medium))
+                        }
+                        .buttonStyle(.borderless)
+                    }
                 }
+            } else {
+                // 浏览器场景：保持原样，无 section header
+                ForEach(MarketBaseView<EmptyView>.sortItemsForMarketSearchSection(items)) { item in
+                    itemRow(item)
+                }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
-            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
         }
         .navigationTitle(title)
+        .toolbar {
+            if let onDismiss {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button {
+                        onDismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                }
+            }
+        }
         .sheet(item: $quickCompareID) { id in
             AttributeQuickCompareSheet(databaseManager: databaseManager, marketGroupID: id.id)
         }
@@ -326,7 +475,8 @@ struct MarketBrowserView: View {
                 searchParameters: { text in
                     LocalizedText.typeLangNameLikeParams(text) + ["\(text)"]
                 },
-                searchTree: marketTree
+                searchTree: marketTree,
+                eligibleMarketGroupIDs: AttributeCompareMarketPolicy.eligibleMarketGroupIDs
             )
             .navigationDestination(for: MarketGroup.self) { group in
                 MarketGroupView(
@@ -392,7 +542,8 @@ struct MarketGroupView: View {
                 LocalizedText.typeLangNameLikeParams(text)
             },
             searchTree: tree,
-            searchTreeRootID: group.id
+            searchTreeRootID: group.id,
+            eligibleMarketGroupIDs: AttributeCompareMarketPolicy.eligibleMarketGroupIDs
         )
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -481,7 +632,8 @@ struct MarketItemListView: View {
                 }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             },
             searchQuery: { _ in "t.marketGroupID = ? AND \(LocalizedText.typeLangNameLikeSQL)" },
-            searchParameters: { text in [marketGroupID] + LocalizedText.typeLangNameLikeParams(text) }
+            searchParameters: { text in [marketGroupID] + LocalizedText.typeLangNameLikeParams(text) },
+            eligibleMarketGroupIDs: AttributeCompareMarketPolicy.eligibleMarketGroupIDs
         )
         .sheet(item: $leafQuickCompareID) { id in
             AttributeQuickCompareSheet(databaseManager: databaseManager, marketGroupID: id.id)

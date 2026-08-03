@@ -6,8 +6,9 @@ struct MarketStructure: Identifiable, Codable {
     var id = UUID()
     let structureId: Int
     let structureName: String
-    let characterId: Int
-    let characterName: String
+    /// characterId/characterName 为 var，以支持在已添加建筑上更换归属角色
+    var characterId: Int
+    var characterName: String
     let systemId: Int
     let regionId: Int
     let security: Double
@@ -91,9 +92,8 @@ class MarketStructureManager: ObservableObject {
 
         do {
             let data = try Data(contentsOf: configFilePath)
-            var loadedStructures = try JSONDecoder().decode([MarketStructure].self, from: data)
-            loadedStructures.sort { $0.addedDate < $1.addedDate }
-            structures = loadedStructures
+            // 不再按 addedDate 排序，保留用户拖动调整后的顺序
+            structures = try JSONDecoder().decode([MarketStructure].self, from: data)
             Logger.info("加载了 \(structures.count) 个市场建筑")
         } catch {
             Logger.error("加载市场建筑失败: \(error)")
@@ -120,6 +120,23 @@ class MarketStructureManager: ObservableObject {
 
     func removeStructure(_ structure: MarketStructure) {
         structures.removeAll { $0.id == structure.id }
+        saveStructures()
+    }
+
+    /// 更换建筑所属角色（仅修改本地保存的 characterId/characterName，不刷新 ESI）
+    func changeStructureCharacter(structureId: Int, newCharacterId: Int, newCharacterName: String) {
+        guard let index = structures.firstIndex(where: { $0.structureId == structureId }) else {
+            return
+        }
+        structures[index].characterId = newCharacterId
+        structures[index].characterName = newCharacterName
+        saveStructures()
+        Logger.info("已更换建筑 \(structureId) 的角色为 \(newCharacterName)(\(newCharacterId))")
+    }
+
+    /// 调整建筑顺序（拖动排序），持久化保存以便在各市场选择器中复用
+    func moveStructure(from source: IndexSet, to destination: Int) {
+        structures.move(fromOffsets: source, toOffset: destination)
         saveStructures()
     }
 
@@ -229,17 +246,34 @@ struct MarketStructureSettingsView: View {
 
             if !manager.structures.isEmpty {
                 Section(
-                    header: Text(
-                        String(
-                            format: NSLocalizedString(
-                                "Main_Setting_Market_Structure_Added_Count", comment: ""
-                            ),
-                            manager.structures.count
+                    header: HStack {
+                        Text(
+                            String(
+                                format: NSLocalizedString(
+                                    "Main_Setting_Market_Structure_Added_Count", comment: ""
+                                ),
+                                manager.structures.count
+                            )
                         )
-                    )
+                        Spacer()
+                        if isAutoRefreshing {
+                            HStack(spacing: 4) {
+                                ProgressView()
+                                    .scaleEffect(0.6)
+                                    .frame(width: 12, height: 12)
+                                Text(NSLocalizedString("Structure_Info_Refreshing", comment: ""))
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                            .transition(.opacity)
+                        }
+                    }
                 ) {
                     ForEach(manager.structures) { structure in
                         StructureRowView(structure: structure)
+                    }
+                    .onMove { from, to in
+                        manager.moveStructure(from: from, to: to)
                     }
                     .onDelete(perform: deleteStructures)
                 }
@@ -253,14 +287,26 @@ struct MarketStructureSettingsView: View {
             NSLocalizedString("Main_Setting_Market_Structure_Settings_Title", comment: "")
         )
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                HStack(spacing: 12) {
+                    if isAutoRefreshing {
+                        ProgressView()
+                    }
+                    if !manager.structures.isEmpty {
+                        EditButton()
+                    }
+                }
+            }
+        }
         .sheet(isPresented: $showingAddStructureSheet) {
             AddMarketStructureSheet()
         }
         .task {
             guard !isAutoRefreshing, !manager.structures.isEmpty else { return }
             isAutoRefreshing = true
+            defer { isAutoRefreshing = false }
             await manager.refreshStructureInfos()
-            isAutoRefreshing = false
         }
     }
 
@@ -281,6 +327,8 @@ struct StructureRowView: View {
     @State private var structureOrdersProgress: StructureOrdersProgress? = nil
     @State private var cacheStatus: StructureMarketManager.CacheStatus = .noData
     @State private var showingReloadAlert = false
+    @State private var showingCharacterChangeSheet = false
+    @State private var pendingCharacter: EVECharacterInfo? = nil
     @State private var lastUpdateDate: Date? = nil
     @State private var ordersCount: Int? = nil
     @State private var itemTypesCount: Int? = nil
@@ -301,16 +349,26 @@ struct StructureRowView: View {
                     .foregroundColor(.primary)
                     .lineLimit(1)
 
-                // 位置 + 角色（合并为一行）
+                // 位置信息（安全等级 + 星系 / 星域）
                 HStack(spacing: 4) {
                     Text(formatSystemSecurity(structure.security))
                         .foregroundColor(getSecurityColor(structure.security))
                     Text("\(structure.systemName) / \(structure.regionName)")
                         .foregroundColor(.secondary)
-                    Text("·")
-                        .foregroundColor(.secondary)
-                    Image(systemName: "person.circle.fill")
-                        .foregroundColor(.blue)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
+                .font(.caption)
+
+                // 归属角色（头像 + 名称）
+                HStack(spacing: 4) {
+                    UniversePortrait(
+                        id: structure.characterId,
+                        type: .character,
+                        size: 32,
+                        displaySize: 18,
+                        cornerRadius: 4
+                    )
                     Text(structure.characterName)
                         .foregroundColor(.secondary)
                         .lineLimit(1)
@@ -318,7 +376,7 @@ struct StructureRowView: View {
                 }
                 .font(.caption)
 
-                // 缓存统计（合并为一行）
+                // 缓存统计
                 cacheSummaryText
                     .font(.caption2)
                     .foregroundColor(.secondary)
@@ -346,21 +404,44 @@ struct StructureRowView: View {
                     NSLocalizedString("Misc_Copy_Structure", comment: ""), systemImage: "doc.on.doc"
                 )
             }
-
-            Divider()
-
             Button {
                 Task { await loadStructureOrders() }
             } label: {
-                Label(
-                    NSLocalizedString(
-                        isLoadingOrders ? "Structure_Orders_Loading" : "Structure_Orders_Load",
-                        comment: ""
-                    ),
-                    systemImage: isLoadingOrders ? "arrow.clockwise" : "chart.bar.xaxis"
-                )
+                if isLoadingOrders {
+                    Label(
+                        NSLocalizedString("Structure_Orders_Loading", comment: ""),
+                        systemImage: "arrow.clockwise"
+                    )
+                } else {
+                    Label(
+                        NSLocalizedString("Structure_Orders_Load", comment: ""),
+                        systemImage: "chart.bar.xaxis"
+                    )
+                }
             }
             .disabled(isLoadingOrders)
+            // 更换建筑所属角色
+            Button {
+                showingCharacterChangeSheet = true
+            } label: {
+                Label(
+                    NSLocalizedString(
+                        "Main_Setting_Market_Structure_Change_Character", comment: ""
+                    ),
+                    systemImage: "person.crop.circle.badge.checkmark"
+                )
+            }
+
+            Divider()
+
+            Button(role: .destructive) {
+                manager.removeStructure(structure)
+            } label: {
+                Label(
+                    NSLocalizedString("Misc_Delete", comment: ""),
+                    systemImage: "trash"
+                )
+            }
         }
         .padding(.vertical, 4)
         .onAppear {
@@ -380,6 +461,19 @@ struct StructureRowView: View {
             }
         } message: {
             Text(NSLocalizedString("Structure_Orders_Reload_Message", comment: ""))
+        }
+        .sheet(isPresented: $showingCharacterChangeSheet) {
+            CharacterSelectorSheet(selectedCharacter: $pendingCharacter)
+        }
+        .onChange(of: pendingCharacter) { _, newValue in
+            // 选中新角色后立即更新并清空待选状态
+            guard let newValue else { return }
+            manager.changeStructureCharacter(
+                structureId: structure.structureId,
+                newCharacterId: newValue.CharacterID,
+                newCharacterName: newValue.CharacterName
+            )
+            pendingCharacter = nil
         }
     }
 

@@ -123,10 +123,7 @@ class SQLiteManager {
                 return .error(connectionError)
             }
 
-            // 记录开始时间
-            let startTime = CFAbsoluteTimeGetCurrent()
-
-            Logger.info("\(query)?#\(parameters)")
+            let paramPart = parameters.isEmpty ? "" : "?#\(parameters)"
             // 记录查询日志
             addQueryLog(query: query, parameters: parameters)
 
@@ -136,9 +133,9 @@ class SQLiteManager {
             // 准备语句
             if sqlite3_prepare_v2(db, query, -1, &statement, nil) != SQLITE_OK {
                 let errorMessage = String(cString: sqlite3_errmsg(db))
-                let detailedError = "[SQLite] 准备语句失败 - SQL: \(query) - 错误: \(errorMessage)"
-                Logger.error(detailedError)
-                return .error(detailedError)
+                let msg = "[SQLite] \(query)\(paramPart) - 失败 准备语句失败: \(errorMessage)"
+                Logger.error(msg)
+                return .error(msg)
             }
 
             // 绑定参数 - 使用原始参数顺序，而不是排序后的参数
@@ -176,11 +173,10 @@ class SQLiteManager {
                 // 检查参数绑定是否成功
                 if bindResult != SQLITE_OK {
                     let errorMessage = String(cString: sqlite3_errmsg(db))
-                    let bindError =
-                        "[SQLite] 参数绑定失败 - 参数索引: \(index), 参数值: \(parameter), 错误: \(errorMessage) - SQL: \(query)"
-                    Logger.error(bindError)
                     sqlite3_finalize(statement)
-                    return .error(bindError)
+                    let msg = "[SQLite] \(query)\(paramPart) - 失败 参数绑定失败[索引\(index), 值\(parameter)]: \(errorMessage)"
+                    Logger.error(msg)
+                    return .error(msg)
                 }
             }
 
@@ -205,34 +201,22 @@ class SQLiteManager {
             // 检查 SQL 执行是否出错
             if stepResult != SQLITE_DONE {
                 let errorMessage = String(cString: sqlite3_errmsg(db))
-                let executionError =
-                    "[SQLite] SQL执行失败 - 错误代码: \(stepResult), 错误信息: \(errorMessage) - SQL: \(query) - 参数: \(parameters)"
-                Logger.error(executionError)
                 sqlite3_finalize(statement)
-                return .error(executionError)
+                let msg = "[SQLite] \(query)\(paramPart) - 失败 SQL执行失败[代码\(stepResult)]: \(errorMessage)"
+                Logger.error(msg)
+                return .error(msg)
             }
 
             // 释放语句
             sqlite3_finalize(statement)
 
-            // 计算查询耗时
-            let endTime = CFAbsoluteTimeGetCurrent()
-            let elapsedTime = (endTime - startTime) * 1000 // 转换为毫秒
-
-            // 记录查询耗时和结果行数
-            if elapsedTime >= 500 {
-                Logger.warning("查询完成: \(results.count)行, 耗时过长: \(String(format: "%.2f", elapsedTime))ms")
-            }
-
             // 缓存结果（NSCache 本身线程安全）
             if useCache {
-                // Logger.info("记录到缓存中: \(cacheKey)")
                 queryCache.setObject(results as NSArray, forKey: cacheKey)
             }
 
-            // 记录执行成功日志
-            let sqlPreview = query.count > 50 ? String(query.prefix(50)) + "..." : query
-            Logger.info("[SQLite] \(sqlPreview) - 成功")
+            // 记录执行成功日志（含完整 SQL、参数、状态）
+            Logger.info("[SQLite] \(query)\(paramPart) - 成功")
 
             return .success(results)
         }
