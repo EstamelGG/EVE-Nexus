@@ -56,20 +56,12 @@ class Step5 {
                 let attrIds = Array(originalModule.mutatedAttributes.keys)
                 guard !attrIds.isEmpty else { continue }
 
-                let placeholders = Array(repeating: "?", count: attrIds.count).joined(separator: ",")
-                let attrNameQuery = "SELECT attribute_id, name FROM dogmaAttributes WHERE attribute_id IN (\(placeholders))"
-                var attrIdToName: [Int: String] = [:]
-                if case let .success(rows) = databaseManager.executeQuery(
-                    attrNameQuery, parameters: attrIds
-                ) {
-                    for row in rows {
-                        if let attrId = row["attribute_id"] as? Int,
-                           let name = row["name"] as? String
-                        {
-                            attrIdToName[attrId] = name
-                        }
+                // 内存索引构建属性 ID → 属性名（attribute_key）映射
+                let attrIdToName: [Int: String] = Dictionary(
+                    uniqueKeysWithValues: attrIds.compactMap { id in
+                        SDEMemoryStore.dogmaAttribute(for: id).map { (id, $0.name) }
                     }
-                }
+                )
 
                 // 对每个突变属性，将计算后的值乘以突变倍数
                 var updatedAttributes = moduleOutput.attributes
@@ -111,20 +103,12 @@ class Step5 {
                 let attrIds = Array(originalDrone.mutatedAttributes.keys)
                 guard !attrIds.isEmpty else { continue }
 
-                let placeholders = Array(repeating: "?", count: attrIds.count).joined(separator: ",")
-                let attrNameQuery = "SELECT attribute_id, name FROM dogmaAttributes WHERE attribute_id IN (\(placeholders))"
-                var attrIdToName: [Int: String] = [:]
-                if case let .success(rows) = databaseManager.executeQuery(
-                    attrNameQuery, parameters: attrIds
-                ) {
-                    for row in rows {
-                        if let attrId = row["attribute_id"] as? Int,
-                           let name = row["name"] as? String
-                        {
-                            attrIdToName[attrId] = name
-                        }
+                // 内存索引构建属性 ID → 属性名（attribute_key）映射
+                let attrIdToName: [Int: String] = Dictionary(
+                    uniqueKeysWithValues: attrIds.compactMap { id in
+                        SDEMemoryStore.dogmaAttribute(for: id).map { (id, $0.name) }
                     }
-                }
+                )
 
                 // 对每个突变属性，将计算后的值乘以突变倍数
                 var updatedAttributes = droneOutput.attributes

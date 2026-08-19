@@ -67,29 +67,24 @@ enum SkillTrainingCalculator {
             )
 
             if !implants.isEmpty {
-                let query = """
-                    SELECT type_id, attribute_id, value
-                    FROM typeAttributes
-                    WHERE type_id IN (\(implants.map { String($0) }.joined(separator: ",")))
-                    AND attribute_id IN (\(ImplantAttributeID.charisma), \(ImplantAttributeID.intelligence),
-                                      \(ImplantAttributeID.memory), \(ImplantAttributeID.perception),
-                                      \(ImplantAttributeID.willpower))
-                """
-
-                if case let .success(rows) = DatabaseManager.shared.executeQuery(query) {
-                    var maxBonuses: [Int: Int] = [:]
-                    for row in rows {
-                        guard let attributeId = row["attribute_id"] as? Int,
-                              let value = row["value"] as? Double
-                        else { continue }
+                // 内存索引批量取五个学习属性的最大加成
+                let bonusAttrIDs: Set<Int> = [
+                    ImplantAttributeID.charisma, ImplantAttributeID.intelligence,
+                    ImplantAttributeID.memory, ImplantAttributeID.perception,
+                    ImplantAttributeID.willpower,
+                ]
+                var maxBonuses: [Int: Int] = [:]
+                for typeId in implants {
+                    let attributes = SDEMemoryStore.typeAttributes(for: typeId)
+                    for (attributeId, value) in attributes where bonusAttrIDs.contains(attributeId) {
                         maxBonuses[attributeId] = max(maxBonuses[attributeId] ?? 0, Int(value))
                     }
-                    bonuses.charismaBonus = maxBonuses[ImplantAttributeID.charisma] ?? 0
-                    bonuses.intelligenceBonus = maxBonuses[ImplantAttributeID.intelligence] ?? 0
-                    bonuses.memoryBonus = maxBonuses[ImplantAttributeID.memory] ?? 0
-                    bonuses.perceptionBonus = maxBonuses[ImplantAttributeID.perception] ?? 0
-                    bonuses.willpowerBonus = maxBonuses[ImplantAttributeID.willpower] ?? 0
                 }
+                bonuses.charismaBonus = maxBonuses[ImplantAttributeID.charisma] ?? 0
+                bonuses.intelligenceBonus = maxBonuses[ImplantAttributeID.intelligence] ?? 0
+                bonuses.memoryBonus = maxBonuses[ImplantAttributeID.memory] ?? 0
+                bonuses.perceptionBonus = maxBonuses[ImplantAttributeID.perception] ?? 0
+                bonuses.willpowerBonus = maxBonuses[ImplantAttributeID.willpower] ?? 0
             }
         } catch {
             Logger.error("获取植入体信息失败: \(error)")

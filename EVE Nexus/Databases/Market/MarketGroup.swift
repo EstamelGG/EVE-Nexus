@@ -76,9 +76,6 @@ class MarketManager {
     /// The Forge（Jita 所在星域）的 regionID，作为全应用的默认市场星域
     static let theForgeRegionID = 10_000_002
 
-    /// Jita 星系的 solarSystemID，用于判断建筑是否位于 Jita
-    static let jitaSolarSystemID = 30_000_142
-
     /// PLEX（30 天欧米伽时间）的 typeID；其订单走全球市场（regionID 19000001），位置信息不可解析
     static let plexTypeID = 44992
 
@@ -86,36 +83,19 @@ class MarketManager {
     /// 多处复用：MarketBrowserView / MarketWatchList / SearchResultView / MarketItemGrouper。
     static let categoryPriority = [6, 7, 32, 8, 4, 16, 18, 87, 20, 22, 9, 5]
 
-    /// 加载市场组数据
-    func loadMarketGroups(databaseManager: DatabaseManager) -> [MarketGroup] {
-        let query = """
-            SELECT group_id, name, icon_name, parentgroup_id
-            FROM marketGroups where show = 1
-            ORDER BY group_id
-        """
-
-        var groups: [MarketGroup] = []
-
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            for row in rows {
-                if let groupID = row["group_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let iconName = row["icon_name"] as? String
-                {
-                    let parentGroupID = row["parentgroup_id"] as? Int
-
-                    let group = MarketGroup(
-                        id: groupID,
-                        name: name,
-                        iconName: iconName,
-                        parentGroupID: parentGroupID
-                    )
-                    groups.append(group)
-                }
+    /// 加载市场组数据（内存索引，SDEMemoryStore 已预加载 marketGroups）
+    func loadMarketGroups(databaseManager _: DatabaseManager) -> [MarketGroup] {
+        SDEMemoryStore.marketGroups.values
+            .filter { $0.show }
+            .map {
+                MarketGroup(
+                    id: $0.id,
+                    name: $0.name,
+                    iconName: $0.iconName,
+                    parentGroupID: $0.parentGroupID
+                )
             }
-        }
-
-        return groups
+            .sorted { $0.id < $1.id }
     }
 
     /// 从扁平数组构建目录树索引（O(n) 一次构建，后续所有子节点/叶子查询均为 O(1)）

@@ -210,27 +210,19 @@ struct StructureSelectorSheet: View {
         let marketModuleTypeId = 35892
 
         do {
-            let attributeQuery = """
-                SELECT attribute_id, name, unitID
-                FROM dogmaAttributes
-                WHERE (name LIKE 'canFitShipType%' OR name LIKE 'canFitShipGroup%')
-                AND unitID IN (115, 116)
-            """
-
             var shipGroupAttributes: [Int] = []
             var shipTypeAttributes: [Int] = []
 
-            if case let .success(rows) = DatabaseManager.shared.executeQuery(attributeQuery) {
-                for row in rows {
-                    if let attrId = row["attribute_id"] as? Int,
-                       let unitID = row["unitID"] as? Int
-                    {
-                        if unitID == 115 {
-                            shipGroupAttributes.append(attrId)
-                        } else if unitID == 116 {
-                            shipTypeAttributes.append(attrId)
-                        }
-                    }
+            // 内存索引枚举 canFitShipType/canFitShipGroup 属性（原 dogmaAttributes LIKE 查询）
+            for attr in SDEMemoryStore.dogmaAttributes.values {
+                let name = attr.name
+                guard name.hasPrefix("canFitShipType") || name.hasPrefix("canFitShipGroup"),
+                      let unitID = attr.unitID, unitID == 115 || unitID == 116
+                else { continue }
+                if unitID == 115 {
+                    shipGroupAttributes.append(attr.id)
+                } else {
+                    shipTypeAttributes.append(attr.id)
                 }
             }
 
@@ -273,21 +265,13 @@ struct StructureSelectorSheet: View {
             var allCapableTypeIds: Set<Int> = allowedTypeIds
 
             if !allowedGroupIds.isEmpty {
-                let groupPlaceholders = allowedGroupIds.map { _ in "?" }.joined(separator: ",")
-                let typeFromGroupQuery = """
-                    SELECT DISTINCT type_id
-                    FROM types
-                    WHERE groupID IN (\(groupPlaceholders)) AND published = 1
-                """
-
-                if case let .success(rows) = DatabaseManager.shared.executeQuery(
-                    typeFromGroupQuery, parameters: Array(allowedGroupIds)
-                ) {
-                    for row in rows {
-                        if let typeId = row["type_id"] as? Int {
-                            allCapableTypeIds.insert(typeId)
-                        }
-                    }
+                // 内存索引按 groupID 找已发布类型
+                for (typeId, info) in SDEMemoryStore.types {
+                    guard let gid = info.groupID,
+                          allowedGroupIds.contains(gid),
+                          info.published
+                    else { continue }
+                    allCapableTypeIds.insert(typeId)
                 }
             }
 

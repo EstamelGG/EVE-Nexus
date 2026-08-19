@@ -157,8 +157,11 @@ struct FighterSelectorView: View {
         Logger.info("开始加载全部舰载机数据")
 
         // 加载全部舰载机（所有三种类型）
-        let whereClause = "t.marketGroupID IN (840, 1310, 2239) AND t.published = 1"
-        let allFighters = databaseManager.loadMarketItems(whereClause: whereClause, parameters: [])
+        let allowedGroups: Set = [840, 1310, 2239]
+        let allFighters = databaseManager.searchItemsMemory { _, info in
+            guard let mg = info.marketGroupID else { return false }
+            return allowedGroups.contains(mg) && info.published
+        }
 
         // 根据当前舰载机类型过滤
         items = allFighters.filter { item in

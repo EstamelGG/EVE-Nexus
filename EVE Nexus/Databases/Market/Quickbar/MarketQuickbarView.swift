@@ -11,6 +11,8 @@ struct MarketQuickbarView: View {
     @State private var renameQuickbar: MarketQuickbar?
     @State private var renameQuickbarName = ""
     @State private var quickbarToDelete: MarketQuickbar?
+    /// 新建列表后自动导航进入该列表（非 nil 时触发 push 详情页）
+    @State private var autoNavigateQuickbarID: UUID?
 
     private var filteredQuickbars: [MarketQuickbar] {
         if searchText.isEmpty {
@@ -79,18 +81,30 @@ struct MarketQuickbarView: View {
                 }
             }
         }
+        .navigationDestination(item: $autoNavigateQuickbarID) { id in
+            if let quickbar = quickbars.first(where: { $0.id == id }) {
+                MarketQuickbarDetailView(
+                    databaseManager: databaseManager,
+                    quickbar: quickbar
+                )
+            }
+        }
         .navigationTitle(NSLocalizedString("Main_Market_Watch_List", comment: ""))
         .searchable(
             text: $searchText,
             prompt: NSLocalizedString("Main_Database_Search", comment: "")
         )
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    newQuickbarName = ""
-                    isShowingAddAlert = true
-                } label: {
-                    Image(systemName: "plus")
+            if #available(iOS 26.0, *) {
+                // iOS 26：搜索框与添加按钮共处底部同一 Liquid Glass 行（搜索框左、+ 右）
+                DefaultToolbarItem(kind: .search, placement: .bottomBar)
+                ToolbarSpacer(.flexible, placement: .bottomBar)
+                ToolbarItem(placement: .bottomBar) {
+                    addQuickbarButton
+                }
+            } else {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    addQuickbarButton
                 }
             }
         }
@@ -112,6 +126,8 @@ struct MarketQuickbarView: View {
                     quickbars.append(newQuickbar)
                     MarketQuickbarManager.shared.saveQuickbar(newQuickbar)
                     newQuickbarName = ""
+                    // 新建成功后自动进入该列表
+                    autoNavigateQuickbarID = newQuickbar.id
                 }
             }
             .disabled(newQuickbarName.isEmpty)
@@ -168,6 +184,16 @@ struct MarketQuickbarView: View {
         }
     }
 
+    /// 添加关注列表按钮（iOS 26 位于底部搜索栏右侧，旧系统位于右上角）
+    private var addQuickbarButton: some View {
+        Button {
+            newQuickbarName = ""
+            isShowingAddAlert = true
+        } label: {
+            Image(systemName: "plus")
+        }
+    }
+
     private func quickbarRowView(_ quickbar: MarketQuickbar) -> some View {
         HStack(alignment: .center, spacing: 12) {
             // 显示列表图标（优先选择第一个飞船的图标）
@@ -210,38 +236,16 @@ struct MarketQuickbarView: View {
 
     /// 获取用于显示列表图标的 typeID，优先选择第一个飞船 (categoryID == 6)
     private func getPreferredIconTypeID(for quickbar: MarketQuickbar) -> Int? {
-        guard !quickbar.items.isEmpty else { return nil }
-        let typeIDs = quickbar.items.map { String($0.typeID) }.joined(separator: ",")
-        let items = databaseManager.loadMarketItems(
-            whereClause: "t.type_id IN (\(typeIDs))",
-            parameters: []
-        )
-        let typeIDToCategory: [Int: Int] = Dictionary(uniqueKeysWithValues: items.compactMap { item in
-            guard let cat = item.categoryID else { return nil }
-            return (item.id, cat)
-        })
-        // 按 quickbar 顺序，优先找第一个飞船
-        for item in quickbar.items {
-            if typeIDToCategory[item.typeID] == 6 {
-                return item.typeID
-            }
+        for item in quickbar.items where SDEMemoryStore.type(for: item.typeID)?.categoryID == 6 {
+            return item.typeID
         }
         return quickbar.items.first?.typeID
     }
 
     /// 获取物品图标的辅助函数
     private func getItemIcon(typeID: Int) -> UIImage {
-        let itemData = databaseManager.loadMarketItems(
-            whereClause: "t.type_id = ?",
-            parameters: [typeID]
-        )
-
-        if let item = itemData.first {
-            return IconManager.shared.loadUIImage(for: item.iconFileName)
-        } else {
-            // 如果找不到图标，返回一个默认图标
-            return UIImage(named: "not_found") ?? UIImage()
-        }
+        let iconFileName = ItemInfoMap.iconFilename(for: typeID)
+        return IconManager.shared.loadUIImage(for: iconFileName)
     }
 
     /// 获取市场名称的辅助函数

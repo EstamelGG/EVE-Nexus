@@ -205,73 +205,40 @@ struct PremiumItemsView: View {
             }
         }
 
-        // 查询溢价物品的目录信息；名称从内存全语种索引取
-        let typeIdsArray = Array(premiumTypeIds)
-        let placeholders = String(repeating: "?,", count: typeIdsArray.count).dropLast()
-        let query = """
-            SELECT type_id, categoryID, category_name
-            FROM types
-            WHERE type_id IN (\(placeholders))
-        """
-
+        // 内存索引取溢价物品的目录信息
         var categoryOrderCount: [Int: (name: String, orderCount: Int)] = [:]
         var nameMap: [Int: LocalizedText] = [:]
 
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(query, parameters: typeIdsArray) {
-            for row in rows {
-                guard let typeId = row["type_id"] as? Int,
-                      let categoryId = row["categoryID"] as? Int,
-                      let categoryName = row["category_name"] as? String,
-                      let orderCount = typeIdOrderCount[typeId]
-                else {
-                    continue
-                }
+        for typeId in premiumTypeIds {
+            guard let type = SDEMemoryStore.type(for: typeId),
+                  let orderCount = typeIdOrderCount[typeId]
+            else { continue }
 
-                if let type = SDEMemoryStore.type(for: typeId) {
-                    nameMap[typeId] = type.names
-                }
+            nameMap[typeId] = type.names
 
-                // 统计目录订单数
-                if let existing = categoryOrderCount[categoryId] {
-                    categoryOrderCount[categoryId] = (
-                        name: categoryName,
-                        orderCount: existing.orderCount + orderCount
-                    )
-                } else {
-                    categoryOrderCount[categoryId] = (
-                        name: categoryName,
-                        orderCount: orderCount
-                    )
-                }
+            let categoryId = type.categoryID
+            let categoryName = SDEMemoryStore.category(for: categoryId)?.name ?? ""
+
+            // 统计目录订单数
+            if let existing = categoryOrderCount[categoryId] {
+                categoryOrderCount[categoryId] = (
+                    name: categoryName,
+                    orderCount: existing.orderCount + orderCount
+                )
+            } else {
+                categoryOrderCount[categoryId] = (
+                    name: categoryName,
+                    orderCount: orderCount
+                )
             }
         }
 
-        // 查询目录图标
+        // 查询目录图标（内存索引）
         let uniqueCategoryIDs = Set(categoryOrderCount.keys)
         var categoryIconMap: [Int: String] = [:]
-        if !uniqueCategoryIDs.isEmpty {
-            let categoryIconQuery = """
-                SELECT category_id, icon_filename
-                FROM categories
-            """
-
-            if case let .success(iconRows) = DatabaseManager.shared.executeQuery(
-                categoryIconQuery,
-                parameters: []
-            ) {
-                for iconRow in iconRows {
-                    guard let categoryID = iconRow["category_id"] as? Int,
-                          let iconFileName = iconRow["icon_filename"] as? String
-                    else {
-                        continue
-                    }
-
-                    guard uniqueCategoryIDs.contains(categoryID) else {
-                        continue
-                    }
-
-                    categoryIconMap[categoryID] = iconFileName.isEmpty ? IconManager.defaultIcon : iconFileName
-                }
+        for categoryID in uniqueCategoryIDs {
+            if let category = SDEMemoryStore.category(for: categoryID) {
+                categoryIconMap[categoryID] = category.iconFilename
             }
         }
 
@@ -438,32 +405,12 @@ struct PremiumCategoryGroupsView: View {
             }
         }
 
-        // 查询组图标
+        // 查询组图标（内存索引）
         let uniqueGroupIDs = Set(groupOrderCount.keys)
         var groupIconMap: [Int: String] = [:]
-        if !uniqueGroupIDs.isEmpty {
-            let groupIconQuery = """
-                SELECT group_id, icon_filename
-                FROM groups
-            """
-
-            if case let .success(iconRows) = DatabaseManager.shared.executeQuery(
-                groupIconQuery,
-                parameters: []
-            ) {
-                for iconRow in iconRows {
-                    guard let groupID = iconRow["group_id"] as? Int,
-                          let iconFileName = iconRow["icon_filename"] as? String
-                    else {
-                        continue
-                    }
-
-                    guard uniqueGroupIDs.contains(groupID) else {
-                        continue
-                    }
-
-                    groupIconMap[groupID] = iconFileName.isEmpty ? IconManager.defaultIcon : iconFileName
-                }
+        for groupID in uniqueGroupIDs {
+            if let group = SDEMemoryStore.group(for: groupID) {
+                groupIconMap[groupID] = group.iconFilename
             }
         }
 
@@ -631,13 +578,6 @@ struct PremiumGroupItemsView: View {
         // 过滤出该组的订单
         let orderTypeIds = Set(orders.map { $0.typeId })
 
-        // 查询该组内所有物品
-        let query = """
-            SELECT type_id, name, icon_filename
-            FROM types
-            WHERE groupID = ?
-        """
-
         // 统计每个typeId的订单数
         var typeIdOrderCount: [Int: Int] = [:]
         for order in orders {
@@ -646,29 +586,19 @@ struct PremiumGroupItemsView: View {
             }
         }
 
-        // 查询该组内所有物品
+        // 内存索引取该组内所有物品
         var itemInfoMap: [Int: (name: String, iconFileName: String, orderCount: Int)] = [:]
 
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            query,
-            parameters: [groupID]
-        ) {
-            for row in rows {
-                guard let typeId = row["type_id"] as? Int,
-                      let name = row["name"] as? String,
-                      orderTypeIds.contains(typeId),
-                      let orderCount = typeIdOrderCount[typeId]
-                else {
-                    continue
-                }
-                let iconFileName = row["icon_filename"] as? String ?? ""
+        for (typeId, info) in SDEMemoryStore.types where info.groupID == groupID {
+            guard orderTypeIds.contains(typeId),
+                  let orderCount = typeIdOrderCount[typeId]
+            else { continue }
 
-                itemInfoMap[typeId] = (
-                    name: name,
-                    iconFileName: iconFileName.isEmpty ? IconManager.defaultItemIcon : iconFileName,
-                    orderCount: orderCount
-                )
-            }
+            itemInfoMap[typeId] = (
+                name: info.name,
+                iconFileName: info.iconFilename,
+                orderCount: orderCount
+            )
         }
 
         // 合并溢价信息和物品信息，按溢价从大到小排序

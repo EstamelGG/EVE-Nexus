@@ -325,64 +325,27 @@ struct DynamicItemDetailView: View {
         return (entries, originalValues, currentValues)
     }
 
-    /// 从 dynamic_item_attributes 表加载突变质体的属性范围
+    /// 从 SDEMemoryStore 加载突变质体的属性范围（highIsGood 已按表内覆盖值修正）
     private func loadMutatorAttributeRanges(mutatorTypeId: Int) -> [(
         attributeID: Int, name: String, iconFileName: String?, unitID: Int?,
         minValue: Double, maxValue: Double, highIsGood: Bool
     )] {
-        let query = """
-            SELECT a.attribute_id, d.display_name, COALESCE(d.icon_filename, '') as icon_filename,
-                   d.unitID, a.min_value, a.max_value, d.highIsGood
-            FROM dynamic_item_attributes a
-            LEFT JOIN dogmaAttributes d ON a.attribute_id = d.attribute_id
-            WHERE a.type_id = ?
-            ORDER BY d.display_name
-        """
-
-        guard case let .success(rows) = databaseManager.executeQuery(
-            query, parameters: [mutatorTypeId]
-        ) else { return [] }
-
-        return rows.compactMap { row in
-            guard let attrId = row["attribute_id"] as? Int,
-                  let name = row["display_name"] as? String,
-                  let minVal = row["min_value"] as? Double,
-                  let maxVal = row["max_value"] as? Double,
-                  let hig = row["highIsGood"] as? Int
-            else { return nil }
-            let icon = row["icon_filename"] as? String
-            return (
-                attributeID: attrId,
-                name: name,
-                iconFileName: (icon?.isEmpty ?? true) ? nil : icon,
-                unitID: row["unitID"] as? Int,
-                minValue: minVal,
-                maxValue: maxVal,
-                highIsGood: hig == 1
+        SDEMemoryStore.dynamicItemAttributes(forTypeID: mutatorTypeId).map { info in
+            (
+                attributeID: info.attributeID,
+                name: info.name,
+                iconFileName: info.iconFileName,
+                unitID: info.unitID,
+                minValue: info.minValue,
+                maxValue: info.maxValue,
+                highIsGood: info.highIsGood
             )
         }
     }
 
-    /// 从 typeAttributes 表获取来源物品的完整原始属性
+    /// 从内存索引获取来源物品的完整原始属性
     private func loadOriginalAttributeValues(sourceTypeId: Int) -> [Int: Double] {
-        let query = """
-            SELECT attribute_id, value
-            FROM typeAttributes
-            WHERE type_id = ?
-        """
-        var result: [Int: Double] = [:]
-        if case let .success(rows) = databaseManager.executeQuery(
-            query, parameters: [sourceTypeId]
-        ) {
-            for row in rows {
-                if let attrId = row["attribute_id"] as? Int,
-                   let value = row["value"] as? Double
-                {
-                    result[attrId] = value
-                }
-            }
-        }
-        return result
+        SDEMemoryStore.typeAttributes(for: sourceTypeId)
     }
 
     /// 从内存索引查询 type_id 对应的名称和图标

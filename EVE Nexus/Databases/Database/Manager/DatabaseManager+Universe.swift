@@ -14,49 +14,9 @@ public struct WormholeInfo: Identifiable {
 }
 
 extension DatabaseManager {
-    /// 加载虫洞数据
+    /// 加载虫洞数据（SDEMemoryStore 预加载，语言切换时随 loadDatabase 重建）
     func loadWormholes() -> [WormholeInfo] {
-        let query = """
-            SELECT type_id, name, description, icon, target_value, target, stable_time, max_stable_mass, max_jump_mass, size_type
-            FROM wormholes
-            ORDER BY target_value
-        """
-
-        let result = executeQuery(query)
-        var wormholes: [WormholeInfo] = []
-
-        switch result {
-        case let .success(rows):
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let description = row["description"] as? String,
-                   let icon = row["icon"] as? String,
-                   let target = row["target"] as? String,
-                   let stableTime = row["stable_time"] as? String,
-                   let maxStableMass = row["max_stable_mass"] as? String,
-                   let maxJumpMass = row["max_jump_mass"] as? String,
-                   let sizeType = row["size_type"] as? String
-                {
-                    let wormhole = WormholeInfo(
-                        id: typeId,
-                        name: name,
-                        description: description,
-                        icon: icon.isEmpty ? "not_found" : icon,
-                        target: target,
-                        stableTime: stableTime,
-                        maxStableMass: maxStableMass,
-                        maxJumpMass: maxJumpMass,
-                        sizeType: sizeType
-                    )
-                    wormholes.append(wormhole)
-                }
-            }
-        case let .error(error):
-            Logger.error("加载虫洞数据失败: \(error)")
-        }
-
-        return wormholes
+        SDEMemoryStore.wormholeList
     }
 
     /// 批量解析天体显示名：`Jita IV` / `Jita IV - Moon 1`

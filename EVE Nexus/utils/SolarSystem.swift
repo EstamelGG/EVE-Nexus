@@ -163,20 +163,10 @@ public struct SimpleSystemInfo {
     }
 }
 
-/// 获取简化的星系信息（同步版本）
-func getSystemInfo(systemId: Int, databaseManager: DatabaseManager) -> SimpleSystemInfo {
-    let query = """
-        SELECT system_security
-        FROM universe
-        WHERE solarsystem_id = ?
-    """
-    if case let .success(rows) = databaseManager.executeQuery(query, parameters: [systemId]),
-       let row = rows.first
-    {
-        let security = row["system_security"] as? Double
-        return SimpleSystemInfo(systemId: systemId, security: security)
-    }
-    return SimpleSystemInfo(systemId: systemId, security: nil)
+/// 获取简化的星系信息（同步版本，内存索引）
+func getSystemInfo(systemId: Int, databaseManager _: DatabaseManager) -> SimpleSystemInfo {
+    let security = SDEMemoryStore.universeSystems[systemId]?.security
+    return SimpleSystemInfo(systemId: systemId, security: security)
 }
 
 /// 星系安全类别枚举
@@ -186,13 +176,13 @@ public enum SecurityClass {
     case nullSecOrWH // 0.0或虫洞
 }
 
-/// 根据安全等级判断星系安全类别
+/// 根据安全等级判断星系安全类别（0.0 属于 0.0/虫洞，低安为 0.1–0.4）
 func getSecurityClass(trueSec: Double) -> SecurityClass {
     let displaySec = calculateDisplaySecurity(trueSec)
 
     if displaySec >= 0.5 {
         return .highSec
-    } else if displaySec >= 0.0 {
+    } else if displaySec >= 0.1 {
         return .lowSec
     } else {
         return .nullSecOrWH

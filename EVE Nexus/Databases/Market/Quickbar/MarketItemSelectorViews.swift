@@ -67,23 +67,20 @@ struct MarketItemSelectorGroupView: View {
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             },
-            searchQuery: { _ in
+            searchFilter: { text in
+                // 范围集合一次性计算，谓词内只做 O(1) 判断
                 let groupIDs = tree.allSubGroupIDs(from: group.id)
-                let groupIDsString = groupIDs.sorted().map { String($0) }.joined(separator: ",")
-
-                if let typeIDs = allowTypeIDs, !typeIDs.isEmpty {
+                let whitelist = allowTypeIDs
+                return { typeID, info in
+                    guard let marketGroupID = info.marketGroupID, groupIDs.contains(marketGroupID) else {
+                        return false
+                    }
                     // 如果有物品ID白名单，添加物品ID筛选条件
-                    let typeIDsString = typeIDs.map { String($0) }.joined(separator: ",")
-                    return
-                        "t.marketGroupID IN (\(groupIDsString)) AND t.type_id IN (\(typeIDsString)) AND \(LocalizedText.typeLangNameLikeSQL)"
-                } else {
-                    // 否则只筛选市场分组
-                    return
-                        "t.marketGroupID IN (\(groupIDsString)) AND \(LocalizedText.typeLangNameLikeSQL)"
+                    if let whitelist, !whitelist.isEmpty, !whitelist.contains(typeID) {
+                        return false
+                    }
+                    return info.names.matchesSearch(text)
                 }
-            },
-            searchParameters: { text in
-                LocalizedText.typeLangNameLikeParams(text)
             },
             searchResultRowBuilder: { item in
                 AnyView(
@@ -287,9 +284,9 @@ struct MarketItemSelectorItemListView: View {
                                         item: item,
                                         showDetails: true
                                     )
-                                    if showSelected {
-                                        Spacer()
+                                    Spacer(minLength: 0)
 
+                                    if showSelected {
                                         Image(
                                             systemName: existingItems.contains(item.id)
                                                 ? "checkmark.circle.fill" : "circle"
@@ -300,6 +297,7 @@ struct MarketItemSelectorItemListView: View {
                                         )
                                     }
                                 }
+                                .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
@@ -311,41 +309,34 @@ struct MarketItemSelectorItemListView: View {
                                 .font(.system(size: 18))
                                 .foregroundColor(.primary)
                                 .textCase(.none)
-                            Spacer(minLength: 8)
-                            Button {
-                                let toAdd = group.items.filter { !existingItems.contains($0.id) }
-                                guard !toAdd.isEmpty else { return }
-                                if let batch = onBatchItemsSelected {
+                            // 「全选」按钮仅与多选功能绑定：未提供批量回调（单选场景）时不显示
+                            if let batch = onBatchItemsSelected {
+                                Spacer(minLength: 8)
+                                Button {
+                                    let toAdd = group.items.filter { !existingItems.contains($0.id) }
+                                    guard !toAdd.isEmpty else { return }
                                     batch(toAdd)
-                                } else {
-                                    for item in toAdd {
-                                        onItemSelected(item)
-                                    }
+                                } label: {
+                                    Text(NSLocalizedString("Main_Market_Select_All_In_Section", comment: ""))
+                                        .font(.subheadline.weight(.medium))
                                 }
-                            } label: {
-                                Text(NSLocalizedString("Main_Market_Select_All_In_Section", comment: ""))
-                                    .font(.subheadline.weight(.medium))
+                                .buttonStyle(.borderless)
                             }
-                            .buttonStyle(.borderless)
                         }
                     }
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             },
-            searchQuery: { _ in
-                var query = "t.marketGroupID = ?"
-
-                // 如果有物品ID白名单，添加物品ID筛选条件
-                if let typeIDs = allowTypeIDs, !typeIDs.isEmpty {
-                    let typeIDsString = typeIDs.map { String($0) }.joined(separator: ",")
-                    query += " AND t.type_id IN (\(typeIDsString))"
+            searchFilter: { text in
+                let whitelist = allowTypeIDs
+                return { typeID, info in
+                    guard info.marketGroupID == marketGroupID else { return false }
+                    // 如果有物品ID白名单，添加物品ID筛选条件
+                    if let whitelist, !whitelist.isEmpty, !whitelist.contains(typeID) {
+                        return false
+                    }
+                    return info.names.matchesSearch(text)
                 }
-
-                query += " AND \(LocalizedText.typeLangNameLikeSQL)"
-                return query
-            },
-            searchParameters: { text in
-                [marketGroupID] + LocalizedText.typeLangNameLikeParams(text)
             },
             searchResultRowBuilder: { item in
                 AnyView(
@@ -396,19 +387,15 @@ struct MarketItemSelectorItemListView: View {
     }
 
     private func loadItems() {
-        var whereClause = "t.marketGroupID = ?"
-        let parameters: [Any] = [marketGroupID]
-
-        // 如果有物品ID白名单，添加物品ID筛选条件
-        if let typeIDs = allowTypeIDs, !typeIDs.isEmpty {
-            let typeIDsString = typeIDs.map { String($0) }.joined(separator: ",")
-            whereClause += " AND t.type_id IN (\(typeIDsString))"
-        }
-
-        items = databaseManager.loadMarketItems(
-            whereClause: whereClause,
-            parameters: parameters
-        )
+        let whitelist = allowTypeIDs
+        items = databaseManager.searchItemsMemory(filter: { typeID, info in
+            guard info.marketGroupID == marketGroupID else { return false }
+            // 如果有物品ID白名单，添加物品ID筛选条件
+            if let whitelist, !whitelist.isEmpty, !whitelist.contains(typeID) {
+                return false
+            }
+            return true
+        })
 
         // 加载科技等级名称
         let metaGroupIDs = Set(items.compactMap { $0.metaGroupID })
@@ -456,30 +443,25 @@ struct MarketItemSelectorIntegratedView: View {
                 }
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             },
-            searchQuery: { _ in
+            searchFilter: { text in
                 // 通过索引树一次性枚举所有允许的市场组（含子孙），限定搜索范围
-                let groupIDsString = marketTree.allSubGroupIDs(
+                let groupIDs = marketTree.allSubGroupIDs(
                     fromRoots: allowedMarketGroups.isEmpty ? [] : allowedMarketGroups
-                ).map { String($0) }.joined(separator: ",")
-
-                var groupIDsStringIn = "IS NOT NULL"
-                if !groupIDsString.isEmpty {
-                    groupIDsStringIn = "IN (\(groupIDsString))"
-                }
-
-                if let typeIDs = allowTypeIDs, !typeIDs.isEmpty {
+                )
+                let restrictToGroups = !groupIDs.isEmpty
+                let whitelist = allowTypeIDs
+                let numericID = Int(text)
+                return { typeID, info in
+                    guard let marketGroupID = info.marketGroupID else { return false }
+                    if restrictToGroups, !groupIDs.contains(marketGroupID) {
+                        return false
+                    }
                     // 如果有物品ID白名单，添加物品ID筛选条件
-                    let typeIDsString = typeIDs.map { String($0) }.joined(separator: ",")
-                    return
-                        "t.marketGroupID \(groupIDsStringIn) AND t.type_id IN (\(typeIDsString)) AND (\(LocalizedText.typeLangNameLikeSQL) OR t.type_id = ?)"
-                } else {
-                    // 否则只筛选市场分组
-                    return
-                        "t.marketGroupID \(groupIDsStringIn) AND (\(LocalizedText.typeLangNameLikeSQL) OR t.type_id = ?)"
+                    if let whitelist, !whitelist.isEmpty, !whitelist.contains(typeID) {
+                        return false
+                    }
+                    return info.names.matchesSearch(text) || numericID == typeID
                 }
-            },
-            searchParameters: { text in
-                LocalizedText.typeLangNameLikeParams(text) + [text]
             },
             searchTree: marketTree,
             searchResultRowBuilder: { item in

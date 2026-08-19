@@ -198,25 +198,14 @@ class JumpPathFinder {
 
     /// 根据飞船类型和技能等级计算最大跳跃范围
     private func calculateMaxJumpRange(shipTypeId: Int, skillLevel: Int) -> Double {
-        // 从数据库查询飞船基础跳跃范围 (attribute_id 867 表示跳跃范围)
+        // 查询飞船基础跳跃范围 (attribute_id 867 表示跳跃范围，内存索引)
         var baseRange = 5.0 // 默认值为5光年
 
-        // 尝试从数据库获取实际跳跃范围
-        let query = """
-            SELECT value FROM typeAttributes 
-            WHERE type_id = \(shipTypeId) AND attribute_id = 867
-        """
-
-        let databaseManager = DatabaseManager.shared
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            if let row = rows.first, let jumpRange = row["value"] as? Double {
-                baseRange = jumpRange
-                Logger.info("获取到飞船ID \(shipTypeId) 的基础跳跃范围: \(baseRange) 光年")
-            } else {
-                Logger.warning("未找到飞船ID \(shipTypeId) 的跳跃范围信息，使用默认值 \(baseRange) 光年")
-            }
+        if let jumpRange = SDEMemoryStore.typeAttributeValue(for: shipTypeId, attributeID: 867) {
+            baseRange = jumpRange
+            Logger.info("获取到飞船ID \(shipTypeId) 的基础跳跃范围: \(baseRange) 光年")
         } else {
-            Logger.error("查询飞船跳跃范围失败，使用默认值 \(baseRange) 光年")
+            Logger.warning("未找到飞船ID \(shipTypeId) 的跳跃范围信息，使用默认值 \(baseRange) 光年")
         }
 
         // 技能等级影响 (每级增加20%)

@@ -64,10 +64,15 @@ public class CorpStructureAPI {
             return cachedData
         }
 
-        // 3. 从API获取
-        return try await fetchStructuresFromServer(
-            corporationId: corporationId, characterId: characterId
-        )
+        // 3. 从API获取（403 负缓存统一由 CorpForbiddenCache 管理）
+        return try await CorpForbiddenCache.shared.perform(
+            scope: "corpStructures",
+            corporationId: corporationId,
+            characterId: characterId,
+            forceRefresh: forceRefresh
+        ) {
+            try await fetchStructuresFromServer(corporationId: corporationId, characterId: characterId)
+        }
     }
 
     private func fetchStructuresFromServer(corporationId: Int, characterId: Int) async throws

@@ -14,20 +14,9 @@ struct AllBoosterSelector: View {
                 logTag: "增效剂",
                 loadItems: { databaseManager in
                     // 获取所有增效剂信息，包含槽位号
-                    FlatItemSelectorQueries.loadItemsWithGroup(
+                    FlatItemSelectorQueries.loadSlottedItems(
                         databaseManager: databaseManager,
-                        query: """
-                            SELECT t.type_id as id, t.name, t.published, t.icon_filename as iconFileName,
-                                   t.categoryID, t.groupID, t.group_name as groupName,
-                                   ta.value as slotNumber,
-                                   t.en_name
-                            FROM types t
-                            JOIN typeAttributes ta ON t.type_id = ta.type_id
-                            WHERE ta.attribute_id = 1087
-                            AND t.published = 1
-                            AND t.marketGroupID IS NOT NULL
-                            ORDER BY t.name
-                        """,
+                        attributeID: 1087,
                         logTag: "增效剂"
                     )
                 },

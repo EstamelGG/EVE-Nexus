@@ -3,11 +3,8 @@ import SwiftUI
 
 // MARK: - 数据模型
 
-struct FactionInfo: Identifiable {
-    let id: Int
-    let name: String
-    let iconName: String
-}
+/// 统一使用 SDEMemoryStore 初始化时加载的势力缓存，避免散落的 SQL 查询
+typealias FactionInfo = SDEMemoryStore.FactionInfo
 
 // MARK: - ViewModel
 
@@ -21,33 +18,12 @@ final class FactionWarViewModel: ObservableObject {
     @Published var isLoading = true
     @Published var errorMessage: String?
 
-    /// 添加计算属性获取海盗势力列表
+    /// 添加计算属性获取海盗势力列表（走内存缓存）
     var pirateFactions: [FactionInfo] {
         let pirateIds = Set(insurgencyCampaigns.map { $0.pirateFactionId })
-
-        // 查询海盗势力信息
-        let placeholders = String(repeating: "?,", count: pirateIds.count).dropLast()
-        let query = "SELECT id, name, iconName FROM factions WHERE id IN (\(placeholders))"
-
-        let result = databaseManager.executeQuery(query, parameters: Array(pirateIds))
-
-        switch result {
-        case let .success(rows):
-            return rows.compactMap { row in
-                guard let id = row["id"] as? Int,
-                      let name = row["name"] as? String,
-                      let iconName = row["iconName"] as? String
-                else {
-                    Logger.error("数据转换失败: \(row)")
-                    return nil
-                }
-                return FactionInfo(id: id, name: name, iconName: iconName)
-            }.sorted { $0.id < $1.id }
-
-        case let .error(error):
-            Logger.error("查询海盗势力信息失败: \(error)")
-            return []
-        }
+        return pirateIds
+            .compactMap { SDEMemoryStore.faction(for: $0) }
+            .sorted { $0.id < $1.id }
     }
 
     private let databaseManager: DatabaseManager
@@ -57,6 +33,10 @@ final class FactionWarViewModel: ObservableObject {
 
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
+        // 构造时启动数据加载（原先由视图 init 触发，移入以避免视图重复构造引发重复加载）
+        loadingTask = Task {
+            await loadData()
+        }
     }
 
     deinit {
@@ -125,33 +105,12 @@ final class FactionWarViewModel: ObservableObject {
                     systems.flatMap { [$0.occupier_faction_id, $0.owner_faction_id] }
                 ).sorted()
 
-                // 查询势力信息
-                let placeholders = String(repeating: "?,", count: factionIds.count).dropLast()
-                let query = "SELECT id, name, iconName FROM factions WHERE id IN (\(placeholders))"
-
-                let result = databaseManager.executeQuery(query, parameters: factionIds)
-
                 if Task.isCancelled { return }
 
-                switch result {
-                case let .success(rows):
-                    self.factions = rows.compactMap { row in
-                        guard let id = row["id"] as? Int,
-                              let name = row["name"] as? String,
-                              let iconName = row["iconName"] as? String
-                        else {
-                            Logger.error("数据转换失败: \(row)")
-                            return nil
-                        }
-                        return FactionInfo(id: id, name: name, iconName: iconName)
-                    }.sorted { $0.id < $1.id }
-
-                case let .error(error):
-                    Logger.error("查询势力信息失败: \(error)")
-                    if !Task.isCancelled {
-                        self.errorMessage = error
-                    }
-                }
+                // 势力信息走内存缓存
+                self.factions = factionIds
+                    .compactMap { SDEMemoryStore.faction(for: $0) }
+                    .sorted { $0.id < $1.id }
 
                 if !Task.isCancelled {
                     self.lastFetchTime = Date()
@@ -180,13 +139,9 @@ struct FactionWarView: View {
 
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
-        let vm = FactionWarViewModel(databaseManager: databaseManager)
-        _viewModel = StateObject(wrappedValue: vm)
-
-        // 在初始化时立即开始加载数据
-        Task {
-            await vm.loadData()
-        }
+        // 构造表达式内联在 autoclosure 中，避免父视图每次重渲染都新建 ViewModel；
+        // 数据加载已在 ViewModel init 中启动
+        _viewModel = StateObject(wrappedValue: FactionWarViewModel(databaseManager: databaseManager))
     }
 
     var body: some View {

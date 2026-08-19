@@ -1,8 +1,8 @@
 {
-  "icon_version": 9,
-  "icon_sha256": "affeaf25c13d3db861df646a2898889844f4344f4d33d07afb2441c30e62a36d",
-  "sde_sha256": "1bb8f7367dbbbbcaa0fe0e66964017aa8d130cf01425302c40a4a76e92a0c497",
-  "build_number": 3470007,
-  "patch_number": 0,
-  "release_date": "2026-08-17T11:26:56Z"
+  "icon_version": 10,
+  "icon_sha256": "18bcefb0339df9f22e29a51bbf6532339889aea9dc090db4d58940407721f88d",
+  "sde_sha256": "7a8a5017e7f7b4b3d46f12c139413e6aec563577e07a0ead91be1df3e6dcf532",
+  "build_number": 3478781,
+  "patch_number": 1,
+  "release_date": "2026-08-25T11:07:20Z"
 }

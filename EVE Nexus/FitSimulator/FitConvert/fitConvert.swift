@@ -6,7 +6,7 @@ class FitConvert {
     static func createInitialFitting(shipTypeId: Int) -> LocalFitting {
         return LocalFitting(
             description: "",
-            fitting_id: Int(Date().timeIntervalSince1970),
+            fitting_id: UUID(),
             items: [],
             name: "",
             ship_type_id: shipTypeId
@@ -33,58 +33,27 @@ class FitConvert {
         return requiredSkills
     }
 
-    /// 从数据库加载单个环境效果
+    /// 从内存索引加载单个环境效果
     static func loadEnvironmentEffect(
         typeId: Int,
-        databaseManager: DatabaseManager
+        databaseManager _: DatabaseManager
     ) -> SimEnvironmentEffect? {
-        let attrQuery = """
-            SELECT ta.attribute_id, ta.value, da.name, t.name as type_name, t.icon_filename
-            FROM typeAttributes ta
-            JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id
-            JOIN types t ON ta.type_id = t.type_id
-            WHERE ta.type_id = ?
-        """
-
-        var attributes: [Int: Double] = [:]
-        var attributesByName: [String: Double] = [:]
-        var name = "Unknown Environment"
-        var iconFileName: String?
-
-        if case let .success(rows) = databaseManager.executeQuery(attrQuery, parameters: [typeId]) {
-            for row in rows {
-                if let attrId = row["attribute_id"] as? Int,
-                   let value = row["value"] as? Double,
-                   let attrName = row["name"] as? String
-                {
-                    attributes[attrId] = value
-                    attributesByName[attrName] = value
-                }
-
-                if let typeName = row["type_name"] as? String {
-                    name = typeName
-                }
-                if let icon = row["icon_filename"] as? String {
-                    iconFileName = icon
-                }
-            }
-        } else {
-            return nil
-        }
+        let (attributes, attributesByName) = SDEMemoryStore.typeAttributesFull(for: typeId)
+        let typeInfo = SDEMemoryStore.type(for: typeId)
 
         return SimEnvironmentEffect(
             typeId: typeId,
-            name: name,
+            name: typeInfo?.name ?? "Unknown Environment",
             attributes: attributes,
             attributesByName: attributesByName,
             effects: SDEMemoryStore.effectIDs(forType: typeId),
-            iconFileName: iconFileName
+            iconFileName: typeInfo?.iconFilename
         )
     }
 
     /// 处理舰载机配置，根据飞船可用的发射筒配置舰载机
     static func processFighters(
-        shipTypeId: Int, fighterBayItems: [FittingItem], databaseManager: DatabaseManager
+        shipTypeId: Int, fighterBayItems: [FittingItem], databaseManager _: DatabaseManager
     ) -> [FighterSquad] {
         // 获取飞船的舰载机槽位信息
         var lightSlotsCount = 0
@@ -92,35 +61,19 @@ class FitConvert {
         var supportSlotsCount = 0
         var totalFighterTubes = 0
 
-        // 查询飞船的舰载机槽位数
-        let slotQuery = """
-            SELECT da.name, ta.value
-            FROM typeAttributes ta
-            JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id
-            WHERE ta.type_id = ? AND da.name IN ('fighterLightSlots', 'fighterHeavySlots', 'fighterSupportSlots', 'fighterTubes')
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(
-            slotQuery, parameters: [shipTypeId]
-        ) {
-            for row in rows {
-                if let name = row["name"] as? String,
-                   let value = row["value"] as? Double
-                {
-                    switch name {
-                    case "fighterLightSlots":
-                        lightSlotsCount = Int(value)
-                    case "fighterHeavySlots":
-                        heavySlotsCount = Int(value)
-                    case "fighterSupportSlots":
-                        supportSlotsCount = Int(value)
-                    case "fighterTubes":
-                        totalFighterTubes = Int(value)
-                    default:
-                        break
-                    }
-                }
-            }
+        // 查询飞船的舰载机槽位数（内存索引）
+        let (_, shipAttributesByName) = SDEMemoryStore.typeAttributesFull(for: shipTypeId)
+        if let value = shipAttributesByName["fighterLightSlots"] {
+            lightSlotsCount = Int(value)
+        }
+        if let value = shipAttributesByName["fighterHeavySlots"] {
+            heavySlotsCount = Int(value)
+        }
+        if let value = shipAttributesByName["fighterSupportSlots"] {
+            supportSlotsCount = Int(value)
+        }
+        if let value = shipAttributesByName["fighterTubes"] {
+            totalFighterTubes = Int(value)
         }
 
         // 如果飞船不支持舰载机，直接返回空数组
@@ -136,41 +89,27 @@ class FitConvert {
             return []
         }
 
-        // 使用IN语句一次性查询所有舰载机信息
-        let placeholders = Array(repeating: "?", count: fighterTypeIds.count).joined(separator: ",")
-        let groupQuery = """
-            SELECT t.type_id, t.marketGroupID, t.name,
-                  (SELECT ta.value 
-                   FROM typeAttributes ta 
-                   JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id 
-                   WHERE ta.type_id = t.type_id AND da.name = 'fighterSquadronMaxSize') as maxSquadSize
-            FROM types t
-            WHERE t.type_id IN (\(placeholders))
-        """
-
+        // 批量获取舰载机信息（内存索引）
         // 存储舰载机信息
         var fighterInfoMap: [Int: (marketGroupId: Int, name: String, maxSquadSize: Int)] = [:]
 
-        if case let .success(rows) = databaseManager.executeQuery(
-            groupQuery, parameters: fighterTypeIds
-        ) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let marketGroupId = row["marketGroupID"] as? Int
+        if let maxSizeAttrID = SDEMemoryStore.attributeID(named: "fighterSquadronMaxSize") {
+            for typeId in fighterTypeIds {
+                guard let typeInfo = SDEMemoryStore.type(for: typeId),
+                      let marketGroupId = typeInfo.marketGroupID
+                else { continue }
+
+                // 获取最大中队大小，默认为1
+                var maxSquadSize = 1
+                if let squadSize = SDEMemoryStore.typeAttributeValue(for: typeId, attributeID: maxSizeAttrID),
+                   squadSize > 0
                 {
-                    // 获取舰载机名称（用于日志）
-                    let name = row["name"] as? String ?? "Unknown Fighter"
-
-                    // 获取最大中队大小，默认为1
-                    var maxSquadSize = 1
-                    if let squadSize = row["maxSquadSize"] as? Double, squadSize > 0 {
-                        maxSquadSize = Int(squadSize)
-                    }
-
-                    fighterInfoMap[typeId] = (
-                        marketGroupId: marketGroupId, name: name, maxSquadSize: maxSquadSize
-                    )
+                    maxSquadSize = Int(squadSize)
                 }
+
+                fighterInfoMap[typeId] = (
+                    marketGroupId: marketGroupId, name: typeInfo.name, maxSquadSize: maxSquadSize
+                )
             }
         }
 
@@ -294,12 +233,14 @@ class FitConvert {
     }
 
     /// 将模拟器输入数据转为本地配置
-    static func simulationInputToLocalFitting(
-        input: SimulationInput,
-        customFittingId: Int? = nil // 可选参数，允许指定不同的fittingId
-    ) -> LocalFitting {
-        // 使用输入中的元数据或自定义值
-        let fitId = customFittingId ?? input.fittingId
+    static func simulationInputToLocalFitting(input: SimulationInput) -> LocalFitting {
+        // 本地装配沿用原 ID；在线/临时装配保存为本地时生成新 UUID
+        let fitId: UUID
+        if case let .local(uuid) = input.fittingId {
+            fitId = uuid
+        } else {
+            fitId = UUID()
+        }
 
         // 如果有舰载机，先检查其完整性
         if AppConfiguration.Fitting.showDebug, let fighters = input.fighters {

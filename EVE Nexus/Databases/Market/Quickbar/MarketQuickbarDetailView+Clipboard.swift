@@ -25,9 +25,7 @@ extension MarketQuickbarDetailView {
         MarketQuickbarManager.shared.saveQuickbar(quickbar)
         quantityEditTypeID = nil
         quantityEditText = ""
-        Task {
-            await loadAllMarketOrders()
-        }
+        // 数量只影响本地总价计算，订单数据与数量无关，无需重载订单
     }
 
     /// 准备从剪贴板导入物品（显示确认对话框）

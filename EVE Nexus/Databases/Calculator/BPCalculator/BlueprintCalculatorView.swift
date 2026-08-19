@@ -125,40 +125,10 @@ struct BlueprintCalculatorView: View {
 
     /// 获取市场组1849及其所有子组的ID集合
     private func getReactionMarketGroups() -> Set<Int> {
-        let reactionRootGroupId = 1849
-        var reactionGroups = Set<Int>()
-
-        // 使用递归查询获取所有子组
-        let query = """
-            WITH RECURSIVE market_group_tree AS (
-                -- 基础查询：获取根组1849(反应公式)
-                SELECT group_id, parentgroup_id
-                FROM marketGroups
-                WHERE group_id = ?
-
-                UNION ALL
-
-                -- 递归查询：获取所有子组
-                SELECT mg.group_id, mg.parentgroup_id
-                FROM marketGroups mg
-                INNER JOIN market_group_tree mgt ON mg.parentgroup_id = mgt.group_id
-            )
-            SELECT group_id FROM market_group_tree
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(
-            query, parameters: [reactionRootGroupId]
-        ) {
-            for row in rows {
-                if let groupId = row["group_id"] as? Int {
-                    reactionGroups.insert(groupId)
-                }
-            }
-        } else {
-            return []
-        }
-
-        return reactionGroups
+        let tree = MarketManager.shared.buildTree(
+            from: MarketManager.shared.loadMarketGroups(databaseManager: databaseManager)
+        )
+        return Set(tree.allSubGroupIDs(from: 1849))
     }
 
     /// 获取不兼容的原因
@@ -601,12 +571,13 @@ struct BlueprintCalculatorView: View {
             }
         }
         .sheet(isPresented: $showSystemSelector) {
-            StructureSystemSelectorSheet(
+            SystemPickerSheet(
                 title: NSLocalizedString(
                     "Structure_Facility_Selector_Select_System", comment: "选择星系"
                 ),
                 currentSelection: selectedSystemId,
-                onSelect: { systemId in
+                showsSovereignty: true,
+                onSelect: { systemId, _ in
                     selectedSystemId = systemId
                     showSystemSelector = false
                 },

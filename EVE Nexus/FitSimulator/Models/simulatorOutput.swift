@@ -5,7 +5,7 @@ import Foundation
 /// 用于存储属性模拟的计算结果，包含飞船、装备、无人机、植入体、环境效果和技能等的计算后属性
 struct SimulationOutput {
     // 元数据 (与输入保持一致)
-    var fittingId: Int // 本地配置ID
+    var fittingId: FittingRef // 装配引用（本地 UUID / 线上 ESI Int）
     var name: String // 配置名称
     var description: String // 配置描述
 

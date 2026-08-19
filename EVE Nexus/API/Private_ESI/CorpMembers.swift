@@ -52,8 +52,15 @@ public class CorpMembersAPI {
             return cachedData
         }
 
-        // 3. 从API获取
-        return try await fetchFromAPI(corporationId: corporationId, characterId: characterId)
+        // 3. 从API获取（403 负缓存统一由 CorpForbiddenCache 管理）
+        return try await CorpForbiddenCache.shared.perform(
+            scope: "corpMembers",
+            corporationId: corporationId,
+            characterId: characterId,
+            forceRefresh: forceRefresh
+        ) {
+            try await fetchFromAPI(corporationId: corporationId, characterId: characterId)
+        }
     }
 
     private func fetchFromAPI(corporationId: Int, characterId: Int) async throws

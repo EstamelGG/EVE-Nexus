@@ -144,70 +144,21 @@ extension DatabaseManager {
         )
     }
 
+    /// 获取产品的蓝图ID列表（走内存缓存，含制造+发明来源）
     func getBlueprintIDsForProduct(_ typeID: Int) -> [Int] {
-        let query = """
-            SELECT DISTINCT blueprintTypeID
-            FROM blueprint_manufacturing_output
-            WHERE typeID = ?
-            UNION
-            SELECT DISTINCT blueprintTypeID
-            FROM blueprint_invention_products
-            WHERE typeID = ?
-        """
-
-        let result = executeQuery(query, parameters: [typeID, typeID])
-        var blueprintIDs: [Int] = []
-
-        switch result {
-        case let .success(rows):
-            for row in rows {
-                if let blueprintID = row["blueprintTypeID"] as? Int {
-                    blueprintIDs.append(blueprintID)
-                }
-            }
-        case let .error(error):
-            Logger.error("Error getting blueprint IDs: \(error)")
-        }
-
-        return blueprintIDs
+        SDEMemoryStore.blueprintIDsByProduct[typeID] ?? []
     }
 
-    /// 批量获取多个产品的蓝图ID映射
+    /// 批量获取多个产品的蓝图ID映射（走内存缓存）
     /// - Parameter typeIDs: 产品类型ID数组
-    /// - Returns: 产品ID -> 蓝图ID数组的映射
+    /// - Returns: 产品ID -> 蓝图ID数组的映射（仅含有蓝图的 产品）
     func getBlueprintIDsForProducts(_ typeIDs: [Int]) -> [Int: [Int]] {
-        guard !typeIDs.isEmpty else { return [:] }
-
-        let typeIDsString = typeIDs.map { String($0) }.joined(separator: ",")
-        let query = """
-            SELECT DISTINCT blueprintTypeID, typeID
-            FROM blueprint_manufacturing_output
-            WHERE typeID IN (\(typeIDsString))
-            UNION
-            SELECT DISTINCT blueprintTypeID, typeID
-            FROM blueprint_invention_products
-            WHERE typeID IN (\(typeIDsString))
-        """
-
-        let result = executeQuery(query)
         var blueprintMapping: [Int: [Int]] = [:]
-
-        switch result {
-        case let .success(rows):
-            for row in rows {
-                if let blueprintID = row["blueprintTypeID"] as? Int,
-                   let typeID = row["typeID"] as? Int
-                {
-                    if blueprintMapping[typeID] == nil {
-                        blueprintMapping[typeID] = []
-                    }
-                    blueprintMapping[typeID]?.append(blueprintID)
-                }
+        for typeID in typeIDs {
+            if let ids = SDEMemoryStore.blueprintIDsByProduct[typeID], !ids.isEmpty {
+                blueprintMapping[typeID] = ids
             }
-        case let .error(error):
-            Logger.error("Error getting blueprint IDs for products: \(error)")
         }
-
         return blueprintMapping
     }
 

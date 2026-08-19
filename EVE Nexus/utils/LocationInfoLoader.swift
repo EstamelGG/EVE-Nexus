@@ -149,27 +149,10 @@ class LocationInfoLoader {
     }
 
     private func loadUniverseSecurity(systemIds: [Int]) -> [Int: Double] {
-        guard !systemIds.isEmpty else { return [:] }
-        let placeholders = String(repeating: "?,", count: systemIds.count).dropLast()
-        let query = """
-            SELECT solarsystem_id, system_security
-            FROM universe
-            WHERE solarsystem_id IN (\(placeholders))
-        """
-        guard
-            case let .success(rows) = databaseManager.executeQuery(
-                query, parameters: systemIds.map { $0 as Any }
-            )
-        else {
-            return [:]
-        }
-
         var result: [Int: Double] = [:]
-        for row in rows {
-            if let id = row["solarsystem_id"] as? Int,
-               let security = row["system_security"] as? Double
-            {
-                result[id] = security
+        for id in systemIds {
+            if let info = SDEMemoryStore.universeSystems[id] {
+                result[id] = info.security
             }
         }
         return result

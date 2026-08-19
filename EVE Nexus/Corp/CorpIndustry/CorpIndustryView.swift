@@ -136,7 +136,6 @@ class CorpIndustryViewModel: ObservableObject {
     @Published var isLoading = true
     @Published var isFiltering = false // 新增：过滤刷新状态
     @Published var error: Error?
-    @Published var showError = false
     @Published var itemNames: [Int: String] = [:]
     @Published var locationInfoCache: [Int64: LocationInfoDetail] = [:]
     @Published var itemIcons: [Int: String] = [:]
@@ -187,6 +186,11 @@ class CorpIndustryViewModel: ObservableObject {
         hideCompletedAndCancelled = UserDefaults.standard.bool(
             forKey: "hideCompletedAndCancelled_global"
         )
+
+        // 创建即加载（与月矿/建筑页一致），视图层无需触发
+        Task {
+            await loadJobs()
+        }
     }
 
     /// 将工作项目按状态分组
@@ -267,7 +271,6 @@ class CorpIndustryViewModel: ObservableObject {
             isLoading = true
         }
         error = nil
-        showError = false
         loadingProgress = NSLocalizedString("Loading_Corp_Industry_Jobs", comment: "正在加载军团工业项目...")
 
         do {
@@ -302,7 +305,6 @@ class CorpIndustryViewModel: ObservableObject {
 
         } catch {
             self.error = error
-            showError = true
             isLoading = false
             self.isFiltering = false
             loadingProgress = ""
@@ -551,11 +553,10 @@ struct CorpIndustryView: View {
 
     init(characterId: Int, databaseManager: DatabaseManager = DatabaseManager()) {
         self.characterId = characterId
-        // 创建ViewModel
-        let vm = CorpIndustryViewModel(
+        // 构造表达式内联在 autoclosure 中，避免父视图每次重渲染都新建 ViewModel
+        _viewModel = StateObject(wrappedValue: CorpIndustryViewModel(
             characterId: characterId, databaseManager: databaseManager
-        )
-        _viewModel = StateObject(wrappedValue: vm)
+        ))
     }
 
     /// 格式化状态组标题
@@ -595,36 +596,9 @@ struct CorpIndustryView: View {
                       !viewModel.isLoading && viewModel.jobs.isEmpty
             {
                 // 显示错误信息
-                Section {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 12) {
-                            Image(systemName: "exclamationmark.triangle")
-                                .font(.system(size: 40))
-                                .foregroundColor(.orange)
-                            Text(NSLocalizedString("Common_Error", comment: ""))
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            Text(error.localizedDescription)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                            Button(action: {
-                                Task {
-                                    await viewModel.loadJobs(forceRefresh: true)
-                                }
-                            }) {
-                                Text(NSLocalizedString("ESI_Status_Retry", comment: ""))
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 8)
-                                    .background(Color.accentColor)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(8)
-                            }
-                            .padding(.top, 8)
-                        }
-                        .padding()
-                        Spacer()
+                ErrorStateSection(message: error.localizedDescription) {
+                    Task {
+                        await viewModel.loadJobs(forceRefresh: true)
                     }
                 }
             } else {
@@ -716,31 +690,26 @@ struct CorpIndustryView: View {
                             $0 + $1.count
                         }
 
-                        HStack {
-                            Spacer()
-                            VStack(spacing: 8) {
-                                Image(systemName: "doc.text")
-                                    .font(.system(size: 30))
-                                    .foregroundColor(.secondary)
-                                Text(NSLocalizedString("Misc_No_Data", comment: ""))
-                                    .foregroundColor(.secondary)
-
-                                // 如果有总项目但被过滤完了，显示过滤信息
-                                if totalJobsCount > 0 {
-                                    Text(
-                                        String(
-                                            format: NSLocalizedString(
-                                                "Industry_Filtered_Count", comment: "已过滤 %d 个项目"
-                                            ),
-                                            totalJobsCount
-                                        )
+                        ContentUnavailableView {
+                            Label(
+                                NSLocalizedString("Misc_No_Data", comment: ""),
+                                systemImage: totalJobsCount > 0
+                                    ? "line.3.horizontal.decrease.circle" : "exclamationmark.triangle"
+                            )
+                        } description: {
+                            // 如果有总项目但被过滤完了，显示过滤信息
+                            if totalJobsCount > 0 {
+                                Text(
+                                    String(
+                                        format: NSLocalizedString(
+                                            "Industry_Filtered_Count", comment: "已过滤 %d 个项目"
+                                        ),
+                                        totalJobsCount
                                     )
-                                    .font(.caption)
-                                    .foregroundColor(.orange)
-                                }
+                                )
+                                .font(.caption)
+                                .foregroundColor(.orange)
                             }
-                            .padding()
-                            Spacer()
                         }
                     }
                     .listSectionSpacing(.compact)
@@ -806,13 +775,6 @@ struct CorpIndustryView: View {
         }
         .sheet(isPresented: $showFilterSheet) {
             CorpIndustryFilterSheet(viewModel: viewModel)
-        }
-        .onAppear {
-            if !viewModel.initialLoadDone {
-                Task {
-                    await viewModel.loadJobs()
-                }
-            }
         }
     }
 }

@@ -10,36 +10,18 @@ enum ModeSwitchingUtils {
 
     /// 初始化模式装备映射缓存
     /// - Parameter databaseManager: 数据库管理器
-    private static func initializeCache(databaseManager: DatabaseManager) {
+    private static func initializeCache(databaseManager _: DatabaseManager) {
         // 如果已经初始化过，直接返回
         if shipNameToModesCache != nil {
             return
         }
 
-        // 1. 检索所有模式装备（groupID = 1306）
-        let modeQuery = """
-            SELECT type_id, name, en_name, icon_filename
-            FROM types
-            WHERE groupID = 1306
-            ORDER BY name
-        """
-
-        guard case let .success(modeRows) = databaseManager.executeQuery(modeQuery) else {
-            shipNameToModesCache = [:]
-            return
-        }
-
-        // 2. 从模式装备名称中提取可能的飞船名称（第一个单词）
+        // 1. 内存索引检索所有模式装备（groupID = 1306）
         var shipNameToModes: [String: [(typeId: Int, name: String, iconFileName: String)]] = [:]
-
-        for modeRow in modeRows {
-            guard let modeTypeId = modeRow["type_id"] as? Int,
-                  let modeName = modeRow["name"] as? String,
-                  let modeEnName = modeRow["en_name"] as? String,
-                  let iconFileName = modeRow["icon_filename"] as? String
-            else {
-                continue
-            }
+        for (modeTypeId, info) in SDEMemoryStore.types where info.groupID == 1306 {
+            let modeName = info.name
+            let modeEnName = info.enName
+            let iconFileName = info.iconFilename
 
             // 按空格切分，取第一个单词作为可能的飞船名称
             let components = modeEnName.components(separatedBy: " ")
@@ -54,44 +36,22 @@ enum ModeSwitchingUtils {
             shipNameToModes[shipName]?.append((
                 typeId: modeTypeId,
                 name: modeName,
-                iconFileName: iconFileName.isEmpty ? "not_found" : iconFileName
+                iconFileName: iconFileName
             ))
         }
 
-        // 3. 验证这些飞船名称是否对应真实的飞船（categoryID = 6）
-        // 获取所有可能的飞船名称
-        let possibleShipNames = Array(shipNameToModes.keys)
+        // 2. 验证这些飞船名称是否对应真实的飞船（categoryID = 6，内存索引）
+        let possibleShipNames = Set(shipNameToModes.keys)
         guard !possibleShipNames.isEmpty else {
             shipNameToModesCache = [:]
             return
         }
 
-        // 批量查询这些名称对应的飞船
-        // 使用 IN 子句批量查询
-        let placeholders = possibleShipNames.map { _ in "?" }.joined(separator: ",")
-        let shipQuery = """
-            SELECT type_id, en_name
-            FROM types
-            WHERE categoryID = 6
-              AND en_name IN (\(placeholders))
-        """
-
-        guard case let .success(shipRows) = databaseManager.executeQuery(
-            shipQuery, parameters: possibleShipNames
-        ) else {
-            shipNameToModesCache = [:]
-            return
-        }
-
-        // 4. 建立有效的映射关系（只保留真实存在的飞船）
         var validShipNameToModes: [String: [(typeId: Int, name: String, iconFileName: String)]] = [:]
-
-        for shipRow in shipRows {
-            guard let shipTypeId = shipRow["type_id"] as? Int,
-                  let shipEnName = shipRow["en_name"] as? String
-            else {
-                continue
-            }
+        for (shipTypeId, info) in SDEMemoryStore.types
+            where info.categoryID == 6 && possibleShipNames.contains(info.enName)
+        {
+            let shipEnName = info.enName
 
             // 缓存飞船ID到名称的映射
             shipIdToNameCache[shipTypeId] = shipEnName

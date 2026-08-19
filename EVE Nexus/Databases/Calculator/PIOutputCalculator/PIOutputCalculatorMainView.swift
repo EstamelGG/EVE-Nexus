@@ -144,6 +144,7 @@ struct PIOutputCalculatorView: View {
                     .padding(.vertical, 8)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
 
             // 添加显示计算结果的Section
@@ -158,6 +159,7 @@ struct PIOutputCalculatorView: View {
                         Spacer()
                     }
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             } else if !systemsInRange.isEmpty {
                 Section {
                     NavigationLink(
@@ -183,6 +185,7 @@ struct PIOutputCalculatorView: View {
                         Text(NSLocalizedString("PI_Output_View_Planets", comment: "查看行星分布"))
                     }
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
 
                 // 添加资源列表入口
                 Section(header: Text(NSLocalizedString("PI_Output_Resources", comment: "可用资源"))) {
@@ -335,13 +338,15 @@ struct PIOutputCalculatorView: View {
                         }
                     }
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
         }
         .navigationTitle(NSLocalizedString("Main_Planetary_Output", comment: ""))
         .sheet(isPresented: $showSolarSystemPicker) {
-            PISolarSystemSelectorSheet(
+            SystemPickerSheet(
                 title: NSLocalizedString("PI_Output_Select_Solar_System", comment: ""),
                 currentSelection: selectedSolarSystemId,
+                showsSovereignty: true,
                 onSelect: { systemId, systemName in
                     selectedSolarSystemId = systemId
                     selectedSolarSystemName = systemName
@@ -641,23 +646,11 @@ struct PIOutputCalculatorView: View {
 
             // 处理P4特殊情况（需要检查特定类型的行星）
             if level == .p4 {
-                // 首先检查是否有温和(temperate)或贫瘠(barren)行星
-                let planetQuery = """
-                    SELECT COUNT(*) as count
-                    FROM universe
-                    WHERE solarsystem_id IN (\(systemIds.map { String($0) }.joined(separator: ",")))
-                    AND (temperate > 0 OR barren > 0)
-                """
-
-                var hasRequiredPlanets = false
-
-                if case let .success(planetRows) = DatabaseManager.shared.executeQuery(planetQuery) {
-                    if let row = planetRows.first,
-                       let count = row["count"] as? Int,
-                       count > 0
-                    {
-                        hasRequiredPlanets = true
-                    }
+                // 内存索引检查是否有温和(temperate)或贫瘠(barren)行星
+                let hasRequiredPlanets = systemIds.contains { systemId in
+                    guard let info = SDEMemoryStore.universeSystems[systemId] else { return false }
+                    return (info.planetCounts["temperate"] ?? 0) > 0
+                        || (info.planetCounts["barren"] ?? 0) > 0
                 }
 
                 // 如果没有所需的行星类型，直接返回
@@ -835,51 +828,18 @@ struct PIOutputCalculatorView: View {
     /// P0资源特殊处理实现（因为P0资源需要单独查询行星类型）
     private func loadP0ResourcesImpl(for systemIds: [Int], completion: @escaping (Set<Int>) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async {
-            // 查询星系内的行星数量
-            let query = """
-                SELECT 
-                    solarsystem_id,
-                    temperate,
-                    barren,
-                    oceanic,
-                    ice,
-                    gas,
-                    lava,
-                    storm,
-                    plasma
-                FROM universe
-                WHERE solarsystem_id IN (\(systemIds.map { String($0) }.joined(separator: ",")))
-            """
-
-            guard case let .success(rows) = DatabaseManager.shared.executeQuery(query) else {
-                DispatchQueue.main.async {
-                    isLoadingP0Resources = false
-                    completion(Set<Int>())
-                }
-                return
+            // 内存索引取星系行星计数
+            let systemInfos: [(systemId: Int, counts: [String: Int])] = systemIds.compactMap { systemId in
+                SDEMemoryStore.universeSystems[systemId].map { (systemId, $0.planetCounts) }
             }
 
-            // 获取所有P0资源ID
-            let p0ResourceQuery = """
-                SELECT DISTINCT ph.typeid, t.name, t.icon_filename 
-                FROM planetResourceHarvest ph
-                JOIN types t ON t.type_id = ph.typeid
-            """
-
+            // 获取所有P0资源ID（planetResourceHarvests 的 key 即资源 typeID）
             var resourceIds: [Int] = []
             var resourceIconMap: [Int: String] = [:]
-
-            if case let .success(resourceRows) = DatabaseManager.shared.executeQuery(
-                p0ResourceQuery
-            ) {
-                for row in resourceRows {
-                    if let typeId = row["typeid"] as? Int,
-                       let iconFileName = row["icon_filename"] as? String
-                    {
-                        resourceIds.append(typeId)
-                        resourceIconMap[typeId] = iconFileName.isEmpty ? "not_found" : iconFileName
-                    }
-                }
+            for typeId in SDEMemoryStore.planetResourceHarvests.keys {
+                guard let info = SDEMemoryStore.type(for: typeId) else { continue }
+                resourceIds.append(typeId)
+                resourceIconMap[typeId] = info.iconFilename
             }
 
             if !resourceIds.isEmpty {
@@ -908,7 +868,7 @@ struct PIOutputCalculatorView: View {
                 // 计算每种资源在所有星系中可用的行星总数
                 var resourcePlanetCounts: [Int: Int] = [:]
 
-                for row in rows {
+                for system in systemInfos {
                     // 处理每个资源
                     for resourceId in resourceIds {
                         if let planetTypes = resourceToPlanetTypes[resourceId] {
@@ -916,10 +876,8 @@ struct PIOutputCalculatorView: View {
 
                             // 检查每种行星类型的数量
                             for planetType in planetTypes {
-                                if let columnName = PlanetaryUtils.planetTypeToColumn[planetType],
-                                   let count = row[columnName] as? Int
-                                {
-                                    planetCount += count
+                                if let columnName = PlanetaryUtils.planetTypeToColumn[planetType] {
+                                    planetCount += system.counts[columnName] ?? 0
                                 }
                             }
 

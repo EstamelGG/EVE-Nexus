@@ -132,7 +132,7 @@ class CharacterMailListViewModel: ObservableObject {
     /// 近期邮件的时间界限：14 天
     private static let recentCutoff: TimeInterval = 14 * 24 * 3600
 
-    /// 近期邮件（7 天内）
+    /// 近期邮件（14 天内）
     var recentMails: [EVEMail] {
         let cutoff = Date().addingTimeInterval(-Self.recentCutoff)
         return mails.filter { mail in
@@ -141,7 +141,7 @@ class CharacterMailListViewModel: ObservableObject {
         }
     }
 
-    /// 其他邮件（7 天前及更早）
+    /// 其他邮件（14 天前及更早）
     var olderMails: [EVEMail] {
         let cutoff = Date().addingTimeInterval(-Self.recentCutoff)
         return mails.filter { mail in
@@ -371,18 +371,18 @@ struct CharacterMailListView: View {
                 }
             }
 
-            // 近期邮件（7 天内）
+            // 近期邮件（14 天内）
             if !viewModel.recentMails.isEmpty {
-                Section(header: Text("近期邮件")) {
+                Section(header: Text(NSLocalizedString("Main_EVE_Mail_Recent", comment: ""))) {
                     ForEach(viewModel.recentMails, id: \.mail_id) { mail in
                         mailRow(mail)
                     }
                 }
             }
 
-            // 其他邮件（7 天前及更早）
+            // 其他邮件（14 天前及更早）
             if !viewModel.olderMails.isEmpty {
-                Section(header: Text("其他邮件")) {
+                Section(header: Text(NSLocalizedString("Main_EVE_Mail_Older", comment: ""))) {
                     ForEach(viewModel.olderMails, id: \.mail_id) { mail in
                         mailRow(mail)
                     }

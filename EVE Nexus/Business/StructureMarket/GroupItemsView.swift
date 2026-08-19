@@ -224,18 +224,10 @@ struct GroupItemsView: View {
             return []
         }
 
-        // 直接查询该组内所有物品（不限制 typeId，减少 SQL 参数）
-        let query = """
-            SELECT type_id, groupID, name, icon_filename
-            FROM types
-            WHERE groupID = ?
-        """
-
         // 统计每个typeId的订单数、物品数和价格
         var typeIdOrderCount: [Int: Int] = [:]
         var typeIdTotalVolume: [Int: Int] = [:]
         var typeIdOrders: [Int: [StructureMarketOrder]] = [:]
-
         for order in orders {
             typeIdOrderCount[order.typeId, default: 0] += 1
             typeIdTotalVolume[order.typeId, default: 0] += order.volumeRemain
@@ -245,49 +237,31 @@ struct GroupItemsView: View {
         // 统计该组内各物品的订单数和物品数
         var itemInfoMap: [Int: (typeId: Int, name: String, iconFileName: String, orderCount: Int, totalVolume: Int, structurePrice: Double?)] = [:]
 
-        // 查询该组内所有物品
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            query,
-            parameters: [groupID]
-        ) {
-            for row in rows {
-                guard let typeId = row["type_id"] as? Int else {
-                    continue
-                }
+        // 内存索引获取该组内物品
+        for (typeId, info) in SDEMemoryStore.types where info.groupID == groupID {
+            // 只处理订单中存在的 typeId
+            guard orderTypeIds.contains(typeId),
+                  let orderCount = typeIdOrderCount[typeId],
+                  let totalVolume = typeIdTotalVolume[typeId],
+                  let itemOrders = typeIdOrders[typeId]
+            else { continue }
 
-                // 在内存中过滤：只处理订单中存在的 typeId
-                guard orderTypeIds.contains(typeId),
-                      let orderCount = typeIdOrderCount[typeId],
-                      let totalVolume = typeIdTotalVolume[typeId],
-                      let itemOrders = typeIdOrders[typeId]
-                else {
-                    continue
-                }
-
-                let typeName = row["name"] as? String ?? "Unknown"
-                let iconFileName = (row["icon_filename"] as? String)?.isEmpty == false
-                    ? (row["icon_filename"] as! String)
-                    : IconManager.defaultItemIcon
-
-                // 计算价格：卖单显示最低价，买单显示最高价
-                let structurePrice: Double?
-                if orderType == .sell {
-                    // 卖单：最低价
-                    structurePrice = itemOrders.map { $0.price }.min()
-                } else {
-                    // 买单：最高价
-                    structurePrice = itemOrders.map { $0.price }.max()
-                }
-
-                itemInfoMap[typeId] = (
-                    typeId: typeId,
-                    name: typeName,
-                    iconFileName: iconFileName,
-                    orderCount: orderCount,
-                    totalVolume: totalVolume,
-                    structurePrice: structurePrice
-                )
+            // 计算价格：卖单显示最低价，买单显示最高价
+            let structurePrice: Double?
+            if orderType == .sell {
+                structurePrice = itemOrders.map { $0.price }.min()
+            } else {
+                structurePrice = itemOrders.map { $0.price }.max()
             }
+
+            itemInfoMap[typeId] = (
+                typeId: typeId,
+                name: info.name,
+                iconFileName: info.iconFilename,
+                orderCount: orderCount,
+                totalVolume: totalVolume,
+                structurePrice: structurePrice
+            )
         }
 
         // 转换为数组，按订单数降序排序，取前10个

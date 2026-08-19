@@ -226,6 +226,7 @@ struct PlanetDetailView: View {
                                             .foregroundColor(.secondary)
                                     }
                                 }
+                                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                             } else if groupId == 1028 {
                                 // 加工设施
                                 Section {
@@ -250,6 +251,7 @@ struct PlanetDetailView: View {
                                             .foregroundColor(.secondary)
                                     }
                                 }
+                                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                             } else if let extractor = pin.extractorDetails {
                                 // 提取器设施
                                 Section {
@@ -270,6 +272,7 @@ struct PlanetDetailView: View {
                                             .foregroundColor(.secondary)
                                     }
                                 }
+                                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                             }
                         }
                     }
@@ -870,48 +873,37 @@ struct PlanetDetailView: View {
                 }
 
                 if !schematicIds.isEmpty {
-                    let schematicIdsString = schematicIds.sorted().map { String($0) }.joined(
-                        separator: ","
-                    )
-                    let schematicQuery = """
-                        SELECT schematic_id, output_typeid, cycle_time, output_value, input_typeid, input_value
-                        FROM planetSchematics
-                        WHERE schematic_id IN (\(schematicIdsString))
-                    """
+                    // 内存索引获取 schematic 详情
+                    for schematicId in schematicIds {
+                        guard let schematicData = SDEMemoryStore.planetSchematicsByID[schematicId]
+                        else { continue }
 
-                    if case let .success(rows) = DatabaseManager.shared.executeQuery(schematicQuery) {
-                        for row in rows {
-                            if let schematicId = row["schematic_id"] as? Int,
-                               let outputTypeId = row["output_typeid"] as? Int,
-                               let cycleTime = row["cycle_time"] as? Int,
-                               let outputValue = row["output_value"] as? Int,
-                               let inputTypeIds = row["input_typeid"] as? String,
-                               let inputValues = row["input_value"] as? String
-                            {
-                                // 将配方的输出类型ID添加到typeIds集合中
-                                typeIds.insert(outputTypeId)
+                        let outputTypeId = schematicData.outputTypeID
+                        let cycleTime = schematicData.cycleTime
+                        let outputValue = schematicData.outputValue
 
-                                let inputTypeIdArray = inputTypeIds.split(separator: ",").compactMap
-                                    { Int($0) }
-                                let inputValueArray = inputValues.split(separator: ",").compactMap {
-                                    Int($0)
-                                }
+                        // 将配方的输出类型ID添加到typeIds集合中
+                        typeIds.insert(outputTypeId)
 
-                                // 将配方的输入类型ID也添加到typeIds集合中
-                                inputTypeIdArray.forEach { typeIds.insert($0) }
-
-                                let inputs = zip(inputTypeIdArray, inputValueArray).map {
-                                    (typeId: $0, value: $1)
-                                }
-
-                                schematicDetails[schematicId] = SchematicInfo(
-                                    outputTypeId: outputTypeId,
-                                    cycleTime: cycleTime,
-                                    outputValue: outputValue,
-                                    inputs: inputs
-                                )
-                            }
+                        let inputTypeIdArray = schematicData.rawInputTypeIDs.split(separator: ",").compactMap
+                            { Int($0) }
+                        let inputValueArray = schematicData.rawInputValues.split(separator: ",").compactMap {
+                            Int($0)
                         }
+
+                        // 将配方的输入类型ID也添加到typeIds集合中
+                        inputTypeIdArray.forEach { typeIds.insert($0) }
+
+                        let inputs = zip(inputTypeIdArray, inputValueArray).map {
+                            (typeId: $0, value: $1)
+                        }
+
+                        schematicDetails[schematicId] = SchematicInfo(
+                            outputTypeId: outputTypeId,
+                            cycleTime: cycleTime,
+                            outputValue: outputValue,
+                            inputs: inputs
+                        )
                     }
 
                     // 如果有新的类型ID被添加，重新查询类型信息

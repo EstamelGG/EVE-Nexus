@@ -146,27 +146,8 @@ struct ShipFittingModulesView: View {
         var model_iconFilename = ""
         var volume: Double = 0
 
-        // 查询装备属性
-        let attrQuery = """
-            SELECT ta.attribute_id, ta.value, da.name 
-            FROM typeAttributes ta 
-            JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id 
-            WHERE ta.type_id = ?
-        """
-
-        if case let .success(rows) = viewModel.databaseManager.executeQuery(
-            attrQuery, parameters: [typeId]
-        ) {
-            for row in rows {
-                if let attrId = row["attribute_id"] as? Int,
-                   let value = row["value"] as? Double,
-                   let name = row["name"] as? String
-                {
-                    attributes[attrId] = value
-                    attributesByName[name] = value
-                }
-            }
-        }
+        // 查询装备属性（内存索引）
+        (attributes, attributesByName) = SDEMemoryStore.typeAttributesFull(for: typeId)
 
         // 查询装备效果
         effects = SDEMemoryStore.effectIDs(forType: typeId)
@@ -419,27 +400,8 @@ struct ShipFittingModulesView: View {
         var model_iconFilename = ""
         var volume: Double = 0
 
-        // 查询装备属性
-        let attrQuery = """
-            SELECT ta.attribute_id, ta.value, da.name 
-            FROM typeAttributes ta 
-            JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id 
-            WHERE ta.type_id = ?
-        """
-
-        if case let .success(rows) = viewModel.databaseManager.executeQuery(
-            attrQuery, parameters: [newTypeId]
-        ) {
-            for row in rows {
-                if let attrId = row["attribute_id"] as? Int,
-                   let value = row["value"] as? Double,
-                   let name = row["name"] as? String
-                {
-                    attributes[attrId] = value
-                    attributesByName[name] = value
-                }
-            }
-        }
+        // 查询装备属性（内存索引）
+        (attributes, attributesByName) = SDEMemoryStore.typeAttributesFull(for: newTypeId)
 
         // 查询装备效果
         effects = SDEMemoryStore.effectIDs(forType: newTypeId)

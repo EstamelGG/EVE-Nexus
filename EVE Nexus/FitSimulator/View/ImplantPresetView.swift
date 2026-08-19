@@ -9,25 +9,14 @@ private class SystemPresetCache {
 
     private init() {}
 
-    func loadIfNeeded(databaseManager: DatabaseManager, gradeList: [String], implantSetList: [String], typeList: [String], implantSetAttributeMap: [String: [Int]]) {
+    func loadIfNeeded(databaseManager _: DatabaseManager, gradeList: [String], implantSetList: [String], typeList: [String], implantSetAttributeMap: [String: [Int]]) {
         guard !isLoaded else { return }
 
         // 加载属性显示名称（展平多属性为唯一ID列表）
         let attributeIds = Array(Set(implantSetAttributeMap.values.flatMap { $0 }))
-        let placeholders = attributeIds.map { _ in "?" }.joined(separator: ",")
-        let attrQuery = """
-            SELECT attribute_id, display_name 
-            FROM dogmaAttributes 
-            WHERE attribute_id IN (\(placeholders))
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(attrQuery, parameters: attributeIds) {
-            for row in rows {
-                if let attributeId = row["attribute_id"] as? Int,
-                   let displayName = row["display_name"] as? String
-                {
-                    cachedAttributeDisplayNames[attributeId] = displayName
-                }
+        for attributeId in attributeIds {
+            if let displayName = SDEMemoryStore.dogmaAttribute(for: attributeId)?.displayName {
+                cachedAttributeDisplayNames[attributeId] = displayName
             }
         }
 
@@ -42,66 +31,54 @@ private class SystemPresetCache {
             }
         }
 
-        let namePlaceholders = implantNames.map { _ in "?" }.joined(separator: ",")
-        let query = """
-            SELECT type_id, name, en_name, icon_filename 
-            FROM types 
-            WHERE en_name IN (\(namePlaceholders))
-            AND published = 1
-        """
+        // 内存索引按英文名匹配系统预设物品（原 WHERE en_name IN (...) AND published = 1）
+        let implantNameSet = Set(implantNames)
+        var tempPresetData: [String: [String: [ImplantPresetItem]]] = [:]
+        for (typeId, info) in SDEMemoryStore.types where info.published && implantNameSet.contains(info.enName) {
+            let name = info.name
+            let enName = info.enName
+            let iconFile = info.iconFilename
+            let components = enName.components(separatedBy: " ")
+            if components.count >= 3 {
+                let grade = components[0]
+                let setName = components[1]
+                let type = components.last ?? ""
 
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: implantNames) {
-            var tempPresetData: [String: [String: [ImplantPresetItem]]] = [:]
-
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let enName = row["en_name"] as? String,
-                   let iconFile = row["icon_filename"] as? String
+                if gradeList.contains(grade), implantSetList.contains(setName),
+                   typeList.contains(type)
                 {
-                    let components = enName.components(separatedBy: " ")
-                    if components.count >= 3 {
-                        let grade = components[0]
-                        let setName = components[1]
-                        let type = components.last ?? ""
-
-                        if gradeList.contains(grade), implantSetList.contains(setName),
-                           typeList.contains(type)
-                        {
-                            if tempPresetData[grade] == nil {
-                                tempPresetData[grade] = [:]
-                            }
-                            if tempPresetData[grade]?[setName] == nil {
-                                tempPresetData[grade]?[setName] = []
-                            }
-
-                            let presetItem = ImplantPresetItem(
-                                typeId: typeId,
-                                name: name,
-                                enName: enName,
-                                iconFileName: iconFile,
-                                type: type
-                            )
-
-                            tempPresetData[grade]?[setName]?.append(presetItem)
-                        }
+                    if tempPresetData[grade] == nil {
+                        tempPresetData[grade] = [:]
                     }
+                    if tempPresetData[grade]?[setName] == nil {
+                        tempPresetData[grade]?[setName] = []
+                    }
+
+                    let presetItem = ImplantPresetItem(
+                        typeId: typeId,
+                        name: name,
+                        enName: enName,
+                        iconFileName: iconFile,
+                        type: type
+                    )
+
+                    tempPresetData[grade]?[setName]?.append(presetItem)
                 }
             }
-
-            // 为每个套装按类型排序
-            for grade in gradeList {
-                for setName in implantSetList {
-                    tempPresetData[grade]?[setName]?.sort { item1, item2 in
-                        let index1 = typeList.firstIndex(of: item1.type) ?? Int.max
-                        let index2 = typeList.firstIndex(of: item2.type) ?? Int.max
-                        return index1 < index2
-                    }
-                }
-            }
-
-            cachedPresetData = tempPresetData
         }
+
+        // 为每个套装按类型排序
+        for grade in gradeList {
+            for setName in implantSetList {
+                tempPresetData[grade]?[setName]?.sort { item1, item2 in
+                    let index1 = typeList.firstIndex(of: item1.type) ?? Int.max
+                    let index2 = typeList.firstIndex(of: item2.type) ?? Int.max
+                    return index1 < index2
+                }
+            }
+        }
+
+        cachedPresetData = tempPresetData
 
         isLoaded = true
     }

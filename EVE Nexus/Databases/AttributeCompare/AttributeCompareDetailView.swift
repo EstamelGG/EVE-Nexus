@@ -11,6 +11,7 @@ struct AttributeCompareDetailView: View {
     @State private var isCalculating: Bool = false
     @State private var marketPrices: [Int: Double] = [:]
     @State private var isLoadingPrices: Bool = false
+    @State private var hasListChanges = false // 编辑会话内列表是否有增/删，关闭选择器时据此统一重算
     @AppStorage("showOnlyDifferences") private var showOnlyDifferences: Bool = false
 
     init(databaseManager: DatabaseManager, compare: AttributeCompare) {
@@ -21,13 +22,11 @@ struct AttributeCompareDetailView: View {
         var temporaryItems: [DatabaseListItem] = []
 
         if !compare.items.isEmpty {
-            let itemIDs = compare.items.map { String($0.typeID) }.joined(separator: ",")
-            let loadedItems = databaseManager.loadMarketItems(
-                whereClause: "t.type_id IN (\(itemIDs))",
-                parameters: []
+            // 内存索引批量构建（已按 id 升序）
+            temporaryItems = DatabaseListItem.listItems(
+                for: compare.items.map(\.typeID),
+                databaseManager: databaseManager
             )
-            // 按 type_id 排序
-            temporaryItems = loadedItems.sorted(by: { $0.id < $1.id })
 
             // 确保 compare.items 的顺序与加载的物品顺序一致
             if !temporaryItems.isEmpty {
@@ -86,15 +85,7 @@ struct AttributeCompareDetailView: View {
                                 compare.items.removeAll { itemsToDelete.contains($0.typeID) }
                                 items.remove(atOffsets: indexSet)
                                 AttributeCompareManager.shared.saveCompare(compare)
-
-                                // 删除物品后，如果还有至少两个物品，重新计算对比结果
-                                if items.count >= 2 {
-                                    calculateCompare()
-                                } else {
-                                    // 如果物品少于2个，清空对比结果和市场价格
-                                    compareResult = nil
-                                    marketPrices = [:]
-                                }
+                                refreshCompareAfterListChange()
                             }
                         },
                         label: {
@@ -110,6 +101,7 @@ struct AttributeCompareDetailView: View {
                     )
 
                     // 在物品列表下方添加"只展示有差异的属性"开关
+                    // （@AppStorage 自动持久化开关状态，切换无需任何处理）
                     if items.count >= 2 {
                         Toggle(
                             NSLocalizedString(
@@ -117,12 +109,6 @@ struct AttributeCompareDetailView: View {
                             ),
                             isOn: $showOnlyDifferences
                         )
-                        .onChange(of: showOnlyDifferences) { _, _ in
-                            // 切换时不需要重新计算，只需要更新显示
-                            UserDefaults.standard.set(
-                                showOnlyDifferences, forKey: "showOnlyDifferences"
-                            )
-                        }
                         .padding(.top, 4)
                     }
                 } header: {
@@ -211,43 +197,37 @@ struct AttributeCompareDetailView: View {
                 }
             }
         }
-        .sheet(isPresented: $isShowingItemSelector) {
+        .sheet(isPresented: $isShowingItemSelector, onDismiss: {
+            // 列表编辑结束（点 X 或下拉关闭）：有改动才统一重算，无改动零开销
+            if hasListChanges {
+                hasListChanges = false
+                // 统一提交：保存列表文件 + 重算对比结果
+                AttributeCompareManager.shared.saveCompare(compare)
+                refreshCompareAfterListChange()
+            }
+        }) {
             AttributeItemSelectorView(
                 databaseManager: databaseManager,
                 allowedTopMarketGroupIDs: AttributeCompareMarketPolicy.allowedTopMarketGroupIDs,
                 existingItems: Set(compare.items.map { $0.typeID }),
                 onItemSelected: { item in
                     if !compare.items.contains(where: { $0.typeID == item.id }) {
-                        items.append(item)
-                        compare.items.append(AttributeCompareItem(typeID: item.id))
-                        // 重新排序并保存
-                        let sorted = items.sorted(by: { $0.id < $1.id })
+                        // 排序后同步 items 与 compare.items
+                        let sorted = (items + [item]).sorted(by: { $0.id < $1.id })
                         items = sorted
                         compare.items = sorted.map { item in
                             AttributeCompareItem(typeID: item.id)
                         }
-                        AttributeCompareManager.shared.saveCompare(compare)
-
-                        // 添加新物品后，如果有至少两个物品，计算属性对比
-                        if items.count >= 2 {
-                            calculateCompare()
-                        }
+                        // 编辑期间不保存不重算，关闭选择器时统一处理
+                        hasListChanges = true
                     }
                 },
                 onItemDeselected: { item in
                     if let index = items.firstIndex(where: { $0.id == item.id }) {
                         items.remove(at: index)
                         compare.items.removeAll { $0.typeID == item.id }
-                        AttributeCompareManager.shared.saveCompare(compare)
-
-                        // 删除物品后，如果还有至少两个物品，重新计算对比结果
-                        if items.count >= 2 {
-                            calculateCompare()
-                        } else {
-                            // 如果物品少于2个，清空对比结果和市场价格
-                            compareResult = nil
-                            marketPrices = [:]
-                        }
+                        // 编辑期间不保存不重算，关闭选择器时统一处理
+                        hasListChanges = true
                     }
                 }
             )
@@ -257,6 +237,16 @@ struct AttributeCompareDetailView: View {
             if items.count >= 2 {
                 calculateCompare()
             }
+        }
+    }
+
+    /// 列表变更后的统一刷新：至少两个物品则重算对比，否则清空对比结果和市场价格
+    private func refreshCompareAfterListChange() {
+        if items.count >= 2 {
+            calculateCompare()
+        } else {
+            compareResult = nil
+            marketPrices = [:]
         }
     }
 
@@ -299,15 +289,13 @@ struct AttributeCompareDetailView: View {
         isLoadingPrices = true
 
         Task {
-            do {
-                Logger.info("开始获取市场价格，物品数量: \(typeIDs.count)")
-                let prices = await MarketPriceUtil.getJitaOrderPricesFromESI(typeIds: typeIDs)
+            Logger.info("开始获取市场价格，物品数量: \(typeIDs.count)")
+            let prices = await MarketPriceUtil.getJitaOrderPricesFromESI(typeIds: typeIDs)
 
-                await MainActor.run {
-                    self.marketPrices = prices
-                    self.isLoadingPrices = false
-                    Logger.info("市场价格获取完成，获得价格数量: \(prices.count)")
-                }
+            await MainActor.run {
+                self.marketPrices = prices
+                self.isLoadingPrices = false
+                Logger.info("市场价格获取完成，获得价格数量: \(prices.count)")
             }
         }
     }

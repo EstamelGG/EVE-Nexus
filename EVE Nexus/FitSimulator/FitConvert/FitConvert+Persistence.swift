@@ -69,7 +69,7 @@ extension FitConvert {
 
             return LocalFitting(
                 description: online.description,
-                fitting_id: online.fitting_id,
+                fitting_id: UUID(),
                 items: equipmentItems.map { item in
                     // 在线配置中没有弹药、突变和预热信息
                     LocalFittingItem(
@@ -112,7 +112,7 @@ extension FitConvert {
 
         // 创建文件路径
         let filePath = fittingsDirectory.appendingPathComponent(
-            "local_fitting_\(fitting.fitting_id).json"
+            "local_fitting_\(fitting.fitting_id.uuidString).json"
         )
 
         // 将配置转换为JSON数据
@@ -127,7 +127,7 @@ extension FitConvert {
     }
 
     /// 从JSON文件加载本地配置
-    static func loadLocalFitting(fittingId: Int) throws -> LocalFitting {
+    static func loadLocalFitting(fittingId: UUID) throws -> LocalFitting {
         // 获取文档目录
         guard
             let documentsDirectory = FileManager.default.urls(
@@ -141,7 +141,7 @@ extension FitConvert {
 
         // 创建文件路径
         let filePath = documentsDirectory.appendingPathComponent(
-            "Fitting/local_fitting_\(fittingId).json"
+            "Fitting/local_fitting_\(fittingId.uuidString).json"
         )
 
         // 读取文件数据
@@ -152,8 +152,15 @@ extension FitConvert {
         return try decoder.decode(LocalFitting.self, from: jsonData)
     }
 
-    /// 从JSON文件加载所有本地配置
-    static func loadAllLocalFittings() throws -> [LocalFitting] {
+    /// 本地装配加载结果：正常装配 + 无法解析的装配（仅元数据）
+    struct LocalFittingLoadResult {
+        let fittings: [LocalFitting]
+        let unreadable: [UnreadableFitting]
+    }
+
+    /// 从JSON文件加载所有本地配置。
+    /// 坏文件处理：尝试抢救装配名与飞船ID——两者皆无法取得则删除文件，否则保留并标记为无法解析
+    static func loadAllLocalFittings() throws -> LocalFittingLoadResult {
         // 获取文档目录
         guard
             let documentsDirectory = FileManager.default.urls(
@@ -170,7 +177,7 @@ extension FitConvert {
 
         // 检查目录是否存在
         guard FileManager.default.fileExists(atPath: fittingsDirectory.path) else {
-            return []
+            return LocalFittingLoadResult(fittings: [], unreadable: [])
         }
 
         // 获取目录中的所有文件
@@ -178,23 +185,67 @@ extension FitConvert {
             at: fittingsDirectory, includingPropertiesForKeys: nil
         )
 
-        // 过滤出配置文件并加载
+        // 过滤出配置文件并加载（顺带迁移旧版时间戳文件到 UUID 文件）
         var fittings: [LocalFitting] = []
+        var unreadable: [UnreadableFitting] = []
         for fileURL in fileURLs
             where fileURL.lastPathComponent.hasPrefix("local_fitting_")
             && fileURL.pathExtension == "json"
         {
+            let fileName = fileURL.lastPathComponent
             do {
                 let jsonData = try Data(contentsOf: fileURL)
                 let decoder = JSONDecoder()
                 let fitting = try decoder.decode(LocalFitting.self, from: jsonData)
+
+                // 旧版文件名为时间戳、JSON 内 fitting_id 为 Int（解码时已生成新 UUID）：
+                // 文件名与 ID 不一致即需迁移——写入 UUID 新文件并删除旧文件
+                let expectedName = "local_fitting_\(fitting.fitting_id.uuidString).json"
+                if fileName != expectedName {
+                    let encoder = JSONEncoder()
+                    encoder.outputFormatting = .prettyPrinted
+                    let newData = try encoder.encode(fitting)
+                    try newData.write(to: fittingsDirectory.appendingPathComponent(expectedName))
+                    try? FileManager.default.removeItem(at: fileURL)
+                    Logger.info(
+                        "旧版装配文件已迁移到 UUID: \(fileName) -> \(expectedName)"
+                    )
+                }
+
                 fittings.append(fitting)
             } catch {
-                Logger.error("加载配置文件失败 \(fileURL.lastPathComponent): \(error)")
-                continue
+                // 完整解码失败：仅抢救装配名与飞船ID（不解析装配内容）
+                let meta = salvageMetadata(fromFile: fileURL)
+                if meta.name == nil && meta.shipTypeId == nil {
+                    // 连基本信息都无法取得，视为彻底损坏，删除文件
+                    try? FileManager.default.removeItem(at: fileURL)
+                    Logger.warning("装配文件完全无法解析，已删除: \(fileName)")
+                } else {
+                    Logger.warning(
+                        "装配文件解析失败，保留并标记为无法解析: \(fileName) - \(error.localizedDescription)"
+                    )
+                    unreadable.append(
+                        UnreadableFitting(
+                            fileName: fileName, name: meta.name, shipTypeId: meta.shipTypeId
+                        )
+                    )
+                }
             }
         }
 
-        return fittings
+        return LocalFittingLoadResult(fittings: fittings, unreadable: unreadable)
+    }
+
+    /// 抢救解析：仅从原始 JSON 提取装配名与飞船ID，兼容数字被序列化为 Double/字符串的情况
+    private static func salvageMetadata(fromFile fileURL: URL) -> (name: String?, shipTypeId: Int?) {
+        guard let data = try? Data(contentsOf: fileURL),
+              let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
+        else { return (nil, nil) }
+
+        let name = obj["name"] as? String
+        let shipTypeId = (obj["ship_type_id"] as? Int)
+            ?? (obj["ship_type_id"] as? Double).map(Int.init)
+            ?? (obj["ship_type_id"] as? String).flatMap(Int.init)
+        return (name, shipTypeId)
     }
 }

@@ -5,7 +5,6 @@ class CorpWalletViewModel: ObservableObject {
     @Published var wallets: [CorpWallet] = []
     @Published var isLoading = true
     @Published var error: Error?
-    @Published var showError = false
 
     let characterId: Int
 
@@ -30,7 +29,6 @@ class CorpWalletViewModel: ObservableObject {
             } catch {
                 await MainActor.run {
                     self.error = error
-                    self.showError = true
                     self.isLoading = false
                 }
                 Logger.error("获取军团钱包数据失败: \(error)")
@@ -71,36 +69,13 @@ struct CorpWalletView: View {
                       !viewModel.isLoading && viewModel.wallets.isEmpty
             {
                 // 显示错误信息
-                Section {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 12) {
-                            Image(systemName: "exclamationmark.triangle")
-                                .font(.system(size: 40))
-                                .foregroundColor(.orange)
-                            Text(NSLocalizedString("Common_Error", comment: ""))
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            Text(error.localizedDescription)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                            Button(action: {
-                                viewModel.loadWallets(forceRefresh: true)
-                            }) {
-                                Text(NSLocalizedString("ESI_Status_Retry", comment: ""))
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 8)
-                                    .background(Color.accentColor)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(8)
-                            }
-                            .padding(.top, 8)
-                        }
-                        .padding()
-                        Spacer()
-                    }
+                ErrorStateSection(
+                    message: error.localizedDescription
+                ) {
+                    viewModel.loadWallets(forceRefresh: true)
                 }
+            } else if viewModel.wallets.isEmpty {
+                NoDataSection(icon: "banknote")
             } else {
                 ForEach(viewModel.wallets, id: \.division) { wallet in
                     NavigationLink(

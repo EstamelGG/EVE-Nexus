@@ -105,7 +105,8 @@ struct MutationCalculatorView: View {
                 Section(
                     header: sectionHeader(
                         NSLocalizedString("Main_Database_Mutation_Attribute", comment: "")
-                    )
+                    ),
+                    footer: rollFooter
                 ) {
                     if mutationAttributes.isEmpty {
                         Text(NSLocalizedString("Misc_No_Data", comment: ""))
@@ -195,6 +196,34 @@ struct MutationCalculatorView: View {
             .textCase(.none)
     }
 
+    /// 属性 section footer：右对齐的随机 Roll 按钮（无属性数据时隐藏）
+    @ViewBuilder
+    private var rollFooter: some View {
+        if !mutationAttributes.isEmpty {
+            Button {
+                rollRandomMutations()
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "dice.fill")
+                    Text(NSLocalizedString("Misc_Random", comment: ""))
+                }
+                .font(.footnote)
+            }
+            .buttonStyle(.borderless)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+    }
+
+    /// 在每个属性的 [minMutator, maxMutator] 范围内随机一组 multiplier，
+    /// 对齐 0.1% 步进（与进度条拖动一致）
+    private func rollRandomMutations() {
+        for index in mutationAttributes.indices {
+            let range = mutationAttributes[index]
+            let rolled = Double.random(in: range.minMutator ... range.maxMutator)
+            mutationAttributes[index].multiplier = (rolled * 1000).rounded() / 1000
+        }
+    }
+
     private func selectionRow(
         title: String,
         selectedName: String?,
@@ -235,10 +264,10 @@ struct MutationCalculatorView: View {
         guard selectedItem == nil,
               let preselectedItemID,
               !databaseManager.getRequiredMutaplasmids(for: preselectedItemID).isEmpty,
-              let item = databaseManager.loadMarketItems(
-                  whereClause: "t.type_id = ?",
-                  parameters: [preselectedItemID]
-              ).first
+              let item = DatabaseListItem(
+                  typeID: preselectedItemID,
+                  databaseManager: databaseManager
+              )
         else { return }
 
         selectedItem = item
@@ -294,36 +323,15 @@ struct MutationCalculatorView: View {
     }
 
     private func loadMutatorAttributeRanges(mutaplasmidID: Int) -> [MutatorAttributeRange] {
-        let query = """
-            SELECT a.attribute_id, d.display_name, COALESCE(d.icon_filename, '') as icon_filename,
-                   d.unitID, a.min_value, a.max_value, d.highIsGood
-            FROM dynamic_item_attributes a
-            LEFT JOIN dogmaAttributes d ON a.attribute_id = d.attribute_id
-            WHERE a.type_id = ?
-            ORDER BY a.attribute_id
-        """
-
-        guard case let .success(rows) = databaseManager.executeQuery(
-            query, parameters: [mutaplasmidID]
-        ) else { return [] }
-
-        return rows.compactMap { row in
-            guard let attributeID = row["attribute_id"] as? Int,
-                  let name = row["display_name"] as? String,
-                  let minMutator = row["min_value"] as? Double,
-                  let maxMutator = row["max_value"] as? Double,
-                  let highIsGood = row["highIsGood"] as? Int
-            else { return nil }
-
-            let iconFileName = row["icon_filename"] as? String
-            return MutatorAttributeRange(
-                id: attributeID,
-                name: name,
-                iconFileName: (iconFileName?.isEmpty ?? true) ? nil : iconFileName,
-                unitID: row["unitID"] as? Int,
-                minMutator: minMutator,
-                maxMutator: maxMutator,
-                highIsGood: highIsGood == 1
+        SDEMemoryStore.dynamicItemAttributes(forTypeID: mutaplasmidID).map { info in
+            MutatorAttributeRange(
+                id: info.attributeID,
+                name: info.name,
+                iconFileName: info.iconFileName,
+                unitID: info.unitID,
+                minMutator: info.minValue,
+                maxMutator: info.maxValue,
+                highIsGood: info.highIsGood
             )
         }
     }

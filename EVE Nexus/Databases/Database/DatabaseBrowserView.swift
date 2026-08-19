@@ -100,7 +100,15 @@ struct DatabaseBrowserView: View {
         _ dbManager: DatabaseManager, _ searchText: String
     ) -> CachePayload {
         // 始终全库搜索，不再按当前浏览层级限定 categoryID/groupID
-        dbManager.searchItems(searchText: searchText)
+        let items = dbManager.searchItemsMemory(
+            filter: { typeID, info in
+                info.names.matchesSearch(searchText) || Int(searchText) == typeID
+            },
+            exactMatchText: searchText
+        )
+        let metaGroupIDs = Set(items.compactMap { $0.metaGroupID })
+        let metaGroupNames = dbManager.loadMetaGroupNames(for: Array(metaGroupIDs))
+        return (items, metaGroupNames, [:])
     }
 
     private func loadDataFromDatabase(_ dbManager: DatabaseManager) -> CachePayload {
@@ -355,8 +363,6 @@ private struct DatabaseSearchItemsView: View {
     let groupName: String
     let items: [DatabaseListItem]
 
-    private let metaGroupNames: [Int: String] = SDEMemoryStore.localizedMetaGroupNames
-
     private var publishedItems: [DatabaseListItem] {
         items.filter(\.published)
     }
@@ -366,21 +372,7 @@ private struct DatabaseSearchItemsView: View {
     }
 
     private var itemsByMetaGroup: [(id: Int, name: String, items: [DatabaseListItem])] {
-        var grouped: [Int: [DatabaseListItem]] = [:]
-        for item in publishedItems {
-            grouped[item.metaGroupID ?? 0, default: []].append(item)
-        }
-        return grouped.sorted { $0.key < $1.key }.map { metaGroupID, groupItems in
-            let name: String
-            if metaGroupID == 0 {
-                name = NSLocalizedString("Main_Database_base", comment: "基础物品")
-            } else if let groupName = metaGroupNames[metaGroupID] {
-                name = groupName
-            } else {
-                name = "MetaGroup \(metaGroupID)"
-            }
-            return (id: metaGroupID, name: name, items: groupItems)
-        }
+        SDEMemoryStore.metaGroupSections(publishedItems) { $0.metaGroupID ?? 0 }
     }
 
     var body: some View {

@@ -49,17 +49,18 @@ class UniverseAPI {
         let responses = try JSONDecoder().decode([UniverseNameResponse].self, from: data)
         Logger.success("成功获取 \(responses.count) 个实体的名称信息")
 
-        // 准备批量插入的SQL语句
+        // 准备批量插入的SQL语句（last_updated 由 SQLite 服务端时钟生成，避免依赖客户端时钟）
         let insertSQL = """
             INSERT OR REPLACE INTO universe_names (
                 id,
                 name,
-                category
-            ) VALUES 
+                category,
+                last_updated
+            ) VALUES
         """
 
         // 构建值部分和参数数组
-        let valuePlaceholders = responses.map { _ in "(?, ?, ?)" }.joined(separator: ",")
+        let valuePlaceholders = responses.map { _ in "(?, ?, ?, strftime('%s','now'))" }.joined(separator: ",")
         let finalSQL = insertSQL + valuePlaceholders
 
         // 准备参数数组
@@ -120,12 +121,16 @@ class UniverseAPI {
         }
     }
 
-    /// 从数据库批量获取ID对应的名称信息
+    /// 从数据库批量获取ID对应的名称信息（仅返回缓存有效期 7天 内的记录）
     /// - Parameter ids: 要查询的ID数组
     /// - Returns: ID到名称和类型的映射
     func getNamesFromDatabase(ids: [Int]) async throws -> [Int: (name: String, category: String)] {
         let placeholders = String(repeating: "?,", count: ids.count).dropLast()
-        let query = "SELECT id, name, category FROM universe_names WHERE id IN (\(placeholders))"
+        let query = """
+        SELECT id, name, category FROM universe_names
+        WHERE id IN (\(placeholders))
+          AND last_updated > strftime('%s','now') - 7
+        """
 
         let result = databaseManager.executeQuery(query, parameters: ids)
 

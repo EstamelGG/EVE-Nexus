@@ -142,9 +142,10 @@ struct PIAllInOneMainView: View {
         }
         .navigationTitle(NSLocalizedString("Planet_All-in-One_Calc", comment: ""))
         .sheet(isPresented: $showSystemSelector) {
-            PISolarSystemSelectorSheet(
+            SystemPickerSheet(
                 title: NSLocalizedString("System_Search_Title", comment: "选择星系"),
                 currentSelection: selectedSystemID,
+                showsSovereignty: true,
                 onSelect: { systemId, systemName in
                     selectedSystemID = systemId
                     selectedSystemName = systemName
@@ -180,16 +181,8 @@ struct PIAllInOneMainView: View {
             var supportedProducts: [AllInOneSinglePlanetProductResult] = []
             var systemPlanetCountsTemp: [String: Int] = [:]
 
-            // 查询该星系的行星信息
-            let systemQuery = """
-                SELECT temperate, barren, oceanic, ice, gas, lava, storm, plasma
-                FROM universe
-                WHERE solarsystem_id = \(systemId)
-            """
-
-            if case let .success(rows) = DatabaseManager.shared.executeQuery(systemQuery),
-               let systemRow = rows.first
-            {
+            // 内存索引查询该星系的行星数量
+            if let systemInfo = SDEMemoryStore.universeSystems[systemId] {
                 // 遍历所有单星球产品，检查该星系是否能支持
                 for product in allProducts {
                     var canSupport = false
@@ -197,12 +190,12 @@ struct PIAllInOneMainView: View {
 
                     // 检查每个兼容的行星类型
                     for planetType in product.compatiblePlanetTypes {
-                        if let columnName = PlanetaryUtils.planetTypeToColumn[planetType.typeId],
-                           let planetCount = systemRow[columnName] as? Int,
-                           planetCount > 0
-                        {
-                            canSupport = true
-                            totalPlanetCount += planetCount
+                        if let columnName = PlanetaryUtils.planetTypeToColumn[planetType.typeId] {
+                            let planetCount = systemInfo.planetCounts[columnName] ?? 0
+                            if planetCount > 0 {
+                                canSupport = true
+                                totalPlanetCount += planetCount
+                            }
                         }
                     }
 
@@ -738,24 +731,8 @@ struct AllInOnePlanetDistributionView: View {
         isLoading = true
 
         DispatchQueue.global(qos: .userInitiated).async {
-            // 查询该星系的行星数量
-            let query = """
-                SELECT 
-                    temperate,
-                    barren,
-                    oceanic,
-                    ice,
-                    gas,
-                    lava,
-                    storm,
-                    plasma
-                FROM universe
-                WHERE solarsystem_id = \(systemId)
-            """
-
-            if case let .success(rows) = DatabaseManager.shared.executeQuery(query),
-               let row = rows.first
-            {
+            // 内存索引查询该星系的行星数量
+            if let systemInfo = SDEMemoryStore.universeSystems[systemId] {
                 // 获取行星类型名称
                 var typeIdToName: [Int: (name: String, iconFileName: String)] = [:]
                 for typeId in PlanetaryUtils.planetTypeToColumn.keys {
@@ -767,7 +744,7 @@ struct AllInOnePlanetDistributionView: View {
                 var summary: [(typeId: Int, name: String, count: Int, iconFileName: String)] = []
 
                 for (typeId, columnName) in PlanetaryUtils.planetTypeToColumn {
-                    if let count = row[columnName] as? Int,
+                    if let count = systemInfo.planetCounts[columnName],
                        count > 0,
                        let typeInfo = typeIdToName[typeId]
                     {

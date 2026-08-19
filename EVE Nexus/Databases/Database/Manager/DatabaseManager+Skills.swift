@@ -3,25 +3,15 @@ import SwiftUI
 
 extension DatabaseManager {
     func getDirectSkillRequirements(for typeID: Int) -> [(skillID: Int, level: Int)] {
-        let query = """
-            SELECT DISTINCT required_skill_id, required_skill_level
-            FROM typeSkillRequirement
-            WHERE typeid = ?
-            ORDER BY required_skill_level DESC
-        """
-
+        // 内存索引；去重并按等级降序（与旧 SQL DISTINCT + ORDER BY 一致）
+        var seen = Set<Int>()
         var requirements: [(skillID: Int, level: Int)] = []
-
-        if case let .success(rows) = executeQuery(query, parameters: [typeID]) {
-            for row in rows {
-                if let skillID = row["required_skill_id"] as? Int,
-                   let level = row["required_skill_level"] as? Int
-                {
-                    requirements.append((skillID: skillID, level: level))
-                }
-            }
+        for requirement in SDEMemoryStore.requiredSkills(for: typeID) {
+            guard !seen.contains(requirement.skillID) else { continue }
+            seen.insert(requirement.skillID)
+            requirements.append((skillID: requirement.skillID, level: requirement.level))
         }
-
+        requirements.sort { $0.level > $1.level }
         return requirements
     }
 

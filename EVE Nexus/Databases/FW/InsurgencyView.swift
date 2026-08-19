@@ -294,15 +294,10 @@ struct InsurgencyView: View {
                     VStack(alignment: .leading, spacing: 8) {
                         // 第一行：势力图标和星系信息
                         HStack(spacing: 12) {
-                            // 左侧海盗图标
-                            let factionId = firstCampaign.pirateFactionId
-                            let query = "SELECT id, name, iconName FROM factions WHERE id = ?"
-                            if case let .success(rows) = databaseManager.executeQuery(
-                                query, parameters: [factionId]
-                            ),
-                                let row = rows.first,
-                                let iconName = row["iconName"] as? String
-                            {
+                            // 左侧海盗图标（走内存缓存）
+                            if let iconName = SDEMemoryStore.faction(
+                                for: firstCampaign.pirateFactionId
+                            )?.iconName {
                                 IconManager.shared.loadImage(for: iconName)
                                     .resizable()
                                     .frame(width: 64, height: 64)
@@ -653,23 +648,10 @@ struct InsurgencyView: View {
                     .compactMap { $0.solarSystem.occupierFactionId }
             )
 
-            // 一次性查询所有势力图标
-            if !occupierFactionIds.isEmpty {
-                let factionQuery =
-                    "SELECT id, iconName FROM factions WHERE id IN (\(String(repeating: "?,", count: occupierFactionIds.count).dropLast()))"
-                if case let .success(factionRows) = databaseManager.executeQuery(
-                    factionQuery, parameters: Array(occupierFactionIds)
-                ) {
-                    factionIconMap = Dictionary(
-                        uniqueKeysWithValues: factionRows.compactMap { row in
-                            guard let id = row["id"] as? Int,
-                                  let iconName = row["iconName"] as? String
-                            else {
-                                return nil
-                            }
-                            return (id, iconName)
-                        }
-                    )
+            // 势力图标走内存缓存
+            for factionId in occupierFactionIds {
+                if let iconName = SDEMemoryStore.faction(for: factionId)?.iconName {
+                    factionIconMap[factionId] = iconName
                 }
             }
 

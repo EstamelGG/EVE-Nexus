@@ -110,87 +110,44 @@ struct CategoryGroupsView: View {
             return []
         }
 
-        // 直接查询该目录下所有物品（不限制 typeId，减少 SQL 参数）
-        let query = """
-            SELECT type_id, categoryID, groupID, group_name
-            FROM types
-            WHERE categoryID = ?
-        """
-
         // 统计每个typeId的订单数
         var typeIdOrderCount: [Int: Int] = [:]
         for order in orders {
             typeIdOrderCount[order.typeId, default: 0] += 1
         }
 
-        // 统计该目录下各组的订单数
+        // 统计该目录下各组的订单数（内存索引）
         var groupOrderCount: [Int: (groupID: Int, groupName: String, orderCount: Int)] = [:]
 
-        // 查询该目录下所有物品
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            query,
-            parameters: [categoryID]
-        ) {
-            for row in rows {
-                guard let typeId = row["type_id"] as? Int else {
-                    continue
-                }
+        for (typeId, info) in SDEMemoryStore.types where info.categoryID == categoryID {
+            guard orderTypeIds.contains(typeId),
+                  let orderCount = typeIdOrderCount[typeId],
+                  let groupID = info.groupID
+            else { continue }
 
-                // 在内存中过滤：只处理订单中存在的 typeId
-                guard orderTypeIds.contains(typeId),
-                      let orderCount = typeIdOrderCount[typeId]
-                else {
-                    continue
-                }
+            let groupName = SDEMemoryStore.group(for: groupID)?.name ?? ""
 
-                // 处理组
-                if let groupID = row["groupID"] as? Int,
-                   let groupName = row["group_name"] as? String
-                {
-                    if let existing = groupOrderCount[groupID] {
-                        groupOrderCount[groupID] = (
-                            groupID: groupID,
-                            groupName: groupName,
-                            orderCount: existing.orderCount + orderCount
-                        )
-                    } else {
-                        groupOrderCount[groupID] = (
-                            groupID: groupID,
-                            groupName: groupName,
-                            orderCount: orderCount
-                        )
-                    }
-                }
+            if let existing = groupOrderCount[groupID] {
+                groupOrderCount[groupID] = (
+                    groupID: groupID,
+                    groupName: groupName,
+                    orderCount: existing.orderCount + orderCount
+                )
+            } else {
+                groupOrderCount[groupID] = (
+                    groupID: groupID,
+                    groupName: groupName,
+                    orderCount: orderCount
+                )
             }
         }
 
-        // 查询组图标（查询全部，在内存中过滤）
+        // 查询组图标（内存索引）
         let uniqueGroupIDs = Set(groupOrderCount.keys)
         var groupIconMap: [Int: String] = [:]
-        if !uniqueGroupIDs.isEmpty {
-            let groupIconQuery = """
-                SELECT group_id, icon_filename
-                FROM groups
-            """
-
-            if case let .success(iconRows) = DatabaseManager.shared.executeQuery(
-                groupIconQuery,
-                parameters: []
-            ) {
-                for iconRow in iconRows {
-                    guard let groupID = iconRow["group_id"] as? Int,
-                          let iconFileName = iconRow["icon_filename"] as? String
-                    else {
-                        continue
-                    }
-
-                    // 在内存中过滤：只处理需要的 groupID
-                    guard uniqueGroupIDs.contains(groupID) else {
-                        continue
-                    }
-
-                    groupIconMap[groupID] = iconFileName.isEmpty ? IconManager.defaultIcon : iconFileName
-                }
+        for groupID in uniqueGroupIDs {
+            if let group = SDEMemoryStore.group(for: groupID) {
+                groupIconMap[groupID] = group.iconFilename
             }
         }
 

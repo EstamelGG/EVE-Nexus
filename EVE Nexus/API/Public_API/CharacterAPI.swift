@@ -233,14 +233,13 @@ final class CharacterAPI: @unchecked Sendable {
         do {
             // 使用 ImageCacheManager
             // backgroundUpdate: true 表示先返回缓存，后台验证ETag并更新
-            let image = try await ImageCacheManager.shared.fetchImage(
+            return try await ImageCacheManager.shared.fetchImage(
                 from: portraitURL,
                 forceRefresh: forceRefresh,
                 backgroundUpdate: true
             )
 
-            Logger.info("成功获取角色头像 - 角色ID: \(characterId), 大小: \(size)")
-            return image
+            // Logger.info("成功获取角色头像 - 角色ID: \(characterId), 大小: \(size)")
 
         } catch {
             Logger.error("获取角色头像失败 - 角色ID: \(characterId), 错误: \(error)")

@@ -82,11 +82,11 @@ struct PersonalContractsView: View {
     // 使用FormatUtil进行日期处理，无需自定义格式化器
 
     init(character: EVECharacterInfo) {
-        // 先创建ViewModel实例
-        let vm = PersonalContractsViewModel(
+        // 构造表达式内联在 autoclosure 中，避免父视图每次重渲染都新建 ViewModel；
+        // 数据加载已在 ViewModel init 中启动
+        _viewModel = StateObject(wrappedValue: PersonalContractsViewModel(
             characterId: character.CharacterID, character: character
-        )
-        _viewModel = StateObject(wrappedValue: vm)
+        ))
 
         // 检查是否是首次使用（没有缓存）
         let typesKey = "selectedContractTypes_\(character.CharacterID)"
@@ -110,19 +110,6 @@ struct PersonalContractsView: View {
         _selectedContractStatuses = AppStorage(wrappedValue: defaultStatuses, statusesKey)
         _maxContracts = AppStorage(wrappedValue: 300, "maxContracts_\(character.CharacterID)")
         _courierMode = AppStorage(wrappedValue: false, "courierMode_\(character.CharacterID)")
-
-        // 在初始化后立即开始加载数据，但不在闭包中捕获self
-        Task {
-            Logger.debug("PersonalContractsView - 初始化时加载数据")
-            // 等待数据加载完成
-            await vm.loadContractsData()
-
-            // 使用MainActor确保在主线程上更新UI状态
-            // 数据加载完成后，一次性更新 UI 状态
-            await MainActor.run {
-                vm.isInitialized = true
-            }
-        }
     }
 
     /// 修改过滤逻辑

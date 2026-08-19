@@ -94,28 +94,11 @@ struct SystemsListView: View {
         isLoading = true
 
         DispatchQueue.global(qos: .userInitiated).async {
-            let query = """
-                SELECT solarsystem_id, system_security, region_id
-                FROM universe
-                WHERE solarsystem_id IN (\(systemIds.map { String($0) }.joined(separator: ",")))
-            """
-
+            // 内存索引取星系安等和星域
             var loadedSystems: [(id: Int, security: Double, regionId: Int)] = []
-
-            if case let .success(rows) = DatabaseManager.shared.executeQuery(query) {
-                for row in rows {
-                    guard let systemId = row["solarsystem_id"] as? Int,
-                          let security = row["system_security"] as? Double,
-                          let regionId = row["region_id"] as? Int
-                    else { continue }
-                    loadedSystems.append(
-                        (
-                            id: systemId,
-                            security: security,
-                            regionId: regionId
-                        )
-                    )
-                }
+            for systemId in systemIds {
+                guard let info = SDEMemoryStore.universeSystems[systemId] else { continue }
+                loadedSystems.append((id: systemId, security: info.security, regionId: info.regionID))
             }
 
             loadedSystems.sort {

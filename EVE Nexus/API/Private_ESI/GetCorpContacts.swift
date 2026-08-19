@@ -84,12 +84,20 @@ class GetCorpContacts {
             throw NetworkError.invalidURL
         }
 
-        let contacts = try await NetworkManager.shared.fetchPaginatedData(
-            from: baseUrl,
+        // 403 负缓存统一由 CorpForbiddenCache 管理
+        let contacts = try await CorpForbiddenCache.shared.perform(
+            scope: "corpContacts",
+            corporationId: corporationId,
             characterId: characterId,
-            maxConcurrentPages: 3,
-            decoder: { try JSONDecoder().decode([ContactInfo].self, from: $0) }
-        )
+            forceRefresh: forceRefresh
+        ) {
+            try await NetworkManager.shared.fetchPaginatedData(
+                from: baseUrl,
+                characterId: characterId,
+                maxConcurrentPages: 3,
+                decoder: { try JSONDecoder().decode([ContactInfo].self, from: $0) }
+            )
+        }
 
         // 保存到缓存
         saveToCache(contacts: contacts, corporationId: corporationId)

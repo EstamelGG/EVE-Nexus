@@ -6,12 +6,15 @@ import UserNotifications
 struct EVE_NexusApp: App {
     @AppStorage("selectedLanguage") private var selectedLanguage: String?
     @AppStorage("selectedDatabaseLanguage") private var selectedDatabaseLanguage: String?
+    @AppStorage("selectedTheme") private var selectedTheme: String = "system"
     @StateObject private var databaseManager = DatabaseManager()
     @StateObject private var rateLimitAlertManager = RateLimitAlertManager.shared
-    @State private var loadingState: LoadingState = .processing
     @State private var isInitialized = false
-    @State private var unzipProgress: Double = 0
-    @State private var needsUnzip = false
+    /// 开屏加载状态
+    @State private var startupStage: StartupStage = .checking
+    @State private var startupProgress: Double?
+    @State private var startupDetailText: String?
+    @State private var hasStartedLoading = false
 
     private func getLanguageCode(_ language: String) -> String {
         return language.hasPrefix("zh-Hans") ? "zh-Hans" : "en"
@@ -196,6 +199,11 @@ struct EVE_NexusApp: App {
 
     private func checkAndPrepareStaticResources() async {
         let downloader = SDEDownloader()
+        await MainActor.run {
+            startupStage = .checking
+            startupProgress = nil
+            startupDetailText = nil
+        }
         let needFullSeed = StaticResourceManager.shared.needsSeedSDEExtraction()
         let needIconsOnly = !needFullSeed && shouldExtractIcons()
         Logger.info("[SDE初始化] 校验结果: needFullSeed=\(needFullSeed), needIconsOnly=\(needIconsOnly)")
@@ -214,8 +222,8 @@ struct EVE_NexusApp: App {
             Logger.info("触发图标更新，将释放 icons.zip")
         }
         await MainActor.run {
-            needsUnzip = true
-            unzipProgress = 0
+            startupStage = .extracting
+            startupProgress = 0
         }
 
         do {
@@ -242,7 +250,6 @@ struct EVE_NexusApp: App {
             await MainActor.run {
                 IconManager.shared.clearCache()
                 DatabaseManager.shared.clearCache()
-                loadingState = .complete
             }
             await initializeApp()
         } catch {
@@ -254,7 +261,9 @@ struct EVE_NexusApp: App {
 
     private func updateUnzipProgress(_ progress: Double) {
         Task { @MainActor in
-            unzipProgress = progress
+            if case .extracting = startupStage {
+                startupProgress = progress
+            }
         }
     }
 
@@ -362,9 +371,35 @@ struct EVE_NexusApp: App {
             return s * 1000 + a / 1_000_000_000_000_000
         }
 
+        await MainActor.run {
+            startupStage = .loadingDB
+            startupProgress = 0
+            startupDetailText = nil
+        }
+
         let dbManager = databaseManager
         async let mainDBDuration: Duration = Task.detached(priority: .userInitiated) { () -> Duration in
-            ContinuousClock().measure { dbManager.loadDatabase() }
+            let duration = ContinuousClock().measure {
+                dbManager.loadDatabase { completed, total in
+                    Task { @MainActor in
+                        startupProgress = Double(completed) / Double(total)
+                        startupDetailText = "\(completed)/\(total)"
+                    }
+                }
+            }
+
+            // 依赖主库的初始化（原在主线程执行，是首帧前卡顿主因；两者均为纯内存构建，可安全后台执行）
+            await MainActor.run {
+                startupStage = .initializing
+                startupProgress = nil
+                startupDetailText = nil
+            }
+            SkillTreeManager.shared.initialize(databaseManager: dbManager)
+            Logger.info("技能树初始化完成")
+            PIResourceCache.shared.preloadResourceInfo()
+            Logger.info("行星资源缓存初始化完成")
+
+            return duration
         }.value
         async let itemTextDuration: Duration = Task.detached(priority: .userInitiated) { () -> Duration in
             ContinuousClock().measure { ItemTextStore.shared.syncWithActiveSDE() }
@@ -385,15 +420,7 @@ struct EVE_NexusApp: App {
         let totalMs = ms(stageStart.duration(to: clock.now))
         Logger.info("数据库阶段加载完成: 总耗时 \(totalMs)ms (主库 \(mainDBMs)ms / 文本 \(itemTextMs)ms / 角色库 \(charDBMs)ms)")
 
-        // 后续依赖主库的步骤（MainActor 串行）
         await MainActor.run {
-            // 步骤1：初始化技能树
-            SkillTreeManager.shared.initialize(databaseManager: databaseManager)
-            Logger.info("技能树初始化完成")
-            // 步骤2：预加载行星资源缓存
-            PIResourceCache.shared.preloadResourceInfo()
-            Logger.info("行星资源缓存初始化完成")
-
             // 清理钱包旧数据（在后台线程执行，不阻塞初始化）
             Task.detached(priority: .background) {
                 let journalDeleted = WalletJournalAPI.shared.cleanupOldData()
@@ -412,24 +439,45 @@ struct EVE_NexusApp: App {
         }
     }
 
+    /// 主题映射：selectedTheme(system/light/dark) → ColorScheme；nil 表示跟随系统。
+    /// 收敛于此并挂在根视图上，开屏页（含 ContentView 挂载之前）与主界面首帧即获得正确主题
+    private var preferredColorScheme: ColorScheme? {
+        switch selectedTheme {
+        case "light":
+            return .light
+        case "dark":
+            return .dark
+        default:
+            return nil
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             ZStack {
                 if isInitialized {
                     ContentView(databaseManager: databaseManager)
-                } else if needsUnzip {
-                    LoadingView(loadingState: $loadingState, progress: unzipProgress) {
-                        // 解压完成后会在 checkAndPrepareStaticResources 中调用 initializeApp
-                    }
+                        .transition(.opacity)
                 } else {
-                    Color.clear
-                        .onAppear {
-                            Task {
-                                await checkAndPrepareStaticResources()
-                            }
+                    StartupSplashView(
+                        stage: startupStage,
+                        progress: startupProgress,
+                        detailText: startupDetailText
+                    )
+                    .transition(.opacity)
+                    .onAppear {
+                        guard !hasStartedLoading else { return }
+                        hasStartedLoading = true
+                        Task {
+                            await checkAndPrepareStaticResources()
                         }
+                    }
                 }
             }
+            // 初始化完成后开屏与主界面交叉淡入淡出
+            .animation(.easeInOut(duration: 0.5), value: isInitialized)
+            // 主题统一在根视图生效，开屏页与主界面共享同一份映射（@AppStorage 变化即时刷新）
+            .preferredColorScheme(preferredColorScheme)
             .alert(NSLocalizedString("RateLimit_Alert_Title", comment: ""), isPresented: $rateLimitAlertManager.shouldShowRateLimitAlert) {
                 Button(NSLocalizedString("RateLimit_Alert_OK", comment: "")) {}
             } message: {

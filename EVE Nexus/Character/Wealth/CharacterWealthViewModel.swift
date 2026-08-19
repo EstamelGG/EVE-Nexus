@@ -160,23 +160,20 @@ class CharacterWealthViewModel: ObservableObject {
         self.databaseManager = databaseManager
     }
 
-    /// 获取多个物品的信息
+    /// 获取多个物品的信息（内存索引，保持行字典结构供调用方使用）
     func getItemsInfo(typeIds: [Int]) -> [[String: Any]] {
         if typeIds.isEmpty { return [] }
 
-        let query = """
-            SELECT type_id, name, icon_filename 
-            FROM types 
-            WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
-        """
-
-        switch databaseManager.executeQuery(query, parameters: []) {
-        case let .success(rows):
-            return rows
-        case let .error(error):
-            Logger.error("获取物品信息失败: \(error)")
-            return []
+        var rows: [[String: Any]] = []
+        for typeId in typeIds.sorted() {
+            guard let info = SDEMemoryStore.type(for: typeId) else { continue }
+            rows.append([
+                "type_id": typeId,
+                "name": info.name,
+                "icon_filename": info.iconFilename,
+            ])
         }
+        return rows
     }
 
     /// 加载所有财富数据

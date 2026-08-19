@@ -168,32 +168,15 @@ struct MarketRegionPickerView: View {
         updateSections()
     }
 
-    /// 加载常见星系数据
+    /// 加载常见星系数据（内存索引）
     private func loadCommonSystems() {
         guard !commonSystemIDs.isEmpty else {
             commonSystems = []
             return
         }
 
-        let query = """
-            SELECT solarsystem_id, region_id
-            FROM universe
-            WHERE solarsystem_id IN (\(commonSystemIDs.map { String($0) }.joined(separator: ",")))
-        """
-
-        var regionBySystem: [Int: Int] = [:]
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            for row in rows {
-                if let systemID = row["solarsystem_id"] as? Int,
-                   let regionID = row["region_id"] as? Int
-                {
-                    regionBySystem[systemID] = regionID
-                }
-            }
-        }
-
         commonSystems = commonSystemIDs.map { id in
-            CommonSystem(id: "\(id)", regionID: regionBySystem[id])
+            CommonSystem(id: "\(id)", regionID: SDEMemoryStore.universeSystems[id]?.regionID)
         }
     }
 

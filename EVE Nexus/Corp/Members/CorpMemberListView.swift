@@ -55,18 +55,11 @@ struct LocationCacheInfo {
 
 // MARK: - View Model
 
+@MainActor
 class CorpMemberListViewModel: ObservableObject {
     @Published var members: [MemberDetailInfo] = []
-    @Published var isLoading = true
-    @Published var error: Error? {
-        didSet {
-            if error != nil {
-                showError = true
-            }
-        }
-    }
-
-    @Published var showError = false
+    @Published var isLoading = false
+    @Published var error: Error?
     @Published var currentPage = 0
     @Published var totalPages = 0
     @Published var searchText: String = ""
@@ -78,9 +71,7 @@ class CorpMemberListViewModel: ObservableObject {
         }
         set {
             sortOptionRaw = newValue.rawValue
-            Task { @MainActor in
-                sortMembers()
-            }
+            sortMembers()
         }
     }
 
@@ -88,8 +79,11 @@ class CorpMemberListViewModel: ObservableObject {
     var allMembers: [MemberDetailInfo] = []
     private let characterId: Int
     private let databaseManager: DatabaseManager
-    private var loadingTask: Task<Void, Never>?
-    private var initialLoadDone = false
+
+    /// 当前查看者登录角色（用于跳转人物详情）
+    var currentCharacter: EVECharacterInfo? {
+        EVELogin.shared.getCharacterByID(characterId)?.character
+    }
 
     /// 位置信息缓存
     private var locationCache: [Int64: LocationCacheInfo] = [:]
@@ -134,10 +128,14 @@ class CorpMemberListViewModel: ObservableObject {
     init(characterId: Int, databaseManager: DatabaseManager) {
         self.characterId = characterId
         self.databaseManager = databaseManager
+
+        // 创建即加载（与月矿/建筑页一致），视图层无需触发
+        Task {
+            await loadMembers()
+        }
     }
 
     /// 切换成员的置顶状态
-    @MainActor
     func togglePinStatus(for memberId: Int) {
         Task {
             var ids = pinnedMemberIds
@@ -195,7 +193,6 @@ class CorpMemberListViewModel: ObservableObject {
         }
     }
 
-    @MainActor
     func updatePage() {
         let filtered = filteredMembers
         totalPages = max(1, (filtered.count + pageSize - 1) / pageSize)
@@ -213,7 +210,6 @@ class CorpMemberListViewModel: ObservableObject {
         members = Array(filtered[start ..< end])
     }
 
-    @MainActor
     func nextPage() {
         if currentPage < totalPages - 1 {
             currentPage += 1
@@ -221,7 +217,6 @@ class CorpMemberListViewModel: ObservableObject {
         }
     }
 
-    @MainActor
     func previousPage() {
         if currentPage > 0 {
             currentPage -= 1
@@ -232,7 +227,6 @@ class CorpMemberListViewModel: ObservableObject {
     // MARK: - Location Methods
 
     /// 获取位置信息，优先从缓存获取
-    @MainActor
     func getLocationInfo(locationId: Int64) async -> LocationCacheInfo {
         // 1. 检查缓存
         if let cached = locationCache[locationId] {
@@ -255,61 +249,29 @@ class CorpMemberListViewModel: ObservableObject {
     }
 
     /// 初始化基础位置信息（星系和空间站）
-    @MainActor
     private func initializeBasicLocationInfo(locationIds: Set<Int64>) async {
         Logger.debug("开始初始化位置信息 - 总数: \(locationIds.count)")
 
         // 按类型分组
         let groupedIds = Dictionary(grouping: locationIds) { LocationType.from(id: $0) }
 
-        // 加载星系信息
+        // 加载星系信息（内存索引）
         if let solarSystemIds = groupedIds[.solarSystem] {
-            Logger.debug("加载星系信息 - 数量: \(solarSystemIds.count)")
-            let query = """
-                SELECT solarsystem_id, system_security
-                FROM universe
-                WHERE solarsystem_id IN (\(solarSystemIds.sorted().map { String($0) }.joined(separator: ",")))
-            """
+            var loadedCount = 0
+            for rawId in solarSystemIds {
+                let systemId = Int(rawId)
+                guard let info = SDEMemoryStore.universeSystems[systemId],
+                      let systemName = SDEMemoryStore.solarSystemName(for: systemId)
+                else { continue }
 
-            if case let .success(rows) = databaseManager.executeQuery(query) {
-                Logger.debug("查询到星系数量: \(rows.count)")
-                for row in rows {
-                    let rawSystemId = row["solarsystem_id"]
-                    let rawSecurity = row["system_security"]
-
-                    let systemId: Int64
-                    if let id = rawSystemId as? Int64 {
-                        systemId = id
-                    } else if let id = rawSystemId as? Int {
-                        systemId = Int64(id)
-                    } else {
-                        Logger.error("systemId 类型转换失败: \(String(describing: rawSystemId))")
-                        continue
-                    }
-
-                    guard let systemName = SDEMemoryStore.solarSystemName(for: Int(systemId)) else {
-                        continue
-                    }
-
-                    let security: Double
-                    if let sec = rawSecurity as? Double {
-                        security = sec
-                    } else if let sec = rawSecurity as? String {
-                        security = Double(sec) ?? 0.0
-                    } else {
-                        Logger.error("security 类型转换失败: \(String(describing: rawSecurity))")
-                        continue
-                    }
-
-                    locationCache[systemId] = LocationCacheInfo(
-                        systemName: systemName,
-                        security: security,
-                        stationName: nil
-                    )
-                }
-            } else {
-                Logger.error("星系查询失败 - SQL: \(query)")
+                locationCache[rawId] = LocationCacheInfo(
+                    systemName: systemName,
+                    security: info.security,
+                    stationName: nil
+                )
+                loadedCount += 1
             }
+            Logger.debug("加载星系信息 - 数量: \(solarSystemIds.count)，成功: \(loadedCount)")
         }
 
         // 加载空间站信息（名称/安等走内存）
@@ -344,7 +306,6 @@ class CorpMemberListViewModel: ObservableObject {
     }
 
     /// 加载建筑物位置信息
-    @MainActor
     private func loadStructureLocationInfo(locationId: Int64) async -> LocationCacheInfo {
         do {
             let structureInfo = try await UniverseStructureAPI.shared.fetchStructureInfo(
@@ -353,22 +314,12 @@ class CorpMemberListViewModel: ObservableObject {
             )
 
             let systemId = structureInfo.solar_system_id
-            let query = """
-                SELECT system_security
-                FROM universe
-                WHERE solarsystem_id = ?
-            """
-
-            if case let .success(rows) = databaseManager.executeQuery(
-                query, parameters: [systemId]
-            ),
-                let row = rows.first,
-                let systemName = SDEMemoryStore.solarSystemName(for: systemId),
-                let security = row["system_security"] as? Double
+            if let info = SDEMemoryStore.universeSystems[systemId],
+               let systemName = SDEMemoryStore.solarSystemName(for: systemId)
             {
                 let locationInfo = LocationCacheInfo(
                     systemName: systemName,
-                    security: security,
+                    security: info.security,
                     stationName: structureInfo.name
                 )
                 locationCache[locationId] = locationInfo
@@ -383,114 +334,104 @@ class CorpMemberListViewModel: ObservableObject {
 
     // MARK: - Loading Methods
 
-    @MainActor
-    func loadMembers(forceRefresh: Bool = false) {
-        // 如果已经加载过且不是强制刷新，则跳过
-        if initialLoadDone, !forceRefresh {
-            return
-        }
+    func loadMembers(forceRefresh: Bool = false) async {
+        // 防重入：加载中直接忽略后来者（含刷新请求）
+        guard !isLoading else { return }
+        // 幂等：已有数据且非强制刷新时跳过
+        guard forceRefresh || allMembers.isEmpty else { return }
 
-        cancelLoading(clearData: false)
+        isLoading = true
+        error = nil
+        defer { isLoading = false } // 保证加载状态必然复位，不会卡在加载态
+        locationCache.removeAll()
 
-        loadingTask = Task { @MainActor in
-            isLoading = true
-            error = nil
-            locationCache.removeAll()
+        do {
+            // 1. 获取成员基本信息
+            let memberList = try await CorpMembersAPI.shared.fetchMemberTracking(
+                characterId: characterId,
+                forceRefresh: forceRefresh
+            )
 
-            do {
-                // 1. 获取成员基本信息
-                let memberList = try await CorpMembersAPI.shared.fetchMemberTracking(
-                    characterId: characterId,
-                    forceRefresh: forceRefresh
-                )
+            // 2. 获取所有角色ID
+            let characterIds = memberList.map { $0.character_id }
 
-                if Task.isCancelled { return }
+            // 3. 批量获取角色名称
+            let characterNames = try await UniverseAPI.shared.getNamesWithFallback(
+                ids: characterIds
+            )
 
-                // 2. 获取所有角色ID
-                let characterIds = memberList.map { $0.character_id }
+            // 4. 批量获取飞船信息
+            let shipTypeIds = Set(memberList.compactMap { $0.ship_type_id })
+            var shipInfoMap: [Int: (name: String, iconFilename: String)] = [:]
 
-                // 3. 批量获取角色名称
-                let characterNames = try await UniverseAPI.shared.getNamesWithFallback(
-                    ids: characterIds
-                )
+            if !shipTypeIds.isEmpty {
+                let query = """
+                    SELECT type_id, name, icon_filename
+                    FROM types
+                    WHERE type_id IN (\(shipTypeIds.sorted().map { String($0) }.joined(separator: ",")))
+                """
 
-                if Task.isCancelled { return }
-
-                // 4. 批量获取飞船信息
-                let shipTypeIds = Set(memberList.compactMap { $0.ship_type_id })
-                var shipInfoMap: [Int: (name: String, iconFilename: String)] = [:]
-
-                if !shipTypeIds.isEmpty {
-                    let query = """
-                        SELECT type_id, name, icon_filename 
-                        FROM types 
-                        WHERE type_id IN (\(shipTypeIds.sorted().map { String($0) }.joined(separator: ",")))
-                    """
-
-                    if case let .success(rows) = databaseManager.executeQuery(query) {
-                        for row in rows {
-                            if let typeId = row["type_id"] as? Int,
-                               let typeName = row["name"] as? String
-                            {
-                                let iconFilename = (row["icon_filename"] as? String) ?? ""
-                                shipInfoMap[typeId] = (
-                                    name: typeName,
-                                    iconFilename: iconFilename.isEmpty
-                                        ? IconManager.defaultItemIcon : iconFilename
-                                )
-                            }
+                if case let .success(rows) = databaseManager.executeQuery(query) {
+                    for row in rows {
+                        if let typeId = row["type_id"] as? Int,
+                           let typeName = row["name"] as? String
+                        {
+                            let iconFilename = (row["icon_filename"] as? String) ?? ""
+                            shipInfoMap[typeId] = (
+                                name: typeName,
+                                iconFilename: iconFilename.isEmpty
+                                    ? IconManager.defaultItemIcon : iconFilename
+                            )
                         }
                     }
                 }
+            }
 
-                // 5. 创建初始成员列表
-                let pinnedIds = pinnedMemberIds
-                allMembers = memberList.map { member in
-                    MemberDetailInfo(
-                        member: member,
-                        characterName: characterNames[member.character_id]?.name
-                            ?? String(member.character_id),
-                        shipInfo: member.ship_type_id.flatMap { shipInfoMap[$0] },
-                        isPinned: pinnedIds.contains(member.character_id)
-                    )
-                }
-
-                // 根据当前排序选项进行排序
-                sortMembers()
-
-                // 计算总页数
-                totalPages = (allMembers.count + pageSize - 1) / pageSize
-                // 重置到第一页
-                currentPage = 0
-                updatePage()
-
-                // 6. 初始化基础位置信息
-                let locationIds = Set(
-                    memberList.compactMap { member in
-                        if let locationId = member.location_id {
-                            return Int64(locationId)
-                        }
-                        return nil
-                    }
+            // 5. 创建初始成员列表
+            let pinnedIds = pinnedMemberIds
+            allMembers = memberList.map { member in
+                MemberDetailInfo(
+                    member: member,
+                    characterName: characterNames[member.character_id]?.name
+                        ?? String(member.character_id),
+                    shipInfo: member.ship_type_id.flatMap { shipInfoMap[$0] },
+                    isPinned: pinnedIds.contains(member.character_id)
                 )
-                await initializeBasicLocationInfo(locationIds: locationIds)
+            }
 
-                initialLoadDone = true
+            // 根据当前排序选项进行排序
+            sortMembers()
 
-            } catch is CancellationError {
-                Logger.debug("军团成员列表加载已取消")
-            } catch {
+            // 计算总页数
+            totalPages = (allMembers.count + pageSize - 1) / pageSize
+            // 重置到第一页
+            currentPage = 0
+            updatePage()
+
+            // 6. 初始化基础位置信息
+            let locationIds = Set(
+                memberList.compactMap { member in
+                    if let locationId = member.location_id {
+                        return Int64(locationId)
+                    }
+                    return nil
+                }
+            )
+            await initializeBasicLocationInfo(locationIds: locationIds)
+        } catch {
+            if error is CancellationError {
+                // 下拉刷新被中断等产生的取消不作为错误展示
+            } else {
+                // 任何其他失败都记录 error；
+                // 视图按 allMembers.isEmpty 决定显示错误页（带重试）还是保留旧列表
                 Logger.error("加载军团成员列表失败: \(error)")
                 self.error = error
             }
-
-            isLoading = false
         }
     }
 
     // MARK: - Member Detail Loading
 
-    @MainActor
     func loadMemberDetails(for memberId: Int) {
         Logger.info("Loading \(memberId)")
 
@@ -543,26 +484,7 @@ class CorpMemberListViewModel: ObservableObject {
         }
     }
 
-    func cancelLoading(clearData: Bool = false) {
-        loadingTask?.cancel()
-        loadingTask = nil
-
-        if clearData {
-            allMembers.removeAll()
-            members.removeAll()
-            locationCache.removeAll()
-            currentPage = 0
-            totalPages = 0
-            initialLoadDone = false
-        }
-    }
-
-    deinit {
-        cancelLoading(clearData: true)
-    }
-
     /// 仅更新大头针状态
-    @MainActor
     func refreshPinStatus() {
         let ids = pinnedMemberIds
         // 更新所有成员的置顶状态
@@ -573,7 +495,6 @@ class CorpMemberListViewModel: ObservableObject {
         updatePage()
     }
 
-    @MainActor
     func sortMembers() {
         // 定义排序函数
         let sortFunction: (MemberDetailInfo, MemberDetailInfo) -> Bool = { member1, member2 in
@@ -606,7 +527,6 @@ class CorpMemberListViewModel: ObservableObject {
         updatePage()
     }
 
-    @MainActor
     func setSortOption(_ option: MemberSortOption) {
         sortOption = option
         // 确保在设置排序选项时也会触发收藏列表的排序
@@ -614,7 +534,6 @@ class CorpMemberListViewModel: ObservableObject {
     }
 
     /// 添加公共方法获取过滤后的成员数量
-    @MainActor
     func getFilteredMembersCount() -> Int {
         if searchText.isEmpty {
             return allMembers.count
@@ -628,7 +547,6 @@ class CorpMemberListViewModel: ObservableObject {
     }
 
     /// 添加公共方法获取过滤后的收藏成员
-    @MainActor
     func getFilteredPinnedMembers() -> [MemberDetailInfo] {
         if searchText.isEmpty {
             return pinnedMembers
@@ -641,7 +559,6 @@ class CorpMemberListViewModel: ObservableObject {
         }
     }
 
-    @MainActor
     func loadPinnedMembers() {
         let ids = pinnedMemberIds
         // 从 allMembers 中获取基本信息
@@ -654,7 +571,6 @@ class CorpMemberListViewModel: ObservableObject {
     }
 
     /// 添加公共方法来获取过滤后的收藏成员数量
-    @MainActor
     func getFilteredPinnedMembersCount() -> Int {
         if searchText.isEmpty {
             return pinnedMembers.count
@@ -670,7 +586,6 @@ struct LocationView: View {
     let locationId: Int64
     @ObservedObject var viewModel: CorpMemberListViewModel
     @State private var locationInfo: LocationCacheInfo?
-    @State private var loadingTask: Task<Void, Never>?
 
     var body: some View {
         if let info = locationInfo {
@@ -685,21 +600,12 @@ struct LocationView: View {
             Text(NSLocalizedString("Misc_Loading", comment: ""))
                 .font(.caption)
                 .foregroundColor(.gray)
-                .onAppear {
-                    // 取消之前的任务
-                    loadingTask?.cancel()
-
-                    // 创建新的延迟加载任务
-                    loadingTask = Task {
-                        try? await Task.sleep(nanoseconds: 100_000_000) // 0.1秒延迟
-                        if !Task.isCancelled {
-                            locationInfo = await viewModel.getLocationInfo(locationId: locationId)
-                        }
-                    }
-                }
-                .onDisappear {
-                    loadingTask?.cancel()
-                    loadingTask = nil
+                .task {
+                    // 0.1秒防抖：快速滚动划过的行不触发位置加载；
+                    // .task 在视图消失时自动取消，无需手动管理任务
+                    try? await Task.sleep(nanoseconds: 100_000_000)
+                    guard !Task.isCancelled else { return }
+                    locationInfo = await viewModel.getLocationInfo(locationId: locationId)
                 }
         }
     }
@@ -708,19 +614,22 @@ struct LocationView: View {
 struct MemberRowView: View {
     let member: MemberDetailInfo
     @ObservedObject var viewModel: CorpMemberListViewModel
-    @State private var loadingTask: Task<Void, Never>?
-    @State private var isLoadingPortrait: Bool = false
-    @State private var hasAttemptedPortraitLoad: Bool = false
 
     var body: some View {
+        NavigationLink {
+            if let character = viewModel.currentCharacter {
+                CharacterDetailView(characterId: member.id, character: character)
+            }
+        } label: {
+            memberRowContent
+        }
+        .buttonStyle(.plain)
+    }
+
+    private var memberRowContent: some View {
         HStack(spacing: 12) {
             // 头像
-            if isLoadingPortrait {
-                ProgressView()
-                    .frame(width: 48, height: 48)
-                    .background(Color(.systemGray6))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-            } else if let portrait = member.portrait {
+            if let portrait = member.portrait {
                 Image(uiImage: portrait)
                     .resizable()
                     .frame(width: 48, height: 48)
@@ -784,37 +693,8 @@ struct MemberRowView: View {
         }
         .padding(.vertical, 4)
         .onAppear {
-            scheduleLoad()
-        }
-        .onDisappear {
-            loadingTask?.cancel()
-            loadingTask = nil
-        }
-    }
-
-    private func scheduleLoad() {
-        loadingTask?.cancel()
-        loadingTask = Task {
-            if !Task.isCancelled && !hasAttemptedPortraitLoad {
-                await loadPortrait()
-            }
-        }
-    }
-
-    private func loadPortrait() async {
-        guard !isLoadingPortrait, !hasAttemptedPortraitLoad else { return }
-
-        isLoadingPortrait = true
-        hasAttemptedPortraitLoad = true
-
-        do {
+            // 幂等：已加载过详情的成员在 VM 内部直接跳过
             viewModel.loadMemberDetails(for: member.id)
-        }
-
-        if !Task.isCancelled {
-            await MainActor.run {
-                isLoadingPortrait = false
-            }
         }
     }
 }
@@ -868,8 +748,8 @@ struct CorpMemberListView: View {
     var body: some View {
         VStack(spacing: 0) {
             List {
-                // 特别关注部分
-                if !viewModel.isLoading {
+                // 特别关注部分（错误态下不显示，保持错误页整页一致性）
+                if !viewModel.isLoading, viewModel.error == nil {
                     Section {
                         NavigationLink(destination: FavoriteMembersView(viewModel: viewModel)) {
                             Text(
@@ -879,9 +759,9 @@ struct CorpMemberListView: View {
                     }
                 }
 
-                // 成员列表部分
-                Section {
-                    if viewModel.isLoading {
+                // 成员列表部分（加载/错误/数据各为独立 Section，与其他军团页面一致）
+                if viewModel.isLoading {
+                    Section {
                         HStack {
                             Spacer()
                             VStack {
@@ -897,74 +777,31 @@ struct CorpMemberListView: View {
                             Spacer()
                         }
                         .padding()
-                        .listRowBackground(Color.clear)
-                    } else if let error = viewModel.error,
-                              !viewModel.isLoading && viewModel.allMembers.isEmpty
-                    {
-                        // 显示错误信息
-                        HStack {
-                            Spacer()
-                            VStack(spacing: 12) {
-                                Image(systemName: "exclamationmark.triangle")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(.orange)
-                                Text(NSLocalizedString("Common_Error", comment: ""))
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-                                Text(error.localizedDescription)
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
-                                Button(action: {
-                                    viewModel.loadMembers(forceRefresh: true)
-                                }) {
-                                    Text(NSLocalizedString("ESI_Status_Retry", comment: ""))
-                                        .padding(.horizontal, 20)
-                                        .padding(.vertical, 8)
-                                        .background(Color.accentColor)
-                                        .foregroundColor(.white)
-                                        .cornerRadius(8)
-                                }
-                                .padding(.top, 8)
-                            }
-                            .padding()
-                            Spacer()
-                        }
-                        .listRowBackground(Color.clear)
-                    } else {
-                        let filteredMembers = viewModel.members
-                        if filteredMembers.isEmpty {
-                            Section {
-                                HStack {
-                                    Spacer()
-                                    VStack(spacing: 8) {
-                                        Image(systemName: "person.3")
-                                            .font(.system(size: 30))
-                                            .foregroundColor(.gray)
-                                        Text(
-                                            viewModel.searchText.isEmpty
-                                                ? NSLocalizedString(
-                                                    "Main_Corporation_Members_No_Data", comment: ""
-                                                )
-                                                : NSLocalizedString(
-                                                    "Main_Corporation_Members_No_Search_Results",
-                                                    comment: ""
-                                                )
-                                        )
-                                        .foregroundColor(.gray)
-                                    }
-                                    .padding()
-                                    Spacer()
-                                }
-                            }
-                        } else {
-                            ForEach(filteredMembers) { member in
-                                MemberRowView(member: member, viewModel: viewModel)
-                            }
+                    }
+                } else if let error = viewModel.error,
+                          viewModel.allMembers.isEmpty
+                {
+                    // 显示错误信息
+                    ErrorStateSection(message: error.localizedDescription) {
+                        Task {
+                            await viewModel.loadMembers(forceRefresh: true)
                         }
                     }
-                } header: {
-                    if !viewModel.isLoading {
+                } else if viewModel.members.isEmpty, viewModel.searchText.isEmpty {
+                    // 空数据提示
+                    NoDataSection(
+                        icon: "person.3",
+                        text: NSLocalizedString("Main_Corporation_Members_No_Data", comment: "")
+                    )
+                } else {
+                    Section {
+                        ForEach(viewModel.members) { member in
+                            MemberRowView(member: member, viewModel: viewModel)
+                                .listRowInsets(
+                                    EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18)
+                                )
+                        }
+                    } header: {
                         let totalCount = viewModel.allMembers.count
                         let filteredCount = viewModel.getFilteredMembersCount()
                         if viewModel.searchText.isEmpty {
@@ -1026,16 +863,11 @@ struct CorpMemberListView: View {
             prompt: NSLocalizedString("Main_Corporation_Members_Search_Placeholder", comment: "")
         )
         .refreshable {
-            viewModel.loadMembers(forceRefresh: true)
+            await viewModel.loadMembers(forceRefresh: true)
         }
-        .task {
-            viewModel.loadMembers(forceRefresh: false)
-        }
+        // 首次加载由 VM init 启动（与月矿/建筑页一致），无需 .task 触发
         .onAppear {
             viewModel.refreshPinStatus()
-        }
-        .onDisappear {
-            viewModel.cancelLoading(clearData: false)
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
@@ -1066,7 +898,7 @@ struct CorpMemberListView: View {
         isRefreshing = true
 
         Task {
-            viewModel.loadMembers(forceRefresh: true)
+            await viewModel.loadMembers(forceRefresh: true)
             isRefreshing = false
         }
     }
@@ -1077,8 +909,8 @@ struct FavoriteMembersView: View {
 
     var body: some View {
         List {
-            Section {
-                if viewModel.isLoading {
+            if viewModel.isLoading {
+                Section {
                     HStack {
                         Spacer()
                         VStack {
@@ -1094,61 +926,33 @@ struct FavoriteMembersView: View {
                         Spacer()
                     }
                     .padding()
-                    .listRowBackground(Color.clear)
-                } else if let error = viewModel.error {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(NSLocalizedString("Main_Corporation_Members_Error", comment: ""))
-                            .font(.headline)
-                            .foregroundColor(.red)
-                        Text(error.localizedDescription)
-                            .font(.caption)
-                            .foregroundColor(.gray)
-                        Button(action: {
-                            viewModel.loadMembers(forceRefresh: true)
-                        }) {
-                            Text(
-                                NSLocalizedString(
-                                    "Main_Corporation_Members_Refresh", comment: ""
-                                )
-                            )
-                        }
-                        .padding(.top, 4)
-                    }
-                } else {
-                    let filteredMembers = viewModel.getFilteredPinnedMembers()
-
-                    if filteredMembers.isEmpty {
-                        Section {
-                            HStack {
-                                Spacer()
-                                VStack(spacing: 8) {
-                                    Image(systemName: "star")
-                                        .font(.system(size: 30))
-                                        .foregroundColor(.gray)
-                                    Text(
-                                        viewModel.searchText.isEmpty
-                                            ? NSLocalizedString(
-                                                "Main_Corporation_Members_No_Favorites", comment: ""
-                                            )
-                                            : NSLocalizedString(
-                                                "Main_Corporation_Members_No_Search_Results",
-                                                comment: ""
-                                            )
-                                    )
-                                    .foregroundColor(.gray)
-                                }
-                                .padding()
-                                Spacer()
-                            }
-                        }
-                    } else {
-                        ForEach(filteredMembers) { member in
-                            MemberRowView(member: member, viewModel: viewModel)
-                        }
+                }
+            } else if let error = viewModel.error {
+                // 与军团钱包页一致的错误展示（含重试按钮）
+                ErrorStateSection(message: error.localizedDescription) {
+                    Task {
+                        await viewModel.loadMembers(forceRefresh: true)
                     }
                 }
-            } header: {
-                if !viewModel.isLoading && viewModel.error == nil {
+            } else if viewModel.getFilteredPinnedMembers().isEmpty {
+                // 空数据提示
+                NoDataSection(
+                    icon: "star",
+                    text: viewModel.searchText.isEmpty
+                        ? NSLocalizedString("Main_Corporation_Members_No_Favorites", comment: "")
+                        : NSLocalizedString(
+                            "Main_Corporation_Members_No_Search_Results", comment: ""
+                        )
+                )
+            } else {
+                Section {
+                    ForEach(viewModel.getFilteredPinnedMembers()) { member in
+                        MemberRowView(member: member, viewModel: viewModel)
+                            .listRowInsets(
+                                EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18)
+                            )
+                    }
+                } header: {
                     let totalCount = viewModel.pinnedMembers.count
                     let filteredCount = viewModel.getFilteredPinnedMembersCount()
                     if viewModel.searchText.isEmpty {
@@ -1186,7 +990,7 @@ struct FavoriteMembersView: View {
             prompt: NSLocalizedString("Main_Corporation_Members_Search_Placeholder", comment: "")
         )
         .refreshable {
-            viewModel.loadMembers(forceRefresh: true)
+            await viewModel.loadMembers(forceRefresh: true)
         }
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {

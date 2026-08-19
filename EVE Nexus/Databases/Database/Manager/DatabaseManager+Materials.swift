@@ -3,45 +3,23 @@ import SwiftUI
 
 extension DatabaseManager {
     func getTypeMaterials(for typeID: Int) -> [TypeMaterial]? {
-        let query = """
-            SELECT process_size, output_material, output_quantity, output_material_name, output_material_icon
-            FROM typeMaterials
-            WHERE typeid = ?
-            ORDER BY output_material
-        """
+        // 内存索引取核心列；名称/icon 从 types 解析（与旧表内宽列一致）
+        let entries = SDEMemoryStore.materials(for: typeID)
+        guard !entries.isEmpty else { return nil }
 
-        let result = executeQuery(query, parameters: [typeID])
-        var materials: [TypeMaterial] = []
-
-        switch result {
-        case let .success(rows):
-            for row in rows {
-                guard let process_size = row["process_size"] as? Int,
-                      let outputMaterial = row["output_material"] as? Int,
-                      let outputQuantity = row["output_quantity"] as? Int,
-                      let outputMaterialName = row["output_material_name"] as? String,
-                      let outputMaterialIcon = row["output_material_icon"] as? String
-                else {
-                    continue
-                }
-
-                let material = TypeMaterial(
-                    process_size: process_size,
-                    outputMaterial: outputMaterial,
-                    outputQuantity: outputQuantity,
-                    outputMaterialName: outputMaterialName,
-                    outputMaterialIcon: outputMaterialIcon.isEmpty
-                        ? IconManager.defaultItemIcon : outputMaterialIcon
-                )
-                materials.append(material)
-            }
-
-            return materials.isEmpty ? nil : materials
-
-        case let .error(error):
-            Logger.error("Error fetching type materials: \(error)")
-            return nil
+        let materials: [TypeMaterial] = entries.map { entry in
+            let outputInfo = SDEMemoryStore.type(for: entry.outputMaterial)
+            let iconName = outputInfo?.iconFilename ?? ""
+            return TypeMaterial(
+                process_size: entry.processSize,
+                outputMaterial: entry.outputMaterial,
+                outputQuantity: entry.outputQuantity,
+                outputMaterialName: outputInfo?.name ?? "",
+                outputMaterialIcon: iconName.isEmpty
+                    ? IconManager.defaultItemIcon : iconName
+            )
         }
+        return materials
     }
 
     /// 随机产出材料数据结构

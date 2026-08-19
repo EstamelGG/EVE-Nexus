@@ -119,129 +119,70 @@ struct MarketOrdersVisualizationView: View {
             typeIdOrderCount[order.typeId, default: 0] += 1
         }
 
-        // 查询全部 types 表，在内存中过滤
-        let query = """
-            SELECT type_id, categoryID, category_name, groupID, group_name
-            FROM types
-        """
-
-        // 统计目录和组的订单数
+        // 内存索引统计目录和组的订单数
         var categoryOrderCount: [Int: (categoryID: Int, categoryName: String, orderCount: Int)] = [:]
         var groupOrderCount: [Int: (groupID: Int, groupName: String, orderCount: Int)] = [:]
 
         // 收集所有唯一的categoryID，用于查询目录图标
         var uniqueCategoryIDs: Set<Int> = []
 
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(query, parameters: []) {
-            for row in rows {
-                guard let typeId = row["type_id"] as? Int else {
-                    continue
-                }
+        for (typeId, info) in SDEMemoryStore.types {
+            // 只处理订单中存在的 typeId
+            guard orderTypeIds.contains(typeId),
+                  let orderCount = typeIdOrderCount[typeId]
+            else { continue }
 
-                // 在内存中过滤：只处理订单中存在的 typeId
-                guard orderTypeIds.contains(typeId),
-                      let orderCount = typeIdOrderCount[typeId]
-                else {
-                    continue
-                }
+            // 处理目录
+            let categoryID = info.categoryID
+            let categoryName = SDEMemoryStore.category(for: categoryID)?.name ?? ""
+            uniqueCategoryIDs.insert(categoryID)
+            if let existing = categoryOrderCount[categoryID] {
+                categoryOrderCount[categoryID] = (
+                    categoryID: categoryID,
+                    categoryName: categoryName,
+                    orderCount: existing.orderCount + orderCount
+                )
+            } else {
+                categoryOrderCount[categoryID] = (
+                    categoryID: categoryID,
+                    categoryName: categoryName,
+                    orderCount: orderCount
+                )
+            }
 
-                // 处理目录
-                if let categoryID = row["categoryID"] as? Int,
-                   let categoryName = row["category_name"] as? String
-                {
-                    uniqueCategoryIDs.insert(categoryID)
-                    if let existing = categoryOrderCount[categoryID] {
-                        categoryOrderCount[categoryID] = (
-                            categoryID: categoryID,
-                            categoryName: categoryName,
-                            orderCount: existing.orderCount + orderCount
-                        )
-                    } else {
-                        categoryOrderCount[categoryID] = (
-                            categoryID: categoryID,
-                            categoryName: categoryName,
-                            orderCount: orderCount
-                        )
-                    }
-                }
-
-                // 处理组
-                if let groupID = row["groupID"] as? Int,
-                   let groupName = row["group_name"] as? String
-                {
-                    if let existing = groupOrderCount[groupID] {
-                        groupOrderCount[groupID] = (
-                            groupID: groupID,
-                            groupName: groupName,
-                            orderCount: existing.orderCount + orderCount
-                        )
-                    } else {
-                        groupOrderCount[groupID] = (
-                            groupID: groupID,
-                            groupName: groupName,
-                            orderCount: orderCount
-                        )
-                    }
+            // 处理组
+            if let groupID = info.groupID {
+                let groupName = SDEMemoryStore.group(for: groupID)?.name ?? ""
+                if let existing = groupOrderCount[groupID] {
+                    groupOrderCount[groupID] = (
+                        groupID: groupID,
+                        groupName: groupName,
+                        orderCount: existing.orderCount + orderCount
+                    )
+                } else {
+                    groupOrderCount[groupID] = (
+                        groupID: groupID,
+                        groupName: groupName,
+                        orderCount: orderCount
+                    )
                 }
             }
         }
 
-        // 查询目录图标（查询全部，在内存中过滤）
+        // 查询目录图标（内存索引）
         var categoryIconMap: [Int: String] = [:]
-        if !uniqueCategoryIDs.isEmpty {
-            let categoryIconQuery = """
-                SELECT category_id, icon_filename
-                FROM categories
-            """
-
-            if case let .success(iconRows) = DatabaseManager.shared.executeQuery(
-                categoryIconQuery,
-                parameters: []
-            ) {
-                for iconRow in iconRows {
-                    guard let categoryID = iconRow["category_id"] as? Int,
-                          let iconFileName = iconRow["icon_filename"] as? String
-                    else {
-                        continue
-                    }
-
-                    // 在内存中过滤：只处理需要的 categoryID
-                    guard uniqueCategoryIDs.contains(categoryID) else {
-                        continue
-                    }
-
-                    categoryIconMap[categoryID] = iconFileName.isEmpty ? IconManager.defaultIcon : iconFileName
-                }
+        for categoryID in uniqueCategoryIDs {
+            if let category = SDEMemoryStore.category(for: categoryID) {
+                categoryIconMap[categoryID] = category.iconFilename
             }
         }
 
-        // 查询组图标（查询全部，在内存中过滤）
+        // 查询组图标（内存索引）
         let uniqueGroupIDs = Set(groupOrderCount.keys)
         var groupIconMap: [Int: String] = [:]
-        if !uniqueGroupIDs.isEmpty {
-            let groupIconQuery = """
-                SELECT group_id, icon_filename
-                FROM groups
-            """
-
-            if case let .success(iconRows) = DatabaseManager.shared.executeQuery(
-                groupIconQuery,
-                parameters: []
-            ) {
-                for iconRow in iconRows {
-                    guard let groupID = iconRow["group_id"] as? Int,
-                          let iconFileName = iconRow["icon_filename"] as? String
-                    else {
-                        continue
-                    }
-
-                    // 在内存中过滤：只处理需要的 groupID
-                    guard uniqueGroupIDs.contains(groupID) else {
-                        continue
-                    }
-
-                    groupIconMap[groupID] = iconFileName.isEmpty ? IconManager.defaultIcon : iconFileName
-                }
+        for groupID in uniqueGroupIDs {
+            if let group = SDEMemoryStore.group(for: groupID) {
+                groupIconMap[groupID] = group.iconFilename
             }
         }
 

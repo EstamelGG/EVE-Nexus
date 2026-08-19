@@ -9,6 +9,36 @@ enum StarMapTheme {
     static let chipAccent = Color(red: 0.35, green: 0.78, blue: 0.82)
 }
 
+// MARK: - 地图数据可用性
+
+/// 地图数据可用性：systems_data 中实际包含的星域 ID 集合
+/// SDE 初始化阶段随 loaders 预载，之后纯内存同步查询
+/// 用于"查看地图"入口按需显隐——虫洞等不在地图数据中的星域不显示按钮
+enum StarMapRegionAvailability {
+    /// 地图数据包含的星域 ID（SDE 初始化预载）
+    private(set) static var availableRegionIds: Set<Int> = []
+
+    /// 同步查询星域是否在地图数据中
+    static func isAvailable(_ regionId: Int) -> Bool {
+        availableRegionIds.contains(regionId)
+    }
+
+    /// 预载（读 systems_data 顶层 key，SDE 初始化 loaders 调用）
+    static func preload() {
+        guard
+            let url = StaticResourceManager.shared.getMapDataURL(filename: "systems_data"),
+            let data = try? Data(contentsOf: url),
+            let allSystems = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else {
+            Logger.error("无法读取地图数据 systems_data，地图入口将全部隐藏")
+            return
+        }
+
+        availableRegionIds = Set(allSystems.keys.compactMap { Int($0) })
+        Logger.info("地图数据包含 \(availableRegionIds.count) 个星域")
+    }
+}
+
 enum StarMapColors {
     /// 入侵标记色 #889A2F
     static let incursion = UIColor(red: 136 / 255, green: 154 / 255, blue: 47 / 255, alpha: 1)

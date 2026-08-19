@@ -1,102 +1,5 @@
 import SwiftUI
 
-/// 简化的星系选择器Sheet
-struct StructureSystemSelectorSheet: View {
-    let title: String
-    let onSelect: (Int) -> Void // 只接收星系ID
-    let onCancel: () -> Void
-    let currentSelection: Int?
-
-    // 使用懒加载的星系数据
-    @State private var allSystems: [JumpSystemData] = []
-    @State private var isLoadingData = true
-
-    private let databaseManager = DatabaseManager.shared
-
-    init(
-        title: String, currentSelection: Int? = nil, onSelect: @escaping (Int) -> Void,
-        onCancel: @escaping () -> Void
-    ) {
-        self.title = title
-        self.onSelect = onSelect
-        self.onCancel = onCancel
-        self.currentSelection = currentSelection
-    }
-
-    var body: some View {
-        if isLoadingData {
-            VStack {
-                ProgressView()
-                    .scaleEffect(1.5)
-                    .padding()
-                Text(
-                    NSLocalizedString(
-                        "Structure_Facility_Selector_Loading_Systems", comment: "加载星系数据中..."
-                    )
-                )
-                .foregroundColor(.gray)
-            }
-            .onAppear {
-                loadAllSystemsData()
-            }
-        } else {
-            // 复用SystemSelectorSheet，但包装选择回调
-            SystemSelectorSheet(
-                title: title,
-                currentSelection: currentSelection,
-                onlyLowSec: false, // 建筑可以在所有星系进行
-                jumpSystems: allSystems,
-                onSelect: { systemId in
-                    onSelect(systemId)
-                },
-                onCancel: onCancel
-            )
-        }
-    }
-
-    /// 加载所有星系数据
-    private func loadAllSystemsData() {
-        DispatchQueue.global(qos: .userInitiated).async {
-            let query = """
-                SELECT solarsystem_id, system_security, region_id, x, y, z
-                FROM universe
-            """
-
-            var systems: [JumpSystemData] = []
-
-            if case let .success(rows) = databaseManager.executeQuery(query) {
-                for row in rows {
-                    guard let id = row["solarsystem_id"] as? Int,
-                          let security = row["system_security"] as? Double,
-                          let regionId = row["region_id"] as? Int,
-                          let x = row["x"] as? Double,
-                          let y = row["y"] as? Double,
-                          let z = row["z"] as? Double
-                    else { continue }
-
-                    systems.append(
-                        JumpSystemData(
-                            id: id,
-                            security: calculateDisplaySecurity(security),
-                            regionId: regionId,
-                            x: x,
-                            y: y,
-                            z: z
-                        )
-                    )
-                }
-            }
-
-            systems.sort { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
-
-            DispatchQueue.main.async {
-                allSystems = systems
-                isLoadingData = false
-            }
-        }
-    }
-}
-
 struct StructureFacilitySelectorView: View {
     @ObservedObject var databaseManager: DatabaseManager
     @State private var selectedStructure: DatabaseListItem?
@@ -381,12 +284,13 @@ struct StructureFacilitySelectorView: View {
             }
         }
         .sheet(isPresented: $showSystemSelector) {
-            StructureSystemSelectorSheet(
+            SystemPickerSheet(
                 title: NSLocalizedString(
                     "Structure_Facility_Selector_Select_System", comment: "选择星系"
                 ),
                 currentSelection: selectedSystemId,
-                onSelect: { systemId in
+                showsSovereignty: true,
+                onSelect: { systemId, _ in
                     selectedSystemId = systemId
                     showSystemSelector = false
                 },

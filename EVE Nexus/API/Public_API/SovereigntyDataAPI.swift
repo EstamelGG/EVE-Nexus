@@ -28,6 +28,17 @@ enum SovereigntyDataAPIError: LocalizedError {
     }
 }
 
+// MARK: - 派系信息（universe/factions）
+
+/// ESI universe/factions 返回的派系条目（仅取主权展示所需字段）
+struct ESIFactionInfo: Codable {
+    let faction_id: Int
+    let corporation_id: Int?
+    let militia_corporation_id: Int?
+    let solar_system_id: Int?
+    let name: String?
+}
+
 // MARK: - 主权数据API
 
 @globalActor actor SovereigntyDataAPIActor {
@@ -50,6 +61,12 @@ class SovereigntyDataAPI {
     }
 
     // MARK: - 公共方法
+
+    /// 获取指定派系信息（universe/factions 全量接口 + 缓存，按 ID 过滤）
+    func fetchFactionInfo(factionId: Int, forceRefresh: Bool = false) async throws -> ESIFactionInfo? {
+        let factions = try await fetchAllFactions(forceRefresh: forceRefresh)
+        return factions.first { $0.faction_id == factionId }
+    }
 
     /// 获取主权数据
     /// - Parameter forceRefresh: 是否强制刷新
@@ -84,6 +101,55 @@ class SovereigntyDataAPI {
     }
 
     // MARK: - 私有方法
+
+    /// 缓存的派系列表（派系数据极少变化）
+    private struct CachedFactions: Codable {
+        let data: [ESIFactionInfo]
+        let timestamp: Date
+    }
+
+    private let factionsCacheKey = "universe_factions_data"
+    private let factionsCacheDuration: TimeInterval = 86400 // 24 小时
+
+    /// 拉取全部派系（带缓存）
+    private func fetchAllFactions(forceRefresh: Bool) async throws -> [ESIFactionInfo] {
+        if !forceRefresh, let cached = loadFactionsFromCache() {
+            return cached
+        }
+
+        var components = URLComponents(string: "https://esi.evetech.net/universe/factions/")
+        components?.queryItems = [
+            URLQueryItem(name: "datasource", value: "tranquility"),
+        ]
+
+        guard let url = components?.url else {
+            throw SovereigntyDataAPIError.invalidURL
+        }
+
+        let data = try await NetworkManager.shared.fetchData(from: url)
+        let factions = try JSONDecoder().decode([ESIFactionInfo].self, from: data)
+        saveFactionsToCache(factions)
+        return factions
+    }
+
+    private func loadFactionsFromCache() -> [ESIFactionInfo]? {
+        guard let cachedData = UserDefaults.standard.data(forKey: factionsCacheKey),
+              let cached = try? JSONDecoder().decode(CachedFactions.self, from: cachedData),
+              cached.timestamp.addingTimeInterval(factionsCacheDuration) > Date()
+        else {
+            return nil
+        }
+
+        Logger.info("使用缓存的派系数据")
+        return cached.data
+    }
+
+    private func saveFactionsToCache(_ factions: [ESIFactionInfo]) {
+        let cached = CachedFactions(data: factions, timestamp: Date())
+        if let encoded = try? JSONEncoder().encode(cached) {
+            UserDefaults.standard.set(encoded, forKey: factionsCacheKey)
+        }
+    }
 
     private func loadFromCache() throws -> [SovereigntyData]? {
         guard let cachedData = UserDefaults.standard.data(forKey: cacheKey),

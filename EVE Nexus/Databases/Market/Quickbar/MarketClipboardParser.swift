@@ -181,32 +181,17 @@ class MarketClipboardParser {
     }
 
     /// 根据物品名称获取type_id
-    private static func getTypeIDsForNames(_ names: [String], databaseManager: DatabaseManager)
+    private static func getTypeIDsForNames(_ names: [String], databaseManager _: DatabaseManager)
         -> [String: Int]
     {
         guard !names.isEmpty else { return [:] }
 
         var typeIDMap: [String: Int] = [:]
 
-        // 精确匹配全语种物品名
-        let placeholders = names.map { _ in "?" }.joined(separator: ",")
-        let langIns = LocalizedText.typeLangNameColumns
-            .map { "\($0) IN (\(placeholders))" }
-            .joined(separator: " OR ")
-        let query = """
-        SELECT type_id, \(LocalizedText.typeLangNameColumns.joined(separator: ", "))
-        FROM types
-        WHERE \(langIns)
-        """
-        let parameters = Array(repeating: names, count: 8).flatMap { $0 }
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: parameters) {
-            for row in rows {
-                guard let typeID = row["type_id"] as? Int else { continue }
-                let namesText = LocalizedText.from(row: row)
-                for name in names where namesText.matchesExact(name) {
-                    typeIDMap[name] = typeID
-                }
+        // 精确匹配全语种物品名（内存索引）
+        for (typeID, info) in SDEMemoryStore.types {
+            for name in names where info.names.matchesExact(name) {
+                typeIDMap[name] = typeID
             }
         }
 

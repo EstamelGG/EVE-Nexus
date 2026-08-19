@@ -261,48 +261,25 @@ struct ContractAppraisalView: View {
         let typeIds = Set(items.map { $0.type_id })
         guard !typeIds.isEmpty else { return }
 
-        let query = """
-            SELECT type_id, name, icon_filename
-            FROM types
-            WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
-        """
-
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(query) {
-            for row in rows {
-                if let typeId = (row["type_id"] as? Int64).map(Int.init)
-                    ?? (row["type_id"] as? Int),
-                    let name = row["name"] as? String
-                {
-                    let iconFileName = (row["icon_filename"] as? String) ?? ""
-                    itemDetailsCache[typeId] = (
-                        name: name,
-                        iconFileName: iconFileName.isEmpty
-                            ? IconManager.defaultItemIcon : iconFileName
-                    )
-                }
-            }
+        // 内存索引取物品名称和图标
+        for typeId in typeIds {
+            guard let info = SDEMemoryStore.type(for: typeId) else { continue }
+            itemDetailsCache[typeId] = (
+                name: info.name,
+                iconFileName: info.iconFilename
+            )
         }
     }
 
     private func checkForBlueprints() -> Bool {
-        let typeIds = items.map { String($0.type_id) }.joined(separator: ",")
-        let query = """
-            SELECT COUNT(*) as count
-            FROM types
-            WHERE type_id IN (\(typeIds))
-            AND categoryID = 9
-        """
-
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(query),
-           let row = rows.first,
-           let count = row["count"] as? Int
-        {
-            if count > 0 {
-                Logger.warning("Contract Appraisal: 合同包含蓝图，估价可能不准确")
-            }
-            return count > 0
+        // 内存索引判断是否含蓝图（categoryID = 9）
+        let containsBlueprint = items.contains { item in
+            SDEMemoryStore.type(for: item.type_id)?.categoryID == 9
         }
-        return false
+        if containsBlueprint {
+            Logger.warning("Contract Appraisal: 合同包含蓝图，估价可能不准确")
+        }
+        return containsBlueprint
     }
 
     // MARK: - ESI 估价

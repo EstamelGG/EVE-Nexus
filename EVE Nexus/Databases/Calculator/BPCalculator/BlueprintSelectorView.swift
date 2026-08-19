@@ -100,99 +100,18 @@ struct DatabaseBlueprintBrowserView: View {
         }
     }
 
-    /// 获取反应市场组集合 - 复用现有代码
+    /// 获取反应市场组集合 - 内存索引展开子树
     private func getReactionMarketGroups() -> Set<Int> {
-        let reactionRootGroupId = 1849
-        var reactionGroups = Set<Int>()
-
-        let query = """
-            WITH RECURSIVE market_group_tree AS (
-                -- 基础查询：获取根组1849(反应公式)
-                SELECT group_id, parentgroup_id
-                FROM marketGroups
-                WHERE group_id = ?
-
-                UNION ALL
-
-                -- 递归查询：获取所有子组
-                SELECT mg.group_id, mg.parentgroup_id
-                FROM marketGroups mg
-                INNER JOIN market_group_tree mgt ON mg.parentgroup_id = mgt.group_id
-            )
-            SELECT group_id FROM market_group_tree
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(
-            query, parameters: [reactionRootGroupId]
-        ) {
-            for row in rows {
-                if let groupId = row["group_id"] as? Int {
-                    reactionGroups.insert(groupId)
-                }
-            }
-        }
-
-        return reactionGroups
+        let tree = MarketManager.shared.buildTree(
+            from: MarketManager.shared.loadMarketGroups(databaseManager: databaseManager)
+        )
+        return Set(tree.allSubGroupIDs(from: 1849))
     }
 
     /// 加载所有蓝图物品
     private func loadAllBlueprints() -> [DatabaseListItem] {
-        let query = """
-            SELECT t.type_id as id, t.name, t.en_name, t.published, t.icon_filename as iconFileName,
-                   t.categoryID, t.groupID, t.metaGroupID, t.marketGroupID,
-                   t.pg_need as pgNeed, t.cpu_need as cpuNeed, t.rig_cost as rigCost,
-                   t.em_damage as emDamage, t.them_damage as themDamage, t.kin_damage as kinDamage, t.exp_damage as expDamage,
-                   t.high_slot as highSlot, t.mid_slot as midSlot, t.low_slot as lowSlot,
-                   t.rig_slot as rigSlot, t.gun_slot as gunSlot, t.miss_slot as missSlot,
-                   g.name as groupName
-            FROM types t
-            LEFT JOIN groups g ON t.groupID = g.group_id
-            WHERE t.categoryID = ? and t.published = 1
-        """
-
-        var blueprints: [DatabaseListItem] = []
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [categoryId]) {
-            for row in rows {
-                if let id = row["id"] as? Int,
-                   let name = row["name"] as? String,
-                   let categoryId = row["categoryID"] as? Int
-                {
-                    let enName = row["en_name"] as? String
-                    let iconFileName = (row["iconFileName"] as? String) ?? "not_found"
-                    let published = (row["published"] as? Int) ?? 0
-                    let groupID = row["groupID"] as? Int
-                    let groupName = row["groupName"] as? String
-
-                    let blueprint = DatabaseListItem(
-                        id: id,
-                        name: name,
-                        enName: enName,
-                        iconFileName: iconFileName,
-                        published: published == 1,
-                        categoryID: categoryId,
-                        groupID: groupID,
-                        groupName: groupName,
-                        pgNeed: row["pgNeed"] as? Double,
-                        cpuNeed: row["cpuNeed"] as? Double,
-                        rigCost: row["rigCost"] as? Int,
-                        emDamage: row["emDamage"] as? Double,
-                        themDamage: row["themDamage"] as? Double,
-                        kinDamage: row["kinDamage"] as? Double,
-                        expDamage: row["expDamage"] as? Double,
-                        highSlot: row["highSlot"] as? Int,
-                        midSlot: row["midSlot"] as? Int,
-                        lowSlot: row["lowSlot"] as? Int,
-                        rigSlot: row["rigSlot"] as? Int,
-                        gunSlot: row["gunSlot"] as? Int,
-                        missSlot: row["missSlot"] as? Int,
-                        metaGroupID: row["metaGroupID"] as? Int,
-                        marketGroupID: row["marketGroupID"] as? Int // 现在可以正确获取
-                    )
-
-                    blueprints.append(blueprint)
-                }
-            }
+        let blueprints = databaseManager.searchItemsMemory { _, info in
+            info.categoryID == categoryId && info.published
         }
 
         // 使用localizedCompare对蓝图进行排序
@@ -249,27 +168,12 @@ struct DatabaseBlueprintBrowserView: View {
         }
     }
 
-    /// 加载组信息
+    /// 加载组信息（内存索引）
     private func loadGroupInfo(groupId: Int) -> (
         name: String, iconFileName: String, published: Bool
     )? {
-        let query = """
-            SELECT name, icon_filename, published
-            FROM groups
-            WHERE group_id = ?
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [groupId]),
-           let row = rows.first
-        {
-            let name = (row["name"] as? String) ?? "未知组"
-            let iconFileName = (row["icon_filename"] as? String) ?? "not_found"
-            let published = ((row["published"] as? Int) ?? 1) == 1
-
-            return (name: name, iconFileName: iconFileName, published: published)
-        }
-
-        return nil
+        guard let group = SDEMemoryStore.group(for: groupId) else { return nil }
+        return (name: group.name, iconFileName: group.iconFilename, published: group.published)
     }
 }
 

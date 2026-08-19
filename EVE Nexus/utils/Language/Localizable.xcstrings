@@ -28,6 +28,9 @@
     " %@" : {
       "shouldTranslate" : false
     },
+    " | DPH: " : {
+
+    },
     "-" : {
       "shouldTranslate" : false
     },
@@ -111,6 +114,9 @@
         }
       },
       "shouldTranslate" : false
+    },
+    "/ %@" : {
+
     },
     "/ %lld" : {
       "shouldTranslate" : false
@@ -745,6 +751,22 @@
     },
     "9+" : {
       "shouldTranslate" : false
+    },
+    "Ability_Overview" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ability Overview"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "能力概览"
+          }
+        }
+      }
     },
     "Abyssal_Created_By" : {
       "localizations" : {
@@ -3620,34 +3642,34 @@
         }
       }
     },
-    "Assets_Filter_Active_Summary" : {
+    "Assets_Filter_Active_Item_Count_Format" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Filtering: %@"
+            "value" : "%ld items in total"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "正在过滤：%@"
+            "value" : "共 %ld 件"
           }
         }
       }
     },
-    "Assets_Filter_All_Groups" : {
+    "Assets_Filter_Active_Types_Format" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "All Groups"
+            "value" : "Filtering: %ld item types"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "全部分组"
+            "value" : "正在过滤：%ld 种物品"
           }
         }
       }
@@ -3684,6 +3706,87 @@
         }
       }
     },
+    "Assets_Filter_Coverage_Format" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$ld / %2$ld types"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$ld / %2$ld 种"
+          }
+        }
+      }
+    },
+    "Assets_Filter_Deselect_All_In_Section" : {
+      "extractionState" : "stale",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deselect All"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消全选"
+          }
+        }
+      }
+    },
+    "Assets_Filter_No_Market_Items" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Market Group"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无市场物品"
+          }
+        }
+      }
+    },
+    "Assets_Filter_Other_Section" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other Items"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其他物品"
+          }
+        }
+      }
+    },
+    "Assets_Filter_Select_All_In_Directory_Format" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Filter All Items in This Directory (%ld types)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "过滤此目录下全部物品（%ld 种）"
+          }
+        }
+      }
+    },
     "Assets_Filter_Title" : {
       "localizations" : {
         "en" : {
@@ -3696,6 +3799,38 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "过滤"
+          }
+        }
+      }
+    },
+    "Assets_Filter_Type_Count_Format" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%ld types"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%ld 种"
+          }
+        }
+      }
+    },
+    "Assets_Filter_Unpublished_Items" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unpublished Items"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未发布物品"
           }
         }
       }
@@ -3728,6 +3863,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "包含%d个物品"
+          }
+        }
+      }
+    },
+    "Assets_Item_Summary_Format" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contains %1$ld types"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "包含 %1$ld 种物品"
           }
         }
       }
@@ -7574,6 +7725,22 @@
         }
       }
     },
+    "Charges" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charges"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "装填"
+          }
+        }
+      }
+    },
     "Common_Cancel" : {
       "comment" : "Cancel\n取消",
       "localizations" : {
@@ -7644,6 +7811,7 @@
       }
     },
     "Common_Error" : {
+      "comment" : "加载失败",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -8842,18 +9010,18 @@
       }
     },
     "Contract_Loading_Type" : {
-      "comment" : "正在加载%@合同...",
+      "comment" : "正在加载%@...",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Loading %@ contracts..."
+            "value" : "Loading %@ ..."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "translated",
-            "value" : "正在加载%@合同..."
+            "state" : "needs_review",
+            "value" : "正在加载%@..."
           }
         }
       }
@@ -9653,6 +9821,22 @@
         }
       }
     },
+    "Cooldown" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cooldown"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "冷却"
+          }
+        }
+      }
+    },
     "Corp_and_Faction" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9734,23 +9918,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "需要关注"
-          }
-        }
-      }
-    },
-    "Corp_Starbase_Error" : {
-      "comment" : "星堡信息加载失败",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to load starbase information"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : " POS 信息加载失败"
           }
         }
       }
@@ -10067,7 +10234,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Corporation Starbases"
+            "value" : "Starbases"
           }
         },
         "zh-Hans" : {
@@ -10140,22 +10307,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "完成"
-          }
-        }
-      }
-    },
-    "Corp_Structure_Error" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Error"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "错误"
           }
         }
       }
@@ -10744,6 +10895,22 @@
         }
       }
     },
+    "Count_Suffix" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : ""
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "次"
+          }
+        }
+      }
+    },
     "Creator" : {
       "localizations" : {
         "en" : {
@@ -10961,6 +11128,9 @@
           }
         }
       }
+    },
+    "DPS: " : {
+
     },
     "DroneBay" : {
       "comment" : "无人机舱",
@@ -14182,6 +14352,23 @@
         }
       }
     },
+    "Fitting_Import_From_Clipboard" : {
+      "comment" : "从剪贴板导入配置",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Import from Clipboard"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "从剪贴板导入"
+          }
+        }
+      }
+    },
     "Fitting_Import_Multiple_Ships_Error" : {
       "comment" : "发现多个同名飞船，请选择",
       "localizations" : {
@@ -15012,6 +15199,23 @@
         }
       }
     },
+    "Fitting_Section_Groups" : {
+      "comment" : "分组列表页的 section 标题",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Groups"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "分组"
+          }
+        }
+      }
+    },
     "Fitting_Select_Character" : {
       "comment" : "选择角色",
       "localizations" : {
@@ -15478,6 +15682,23 @@
         }
       }
     },
+    "Fitting_Ship_Fittings_Summary" : {
+      "comment" : "飞船行第二行的装配数量摘要",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ etc., %2$d fittings"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ 等共 %2$d 个装配"
+          }
+        }
+      }
+    },
     "Fitting_signature" : {
       "comment" : "信号半径",
       "localizations" : {
@@ -15817,6 +16038,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未命名配置"
+          }
+        }
+      }
+    },
+    "Fitting_Unreadable" : {
+      "comment" : "无法解析的装配标记",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unreadable"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无法解析"
+          }
+        }
+      }
+    },
+    "Fitting_Unreadable_Clear_All" : {
+      "comment" : "一键清除全部无法解析的装配",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete Broken"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "needs_review",
+            "value" : "一键清除"
           }
         }
       }
@@ -18882,102 +19137,6 @@
         }
       }
     },
-    "Ability_Overview" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ability Overview"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "能力概览"
-          }
-        }
-      }
-    },
-    "Charges" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Charges"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "装填"
-          }
-        }
-      }
-    },
-    "Cooldown" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cooldown"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "冷却"
-          }
-        }
-      }
-    },
-    "Count_Suffix" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : ""
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "次"
-          }
-        }
-      }
-    },
-    "Rearm" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rearm"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重装"
-          }
-        }
-      }
-    },
-    "Seconds_Suffix" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "s"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "秒"
-          }
-        }
-      }
-    },
     "Item_Info" : {
       "localizations" : {
         "en" : {
@@ -19022,6 +19181,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "质量"
+          }
+        }
+      }
+    },
+    "Item_Mastery_Level" : {
+      "comment" : "专精等级",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mastery Level %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "专精等级 %@"
+          }
+        }
+      }
+    },
+    "Item_Mastery_Locked" : {
+      "comment" : "未满足飞船驾驶技能",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ship Skill Requirements Not Met"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未满足飞船驾驶技能"
           }
         }
       }
@@ -19324,6 +19517,7 @@
       }
     },
     "Jump_Navigation_Loading_Systems" : {
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -20304,6 +20498,22 @@
         }
       }
     },
+    "KillMail_Simulate_Fitting" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Simulate Fitting"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "模拟装配"
+          }
+        }
+      }
+    },
     "KillMail_Stats_Failed" : {
       "localizations" : {
         "en" : {
@@ -20366,22 +20576,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "战斗记录"
-          }
-        }
-      }
-    },
-    "KillMail_Simulate_Fitting" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Simulate Fitting"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "模拟装配"
           }
         }
       }
@@ -21644,6 +21838,38 @@
         }
       }
     },
+    "LP_Find_Stations" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Find Stations"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "寻找空间站"
+          }
+        }
+      }
+    },
+    "LP_Show_Map" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Show Map"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看地图"
+          }
+        }
+      }
+    },
     "LP_Store_Loading" : {
       "localizations" : {
         "en" : {
@@ -22465,22 +22691,6 @@
         }
       }
     },
-    "Main_Corporation_Members_Error" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to load member data"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "加载成员数据失败"
-          }
-        }
-      }
-    },
     "Main_Corporation_Members_Favorites" : {
       "localizations" : {
         "en" : {
@@ -22673,22 +22883,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未找到匹配结果"
-          }
-        }
-      }
-    },
-    "Main_Corporation_Members_Refresh" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Refresh"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "刷新"
           }
         }
       }
@@ -24680,6 +24874,28 @@
         }
       }
     },
+    "Main_EVE_Mail_Older" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Older"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ранее"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "较早之前"
+          }
+        }
+      }
+    },
     "Main_EVE_Mail_Original_Message" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -24722,6 +24938,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "快速选择"
+          }
+        }
+      }
+    },
+    "Main_EVE_Mail_Recent" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recent"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Недавние письма"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "近期邮件"
           }
         }
       }
@@ -28121,6 +28359,23 @@
         }
       }
     },
+    "Main_Mastery" : {
+      "comment" : "专精",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mastery"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "专精"
+          }
+        }
+      }
+    },
     "Main_Mining_Ledger" : {
       "localizations" : {
         "en" : {
@@ -29294,6 +29549,23 @@
         }
       }
     },
+    "Main_Search_Status_Finding_Alliances" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finding alliances..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在查找联盟..."
+          }
+        }
+      }
+    },
     "Main_Search_Status_Finding_Characters" : {
       "localizations" : {
         "en" : {
@@ -29306,6 +29578,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在查找角色..."
+          }
+        }
+      }
+    },
+    "Main_Search_Status_Finding_Corporations" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Finding corporations..."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在查找军团..."
           }
         }
       }
@@ -31670,6 +31959,40 @@
         }
       }
     },
+    "Main_Setting_Use_GitHub_SDE" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Update SDE via GitHub"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用 GitHub 更新 SDE"
+          }
+        }
+      }
+    },
+    "Main_Setting_Use_GitHub_SDE_Detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Check & download SDE from GitHub Releases (debug only)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "检查与下载改用 GitHub Release（仅调试）"
+          }
+        }
+      }
+    },
     "Main_Setting_View_Logs" : {
       "localizations" : {
         "en" : {
@@ -33651,22 +33974,6 @@
         }
       }
     },
-    "Main_Unzipping_Icons" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unzipping Icons..."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "释放图片资源..."
-          }
-        }
-      }
-    },
     "Main_Update_History" : {
       "comment" : "更新历史",
       "localizations" : {
@@ -34164,6 +34471,142 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未知军团"
+          }
+        }
+      }
+    },
+    "Mastery_Detail_Title" : {
+      "comment" : "专精",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mastery"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "专精"
+          }
+        }
+      }
+    },
+    "Mastery_Filter_All" : {
+      "comment" : "全部",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "全部"
+          }
+        }
+      }
+    },
+    "Mastery_Filter_Empty" : {
+      "comment" : "没有符合筛选的飞船",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No ships match \"%@\""
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "没有符合“%@”的飞船"
+          }
+        }
+      }
+    },
+    "Mastery_Filter_Locked" : {
+      "comment" : "不达标",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Qualified"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不达标"
+          }
+        }
+      }
+    },
+    "Mastery_Filter_Qualified" : {
+      "comment" : "达标",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Qualified"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "达标"
+          }
+        }
+      }
+    },
+    "Mastery_Plan_Name_Format" : {
+      "comment" : "飞船名-专精x",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ - Mastery %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@-专精%@"
+          }
+        }
+      }
+    },
+    "Mastery_Plan_Skills_Count" : {
+      "comment" : "专精技能共 %d 项",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%d mastery skills total"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "专精技能共 %d 项"
+          }
+        }
+      }
+    },
+    "Mastery_Skill_Req_Header" : {
+      "comment" : "技能要求",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skill Requirements"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "技能要求"
           }
         }
       }
@@ -35646,6 +36089,22 @@
         }
       }
     },
+    "Misc_Random" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Roll"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "随机"
+          }
+        }
+      }
+    },
     "Misc_Rename" : {
       "localizations" : {
         "en" : {
@@ -35793,6 +36252,22 @@
         }
       }
     },
+    "Misc_Skill_Not_Injected" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not Injected"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未吸收"
+          }
+        }
+      }
+    },
     "Misc_true" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -35822,6 +36297,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "单位"
+          }
+        }
+      }
+    },
+    "Misc_Warfare_Buffs" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Warfare Buffs"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Боевые эффекты"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "脉冲波加成"
           }
         }
       }
@@ -40424,6 +40921,22 @@
         }
       }
     },
+    "Rearm" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rearm"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重装"
+          }
+        }
+      }
+    },
     "Reason" : {
       "localizations" : {
         "en" : {
@@ -41387,6 +41900,62 @@
         }
       }
     },
+    "SDE_Source_CloudKit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CloudKit"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "CloudKit"
+          }
+        }
+      }
+    },
+    "SDE_Source_GitHub" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "GitHub"
+          }
+        }
+      }
+    },
+    "SDE_Status_Downloading" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "正在下载"
+          }
+        }
+      }
+    },
+    "SDE_Status_Installing" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "正在安装"
+          }
+        }
+      }
+    },
     "SDE_Status_Latest" : {
       "localizations" : {
         "en" : {
@@ -41431,6 +42000,17 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "可更新"
+          }
+        }
+      }
+    },
+    "SDE_Status_Verifying" : {
+      "extractionState" : "extracted_with_value",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "正在校验"
           }
         }
       }
@@ -41497,6 +42077,22 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "查看可用更新"
+          }
+        }
+      }
+    },
+    "Seconds_Suffix" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "s"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "秒"
           }
         }
       }
@@ -41836,6 +42432,23 @@
         }
       }
     },
+    "Sovereignty_Capital" : {
+      "comment" : "首都星系",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capital System"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "首都星系"
+          }
+        }
+      }
+    },
     "Sovereignty_Error" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -41904,6 +42517,23 @@
         }
       }
     },
+    "Sovereignty_Regions" : {
+      "comment" : "主权星域",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sovereignty Regions"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "主权星域"
+          }
+        }
+      }
+    },
     "Sovereignty_Retry" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -41922,7 +42552,7 @@
       }
     },
     "Sovereignty_Search_Placeholder" : {
-      "comment" : "搜索主权势力...",
+      "comment" : "搜索主权势力...\n搜索主权势力或星系...",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -42696,6 +43326,74 @@
         }
       }
     },
+    "Startup_Checking" : {
+      "comment" : "正在检查资源",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Checking Resources"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在检查资源"
+          }
+        }
+      }
+    },
+    "Startup_Extracting" : {
+      "comment" : "正在解压数据",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Extracting Data"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在解压数据"
+          }
+        }
+      }
+    },
+    "Startup_Initializing" : {
+      "comment" : "正在初始化",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Initializing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在初始化"
+          }
+        }
+      }
+    },
+    "Startup_Loading_DB" : {
+      "comment" : "正在加载数据",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Loading Data"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在加载数据"
+          }
+        }
+      }
+    },
     "status.eveonline.com" : {
       "shouldTranslate" : false
     },
@@ -42769,6 +43467,7 @@
     },
     "Structure_Facility_Selector_Loading_Systems" : {
       "comment" : "加载星系数据中...",
+      "extractionState" : "stale",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -43102,22 +43801,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "无主权"
-          }
-        }
-      }
-    },
-    "Structure_Info_Refreshing" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Refreshing..."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "刷新中..."
           }
         }
       }
@@ -44569,6 +45252,40 @@
         }
       }
     },
+    "System_Search_Matched_Systems" : {
+      "comment" : "匹配星系",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Matched Systems"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "匹配星系"
+          }
+        }
+      }
+    },
+    "System_Search_No_Match" : {
+      "comment" : "未找到匹配的星域或星系",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No matching regions or systems"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未找到匹配的星域或星系"
+          }
+        }
+      }
+    },
     "System_Search_Placeholder" : {
       "comment" : "搜索星系...",
       "localizations" : {
@@ -45251,7 +45968,7 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "笔交易"
+            "value" : "条记录"
           }
         }
       }
@@ -46375,12 +47092,6 @@
     },
     "zKillboard" : {
       "shouldTranslate" : false
-    },
-    "其他邮件" : {
-
-    },
-    "近期邮件" : {
-
     }
   },
   "version" : "1.1"

@@ -31,7 +31,7 @@ enum FittingViewType: String, CaseIterable, Identifiable {
 struct ShipFittingView: View {
     private enum Entry {
         case new(shipTypeId: Int, shipInfo: (name: String, iconFileName: String))
-        case local(fittingId: Int)
+        case local(fittingId: UUID)
         case online(CharacterFitting)
         case temporary(LocalFitting)
     }
@@ -52,7 +52,7 @@ struct ShipFittingView: View {
         self.databaseManager = databaseManager
     }
 
-    init(fittingId: Int, databaseManager: DatabaseManager) {
+    init(fittingId: UUID, databaseManager: DatabaseManager) {
         entry = .local(fittingId: fittingId)
         self.databaseManager = databaseManager
     }
@@ -131,8 +131,6 @@ struct ShipFittingView: View {
                     fittingName: viewModel.simulationInput.name,
                     fittingData: [
                         "name": viewModel.simulationInput.name,
-                        "ship_type_id": viewModel.simulationInput.ship.typeId,
-                        "fitting_id": viewModel.simulationInput.fittingId,
                     ],
                     onNameChanged: { updatedData in
                         if let name = updatedData["name"] as? String {
@@ -216,7 +214,7 @@ struct ShipFittingView: View {
 
     private func deleteFitting(viewModel: FittingEditorViewModel) {
         Logger.info(
-            "开始删除配置: \(viewModel.simulationInput.name) (ID: \(viewModel.simulationInput.fittingId))"
+            "开始删除配置: \(viewModel.simulationInput.name) (ID: \(viewModel.simulationInput.fittingId.debugDescription))"
         )
 
         if viewModel.isLocalFitting {
@@ -227,6 +225,12 @@ struct ShipFittingView: View {
     }
 
     private func deleteLocalFitting(viewModel: FittingEditorViewModel) {
+        guard case let .local(fittingId) = viewModel.simulationInput.fittingId
+        else {
+            Logger.error("删除本地配置失败: 装配引用不是本地 UUID")
+            return
+        }
+
         guard
             let documentsDirectory = FileManager.default.urls(
                 for: .documentDirectory, in: .userDomainMask
@@ -238,7 +242,7 @@ struct ShipFittingView: View {
 
         let fittingsDirectory = documentsDirectory.appendingPathComponent("Fitting")
         let filePath = fittingsDirectory.appendingPathComponent(
-            "local_fitting_\(viewModel.simulationInput.fittingId).json"
+            "local_fitting_\(fittingId.uuidString).json"
         )
 
         do {
@@ -257,12 +261,18 @@ struct ShipFittingView: View {
             return
         }
 
+        guard case let .online(fittingId) = viewModel.simulationInput.fittingId
+        else {
+            Logger.error("删除在线配置失败: 装配引用不是在线 ESI ID")
+            return
+        }
+
         FittingDeletionCacheManager.shared.addDeletedFitting(
-            fittingId: viewModel.simulationInput.fittingId,
+            fittingId: fittingId,
             characterId: currentCharacterId
         )
 
-        Logger.info("在线装配配置已标记为删除 - ID: \(viewModel.simulationInput.fittingId)，已添加到5分钟删除缓存")
+        Logger.info("在线装配配置已标记为删除 - ID: \(fittingId)，已添加到5分钟删除缓存")
 
         NotificationCenter.default.post(
             name: NSNotification.Name("RefreshOnlineFittings"),
@@ -276,9 +286,9 @@ struct ShipFittingView: View {
             do {
                 try await CharacterFittingAPI.deleteCharacterFitting(
                     characterID: currentCharacterId,
-                    fittingID: viewModel.simulationInput.fittingId
+                    fittingID: fittingId
                 )
-                Logger.info("后台API删除成功 - ID: \(viewModel.simulationInput.fittingId)")
+                Logger.info("后台API删除成功 - ID: \(fittingId)")
             } catch {
                 Logger.error("后台API删除失败: \(error)")
             }

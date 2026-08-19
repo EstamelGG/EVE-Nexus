@@ -11,6 +11,7 @@ enum FeatureID: String, CaseIterable, Hashable, Identifiable {
     case characterWealth = "character_wealth"
     case characterLP = "character_lp"
     case searcher
+    case characterMastery = "character_mastery"
 
     case corporationWallet = "corporation_wallet"
     case corporationMembers = "corporation_members"
@@ -115,6 +116,7 @@ struct FeatureDescriptor: Identifiable {
         case .characterWealth: return NSLocalizedString("Main_Wealth", comment: "")
         case .characterLP: return NSLocalizedString("Main_Loyalty_Points", comment: "")
         case .searcher: return NSLocalizedString("Main_Contact_Search", comment: "")
+        case .characterMastery: return NSLocalizedString("Main_Mastery", comment: "专精")
         case .corporationWallet: return NSLocalizedString("Main_Corporation_wallet", comment: "")
         case .corporationMembers: return NSLocalizedString("Main_Corporation_Members", comment: "")
         case .corporationMoon: return NSLocalizedString("Main_Corporation_Moon_Mining", comment: "")
@@ -182,6 +184,7 @@ enum FeatureRegistry {
         .init(id: .characterWealth, section: .character, requiresLogin: true, icon: "Folder", noteKind: .walletBalance),
         .init(id: .characterLP, section: .character, requiresLogin: true, icon: "lpstore"),
         .init(id: .searcher, section: .character, requiresLogin: true, icon: "peopleandplaces"),
+        .init(id: .characterMastery, section: .character, requiresLogin: true, icon: "certificates"),
 
         .init(id: .corporationWallet, section: .corporation, requiresLogin: true, icon: "wallet"),
         .init(id: .corporationMembers, section: .corporation, requiresLogin: true, icon: "corporation"),

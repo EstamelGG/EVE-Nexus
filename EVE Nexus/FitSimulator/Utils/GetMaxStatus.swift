@@ -44,7 +44,7 @@ enum EffectCategory: Int {
 ///   - databaseManager: 数据库管理器
 /// - Returns: 最大可用状态值
 func getMaxStatus(
-    itemEffects: [Int], itemAttributes: [Int: Double], databaseManager: DatabaseManager
+    itemEffects: [Int], itemAttributes: [Int: Double], databaseManager _: DatabaseManager
 )
     -> Int
 {
@@ -59,42 +59,25 @@ func getMaxStatus(
         return 1
     }
 
-    // 构建SQL查询，获取所有效果的类别
-    let placeholders = Array(repeating: "?", count: itemEffects.count).joined(separator: ",")
-    let query = """
-        SELECT effect_id, effect_category
-        FROM dogmaEffects
-        WHERE effect_id IN (\(placeholders))
-    """
-
-    // 执行查询
-    let result = databaseManager.executeQuery(query, parameters: itemEffects)
-
-    // 处理查询结果
-    if case let .success(rows) = result {
-        var maxStatus = 0
-
-        for row in rows {
-            if let categoryRaw = row["effect_category"] as? Int {
-                if let category = EffectCategory(rawValue: categoryRaw) {
-                    // 忽略特定的效果类别
-                    if !category.shouldIgnore {
-                        maxStatus = max(maxStatus, category.maxStatus)
-                    }
-                }
-            }
+    // 内存索引获取所有效果的类别
+    var maxStatus = 0
+    for effectId in itemEffects {
+        guard let categoryRaw = SDEMemoryStore.dogmaEffect(for: effectId)?.effectCategory,
+              let category = EffectCategory(rawValue: categoryRaw)
+        else { continue }
+        // 忽略特定的效果类别
+        if !category.shouldIgnore {
+            maxStatus = max(maxStatus, category.maxStatus)
         }
-
-        // 检查是否有特殊属性ID 6（电容消耗）
-        // 如是，其最大状态最少为启动，如有超载效果，则最大状态为超载
-        if itemAttributes.keys.contains(6) {
-            return max(2, maxStatus)
-        }
-
-        return maxStatus
     }
 
-    return 0
+    // 检查是否有特殊属性ID 6（电容消耗）
+    // 如是，其最大状态最少为启动，如有超载效果，则最大状态为超载
+    if itemAttributes.keys.contains(6) {
+        return max(2, maxStatus)
+    }
+
+    return maxStatus
 }
 
 /// 获取模块的可用状态列表

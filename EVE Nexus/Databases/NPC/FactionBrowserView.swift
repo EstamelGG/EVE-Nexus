@@ -418,11 +418,12 @@ struct FactionBrowserView: View {
         var factions: [FactionItem] = []
         if case let .success(rows) = databaseManager.executeQuery(query) {
             for row in rows {
+                // SDE 中仅4大帝国有 shortDescription，其余为 NULL，兜底空串避免整行被丢弃
                 guard let id = row["id"] as? Int,
-                      let shortDescription = row["shortDescription"] as? String,
-                      let description = row["description"] as? String,
                       let iconName = row["iconName"] as? String
                 else { continue }
+                let shortDescription = row["shortDescription"] as? String ?? ""
+                let description = row["description"] as? String ?? ""
                 factions.append(
                     FactionItem(
                         id: id,
@@ -450,9 +451,10 @@ struct FactionBrowserView: View {
         if case let .success(rows) = databaseManager.executeQuery(query) {
             for row in rows {
                 guard let corporationId = row["corporation_id"] as? Int,
-                      let description = row["description"] as? String,
                       let factionId = row["faction_id"] as? Int
                 else { continue }
+                // 个别军团 description 为 NULL，兜底空串避免整行被丢弃
+                let description = row["description"] as? String ?? ""
                 let iconFileName = row["icon_filename"] as? String ?? ""
                 corporations.append(
                     CorporationItem(

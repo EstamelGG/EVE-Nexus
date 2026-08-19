@@ -19,25 +19,13 @@ struct BoosterSelectorView: View {
                 logTag: "增效剂",
                 loadItems: { databaseManager in
                     // 获取指定槽位的增效剂信息
-                    (
-                        FlatItemSelectorQueries.loadItems(
-                            databaseManager: databaseManager,
-                            query: """
-                                SELECT t.type_id as id, t.name, t.en_name, t.published, t.icon_filename as iconFileName,
-                                       t.categoryID, t.groupID, t.group_name as groupName
-                                FROM types t
-                                JOIN typeAttributes ta ON t.type_id = ta.type_id
-                                WHERE ta.attribute_id = 1087
-                                AND ta.value = ?
-                                AND t.published = 1
-                                AND t.marketGroupID IS NOT NULL
-                                ORDER BY t.name
-                            """,
-                            parameters: [slotNumber],
-                            logTag: "增效剂"
-                        ),
-                        [:]
+                    let result = FlatItemSelectorQueries.loadSlottedItems(
+                        databaseManager: databaseManager,
+                        attributeID: 1087,
+                        slotValue: Double(slotNumber),
+                        logTag: "增效剂"
                     )
+                    return (result.items, [:])
                 },
                 onSelect: { item, _ in onSelect(item) },
                 removeLabel: hasExistingItem

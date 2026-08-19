@@ -51,6 +51,8 @@ extension FeatureID {
             if let character = viewModel.selectedCharacter {
                 SearcherView(character: character)
             }
+        case .characterMastery:
+            ShipMasteryBrowserView(databaseManager: databaseManager)
         case .database:
             DatabaseBrowserView(databaseManager: databaseManager, level: .categories)
         case .market:

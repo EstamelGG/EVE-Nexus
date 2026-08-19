@@ -505,38 +505,26 @@ class BlueprintCalcUtil {
     ///   - runs: 流程数
     /// - Returns: 产品信息，如果查询失败返回nil
     static func getBlueprintProductInfo(blueprintId: Int, runs: Int) -> BlueprintProduct? {
-        let query = """
-            SELECT bo.typeID, bo.quantity, t.name, t.icon_filename
-            FROM blueprint_manufacturing_output bo
-            JOIN types t ON bo.typeID = t.type_id
-            WHERE bo.blueprintTypeID = ?
-        """
-
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            query, parameters: [blueprintId]
-        ),
-            let row = rows.first,
-            let productTypeId = row["typeID"] as? Int,
-            let quantity = row["quantity"] as? Int,
-            let typeName = row["name"] as? String,
-            let typeIcon = row["icon_filename"] as? String
-        {
-            let product = BlueprintProduct(
-                typeId: productTypeId,
-                typeName: typeName,
-                typeIcon: typeIcon,
-                quantity: quantity,
-                totalQuantity: quantity * runs
-            )
-
-            Logger.info(
-                "蓝图ID \(blueprintId) 的产品信息: \(typeName) (ID: \(productTypeId)), 每流程: \(quantity), 总产出: \(product.totalQuantity)"
-            )
-            return product
-        } else {
+        // 内存索引获取产品信息；名称/图标走 types 内存索引
+        guard let output = SDEMemoryStore.blueprintOutputs[blueprintId],
+              let typeInfo = SDEMemoryStore.type(for: output.typeID)
+        else {
             Logger.error("查询蓝图ID \(blueprintId) 的产品信息失败")
             return nil
         }
+
+        let product = BlueprintProduct(
+            typeId: output.typeID,
+            typeName: typeInfo.name,
+            typeIcon: typeInfo.iconFilename,
+            quantity: output.quantity,
+            totalQuantity: output.quantity * runs
+        )
+
+        Logger.info(
+            "蓝图ID \(blueprintId) 的产品信息: \(typeInfo.name) (ID: \(output.typeID)), 每流程: \(output.quantity), 总产出: \(product.totalQuantity)"
+        )
+        return product
     }
 
     /// 获取蓝图的产品类型ID（保持向后兼容）
@@ -566,38 +554,28 @@ class BlueprintCalcUtil {
     ///   - groupId: 产品分组ID
     /// - Returns: 是否有效
     static func isRigEffectiveForProduct(rigId: Int, categoryId: Int, groupId: Int) -> Bool {
-        let query = """
-            SELECT category, group_id 
-            FROM facility_rig_effects 
-            WHERE id = ?
-        """
+        // 内存索引获取插件效果范围
+        guard let effects = SDEMemoryStore.facilityRigEffects[rigId] else {
+            // 插件在 facility_rig_effects 表中没有记录，视为对所有产品有效
+            return true
+        }
 
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(query, parameters: [rigId]) {
-            if rows.isEmpty {
-                // Logger.info("插件ID \(rigId) 在facility_rig_effects表中没有找到记录，视为对所有产品有效")
+        if effects.isEmpty {
+            return true
+        }
+
+        for effect in effects {
+            // 如果插件的category为0，表示对所有分类有效
+            // 如果插件的group_id为0，表示对所有分组有效
+            let categoryMatch = (effect.category == 0 || effect.category == categoryId)
+            let groupMatch = (effect.groupID == 0 || effect.groupID == groupId)
+
+            if categoryMatch && groupMatch {
                 return true
             }
-
-            for row in rows {
-                if let effectCategory = row["category"] as? Int,
-                   let effectGroupId = row["group_id"] as? Int
-                {
-                    // 检查是否匹配
-                    // 如果插件的category为0，表示对所有分类有效
-                    // 如果插件的group_id为0，表示对所有分组有效
-                    let categoryMatch = (effectCategory == 0 || effectCategory == categoryId)
-                    let groupMatch = (effectGroupId == 0 || effectGroupId == groupId)
-
-                    if categoryMatch && groupMatch {
-                        return true
-                    }
-                }
-            }
-
-            return false
-        } else {
-            return false
         }
+
+        return false
     }
 
     /// 计算蓝图自身的效率加成
@@ -704,27 +682,8 @@ class BlueprintCalcUtil {
     /// - Parameter blueprintId: 蓝图ID
     /// - Returns: 技能ID列表
     static func getBlueprintRequiredSkills(blueprintId: Int) -> [Int] {
-        let query = """
-            SELECT DISTINCT typeID 
-            FROM blueprint_manufacturing_skills 
-            WHERE blueprintTypeID = ?
-        """
-
-        var skillIds: [Int] = []
-
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            query, parameters: [blueprintId]
-        ) {
-            for row in rows {
-                if let skillId = row["typeID"] as? Int {
-                    skillIds.append(skillId)
-                }
-            }
-        } else {
-            Logger.error("查询蓝图ID \(blueprintId) 所需技能失败")
-        }
-
-        return skillIds
+        // 内存索引获取蓝图所需技能
+        return SDEMemoryStore.blueprintSkills[blueprintId] ?? []
     }
 
     /// 获取技能的时间效率加成属性
@@ -1091,96 +1050,54 @@ class BlueprintCalcUtil {
 
     // MARK: - 蓝图基础数据获取方法
 
-    /// 从数据库获取蓝图的基础材料需求
+    /// 从内存索引获取蓝图的基础材料需求
+    /// （原 SQL 查询的 bm.typeName/bm.typeIcon 列在当前表中不存在，查询一直失败；现从 types 内存索引取名称）
     /// - Parameter blueprintId: 蓝图ID
     /// - Returns: 材料需求列表，如果获取失败返回nil
     static func getBlueprintMaterials(blueprintId: Int) -> [MaterialRequirement]? {
-        let query = """
-            SELECT bm.typeID, bm.typeName, bm.typeIcon, bm.quantity, t.en_name as typeEnName
-            FROM blueprint_manufacturing_materials bm
-            LEFT JOIN types t ON bm.typeID = t.type_id
-            WHERE bm.blueprintTypeID = ?
-        """
-
-        guard
-            case let .success(rows) = DatabaseManager.shared.executeQuery(
-                query, parameters: [blueprintId]
-            )
-        else {
-            Logger.info("获取蓝图材料需求失败: 查询数据库出错")
-            return nil
-        }
-
-        guard !rows.isEmpty else {
+        guard let materials = SDEMemoryStore.blueprintMaterials[blueprintId] else {
             Logger.info("获取蓝图材料需求失败: 未找到蓝图ID \(blueprintId) 的材料需求")
             return nil
         }
 
-        var materials: [MaterialRequirement] = []
+        var result: [MaterialRequirement] = []
 
-        for row in rows {
-            guard let typeId = row["typeID"] as? Int,
-                  let typeName = row["typeName"] as? String,
-                  let typeIcon = row["typeIcon"] as? String,
-                  let quantity = row["quantity"] as? Int
-            else {
+        for material in materials {
+            guard let typeInfo = SDEMemoryStore.type(for: material.typeID) else {
                 Logger.info("解析材料需求数据失败: 数据格式错误")
                 continue
             }
 
-            // 获取英文名称，如果为空则使用中文名称
-            let typeEnName = (row["typeEnName"] as? String) ?? typeName
+            // 获取英文名称，如果为空则使用本地化名称
+            let typeEnName = typeInfo.enName.isEmpty ? typeInfo.name : typeInfo.enName
 
-            let isQuantityOne = quantity == 1
+            let isQuantityOne = material.quantity == 1
 
-            let material = MaterialRequirement(
-                typeId: typeId,
-                typeName: typeName,
+            let requirement = MaterialRequirement(
+                typeId: material.typeID,
+                typeName: typeInfo.name,
                 typeEnName: typeEnName,
-                typeIcon: typeIcon,
-                originalQuantity: quantity,
-                finalQuantity: quantity, // 临时设置，将在后续计算中更新
+                typeIcon: typeInfo.iconFilename,
+                originalQuantity: material.quantity,
+                finalQuantity: material.quantity, // 临时设置，将在后续计算中更新
                 isQuantityOne: isQuantityOne
             )
 
-            materials.append(material)
+            result.append(requirement)
             Logger.info(
-                "材料需求: \(typeName) (ID: \(typeId)), 数量: \(quantity)\(isQuantityOne ? " [不受加成影响]" : "")"
+                "材料需求: \(typeInfo.name) (ID: \(material.typeID)), 数量: \(material.quantity)\(isQuantityOne ? " [不受加成影响]" : "")"
             )
         }
 
-        Logger.success("成功获取蓝图ID \(blueprintId) 的材料需求，共 \(materials.count) 种材料")
-        return materials
+        Logger.success("成功获取蓝图ID \(blueprintId) 的材料需求，共 \(result.count) 种材料")
+        return result
     }
 
-    /// 从数据库获取蓝图的基础时间需求
+    /// 从内存索引获取蓝图的基础时间需求
     /// - Parameter blueprintId: 蓝图ID
     /// - Returns: 时间需求信息，如果获取失败返回nil
     static func getBlueprintTime(blueprintId: Int) -> Int? {
-        let query = """
-            SELECT manufacturing_time
-            FROM blueprint_process_time
-            WHERE blueprintTypeID = ?
-        """
-
-        guard
-            case let .success(rows) = DatabaseManager.shared.executeQuery(
-                query, parameters: [blueprintId]
-            )
-        else {
-            Logger.info("获取蓝图时间需求失败: 查询数据库出错")
-            return nil
-        }
-
-        guard let row = rows.first,
-              let manufacturingTime = row["manufacturing_time"] as? Int
-        else {
-            Logger.info("获取蓝图时间需求失败: 未找到蓝图ID \(blueprintId) 的时间需求")
-            return nil
-        }
-
-        Logger.info("蓝图ID \(blueprintId) 制造时间: \(manufacturingTime) 秒每流程")
-        return manufacturingTime
+        SDEMemoryStore.blueprintManufacturingTimes[blueprintId]
     }
 
     // MARK: - 最终计算方法

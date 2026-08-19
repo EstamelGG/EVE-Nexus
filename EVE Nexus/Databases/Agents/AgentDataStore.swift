@@ -59,16 +59,10 @@ final class AgentDataStore {
             }
         }
 
-        let stationQuery = """
-            SELECT stationID, solarSystemID
-            FROM stations
-        """
-        if case let .success(rows) = databaseManager.executeQuery(stationQuery) {
-            for row in rows {
-                guard let stationID = row["stationID"] as? Int,
-                      let systemID = row["solarSystemID"] as? Int
-                else { continue }
-                stationSystem[stationID] = systemID
+        // 站点→星系映射来自 SDEMemoryStore 内存缓存
+        for (_, info) in SDEMemoryStore.stations {
+            if let systemID = info.solarSystemID {
+                stationSystem[info.id] = systemID
             }
         }
     }

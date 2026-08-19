@@ -9,7 +9,8 @@ class CorporationAssetsViewModel: ObservableObject {
     @Published var assetLocations: [AssetTreeNode] = []
     @Published var error: Error?
     @Published var loadingProgress: AssetLoadingProgress?
-    @Published var searchResults: [AssetSearchResult] = []
+    /// 搜索结果中间数据（视图仅消费 searchItemGroups，无需 @Published 通知）
+    var searchResults: [AssetSearchResult] = []
     @Published private(set) var searchItemGroups: [AssetSearchItemGroup] = []
     @Published var regionNames: [Int: String] = [:]
     @Published var systemInfoCache: [Int: SolarSystemInfo] = [:]
@@ -21,7 +22,8 @@ class CorporationAssetsViewModel: ObservableObject {
 
     // MARK: - 私有属性
 
-    private var isCurrentlyLoading = false
+    /// 进行中的加载任务（后到者取消先到者，与人物资产页一致）
+    private var loadTask: Task<Void, Never>?
     private(set) var itemInfoCache: [Int: ItemInfo] = [:]
     private var searchIndexByTypeId: [Int: [AssetSearchEntry]] = [:]
     private let corporationId: Int
@@ -50,6 +52,11 @@ class CorporationAssetsViewModel: ObservableObject {
         self.corporationId = corporationId
         self.characterId = characterId
         self.databaseManager = databaseManager
+
+        // 构造时启动资产加载（原先由视图 init 触发，移入以避免视图重复构造引发重复加载）
+        Task {
+            await loadAssets()
+        }
     }
 
     // MARK: - 置顶功能方法
@@ -228,25 +235,28 @@ class CorporationAssetsViewModel: ObservableObject {
 
     // MARK: - 公共方法
 
-    /// 加载资产数据
+    /// 加载资产数据。每次调用会取消进行中的加载任务，确保最新请求优先（与人物资产页一致）
     func loadAssets(forceRefresh: Bool = false) async {
-        // 如果已经在加载中，直接返回
-        guard !isCurrentlyLoading else {
-            return
+        loadTask?.cancel()
+        let task = Task { [weak self] in
+            guard let self else { return }
+            await self.performAssetLoad(forceRefresh: forceRefresh)
         }
+        loadTask = task
+        await task.value
+    }
 
+    private func performAssetLoad(forceRefresh: Bool) async {
         if forceRefresh {
+            // 强制刷新保留旧数据显示进度，不显示骨架
             loadingProgress = .loading(page: 1)
         } else if !assetLocations.isEmpty {
-            // 如果已有数据且不是强制刷新，直接返回
+            // 已有数据且非强制刷新，直接返回
             return
         } else {
             isLoading = true
             loadingProgress = .loading(page: 1)
         }
-
-        // 设置加载标志
-        isCurrentlyLoading = true
 
         do {
             if let wrapper = try await CorporationAssetsJsonAPI.shared.generateAssetTree(
@@ -262,6 +272,9 @@ class CorporationAssetsViewModel: ObservableObject {
                     }
                 }
             ) {
+                // 被更新的任务取消后，不应用其结果，避免覆盖最新请求的数据
+                guard !Task.isCancelled else { return }
+
                 dataLoadTime = Date(timeIntervalSince1970: TimeInterval(wrapper.update_time))
                 assetLocations = wrapper.assetsTree
 
@@ -276,29 +289,32 @@ class CorporationAssetsViewModel: ObservableObject {
                 cleanupInvalidPinnedLocations()
             }
         } catch {
-            // 检查是否是取消错误
-            if let nsError = error as NSError?,
-               nsError.domain == NSURLErrorDomain, nsError.code == NSURLErrorCancelled
-            {
+            if isCancellation(error) {
                 Logger.info("军团资产加载任务被取消")
-            } else if error is CancellationError {
-                Logger.info("军团资产加载任务被取消: \(error)")
-            } else {
+            } else if !Task.isCancelled {
                 Logger.error("加载军团资产失败: \(error)")
                 self.error = error
-
-                // 在非取消错误的情况下，确保UI显示错误状态
-                isLoading = false
-                loadingProgress = nil
+                // 与人物资产页一致：失败时清空数据，避免残留旧数据
+                assetLocations = []
+                rebuildRegionGroups()
             }
         }
 
-        // 只有在成功完成时才重置加载状态
-        isLoading = false
-        loadingProgress = nil
+        // 只有未被取代的当前任务才清理加载状态，避免误清正在运行的最新任务的状态
+        if !Task.isCancelled {
+            isLoading = false
+            loadingProgress = nil
+        }
+    }
 
-        // 重置加载标志
-        isCurrentlyLoading = false
+    private func isCancellation(_ error: Error) -> Bool {
+        if error is CancellationError { return true }
+        if let nsError = error as NSError?,
+           nsError.domain == NSURLErrorDomain, nsError.code == NSURLErrorCancelled
+        {
+            return true
+        }
+        return false
     }
 
     /// 加载星域名称
@@ -330,7 +346,7 @@ class CorporationAssetsViewModel: ObservableObject {
         rebuildRegionGroups()
     }
 
-    /// 预加载所有空间站名称
+    /// 预加载所有空间站名称（来自 SDEMemoryStore 内存缓存）
     private func preloadStationNames() async {
         let stationIds = collectAllStationIds()
 
@@ -339,21 +355,9 @@ class CorporationAssetsViewModel: ObservableObject {
             return
         }
 
-        // 构建SQL查询，一次性获取所有空间站名称
-        let stationIdStrings = stationIds.map { String($0) }.joined(separator: ",")
-        let query = """
-            SELECT stationID, stationName 
-            FROM stations 
-            WHERE stationID IN (\(stationIdStrings))
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            for row in rows {
-                if let stationId = row["stationID"] as? Int,
-                   let name = row["stationName"] as? String
-                {
-                    stationNameCache[Int64(stationId)] = name
-                }
+        for stationId in stationIds {
+            if let info = SDEMemoryStore.station(for: Int(stationId)) {
+                stationNameCache[stationId] = info.name
             }
         }
     }

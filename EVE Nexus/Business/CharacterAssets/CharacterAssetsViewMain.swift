@@ -66,7 +66,8 @@ struct AssetLocationRowContent: View {
     let stationNameCache: [Int64: String]?
     let solarSystemNameCache: [Int: String]?
     var showItemCount: Bool = true
-    var itemCount: Int?
+    /// 递归物品种类数（去重），由调用方按过滤器预计算
+    var typeCount: Int?
     var nameFont: Font = .body
     var showOwner: Bool = false
     var ownerId: Int?
@@ -107,17 +108,17 @@ struct AssetLocationRowContent: View {
                     )
                 }
 
-                if showItemCount {
-                    let count = itemCount ?? location.items?.count
-                    if let count {
-                        Text(
-                            String(
-                                format: NSLocalizedString("Assets_Item_Count", comment: ""), count
-                            )
+                if showItemCount, let typeCount {
+                    Text(
+                        String(
+                            format: NSLocalizedString(
+                                "Assets_Item_Summary_Format", comment: ""
+                            ),
+                            typeCount
                         )
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    }
+                    )
+                    .font(.caption)
+                    .foregroundColor(.secondary)
                 }
             }
         }
@@ -139,9 +140,7 @@ private struct LocationRowView: View {
             location: entry.location,
             stationNameCache: viewModel.stationNameCache,
             solarSystemNameCache: viewModel.solarSystemNameCache,
-            itemCount: viewModel.isTypeFilterActive
-                ? viewModel.typeFilterContext.matchingItemQuantity(in: entry.location)
-                : nil,
+            typeCount: viewModel.typeFilterContext.matchingTypeCount(in: entry.location),
             showOwner: viewModel.multiCharacterMode,
             ownerId: entry.ownerId,
             ownerName: viewModel.ownerName(for: entry.ownerId),
@@ -201,8 +200,8 @@ private struct MergedLocationRowView: View {
 
                 Text(
                     String(
-                        format: NSLocalizedString("Assets_Item_Count", comment: ""),
-                        merged.totalItemCount
+                        format: NSLocalizedString("Assets_Item_Summary_Format", comment: ""),
+                        merged.totalTypeCount
                     )
                 )
                 .font(.caption)
@@ -265,13 +264,9 @@ struct CharacterAssetsView: View {
     @AppStorage("enableLogging") private var enableLogging: Bool = false
 
     init(characterId: Int) {
-        // 创建ViewModel并立即开始加载资产
-        let vm = CharacterAssetsViewModel(characterId: characterId)
-        _viewModel = StateObject(wrappedValue: vm)
-        // 在初始化时启动资产加载任务
-        Task {
-            await vm.loadAssets()
-        }
+        // 构造表达式内联在 autoclosure 中，避免父视图每次重渲染都新建 ViewModel；
+        // 数据加载已在 ViewModel init 中启动
+        _viewModel = StateObject(wrappedValue: CharacterAssetsViewModel(characterId: characterId))
     }
 
     var body: some View {
@@ -302,8 +297,7 @@ struct CharacterAssetsView: View {
                 isSearching = false
             }
         }
-        .onChange(of: viewModel.selectedCategoryId) { _, _ in refreshSearchIfNeeded() }
-        .onChange(of: viewModel.selectedGroupId) { _, _ in refreshSearchIfNeeded() }
+        .onChange(of: viewModel.selectedTypeIds) { _, _ in refreshSearchIfNeeded() }
         .refreshable {
             Task {
                 await viewModel.loadAssets(forceRefresh: true)
@@ -315,22 +309,23 @@ struct CharacterAssetsView: View {
                 : NSLocalizedString("Main_Search_Results", comment: "")
         )
         .toolbar {
+            if #available(iOS 26.0, *) {
+                // iOS 26：搜索框与过滤按钮共处底部同一 Liquid Glass 行（搜索框左、过滤右）
+                DefaultToolbarItem(kind: .search, placement: .bottomBar)
+                ToolbarSpacer(.flexible, placement: .bottomBar)
+                ToolbarItem(placement: .bottomBar) {
+                    filterButton
+                }
+            } else {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    filterButton
+                }
+            }
             ToolbarItem(placement: .navigationBarTrailing) {
-                HStack(spacing: 16) {
-                    Button {
-                        showFilterSheet = true
-                    } label: {
-                        Image(
-                            systemName: viewModel.isTypeFilterActive
-                                ? "line.3.horizontal.decrease.circle.fill"
-                                : "line.3.horizontal.decrease.circle"
-                        )
-                    }
-                    Button {
-                        showSettingsSheet = true
-                    } label: {
-                        Image(systemName: "gear")
-                    }
+                Button {
+                    showSettingsSheet = true
+                } label: {
+                    Image(systemName: "gear")
                 }
             }
         }
@@ -339,6 +334,19 @@ struct CharacterAssetsView: View {
         }
         .sheet(isPresented: $showSettingsSheet) {
             AssetsSettingsSheet(viewModel: viewModel)
+        }
+    }
+
+    /// 过滤按钮（iOS 26 位于底部搜索栏右侧，旧系统位于右上角）
+    private var filterButton: some View {
+        Button {
+            showFilterSheet = true
+        } label: {
+            Image(
+                systemName: viewModel.isTypeFilterActive
+                    ? "line.3.horizontal.decrease.circle.fill"
+                    : "line.3.horizontal.decrease.circle"
+            )
         }
     }
 
@@ -387,6 +395,12 @@ struct CharacterAssetsView: View {
                             .font(.caption)
                             .foregroundColor(.orange)
                             .frame(maxWidth: .infinity, alignment: .center)
+                        if let itemCountLabel = viewModel.activeFilterItemCountLabel {
+                            Text(itemCountLabel)
+                                .font(.caption)
+                                .foregroundColor(.orange)
+                                .frame(maxWidth: .infinity, alignment: .center)
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity)
@@ -683,162 +697,6 @@ struct CharacterAssetsView: View {
                         .tint(.blue)
                     }
             }
-        }
-    }
-}
-
-// MARK: - 过滤
-
-private func assetFilterItemCountLabel(_ count: Int) -> some View {
-    Text("\(count)")
-        .font(.caption)
-        .fontDesign(.monospaced)
-        .foregroundColor(.secondary)
-}
-
-struct AssetsFilterSheet: View {
-    @ObservedObject var viewModel: CharacterAssetsViewModel
-    @Environment(\.dismiss) private var dismiss
-
-    private let compactRowInsets = EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18)
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section {
-                    ForEach(viewModel.availableCategoryFilters) { category in
-                        if category.groupIds.isEmpty {
-                            categoryRow(category)
-                        } else {
-                            NavigationLink {
-                                AssetsFilterGroupView(
-                                    category: category,
-                                    viewModel: viewModel,
-                                    onComplete: { dismiss() }
-                                )
-                            } label: {
-                                categoryRowLabel(category)
-                            }
-                            .listRowInsets(compactRowInsets)
-                        }
-                    }
-                } header: {
-                    Text(NSLocalizedString("Assets_Filter_Category_Section", comment: ""))
-                }
-            }
-            .navigationTitle(NSLocalizedString("Assets_Filter_Title", comment: ""))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                if viewModel.isTypeFilterActive {
-                    ToolbarItem(placement: .navigationBarLeading) {
-                        Button(NSLocalizedString("Assets_Filter_Clear", comment: "")) {
-                            viewModel.clearTypeFilter()
-                        }
-                    }
-                }
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(NSLocalizedString("Common_Done", comment: "")) { dismiss() }
-                }
-            }
-        }
-    }
-
-    private func categoryRow(_ category: AssetTypeCategoryFilter) -> some View {
-        Button {
-            if viewModel.selectedCategoryId == category.id {
-                viewModel.clearTypeFilter()
-            } else {
-                viewModel.selectCategoryFilter(category.id)
-            }
-            dismiss()
-        } label: {
-            categoryRowLabel(category)
-        }
-        .buttonStyle(.plain)
-        .listRowInsets(compactRowInsets)
-    }
-
-    private func categoryRowLabel(_ category: AssetTypeCategoryFilter) -> some View {
-        HStack {
-            AssetIconView(
-                iconName: category.iconFileName,
-                size: CharacterAssetsIconSize.standard
-            )
-            Text(category.name)
-                .foregroundColor(.primary)
-            Spacer()
-            assetFilterItemCountLabel(category.itemCount)
-            if viewModel.selectedCategoryId == category.id {
-                Image(systemName: "checkmark")
-                    .foregroundColor(.blue)
-            }
-        }
-    }
-}
-
-struct AssetsFilterGroupView: View {
-    let category: AssetTypeCategoryFilter
-    @ObservedObject var viewModel: CharacterAssetsViewModel
-    let onComplete: () -> Void
-
-    private let compactRowInsets = EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18)
-
-    var body: some View {
-        Form {
-            Section {
-                Button {
-                    viewModel.selectCategoryAndGroup(categoryId: category.id, groupId: nil)
-                    onComplete()
-                } label: {
-                    HStack {
-                        Text(NSLocalizedString("Assets_Filter_All_Groups", comment: ""))
-                            .foregroundColor(.primary)
-                        Spacer()
-                        assetFilterItemCountLabel(category.itemCount)
-                        if viewModel.selectedCategoryId == category.id,
-                           viewModel.selectedGroupId == nil
-                        {
-                            Image(systemName: "checkmark")
-                                .foregroundColor(.blue)
-                        }
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .listRowInsets(compactRowInsets)
-
-                ForEach(viewModel.groupFilters(for: category.id)) { group in
-                    Button {
-                        viewModel.selectCategoryAndGroup(categoryId: category.id, groupId: group.id)
-                        onComplete()
-                    } label: {
-                        HStack {
-                            AssetIconView(
-                                iconName: group.iconFileName,
-                                size: CharacterAssetsIconSize.standard
-                            )
-                            Text(group.name)
-                                .foregroundColor(.primary)
-                            Spacer()
-                            assetFilterItemCountLabel(group.itemCount)
-                            if viewModel.selectedCategoryId == category.id,
-                               viewModel.selectedGroupId == group.id
-                            {
-                                Image(systemName: "checkmark")
-                                    .foregroundColor(.blue)
-                            }
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .listRowInsets(compactRowInsets)
-                }
-            }
-        }
-        .navigationTitle(category.name)
-        .navigationBarTitleDisplayMode(.inline)
-        .onAppear {
-            viewModel.selectCategoryFilter(category.id)
         }
     }
 }

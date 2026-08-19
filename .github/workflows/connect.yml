@@ -1,0 +1,172 @@
+# 仅维护者使用：构建并上传到 App Store Connect 的内部 TestFlight。
+# 依赖仓库的 APP_STORE_CONNECT_* secrets（App Store Connect API Key），
+# fork 与外部贡献者没有这些 secrets。
+
+# 从 Actions 页面手动触发（workflow_dispatch）。
+name: Internal TestFlight
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_number:
+        description: "可选的 CFBundleVersion 覆盖值。留空则默认使用 UTC 时间戳。"
+        required: false
+        type: string
+
+run-name: "Internal TestFlight from ${{ github.ref_name }}"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: internal-testflight
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    name: Archive and Upload
+    runs-on: macos-26
+    environment: APP_STORE_CONNECT
+    timeout-minutes: 60
+
+    env:
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_PRIVATE_KEY: ${{ secrets.APP_STORE_CONNECT_PRIVATE_KEY }}
+      EXPORT_OPTIONS_PLIST: ci/TestFlightExportOptions.plist
+      PROJECT_PATH: EVE Nexus.xcodeproj
+      SCHEME: EVE Nexus
+      TEAM_ID: PWM6W3HMW9
+      BUNDLE_ID: secgg.EVE-Nexus
+
+    steps:
+      - name: Check manual gate
+        run: |
+          set -euo pipefail
+          if [[ "${GITHUB_REF_NAME}" != "main" ]]; then
+            echo "Internal TestFlight uploads must be run from main. Current ref: ${GITHUB_REF_NAME}" >&2
+            exit 1
+          fi
+      - name: Check required secrets
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in APP_STORE_CONNECT_KEY_ID APP_STORE_CONNECT_ISSUER_ID APP_STORE_CONNECT_PRIVATE_KEY; do
+            if [[ -z "${!name}" ]]; then
+              echo "Missing required secret: ${name}" >&2
+              missing=1
+            fi
+          done
+          exit "${missing}"
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set output paths
+        run: |
+          set -euo pipefail
+          {
+            echo "ARCHIVE_PATH=${RUNNER_TEMP}/EVE_Nexus.xcarchive"
+            echo "DERIVED_DATA_PATH=${RUNNER_TEMP}/DerivedData"
+            echo "EXPORT_PATH=${RUNNER_TEMP}/TestFlightExport"
+          } >> "${GITHUB_ENV}"
+      - name: Detect marketing version
+        run: |
+          set -euo pipefail
+          marketing_version="$(
+            xcodebuild \
+              -showBuildSettings \
+              -project "${PROJECT_PATH}" \
+              -scheme "${SCHEME}" \
+              -configuration Release 2>/dev/null |
+              awk -F'= ' '/MARKETING_VERSION/ { print $2; exit }'
+          )"
+          if [[ -z "${marketing_version}" ]]; then
+            echo "Could not detect MARKETING_VERSION from Xcode build settings." >&2
+            exit 1
+          fi
+          echo "MARKETING_VERSION=${marketing_version}" >> "${GITHUB_ENV}"
+          echo "Using marketing version ${marketing_version}"
+      - name: Write App Store Connect key
+        run: |
+          set -euo pipefail
+          key_path="${RUNNER_TEMP}/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          if [[ "${APP_STORE_CONNECT_PRIVATE_KEY}" == *"\\n"* ]]; then
+            printf "%s" "${APP_STORE_CONNECT_PRIVATE_KEY}" | perl -pe 's/\\n/\n/g' > "${key_path}"
+          else
+            printf "%s" "${APP_STORE_CONNECT_PRIVATE_KEY}" > "${key_path}"
+          fi
+          chmod 600 "${key_path}"
+          echo "APP_STORE_CONNECT_KEY_PATH=${key_path}" >> "${GITHUB_ENV}"
+      - name: Select build number
+        env:
+          REQUESTED_BUILD_NUMBER: ${{ inputs.build_number }}
+        run: |
+          set -euo pipefail
+          # 默认使用 UTC 时间戳，保证单调递增且不与已发布的历史 build 号冲突
+          if [[ -n "${REQUESTED_BUILD_NUMBER}" ]]; then
+            build_number="${REQUESTED_BUILD_NUMBER}"
+          else
+            build_number="$(date -u +%Y%m%d%H%M%S)"
+          fi
+          echo "BUILD_NUMBER=${build_number}" >> "${GITHUB_ENV}"
+          echo "Using build number ${build_number}"
+      - name: Show upload target
+        run: |
+          set -euo pipefail
+          echo "Uploading internal-only TestFlight build"
+          echo "Commit SHA: ${GITHUB_SHA}"
+          echo "Bundle ID: ${BUNDLE_ID}"
+          echo "Marketing version: ${MARKETING_VERSION}"
+          echo "Build number: ${BUILD_NUMBER}"
+          echo "Export options: ${EXPORT_OPTIONS_PLIST}"
+      - name: Select newest installed Xcode
+        run: |
+          set -euo pipefail
+          xcode_path="$(ls -d /Applications/Xcode*.app | sort -V | tail -1)"
+          echo "DEVELOPER_DIR=${xcode_path}/Contents/Developer" >> "${GITHUB_ENV}"
+          sudo xcode-select -s "${xcode_path}"
+      - name: Show Xcode version
+        run: xcodebuild -version
+
+      - name: Resolve Swift packages
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -resolvePackageDependencies \
+            -project "${PROJECT_PATH}" \
+            -scheme "${SCHEME}"
+      - name: Archive
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -project "${PROJECT_PATH}" \
+            -scheme "${SCHEME}" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "${ARCHIVE_PATH}" \
+            -derivedDataPath "${DERIVED_DATA_PATH}" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "${APP_STORE_CONNECT_KEY_PATH}" \
+            -authenticationKeyID "${APP_STORE_CONNECT_KEY_ID}" \
+            -authenticationKeyIssuerID "${APP_STORE_CONNECT_ISSUER_ID}" \
+            DEVELOPMENT_TEAM="${TEAM_ID}" \
+            CURRENT_PROJECT_VERSION="${BUILD_NUMBER}" \
+            archive
+      - name: Upload to App Store Connect
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -exportArchive \
+            -archivePath "${ARCHIVE_PATH}" \
+            -exportPath "${EXPORT_PATH}" \
+            -exportOptionsPlist "${EXPORT_OPTIONS_PLIST}" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "${APP_STORE_CONNECT_KEY_PATH}" \
+            -authenticationKeyID "${APP_STORE_CONNECT_KEY_ID}" \
+            -authenticationKeyIssuerID "${APP_STORE_CONNECT_ISSUER_ID}"
+      - name: Summarize upload
+        run: |
+          set -euo pipefail
+          # destination=upload 模式下 ipa 上传后不会保留在 EXPORT_PATH，目录可能不存在
+          ls -la "${EXPORT_PATH}" 2>/dev/null || true
+          echo "Done. Check TestFlight (internal testers) for version ${MARKETING_VERSION} (${BUILD_NUMBER})."

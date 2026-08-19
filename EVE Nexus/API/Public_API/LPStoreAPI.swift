@@ -55,82 +55,33 @@ class LPStoreAPI {
 
     // MARK: - 私有方法
 
-    /// 从 SDE 数据库加载单个军团的 LP 商店数据
+    /// 从 SDE 内存索引加载单个军团的 LP 商店数据
     private func loadFromSDEDatabase(corporationId: Int) async throws -> [LPStoreOffer] {
-        let query = """
-            SELECT 
-                lo.offer_id,
-                loo.type_id,
-                loo.quantity,
-                loo.isk_cost,
-                loo.lp_cost,
-                loo.ak_cost
-            FROM loyalty_offers lo
-            JOIN loyalty_offer_outputs loo ON lo.offer_id = loo.offer_id
-            WHERE lo.corporation_id = ?
-            ORDER BY lo.offer_id
-        """
-
-        guard case let .success(rows) = DatabaseManager.shared.executeQuery(query, parameters: [corporationId]) else {
-            Logger.error("从SDE数据库查询LP商店数据失败 - 军团ID: \(corporationId)")
+        // 内存索引取该军团的 offer 列表
+        guard let offerIds = SDEMemoryStore.loyaltyOffersByCorporation[corporationId],
+              !offerIds.isEmpty
+        else {
             return []
         }
 
-        if rows.isEmpty {
-            return []
-        }
-
-        // 收集所有 offer_id
-        let offerIds = Set(rows.compactMap { $0["offer_id"] as? Int })
-
-        // 查询所有 required items
-        var requiredItemsMap: [Int: [RequiredItem]] = [:]
-        if !offerIds.isEmpty {
-            let reqQuery = """
-                SELECT offer_id, required_type_id, required_quantity
-                FROM loyalty_offer_requirements
-                WHERE offer_id IN (\(offerIds.sorted().map { String($0) }.joined(separator: ",")))
-            """
-
-            if case let .success(reqRows) = DatabaseManager.shared.executeQuery(reqQuery) {
-                for row in reqRows {
-                    guard let offerId = row["offer_id"] as? Int,
-                          let typeId = row["required_type_id"] as? Int,
-                          let quantity = row["required_quantity"] as? Int
-                    else {
-                        continue
-                    }
-
-                    let requiredItem = RequiredItem(quantity: quantity, typeId: typeId)
-                    requiredItemsMap[offerId, default: []].append(requiredItem)
-                }
-            }
-        }
-
-        // 构建 LPStoreOffer 数组
         var offers: [LPStoreOffer] = []
-        for row in rows {
-            guard let offerId = row["offer_id"] as? Int,
-                  let typeId = row["type_id"] as? Int,
-                  let quantity = row["quantity"] as? Int,
-                  let iskCost = row["isk_cost"] as? Int,
-                  let lpCost = row["lp_cost"] as? Int,
-                  let akCost = row["ak_cost"] as? Int
-            else {
-                continue
-            }
+        for offerId in offerIds.sorted() {
+            guard let output = SDEMemoryStore.loyaltyOfferOutputs[offerId] else { continue }
 
-            let requiredItems = requiredItemsMap[offerId] ?? []
-            let offer = LPStoreOffer(
-                akCost: akCost,
-                iskCost: iskCost,
-                lpCost: lpCost,
-                offerId: offerId,
-                quantity: quantity,
-                requiredItems: requiredItems,
-                typeId: typeId
+            let requiredItems = (SDEMemoryStore.loyaltyOfferRequirements[offerId] ?? [])
+                .map { RequiredItem(quantity: $0.quantity, typeId: $0.typeID) }
+
+            offers.append(
+                LPStoreOffer(
+                    akCost: output.akCost,
+                    iskCost: output.iskCost,
+                    lpCost: output.lpCost,
+                    offerId: offerId,
+                    quantity: output.quantity,
+                    requiredItems: requiredItems,
+                    typeId: output.typeID
+                )
             )
-            offers.append(offer)
         }
 
         return offers

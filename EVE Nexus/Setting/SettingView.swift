@@ -201,25 +201,20 @@ class CacheManager {
         // 4. 清理目录缓存
         await clearCacheDirectories()
 
-        // 5. 清理入侵相关缓存
-        await MainActor.run {
-            InfestedSystemsViewModel.clearCache()
-        }
-
-        // 6. 清理静态资源
+        // 5. 清理静态资源
         do {
             try StaticResourceManager.shared.clearAllStaticData()
         } catch {
             Logger.error("清理静态资源失败: \(error)")
         }
 
-        // 8. 清理建筑物缓存
+        // 6. 清理建筑物缓存
         await UniverseStructureAPI.shared.clearCache()
 
-        // 9. 清理图片缓存
+        // 7. 清理图片缓存
         await clearImageCaches()
 
-        // 10. 清理 Swift URLCache
+        // 8. 清理 Swift URLCache
         await MainActor.run {
             URLCache.shared.removeAllCachedResponses()
             Logger.info("URLCache 清理完成")
@@ -236,24 +231,14 @@ struct SettingView: View {
 
     private let fileManager = FileManager.default
 
+    /// SDE 重置全屏进度页：纯展示，关闭由 resetSDEAndIcons 的成功/失败路径直接控制
     private struct FullScreenCover: View {
         let progress: Double
-        @Binding var loadingState: LoadingState
-        let onComplete: () -> Void
 
         var body: some View {
-            GeometryReader { geometry in
-                ZStack {
-                    LoadingView(
-                        loadingState: $loadingState,
-                        progress: progress,
-                        onComplete: onComplete
-                    )
-                }
-                .frame(width: geometry.size.width, height: geometry.size.height)
-            }
-            .edgesIgnoringSafeArea(.all)
-            .interactiveDismissDisabled()
+            StartupSplashView(stage: .extracting, progress: progress)
+                .edgesIgnoringSafeArea(.all)
+                .interactiveDismissDisabled()
         }
     }
 
@@ -270,7 +255,6 @@ struct SettingView: View {
     @State private var isCleaningCharacterDatabase = false
     @State private var isResettingSDE = false
     @State private var unzipProgress: Double = 0
-    @State private var loadingState: LoadingState = .processing
     @State private var showingLoadingView = false
     @State private var settingGroups: [SettingGroup] = []
     @State private var showResetSDEDatabaseAlert = false
@@ -511,47 +495,90 @@ struct SettingView: View {
         )
     }
 
+    #if DEBUG
+        /// GitHub SDE 更新开关（仅 Debug 构建可见；开启后检查与下载均改用 GitHub Release）
+        private struct GitHubSDESourceToggle: View {
+            @AppStorage(SDEUpdateChecker.useGitHubKey) private var useGitHubSDE = false
+
+            var body: some View {
+                HStack {
+                    Toggle(isOn: $useGitHubSDE) {
+                        VStack(alignment: .leading) {
+                            Text(NSLocalizedString("Main_Setting_Use_GitHub_SDE", comment: "使用 GitHub 更新 SDE"))
+                                .font(.system(size: 16))
+                                .foregroundColor(.primary)
+                            Text(NSLocalizedString("Main_Setting_Use_GitHub_SDE_Detail", comment: "检查与下载改用 GitHub Release（仅调试）"))
+                                .font(.system(size: 12))
+                                .foregroundColor(.gray)
+                        }
+                    }
+                    .tint(.green)
+                    .onChange(of: useGitHubSDE) { _, isOn in
+                        guard isOn else { return }
+                        // 开启后立即用新数据源强制检查一次（绕过节流）
+                        Task { await SDEUpdateChecker.shared.forceCheckForUpdates() }
+                    }
+                }
+            }
+        }
+    #endif
+
     private func createOthersGroup() -> SettingGroup {
-        SettingGroup(
-            header: NSLocalizedString("Main_Setting_Others", comment: ""),
-            items: [
+        var items = [
+            SettingItem(
+                title: NSLocalizedString("Main_Setting_Notification_Manage", comment: ""),
+                detail: NSLocalizedString("Main_Setting_Notification_Manage_Detail", comment: ""),
+                icon: "bell.badge",
+                iconColor: .blue,
+                action: { showingNotificationsManagerView = true }
+            ),
+            SettingItem(
+                title: NSLocalizedString("Main_Setting_ESI_Status", comment: ""),
+                detail: NSLocalizedString("Main_Setting_ESI_Status_Detail", comment: ""),
+                icon: "waveform.path.ecg.rectangle",
+                iconColor: .blue,
+                action: { showingESIStatusView = true }
+            ),
+            SettingItem(
+                title: NSLocalizedString("RateLimit_Monitor_Title", comment: ""),
+                detail: NSLocalizedString("RateLimit_Monitor_Detail", comment: ""),
+                icon: "gauge.with.dots.needle.67percent",
+                iconColor: .blue,
+                action: { showingRateLimitMonitorView = true }
+            ),
+            SettingItem(
+                title: NSLocalizedString("EVE_Status_Incidents_Title", comment: "EVE Online 故障通知"),
+                detail: NSLocalizedString("EVE_Status_Incidents_Detail", comment: "查看EVE Online服务状态和故障通知"),
+                icon: "exclamationmark.triangle",
+                iconColor: .orange,
+                action: { showingEVEStatusIncidentsView = true }
+            ),
+            SettingItem(
+                title: NSLocalizedString("Main_Database_Attribute_Settings", comment: "属性显示设置"),
+                detail: nil,
+                iconColor: .blue,
+                action: {}
+            ) { _ in
+                AnyView(ShowImportantAttributesToggle())
+            },
+        ]
+
+        #if DEBUG
+            items.append(
                 SettingItem(
-                    title: NSLocalizedString("Main_Setting_Notification_Manage", comment: ""),
-                    detail: NSLocalizedString("Main_Setting_Notification_Manage_Detail", comment: ""),
-                    icon: "bell.badge",
-                    iconColor: .blue,
-                    action: { showingNotificationsManagerView = true }
-                ),
-                SettingItem(
-                    title: NSLocalizedString("Main_Setting_ESI_Status", comment: ""),
-                    detail: NSLocalizedString("Main_Setting_ESI_Status_Detail", comment: ""),
-                    icon: "waveform.path.ecg.rectangle",
-                    iconColor: .blue,
-                    action: { showingESIStatusView = true }
-                ),
-                SettingItem(
-                    title: NSLocalizedString("RateLimit_Monitor_Title", comment: ""),
-                    detail: NSLocalizedString("RateLimit_Monitor_Detail", comment: ""),
-                    icon: "gauge.with.dots.needle.67percent",
-                    iconColor: .blue,
-                    action: { showingRateLimitMonitorView = true }
-                ),
-                SettingItem(
-                    title: NSLocalizedString("EVE_Status_Incidents_Title", comment: "EVE Online 故障通知"),
-                    detail: NSLocalizedString("EVE_Status_Incidents_Detail", comment: "查看EVE Online服务状态和故障通知"),
-                    icon: "exclamationmark.triangle",
-                    iconColor: .orange,
-                    action: { showingEVEStatusIncidentsView = true }
-                ),
-                SettingItem(
-                    title: NSLocalizedString("Main_Database_Attribute_Settings", comment: "属性显示设置"),
+                    title: NSLocalizedString("Main_Setting_Use_GitHub_SDE", comment: "使用 GitHub 更新 SDE"),
                     detail: nil,
-                    iconColor: .blue,
+                    iconColor: .purple,
                     action: {}
                 ) { _ in
-                    AnyView(ShowImportantAttributesToggle())
-                },
-            ]
+                    AnyView(GitHubSDESourceToggle())
+                }
+            )
+        #endif
+
+        return SettingGroup(
+            header: NSLocalizedString("Main_Setting_Others", comment: ""),
+            items: items
         )
     }
 
@@ -890,14 +917,7 @@ struct SettingView: View {
         }
         .navigationTitle(NSLocalizedString("Main_Setting_Title", comment: ""))
         .fullScreenCover(isPresented: $showingLoadingView) {
-            FullScreenCover(
-                progress: unzipProgress,
-                loadingState: $loadingState,
-                onComplete: {
-                    showingLoadingView = false
-                    updateAllData() // SDE/图标重置完成后更新
-                }
-            )
+            FullScreenCover(progress: unzipProgress)
         }
     }
 
@@ -973,7 +993,6 @@ struct SettingView: View {
         Task {
             isResettingSDE = true
             showingLoadingView = true
-            loadingState = .processing
             unzipProgress = 0
 
             do {
@@ -993,7 +1012,9 @@ struct SettingView: View {
                     DatabaseManager.shared.clearCache()
                     self.reloadDataWithNewSDE()
                     SDEUpdateChecker.shared.clearCheckCache()
-                    self.loadingState = .complete
+                    // 完成后直接关闭全屏进度页并刷新数据（原 loadingState 中间层已移除）
+                    self.showingLoadingView = false
+                    self.updateAllData() // SDE/图标重置完成后更新
                     self.isResettingSDE = false
                     self.showResetSDEDatabaseSuccessAlert = true
                 }
@@ -1027,6 +1048,8 @@ struct SettingView: View {
 struct DownloadProgressView: View {
     let iconsState: PackageUpdateState
     let sdeState: PackageUpdateState
+    let iconsVersion: String
+    let sdeVersion: String
     let hasError: Bool
     let isCompleted: Bool
     let onExit: () -> Void
@@ -1034,14 +1057,16 @@ struct DownloadProgressView: View {
     var body: some View {
         NavigationStack {
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: 12) {
                     PackageUpdateCard(
                         title: NSLocalizedString("SDE_Icon_Package", comment: "图标包"),
+                        version: iconsVersion,
                         systemImage: "photo.on.rectangle.angled",
                         state: iconsState
                     )
                     PackageUpdateCard(
                         title: NSLocalizedString("SDE_Data_Package", comment: "SDE数据包"),
+                        version: sdeVersion,
                         systemImage: "externaldrive.fill",
                         state: sdeState
                     )
@@ -1079,74 +1104,119 @@ struct DownloadProgressView: View {
 
 private struct PackageUpdateCard: View {
     let title: String
+    let version: String
     let systemImage: String
     let state: PackageUpdateState
 
     private var accent: Color {
-        switch state.phase {
+        switch state.step {
         case .failed: return .red
         case .done, .skipped: return .green
-        case .running: return .accentColor
+        case .downloading, .verifying, .installing: return .accentColor
         case .pending: return .secondary
         }
     }
 
     private var statusLabel: String {
-        switch state.phase {
+        switch state.step {
         case .pending:
             return String(localized: "SDE_Status_Pending", defaultValue: "等待中")
-        case .running:
-            return "\(Int((state.progress * 100).rounded()))%"
-        case .skipped, .done:
+        case .downloading:
+            return String(localized: "SDE_Status_Downloading", defaultValue: "正在下载")
+        case .verifying:
+            return String(localized: "SDE_Status_Verifying", defaultValue: "正在校验")
+        case .installing:
+            return String(localized: "SDE_Status_Installing", defaultValue: "正在安装")
+        case .done, .skipped:
             return String(localized: "SDE_Done", defaultValue: "完成")
         case .failed:
             return String(localized: "SDE_Update_Failed", defaultValue: "更新失败")
         }
     }
 
+    private var percentageLabel: String? {
+        switch state.step {
+        case .downloading, .installing:
+            return "\(Int((state.progress * 100).rounded()))%"
+        default:
+            return nil
+        }
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text(title)
-                .font(.headline)
-                .foregroundStyle(.primary)
+        HStack(alignment: .center, spacing: 14) {
+            statusIcon
 
-            HStack(spacing: 12) {
-                Image(systemName: systemImage)
-                    .font(.title2)
-                    .foregroundStyle(accent)
-                    .frame(width: 28)
+            VStack(alignment: .leading, spacing: 6) {
+                Text("\(title) \(version)")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
 
-                Spacer()
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(statusLabel)
+                        .font(.caption)
+                        .foregroundStyle(accent)
 
-                Text(statusLabel)
-                    .font(.subheadline.weight(.medium).monospacedDigit())
-                    .foregroundStyle(accent)
-                    .contentTransition(.numericText())
-            }
-
-            ProgressView(value: min(max(state.progress, 0), 1))
-                .tint(accent)
-                .animation(.linear(duration: 0.12), value: state.progress)
-
-            if !state.lines.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    ForEach(state.lines) { line in
-                        Text(line.text)
-                            .font(.caption)
-                            .foregroundStyle(line.type.color)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .transition(.asymmetric(
-                                insertion: .opacity.combined(with: .offset(y: 6)),
-                                removal: .opacity
-                            ))
+                    if let percentage = percentageLabel {
+                        Text(percentage)
+                            .font(.caption.weight(.medium).monospacedDigit())
+                            .foregroundStyle(accent)
+                            .contentTransition(.numericText())
                     }
                 }
-                .animation(.easeOut(duration: 0.22), value: state.lines.count)
+
+                if state.step.isActive {
+                    ProgressView(value: min(max(state.progress, 0), 1))
+                        .tint(accent)
+                        .animation(.linear(duration: 0.12), value: state.progress)
+                }
+
+                if state.step == .failed, let message = state.errorMessage {
+                    Text(message)
+                        .font(.caption2)
+                        .foregroundStyle(.red.opacity(0.8))
+                        .lineLimit(2)
+                }
             }
         }
-        .padding(16)
+        .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .animation(.easeOut(duration: 0.2), value: state.step)
+    }
+
+    @ViewBuilder
+    private var statusIcon: some View {
+        let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
+        switch state.step {
+        case .done, .skipped:
+            Image(systemName: "checkmark")
+                .font(.body.weight(.bold))
+                .foregroundStyle(.white)
+                .frame(width: 44, height: 44)
+                .background(Color.green, in: shape)
+                .transition(.scale(scale: 0.6).combined(with: .opacity))
+        case .failed:
+            Image(systemName: "xmark")
+                .font(.body.weight(.bold))
+                .foregroundStyle(.white)
+                .frame(width: 44, height: 44)
+                .background(Color.red, in: shape)
+                .transition(.scale(scale: 0.6).combined(with: .opacity))
+        case .downloading, .verifying, .installing:
+            Image(systemName: systemImage)
+                .font(.body.weight(.medium))
+                .foregroundStyle(accent)
+                .frame(width: 44, height: 44)
+                .background(accent.opacity(0.12), in: shape)
+        case .pending:
+            Image(systemName: systemImage)
+                .font(.body.weight(.medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 44, height: 44)
+                .background(Color(.tertiarySystemFill), in: shape)
+        }
     }
 }
 
@@ -1170,6 +1240,8 @@ struct SDEUpdateDetailView: View {
             DownloadProgressView(
                 iconsState: updateManager.iconsState,
                 sdeState: updateManager.sdeState,
+                iconsVersion: "v\(updateChecker.latestIconVersion)",
+                sdeVersion: updateChecker.latestSDEVersion,
                 hasError: updateManager.hasError,
                 isCompleted: updateManager.isCompleted,
                 onExit: {

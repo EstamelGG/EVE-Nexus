@@ -359,15 +359,11 @@ struct DroneSettingsView: View {
     private func loadDroneDetails() {
         isLoading = true
 
-        // 使用loadMarketItems方法获取无人机数据
-        let items = databaseManager.loadMarketItems(
-            whereClause: "t.type_id = ?",
-            parameters: [currentDroneID]
+        // 内存索引单点构建
+        droneDetails = DatabaseListItem(
+            typeID: currentDroneID,
+            databaseManager: databaseManager
         )
-
-        if let item = items.first {
-            droneDetails = item
-        }
 
         isLoading = false
     }
@@ -389,61 +385,33 @@ struct DroneSettingsView: View {
             )
         }
 
-        // 加载突变质体的属性信息（包含范围和highIsGood）
-        let attributesQuery = """
-            SELECT a.attribute_id, d.display_name, COALESCE(d.icon_filename, '') as icon_filename,
-                   a.min_value, a.max_value, d.highIsGood
-            FROM dynamic_item_attributes a
-            LEFT JOIN dogmaAttributes d ON a.attribute_id = d.attribute_id
-            WHERE a.type_id = ?
-            ORDER BY d.display_name
-        """
+        // 加载突变质体的属性信息（范围与 highIsGood 从 SDEMemoryStore 内存缓存取）
+        let mutatorAttributes = SDEMemoryStore.dynamicItemAttributes(forTypeID: mutaplasmidID)
 
-        if case let .success(rows) = databaseManager.executeQuery(
-            attributesQuery, parameters: [mutaplasmidID]
-        ) {
-            let attributeIDs = rows.compactMap { $0["attribute_id"] as? Int }
-            // 查询物品的原始属性值（用于 originalValueIsNegative 判断）
-            var originalValues: [Int: Double] = [:]
-            if !attributeIDs.isEmpty {
-                let placeholders = attributeIDs.map { _ in "?" }.joined(separator: ",")
-                let originalQuery = """
-                SELECT attribute_id, value FROM typeAttributes
-                WHERE type_id = ? AND attribute_id IN (\(placeholders))
-                """
-                var params: [Any] = [currentDroneID]
-                params.append(contentsOf: attributeIDs)
-                if case let .success(origRows) = databaseManager.executeQuery(originalQuery, parameters: params) {
-                    for row in origRows {
-                        if let attrId = row["attribute_id"] as? Int,
-                           let value = row["value"] as? Double
-                        {
-                            originalValues[attrId] = value
-                        }
-                    }
+        let attributeIDs = mutatorAttributes.map(\.attributeID)
+        // 查询物品的原始属性值（用于 originalValueIsNegative 判断，内存索引）
+        var originalValues: [Int: Double] = [:]
+        if !attributeIDs.isEmpty {
+            let droneAttributes = SDEMemoryStore.typeAttributes(for: currentDroneID)
+            for attrID in attributeIDs {
+                if let value = droneAttributes[attrID] {
+                    originalValues[attrID] = value
                 }
             }
+        }
 
-            mutaplasmidAttributes = rows.compactMap { row -> MutationAttribute? in
-                guard let attributeID = row["attribute_id"] as? Int,
-                      let name = row["display_name"] as? String,
-                      let minValue = row["min_value"] as? Double,
-                      let maxValue = row["max_value"] as? Double,
-                      let highIsGood = row["highIsGood"] as? Int
-                else { return nil }
-                let iconFileName = row["icon_filename"] as? String
-                return MutationAttribute(
-                    id: attributeID,
-                    attributeID: attributeID,
-                    name: name,
-                    iconFileName: iconFileName,
-                    minValue: minValue,
-                    maxValue: maxValue,
-                    highIsGood: highIsGood == 1,
-                    currentValue: nil, // 初始值为nil
-                    originalValue: originalValues[attributeID]
-                )
-            }
+        mutaplasmidAttributes = mutatorAttributes.map { attribute in
+            MutationAttribute(
+                id: attribute.attributeID,
+                attributeID: attribute.attributeID,
+                name: attribute.name,
+                iconFileName: attribute.iconFileName,
+                minValue: attribute.minValue,
+                maxValue: attribute.maxValue,
+                highIsGood: attribute.highIsGood,
+                currentValue: nil, // 初始值为nil
+                originalValue: originalValues[attribute.attributeID]
+            )
         }
     }
 

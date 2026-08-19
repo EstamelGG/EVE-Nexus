@@ -254,25 +254,10 @@ final class CharacterPlanetaryViewModel: ObservableObject {
 
                     var tempSystemSecurities: [Int: Double] = [:]
 
-                    // 获取所有唯一的星系ID
-                    let uniqueSystemIds = Array(Set(allPlanets.map { $0.solarSystemId }))
-                    if !uniqueSystemIds.isEmpty {
-                        let systemIdsString = uniqueSystemIds.sorted().map { String($0) }.joined(separator: ",")
-
-                        // 批量获取星系安等信息
-                        let securityQuery = """
-                            SELECT u.solarsystem_id, u.system_security
-                            FROM universe u
-                            WHERE u.solarsystem_id IN (\(systemIdsString))
-                        """
-                        if case let .success(rows) = DatabaseManager.shared.executeQuery(securityQuery) {
-                            for row in rows {
-                                if let systemId = row["solarsystem_id"] as? Int,
-                                   let security = row["system_security"] as? Double
-                                {
-                                    tempSystemSecurities[systemId] = security
-                                }
-                            }
+                    // 批量获取星系安等信息（内存索引）
+                    for systemId in Set(allPlanets.map { $0.solarSystemId }) {
+                        if let info = SDEMemoryStore.universeSystems[systemId] {
+                            tempSystemSecurities[systemId] = info.security
                         }
                     }
 
@@ -854,43 +839,24 @@ final class CharacterPlanetaryViewModel: ObservableObject {
     ) async {
         var allTypeIds = Set<Int>()
 
-        // 1. 批量查询所有 schematic 基本信息
+        // 1. 批量获取所有 schematic 基本信息（内存索引）
         if !schematicIds.isEmpty {
-            let schematicIdsString = schematicIds.sorted().map { String($0) }.joined(separator: ",")
-            let query = """
-                SELECT schematic_id, output_typeid, name, cycle_time, output_value, input_typeid, input_value
-                FROM planetSchematics
-                WHERE schematic_id IN (\(schematicIdsString))
-            """
-
-            guard case let .success(rows) = DatabaseManager.shared.executeQuery(query) else {
-                Logger.error("批量查询 schematic 失败")
-                return
-            }
-
             var schematicData: [Int: (outputTypeId: Int, cycleTime: Int, outputValue: Int, inputTypeIdString: String?, inputValueString: String?)] = [:]
 
-            for row in rows {
-                guard let schematicId = row["schematic_id"] as? Int,
-                      let outputTypeId = row["output_typeid"] as? Int,
-                      let cycleTime = row["cycle_time"] as? Int,
-                      let outputValue = row["output_value"] as? Int
-                else {
-                    continue
-                }
-
-                allTypeIds.insert(outputTypeId)
-                let inputTypeIdString = row["input_typeid"] as? String
-                let inputValueString = row["input_value"] as? String
-
-                schematicData[schematicId] = (outputTypeId, cycleTime, outputValue, inputTypeIdString, inputValueString)
+            for schematicId in schematicIds {
+                guard let schematic = SDEMemoryStore.planetSchematicsByID[schematicId] else { continue }
+                allTypeIds.insert(schematic.outputTypeID)
+                schematicData[schematicId] = (
+                    schematic.outputTypeID,
+                    schematic.cycleTime,
+                    schematic.outputValue,
+                    schematic.rawInputTypeIDs.isEmpty ? nil : schematic.rawInputTypeIDs,
+                    schematic.rawInputValues.isEmpty ? nil : schematic.rawInputValues
+                )
 
                 // 解析输入类型ID
-                if let inputTypeIdString = inputTypeIdString {
-                    let inputTypeIds = inputTypeIdString.components(separatedBy: ",").compactMap {
-                        Int($0.trimmingCharacters(in: .whitespacesAndNewlines))
-                    }
-                    allTypeIds.formUnion(inputTypeIds)
+                for input in schematic.inputs {
+                    allTypeIds.insert(input.typeID)
                 }
             }
 
@@ -1136,6 +1102,7 @@ struct CharacterPlanetaryView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             } else {
                 if characterId != nil || viewModel.multiCharacterMode {
                     if viewModel.planets.isEmpty {
@@ -1144,6 +1111,7 @@ struct CharacterPlanetaryView: View {
                         ) {
                             NoDataSection()
                         }
+                        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                     } else {
                         // 多人物聚合模式：按人物分组显示
                         if viewModel.multiCharacterMode, viewModel.selectedCharacterIds.count > 1 {
@@ -1154,6 +1122,7 @@ struct CharacterPlanetaryView: View {
                                 ) {
                                     NoDataSection()
                                 }
+                                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                             } else {
                                 if !viewModel.aggregatedPlanetTypeSummariesForMultiSelect.isEmpty {
                                     Section(
@@ -1180,6 +1149,7 @@ struct CharacterPlanetaryView: View {
                                             }
                                         }
                                     }
+                                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                                 }
                                 ForEach(groupedPlanets, id: \.characterId) { group in
                                     let isCollapsed = collapsedCharacterIdsInMultiMode.contains(
@@ -1241,6 +1211,7 @@ struct CharacterPlanetaryView: View {
                                                 }
                                             }
                                         }
+                                        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                                     } else {
                                         Section(
                                             header: HStack(spacing: 16) {
@@ -1277,6 +1248,7 @@ struct CharacterPlanetaryView: View {
                                                 )
                                             }
                                         }
+                                        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                                     }
                                 }
                             }
@@ -1324,6 +1296,7 @@ struct CharacterPlanetaryView: View {
                                         }
                                     )
                                 }
+                                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                             }
                         }
                     }

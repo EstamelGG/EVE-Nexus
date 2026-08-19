@@ -252,61 +252,49 @@ struct FactionLPDetailView: View {
 
         Task {
             do {
-                // 1. 从 SDE 数据库搜索该势力下的物品（全语种名称）
-                let itemSearchQuery = """
-                    SELECT DISTINCT
-                        loo.type_id,
-                        lo.offer_id,
-                        nc.faction_id,
-                        lo.corporation_id
-                    FROM loyalty_offers lo
-                    JOIN loyalty_offer_outputs loo ON lo.offer_id = loo.offer_id
-                    LEFT JOIN npcCorporations nc ON lo.corporation_id = nc.corporation_id
-                    LEFT JOIN types t ON loo.type_id = t.type_id
-                    WHERE nc.faction_id = ?
-                    AND \(LocalizedText.typeLangNameLikeSQL)
-                """
-                var nameParams: [Any] = [factionId]
-                nameParams.append(contentsOf: LocalizedText.typeLangNameLikeParams(searchText))
-
-                let itemResult = DatabaseManager.shared.executeQuery(
-                    itemSearchQuery, parameters: nameParams
-                )
-                guard case let .success(itemRows) = itemResult else {
-                    await MainActor.run {
-                        isSearchingItems = false
-                        lpSearchResults = []
-                    }
-                    return
+                // 1. 内存索引搜索该势力下的物品（先筛出势力军团，再匹配产出物品全语种名称）
+                let factionCorpIds = SDEMemoryStore.loyaltyOffersByCorporation.keys.filter { corpID in
+                    SDEMemoryStore.npcCorporation(for: corpID)?.factionID == factionId
                 }
+                let factionOfferIds = Set(
+                    factionCorpIds.flatMap { SDEMemoryStore.loyaltyOffersByCorporation[$0] ?? [] }
+                )
 
-                // 收集type_ids
                 var typeIds: Set<Int> = []
-                var categoryIds: Set<Int> = []
                 var searchOffers: [LPSearchOffer] = []
+                var seenOfferIds = Set<Int>()
 
-                for row in itemRows {
-                    guard
-                        let typeId = row["type_id"] as? Int,
-                        let offerId = row["offer_id"] as? Int,
-                        let corporationId = row["corporation_id"] as? Int
-                    else {
-                        continue
-                    }
+                for (typeId, offerIdList) in SDEMemoryStore.loyaltyOfferOutputsByType {
+                    guard let typeInfo = SDEMemoryStore.type(for: typeId),
+                          typeInfo.names.matchesSearch(searchText)
+                    else { continue }
 
-                    let searchFactionId = row["faction_id"] as? Int
+                    for offerId in offerIdList
+                        where factionOfferIds.contains(offerId) && seenOfferIds.insert(offerId).inserted
+                    {
+                        // 反查军团（offer 归属）
+                        var corporationId: Int? = nil
+                        for corpID in factionCorpIds
+                            where (SDEMemoryStore.loyaltyOffersByCorporation[corpID] ?? []).contains(offerId)
+                        {
+                            corporationId = corpID
+                            break
+                        }
 
-                    typeIds.insert(typeId)
-                    searchOffers.append(
-                        LPSearchOffer(
-                            typeId: typeId,
-                            typeName: "",
-                            typeIcon: "",
-                            offerId: offerId,
-                            factionId: searchFactionId,
-                            corporationId: corporationId
+                        guard let corporationId else { continue }
+
+                        typeIds.insert(typeId)
+                        searchOffers.append(
+                            LPSearchOffer(
+                                typeId: typeId,
+                                typeName: "",
+                                typeIcon: "",
+                                offerId: offerId,
+                                factionId: factionId,
+                                corporationId: corporationId
+                            )
                         )
-                    )
+                    }
                 }
 
                 if typeIds.isEmpty {
@@ -317,64 +305,22 @@ struct FactionLPDetailView: View {
                     return
                 }
 
-                // 2. 从DatabaseManager获取物品详细信息
-                let typeQuery = """
-                    SELECT type_id, name, icon_filename, categoryID 
-                    FROM types 
-                    WHERE type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ","))) 
-                    AND categoryID NOT IN (2118, 91)
-                """
-
-                let typeResult = DatabaseManager.shared.executeQuery(typeQuery)
-                guard case let .success(typeRows) = typeResult else {
-                    await MainActor.run {
-                        isSearchingItems = false
-                        lpSearchResults = []
-                    }
-                    return
-                }
-
+                // 2. 内存索引获取物品信息（原 WHERE type_id IN (...) AND categoryID NOT IN (2118, 91)）
+                var categoryIds: Set<Int> = []
                 var typeInfos: [Int: (name: String, icon: String, categoryId: Int)] = [:]
-
-                for row in typeRows {
-                    guard let typeId = row["type_id"] as? Int,
-                          let name = row["name"] as? String,
-                          let categoryId = row["categoryID"] as? Int
-                    else {
-                        continue
-                    }
-                    let iconFileName = row["icon_filename"] as? String ?? ""
-
-                    typeInfos[typeId] = (
-                        name, iconFileName.isEmpty ? "not_found" : iconFileName, categoryId
-                    )
-                    categoryIds.insert(categoryId)
+                for typeId in typeIds {
+                    guard let info = SDEMemoryStore.type(for: typeId),
+                          info.categoryID != 2118, info.categoryID != 91
+                    else { continue }
+                    typeInfos[typeId] = (info.name, info.iconFilename, info.categoryID)
+                    categoryIds.insert(info.categoryID)
                 }
 
-                // 3. 获取分类信息
+                // 3. 获取分类信息（内存索引）
                 var categoryInfos: [Int: (name: String, icon: String)] = [:]
-                if !categoryIds.isEmpty {
-                    let categoryQuery = """
-                        SELECT category_id, name, icon_filename 
-                        FROM categories 
-                        WHERE category_id IN (\(categoryIds.sorted().map { String($0) }.joined(separator: ",")))
-                    """
-
-                    if case let .success(categoryRows) = DatabaseManager.shared.executeQuery(
-                        categoryQuery
-                    ) {
-                        for row in categoryRows {
-                            guard let categoryId = row["category_id"] as? Int,
-                                  let name = row["name"] as? String
-                            else {
-                                continue
-                            }
-                            let iconFileName = row["icon_filename"] as? String ?? ""
-
-                            categoryInfos[categoryId] = (
-                                name, iconFileName.isEmpty ? "not_found" : iconFileName
-                            )
-                        }
+                for categoryId in categoryIds {
+                    if let category = SDEMemoryStore.category(for: categoryId) {
+                        categoryInfos[categoryId] = (category.name, category.iconFilename)
                     }
                 }
 
@@ -628,44 +574,26 @@ struct LPItemSuppliersView: View {
         Task {
             do {
                 // 查询提供此物品的所有军团
-                let itemSearchQuery = """
-                    SELECT DISTINCT 
-                        lo.corporation_id,
-                        nc.faction_id
-                    FROM loyalty_offers lo
-                    JOIN loyalty_offer_outputs loo ON lo.offer_id = loo.offer_id
-                    LEFT JOIN npcCorporations nc ON lo.corporation_id = nc.corporation_id
-                    WHERE loo.type_id = \(offer.typeId)
-                """
-
-                let result = DatabaseManager.shared.executeQuery(itemSearchQuery)
-                guard case let .success(rows) = result else {
-                    await MainActor.run {
-                        error = NSError(
-                            domain: "com.eve.nexus", code: -1,
-                            userInfo: [NSLocalizedDescriptionKey: "查询失败"]
-                        )
-                        isLoading = false
-                    }
-                    return
-                }
-
+                // 内存索引反查提供该物品的军团与势力
                 var corporationIds: Set<Int> = []
                 var factionIds: Set<Int> = []
                 var corporationFactionMap: [Int: Int?] = [:]
 
-                for row in rows {
-                    guard let corporationId = row["corporation_id"] as? Int else {
-                        continue
+                if let offerIds = SDEMemoryStore.loyaltyOfferOutputsByType[offer.typeId] {
+                    for offerId in offerIds {
+                        // 反查军团归属
+                        for (corpID, corpOfferIds) in SDEMemoryStore.loyaltyOffersByCorporation
+                            where corpOfferIds.contains(offerId)
+                        {
+                            let factionId = SDEMemoryStore.npcCorporation(for: corpID)?.factionID
+                            corporationIds.insert(corpID)
+                            if let factionId {
+                                factionIds.insert(factionId)
+                            }
+                            corporationFactionMap[corpID] = factionId
+                            break
+                        }
                     }
-
-                    let factionId = row["faction_id"] as? Int
-
-                    corporationIds.insert(corporationId)
-                    if let factionId = factionId {
-                        factionIds.insert(factionId)
-                    }
-                    corporationFactionMap[corporationId] = factionId
                 }
 
                 // 查询军团和势力信息
@@ -673,51 +601,20 @@ struct LPItemSuppliersView: View {
                 var factionInfos: [Int: String] = [:]
 
                 if !corporationIds.isEmpty {
-                    let corpQuery = """
-                        SELECT corporation_id, name, en_name, icon_filename, militia_faction 
-                        FROM npcCorporations 
-                        WHERE corporation_id IN (\(corporationIds.sorted().map { String($0) }.joined(separator: ",")))
-                    """
-
-                    if case let .success(corpRows) = DatabaseManager.shared.executeQuery(corpQuery) {
-                        for row in corpRows {
-                            guard let corpId = row["corporation_id"] as? Int,
-                                  let name = row["name"] as? String,
-                                  let enName = row["en_name"] as? String
-                            else {
-                                continue
-                            }
-
-                            let iconFileName =
-                                (row["icon_filename"] as? String)?.isEmpty == true
-                                    ? "corporations_default"
-                                    : (row["icon_filename"] as? String ?? "corporations_default")
-
-                            let militiaFaction = row["militia_faction"] as? Int
-
-                            corporationInfos[corpId] = (name, enName, iconFileName, militiaFaction)
-                        }
+                    // 内存索引取军团信息
+                    for corpId in corporationIds {
+                        guard let corp = SDEMemoryStore.npcCorporation(for: corpId) else { continue }
+                        corporationInfos[corpId] = (
+                            corp.name, corp.enName, corp.iconFilename, corp.militiaFaction
+                        )
                     }
                 }
 
                 if !factionIds.isEmpty {
-                    let factionQuery = """
-                        SELECT id, name 
-                        FROM factions 
-                        WHERE id IN (\(factionIds.sorted().map { String($0) }.joined(separator: ",")))
-                    """
-
-                    if case let .success(factionRows) = DatabaseManager.shared.executeQuery(
-                        factionQuery
-                    ) {
-                        for row in factionRows {
-                            guard let factionId = row["id"] as? Int,
-                                  let name = row["name"] as? String
-                            else {
-                                continue
-                            }
-
-                            factionInfos[factionId] = name
+                    // 内存索引取势力名
+                    for factionId in factionIds {
+                        if let faction = SDEMemoryStore.faction(for: factionId) {
+                            factionInfos[factionId] = faction.name
                         }
                     }
                 }

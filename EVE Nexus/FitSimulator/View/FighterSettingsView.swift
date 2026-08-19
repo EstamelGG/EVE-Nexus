@@ -211,15 +211,11 @@ struct FighterSettingsView: View {
     private func loadFighterDetails() {
         isLoading = true
 
-        // 使用loadMarketItems方法获取舰载机数据
-        let items = databaseManager.loadMarketItems(
-            whereClause: "t.type_id = ?",
-            parameters: [currentFighterID]
+        // 内存索引单点构建
+        fighterDetails = DatabaseListItem(
+            typeID: currentFighterID,
+            databaseManager: databaseManager
         )
-
-        if let item = items.first {
-            fighterDetails = item
-        }
 
         isLoading = false
     }
@@ -229,26 +225,14 @@ struct FighterSettingsView: View {
         // 获取舰载机的fighterSquadronMaxSize属性
         if let maxSize = fighter.attributesByName["fighterSquadronMaxSize"] {
             maxQuantity = Int(maxSize)
+        } else if
+            let attrID = SDEMemoryStore.attributeID(named: "fighterSquadronMaxSize"),
+            let value = SDEMemoryStore.typeAttributeValue(for: currentFighterID, attributeID: attrID)
+        {
+            maxQuantity = Int(value)
         } else {
-            // 从数据库查询
-            let query = """
-                SELECT ta.value
-                FROM typeAttributes ta
-                JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id
-                WHERE ta.type_id = ? AND da.name = 'fighterSquadronMaxSize'
-            """
-
-            if case let .success(rows) = databaseManager.executeQuery(
-                query, parameters: [currentFighterID]
-            ),
-                let row = rows.first,
-                let value = row["value"] as? Double
-            {
-                maxQuantity = Int(value)
-            } else {
-                // 默认值
-                maxQuantity = 5
-            }
+            // 默认值
+            maxQuantity = 5
         }
     }
 

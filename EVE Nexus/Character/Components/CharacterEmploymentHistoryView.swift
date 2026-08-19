@@ -39,6 +39,7 @@ struct CharacterEmploymentHistoryView: View {
 
                     VStack(spacing: 0) {
                         EmploymentHistoryRowView(
+                            recordId: record.record_id,
                             corporationId: record.corporation_id,
                             startDate: startDate,
                             endDate: endDate,
@@ -65,6 +66,7 @@ struct CharacterEmploymentHistoryView: View {
 }
 
 struct EmploymentHistoryRowView: View {
+    let recordId: Int
     let corporationId: Int
     let startDate: Date
     let endDate: Date?
@@ -73,13 +75,14 @@ struct EmploymentHistoryRowView: View {
     let isLoadingCorpNames: Bool
     @ObservedObject var allianceCache: EmploymentAllianceCache
     let npcCorporationIds: Set<Int>
-    @State private var corporationIcon: UIImage?
-    @State private var allianceInfo: (id: Int, name: String?, icon: UIImage?)?
-    @State private var isLoadingAlliance: Bool = true
+
+    private var allianceState: EmploymentAllianceCache.RowAllianceState {
+        allianceCache.state(recordId: recordId)
+    }
 
     var body: some View {
         HStack(spacing: 6) {
-            if let icon = corporationIcon {
+            if let icon = allianceCache.icons[corporationId] {
                 Image(uiImage: icon)
                     .resizable()
                     .frame(width: 32, height: 32)
@@ -129,43 +132,8 @@ struct EmploymentHistoryRowView: View {
                     }
                 }
 
-                if isLoadingAlliance {
-                    HStack(spacing: 4) {
-                        ProgressView()
-                            .scaleEffect(0.7)
-                            .frame(width: 16, height: 16)
-                        Text(NSLocalizedString("Misc_Loading", comment: ""))
-                            .font(.system(size: 11))
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                    }
-                } else if let alliance = allianceInfo {
-                    HStack(spacing: 4) {
-                        if let icon = alliance.icon {
-                            Image(uiImage: icon)
-                                .resizable()
-                                .frame(width: 16, height: 16)
-                                .cornerRadius(2)
-                        } else {
-                            Image(systemName: "globe")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 12, height: 12)
-                                .foregroundColor(.secondary.opacity(0.6))
-                        }
-                        if let name = alliance.name {
-                            Text(name)
-                                .font(.system(size: 11))
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
-                        } else {
-                            Text(NSLocalizedString("Misc_Load_Failed", comment: ""))
-                                .font(.system(size: 11))
-                                .foregroundColor(.orange)
-                                .lineLimit(1)
-                        }
-                    }
-                }
+                // 联盟行：活取协调器三态（loading 骨架 / 失败可重试 / 已解析）
+                allianceLine
 
                 HStack(spacing: 4) {
                     Text(FormatUtil.formatHistoryDateRange(start: startDate, end: endDate))
@@ -193,9 +161,9 @@ struct EmploymentHistoryRowView: View {
                 )
             }
 
-            if let alliance = allianceInfo {
+            if case let .alliance(allianceId) = allianceState {
                 NavigationLink {
-                    AllianceDetailView(allianceId: alliance.id, character: character)
+                    AllianceDetailView(allianceId: allianceId, character: character)
                 } label: {
                     Label(
                         NSLocalizedString("View Alliance", comment: ""),
@@ -204,36 +172,50 @@ struct EmploymentHistoryRowView: View {
                 }
             }
         }
-        .task {
-            await loadData()
+    }
+
+    /// 联盟行：活取加载器结果（loading 骨架 / 失败可重试 / 已解析）
+    @ViewBuilder
+    private var allianceLine: some View {
+        switch allianceState {
+        case .none:
+            // 已确认当时无联盟，不显示
+            EmptyView()
+        case .loading:
+            HStack(spacing: 4) {
+                EntitySkeletonBar(width: 16, height: 16, cornerRadius: 2)
+                EntitySkeletonBar(width: 100, height: 12)
+            }
+        case .failed:
+            Button {
+                Task { await allianceCache.retry() }
+            } label: {
+                Text(NSLocalizedString("Misc_Load_Failed", comment: ""))
+                    .font(.system(size: 11))
+                    .foregroundColor(.orange)
+                    .lineLimit(1)
+            }
+            .buttonStyle(.borderless)
+        case let .alliance(allianceId):
+            HStack(spacing: 4) {
+                if let icon = allianceCache.icons[allianceId] {
+                    Image(uiImage: icon)
+                        .resizable()
+                        .frame(width: 16, height: 16)
+                        .cornerRadius(2)
+                } else {
+                    EntitySkeletonBar(width: 16, height: 16, cornerRadius: 2)
+                }
+
+                if let name = allianceCache.allianceNames[allianceId] {
+                    Text(name)
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                } else {
+                    EntitySkeletonBar(width: 110, height: 12)
+                }
+            }
         }
-    }
-
-    /// 并行加载军团图标和联盟信息，加载完成后一次性更新状态
-    /// - row 重建时 @State 重置为初始值（isLoadingAlliance = true），UI 立即显示"加载中"避免空白
-    /// - Task.isCancelled 检查避免 row 滚出屏幕后取消的 task 仍然赋值
-    private func loadData() async {
-        async let iconTask: UIImage? = loadCorporationIcon()
-        async let allianceTask: (id: Int, name: String?, icon: UIImage?)? = loadAllianceInfo()
-
-        let (icon, alliance) = await (iconTask, allianceTask)
-
-        guard !Task.isCancelled else { return }
-
-        corporationIcon = icon
-        allianceInfo = alliance
-        isLoadingAlliance = false
-    }
-
-    private func loadCorporationIcon() async -> UIImage? {
-        if let cachedIcon = allianceCache.corporationIcons[corporationId] {
-            return cachedIcon
-        }
-        return await allianceCache.getCorporationIcon(corporationId: corporationId)
-    }
-
-    private func loadAllianceInfo() async -> (id: Int, name: String?, icon: UIImage?)? {
-        let queryDate = endDate ?? Date()
-        return await allianceCache.getCorpAlliance(corporationId: corporationId, date: queryDate)
     }
 }

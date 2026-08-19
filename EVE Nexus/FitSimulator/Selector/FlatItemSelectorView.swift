@@ -38,70 +38,45 @@ struct FlatItemSelectorConfig {
 
 /// 平面物品列表选择器的共享查询辅助
 enum FlatItemSelectorQueries {
-    /// 从查询结果行解析 DatabaseListItem 的基本字段
-    static func parseItemRow(_ row: [String: Any]) -> DatabaseListItem? {
-        guard let id = row["id"] as? Int,
-              let name = row["name"] as? String,
-              let enName = row["en_name"] as? String,
-              let categoryId = row["categoryID"] as? Int
-        else {
-            return nil
+    /// 按植入体/增效剂槽位属性（typeAttributes）加载物品：槽位值仍查 typeAttributes（该表未预加载进内存），
+    /// 物品信息走 SDEMemoryStore 内存索引。
+    /// - Parameters:
+    ///   - attributeID: 槽位属性 ID（植入体 331 / 增效剂 1087）
+    ///   - slotValue: 指定槽位值；nil 表示全部槽位
+    /// - Returns: 物品列表及 typeID → 槽位号的映射
+    static func loadSlottedItems(
+        databaseManager: DatabaseManager,
+        attributeID: Int,
+        slotValue: Double? = nil,
+        logTag: String
+    ) -> (items: [DatabaseListItem], groupIDs: [Int: Int]) {
+        var query = "SELECT type_id, value FROM typeAttributes WHERE attribute_id = ?"
+        var parameters: [Any] = [attributeID]
+        if let slotValue {
+            query += " AND value = ?"
+            parameters.append(slotValue)
         }
 
-        let iconFileName = (row["iconFileName"] as? String) ?? "not_found"
-        let published = (row["published"] as? Int) ?? 0
-        let groupID = row["groupID"] as? Int
-        let groupName = row["groupName"] as? String
-
-        return DatabaseListItem(
-            id: id,
-            name: name,
-            enName: enName,
-            iconFileName: iconFileName,
-            published: published == 1,
-            categoryID: categoryId,
-            groupID: groupID,
-            groupName: groupName
-        )
-    }
-
-    /// 执行查询并解析物品列表
-    static func loadItems(
-        databaseManager: DatabaseManager, query: String, parameters: [Any] = [], logTag: String
-    ) -> [DatabaseListItem] {
         guard case let .success(rows) = databaseManager.executeQuery(query, parameters: parameters)
         else {
-            Logger.error("加载\(logTag)信息失败")
-            return []
-        }
-
-        let items = rows.compactMap { parseItemRow($0) }
-        Logger.info("加载了 \(items.count) 个\(logTag)")
-        return items
-    }
-
-    /// 执行查询并解析物品列表及其槽位号（slotNumber列）
-    static func loadItemsWithGroup(
-        databaseManager: DatabaseManager, query: String, logTag: String
-    ) -> (items: [DatabaseListItem], groupIDs: [Int: Int]) {
-        guard case let .success(rows) = databaseManager.executeQuery(query) else {
-            Logger.error("加载\(logTag)信息失败")
+            Logger.error("加载\(logTag)槽位信息失败")
             return ([], [:])
         }
 
         var items: [DatabaseListItem] = []
         var groupIDs: [Int: Int] = [:]
-
         for row in rows {
-            guard let item = parseItemRow(row),
-                  let slotNumber = row["slotNumber"] as? Double
-            else {
-                continue
-            }
-            groupIDs[item.id] = Int(slotNumber)
+            guard let typeID = row["type_id"] as? Int,
+                  let value = row["value"] as? Double,
+                  let info = SDEMemoryStore.type(for: typeID),
+                  info.published,
+                  info.marketGroupID != nil,
+                  let item = DatabaseListItem(typeID: typeID, databaseManager: databaseManager)
+            else { continue }
+            groupIDs[typeID] = Int(value)
             items.append(item)
         }
-
+        items.sort { $0.id < $1.id }
         Logger.info("加载了 \(items.count) 个\(logTag)")
         return (items, groupIDs)
     }

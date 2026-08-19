@@ -125,75 +125,52 @@ struct AddSkillSelectorView: View {
     private func loadSkillGroups() {
         isLoading = true
 
-        let skillsQuery = """
-            SELECT 
-                t.type_id,
-                t.groupID,
-                t.group_name
-            FROM types t
-            WHERE t.published = 1 and t.categoryID = 16
-        """
+        // 内存索引获取技能（categoryID = 16 且已发布）
+        var groupDict: [Int: (name: String, skillCount: Int)] = [:]
+        var tempAllSkills: [SkillInfo] = []
 
-        if case let .success(skillRows) = databaseManager.executeQuery(skillsQuery) {
-            print("AddSkillSelectorView: 查询到 \(skillRows.count) 个技能")
+        for (typeId, info) in SDEMemoryStore.types where info.categoryID == 16 && info.published {
+            guard let groupId = info.groupID else { continue }
+            let groupName = SDEMemoryStore.group(for: groupId)?.name ?? ""
 
-            // 按技能组分组并统计
-            var groupDict: [Int: (name: String, skillCount: Int)] = [:]
-            var tempAllSkills: [SkillInfo] = []
+            tempAllSkills.append(SkillInfo(
+                id: typeId,
+                names: info.names,
+                timeMultiplier: 1.0
+            ))
 
-            for row in skillRows {
-                guard let typeId = row["type_id"] as? Int,
-                      let groupId = row["groupID"] as? Int,
-                      let groupName = row["group_name"] as? String,
-                      let type = SDEMemoryStore.type(for: typeId)
-                else {
-                    continue
+            // 分组统计
+            if groupDict[groupId] == nil {
+                groupDict[groupId] = (name: groupName, skillCount: 0)
+            }
+            groupDict[groupId]?.skillCount += 1
+        }
+
+        let newSkillGroups: [SkillGroupInfo] = groupDict.map { groupId, groupInfo in
+            SkillGroupInfo(
+                id: groupId,
+                name: groupInfo.name,
+                skillCount: groupInfo.skillCount
+            )
+        }
+
+        print("AddSkillSelectorView: 解析到 \(newSkillGroups.count) 个技能组")
+        print("AddSkillSelectorView: 收集到 \(tempAllSkills.count) 个技能用于搜索")
+
+        // 确保在主线程更新UI
+        DispatchQueue.main.async {
+            self.skillGroups = newSkillGroups
+            self.allSkills = tempAllSkills
+
+            // 初始化搜索结果的技能等级
+            for skill in tempAllSkills {
+                if let existingLevel = existingSkillLevels[skill.id] {
+                    skillLevels[skill.id] = existingLevel
+                    addedSkills.insert(skill.id)
                 }
-
-                tempAllSkills.append(SkillInfo(
-                    id: typeId,
-                    names: type.names,
-                    timeMultiplier: 1.0
-                ))
-
-                // 分组统计
-                if groupDict[groupId] == nil {
-                    groupDict[groupId] = (name: groupName, skillCount: 0)
-                }
-                groupDict[groupId]?.skillCount += 1
             }
 
-            let newSkillGroups: [SkillGroupInfo] = groupDict.map { groupId, groupInfo in
-                SkillGroupInfo(
-                    id: groupId,
-                    name: groupInfo.name,
-                    skillCount: groupInfo.skillCount
-                )
-            }
-
-            print("AddSkillSelectorView: 解析到 \(newSkillGroups.count) 个技能组")
-            print("AddSkillSelectorView: 收集到 \(tempAllSkills.count) 个技能用于搜索")
-
-            // 确保在主线程更新UI
-            DispatchQueue.main.async {
-                self.skillGroups = newSkillGroups
-                self.allSkills = tempAllSkills
-
-                // 初始化搜索结果的技能等级
-                for skill in tempAllSkills {
-                    if let existingLevel = existingSkillLevels[skill.id] {
-                        skillLevels[skill.id] = existingLevel
-                        addedSkills.insert(skill.id)
-                    }
-                }
-
-                self.isLoading = false
-            }
-        } else {
-            print("[-] AddSkillSelectorView: 查询技能失败")
-            DispatchQueue.main.async {
-                self.isLoading = false
-            }
+            self.isLoading = false
         }
     }
 

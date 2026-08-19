@@ -2,7 +2,6 @@ import Foundation
 
 class BRKillMailUtils {
     static let shared = BRKillMailUtils()
-    private let databaseManager = DatabaseManager.shared
 
     private init() {}
 
@@ -21,24 +20,13 @@ class BRKillMailUtils {
         // 获取所有植入体的type_id
         let implantTypeIds = implantItems.map { $0[1] }
 
-        // 查询植入体的槽位信息
-        let placeholders = String(repeating: "?,", count: implantTypeIds.count).dropLast()
-        let query = """
-            SELECT type_id, value 
-            FROM typeAttributes 
-            WHERE type_id IN (\(placeholders)) 
-            AND attribute_id = 331 
-            AND value <= 10
-        """
-
+        // 查询植入体的槽位信息（内存索引，attribute 331 且 value <= 10）
         var implantSlots: [Int: Int] = [:] // type_id -> slot
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: implantTypeIds) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let slot = row["value"] as? Double
-                {
-                    implantSlots[typeId] = Int(slot)
-                }
+        for typeId in implantTypeIds {
+            if let slot = SDEMemoryStore.typeAttributeValue(for: typeId, attributeID: 331),
+               slot <= 10
+            {
+                implantSlots[typeId] = Int(slot)
             }
         }
 

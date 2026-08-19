@@ -313,6 +313,11 @@ struct CharacterDetailView: View {
             self.portrait = portrait
             employmentHistory = history
 
+            // 联盟信息流水线：一次性批量加载（雇佣历史 tab 的联盟行）
+            Task {
+                await allianceCache.loadIfNeeded(history: history)
+            }
+
             // 加载军团信息
             if let corpInfo = try? await CorporationAPI.shared.fetchCorporationInfo(
                 corporationId: info.corporation_id

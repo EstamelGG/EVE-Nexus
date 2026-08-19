@@ -327,7 +327,7 @@ extension FitConvert {
         // 创建LocalFitting对象
         let localFitting = LocalFitting(
             description: "",
-            fitting_id: Int(Date().timeIntervalSince1970), // 使用时间戳作为ID
+            fitting_id: UUID(), // 全局唯一，避免时间戳碰撞互相覆盖
             items: items,
             name: fittingName,
             ship_type_id: shipTypeId,

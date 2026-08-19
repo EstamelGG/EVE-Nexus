@@ -132,102 +132,6 @@ extension DatabaseManager {
         return (items, metaGroupNames)
     }
 
-    /// 搜索物品（无数量上限，由展示层按目录树承载索引）
-    func searchItems(searchText: String, categoryID: Int? = nil, groupID: Int? = nil) -> (
-        [DatabaseListItem], [Int: String], [Int: String]
-    ) {
-        Logger.info("Search: \(searchText)")
-        var query = """
-            SELECT t.type_id as id, t.name, t.en_name, t.published, t.icon_filename as iconFileName,
-                   t.categoryID, t.groupID, t.metaGroupID, t.marketGroupID,
-                   t.pg_need as pgNeed, t.cpu_need as cpuNeed, t.rig_cost as rigCost,
-                   t.em_damage as emDamage, t.them_damage as themDamage, t.kin_damage as kinDamage, t.exp_damage as expDamage,
-                   t.high_slot as highSlot, t.mid_slot as midSlot, t.low_slot as lowSlot,
-                   t.rig_slot as rigSlot, t.gun_slot as gunSlot, t.miss_slot as missSlot,
-                   t.group_name as groupName
-            FROM types t
-            WHERE \(LocalizedText.typeLangNameLikeSQL) OR t.type_id = ?
-        """
-
-        var parameters: [Any] = LocalizedText.typeLangNameLikeParams(searchText) + ["\(searchText)"]
-
-        if let categoryID = categoryID {
-            query += " AND t.categoryID = ?"
-            parameters.append(categoryID)
-        }
-
-        if let groupID = groupID {
-            query += " AND t.groupID = ?"
-            parameters.append(groupID)
-        }
-
-        // 精确匹配（分隔符夹逼全等）排在最前
-        query += " ORDER BY CASE WHEN \(LocalizedText.typeLangNameExactSQL) THEN 0 ELSE 1 END, t.groupID, t.metaGroupID"
-        parameters.append(contentsOf: LocalizedText.typeLangNameExactParams(searchText))
-        let result = executeQuery(query, parameters: parameters)
-        var items: [DatabaseListItem] = []
-        var groupNames: [Int: String] = [:]
-
-        if case let .success(rows) = result {
-            for row in rows {
-                if let id = row["id"] as? Int,
-                   let name = row["name"] as? String,
-                   let categoryId = row["categoryID"] as? Int
-                {
-                    let enName = row["en_name"] as? String
-                    let iconFileName = (row["iconFileName"] as? String) ?? "not_found"
-                    let published = (row["published"] as? Int) ?? 0
-                    let groupID = row["groupID"] as? Int
-                    let groupName = row["groupName"] as? String
-
-                    // 保存组名到字典中
-                    if let gID = groupID, let gName = groupName {
-                        groupNames[gID] = gName
-                    }
-
-                    items.append(
-                        DatabaseListItem(
-                            id: id,
-                            name: name,
-                            enName: enName,
-                            iconFileName: iconFileName,
-                            published: published == 1,
-                            categoryID: categoryId,
-                            groupID: groupID,
-                            groupName: groupName,
-                            pgNeed: row["pgNeed"] as? Double,
-                            cpuNeed: row["cpuNeed"] as? Double,
-                            rigCost: row["rigCost"] as? Int,
-                            emDamage: row["emDamage"] as? Double,
-                            themDamage: row["themDamage"] as? Double,
-                            kinDamage: row["kinDamage"] as? Double,
-                            expDamage: row["expDamage"] as? Double,
-                            highSlot: row["highSlot"] as? Int,
-                            midSlot: row["midSlot"] as? Int,
-                            lowSlot: row["lowSlot"] as? Int,
-                            rigSlot: row["rigSlot"] as? Int,
-                            gunSlot: row["gunSlot"] as? Int,
-                            missSlot: row["missSlot"] as? Int,
-                            metaGroupID: row["metaGroupID"] as? Int,
-                            marketGroupID: row["marketGroupID"] as? Int,
-                            attributeCompareEligible: false,
-                            navigationDestination: ItemInfoMap.getItemInfoView(
-                                itemID: id,
-                                databaseManager: self
-                            )
-                        )
-                    )
-                }
-            }
-        }
-
-        // 获取 metaGroup 名称
-        let metaGroupIDs = Set(items.compactMap { $0.metaGroupID })
-        let metaGroupNames = loadMetaGroupNames(for: Array(metaGroupIDs))
-
-        return (items, metaGroupNames, groupNames)
-    }
-
     /// 加载 MetaGroup 名称
     func loadMetaGroupNames(for metaGroupIDs: [Int]) -> [Int: String] {
         if metaGroupIDs.isEmpty { return [:] }
@@ -286,93 +190,32 @@ extension DatabaseManager {
         ItemInfoMap.iconFilename(for: typeID)
     }
 
-    func loadMarketItems(
-        whereClause: String, parameters: [Any], limit: Int = 0,
-        eligibleMarketGroupIDs: Set<Int>? = nil, exactMatchText: String? = nil
+    /// 内存搜索：对 SDEMemoryStore 全量 types 应用调用方过滤闭包（迁移自 loadMarketItems 的搜索路径）。
+    /// 排序与旧 SQL 一致：精确匹配（任意语种全等）优先，其后按 metaGroupID 升序（nil 最前）。
+    func searchItemsMemory(
+        filter: (Int, SDEMemoryStore.TypeInfo) -> Bool,
+        eligibleMarketGroupIDs: Set<Int>? = nil,
+        exactMatchText: String? = nil
     ) -> [DatabaseListItem] {
-        // 传入搜索词时，精确匹配（任意语种全等）排在最前，保证结果数触达上限时精确项仍在结果集内
-        let orderBy: String
-        var allParameters = parameters
-        if let exactMatchText, !exactMatchText.isEmpty {
-            orderBy =
-                "ORDER BY CASE WHEN \(LocalizedText.typeLangNameExactSQL) THEN 0 ELSE 1 END, t.metaGroupID"
-            allParameters.append(contentsOf: LocalizedText.typeLangNameExactParams(exactMatchText))
-        } else {
-            orderBy = "ORDER BY t.metaGroupID"
+        var matches: [(item: DatabaseListItem, exact: Bool)] = []
+        for (typeID, info) in SDEMemoryStore.types where filter(typeID, info) {
+            guard let item = DatabaseListItem(
+                typeID: typeID, databaseManager: self, eligibleMarketGroupIDs: eligibleMarketGroupIDs
+            ) else { continue }
+            let exact = exactMatchText.map { info.names.matchesExact($0) } ?? false
+            matches.append((item, exact))
         }
-
-        var query = """
-            SELECT t.type_id as id, t.name, t.en_name, t.published, t.icon_filename as iconFileName,
-                   t.categoryID, t.groupID, t.metaGroupID, t.marketGroupID,
-                   t.pg_need as pgNeed, t.cpu_need as cpuNeed, t.rig_cost as rigCost,
-                   t.em_damage as emDamage, t.them_damage as themDamage, t.kin_damage as kinDamage, t.exp_damage as expDamage,
-                   t.high_slot as highSlot, t.mid_slot as midSlot, t.low_slot as lowSlot,
-                   t.rig_slot as rigSlot, t.gun_slot as gunSlot, t.miss_slot as missSlot,
-                   t.group_name as groupName
-            FROM types t
-            WHERE \(whereClause)
-            \(orderBy)
-        """
-        if limit > 0 {
-            query.append(" LIMIT \(limit)")
+        return matches.sorted { a, b in
+            if a.exact != b.exact {
+                return a.exact
+            }
+            let metaA = a.item.metaGroupID ?? -1
+            let metaB = b.item.metaGroupID ?? -1
+            if metaA != metaB {
+                return metaA < metaB
+            }
+            return a.item.id < b.item.id
         }
-        if case let .success(rows) = executeQuery(query, parameters: allParameters) {
-            return rows.compactMap { mapMarketItemRow($0, eligibleMarketGroupIDs: eligibleMarketGroupIDs) }
-        }
-        return []
-    }
-
-    /// 市场物品行 → DatabaseListItem（含属性对比资格判定）
-    private func mapMarketItemRow(
-        _ row: [String: Any], eligibleMarketGroupIDs: Set<Int>?
-    ) -> DatabaseListItem? {
-        guard let id = row["id"] as? Int,
-              let name = row["name"] as? String,
-              let categoryId = row["categoryID"] as? Int
-        else { return nil }
-
-        let enName = row["en_name"] as? String
-        let iconFileName = (row["iconFileName"] as? String) ?? "not_found"
-        let published = (row["published"] as? Int) ?? 0
-        let groupID = row["groupID"] as? Int
-        let groupName = row["groupName"] as? String
-        let marketGroupID = row["marketGroupID"] as? Int
-
-        // 加载期一次性判定属性对比资格，避免渲染期每行重复查 Set
-        let isEligible: Bool = {
-            guard let mgID = marketGroupID, let eligible = eligibleMarketGroupIDs else { return false }
-            return eligible.contains(mgID)
-        }()
-
-        return DatabaseListItem(
-            id: id,
-            name: name,
-            enName: enName,
-            iconFileName: iconFileName,
-            published: published == 1,
-            categoryID: categoryId,
-            groupID: groupID,
-            groupName: groupName,
-            pgNeed: row["pgNeed"] as? Double,
-            cpuNeed: row["cpuNeed"] as? Double,
-            rigCost: row["rigCost"] as? Int,
-            emDamage: row["emDamage"] as? Double,
-            themDamage: row["themDamage"] as? Double,
-            kinDamage: row["kinDamage"] as? Double,
-            expDamage: row["expDamage"] as? Double,
-            highSlot: row["highSlot"] as? Int,
-            midSlot: row["midSlot"] as? Int,
-            lowSlot: row["lowSlot"] as? Int,
-            rigSlot: row["rigSlot"] as? Int,
-            gunSlot: row["gunSlot"] as? Int,
-            missSlot: row["missSlot"] as? Int,
-            metaGroupID: row["metaGroupID"] as? Int,
-            marketGroupID: marketGroupID,
-            attributeCompareEligible: isEligible,
-            navigationDestination: ItemInfoMap.getItemInfoView(
-                itemID: id,
-                databaseManager: self
-            )
-        )
+        .map(\.item)
     }
 }

@@ -37,45 +37,30 @@ struct ShipAllCargoView: View {
             )
         }
 
-        // 2. 查询 categoryID 为 40 的其他货仓属性
-        let query = """
-            SELECT attribute_id, name, display_name, unitName
-            FROM dogmaAttributes
-            WHERE categoryID = 40 
-            AND display_name IS NOT NULL 
-            AND display_name != ''
-            ORDER BY attribute_id
-        """
+        // 2. 内存索引获取 categoryID 为 40 的其他货仓属性（原 SQL 查询，现缓存于 SDEMemoryStore）
+        let cargoAttrs = SDEMemoryStore.dogmaAttributes.values
+            .filter { $0.categoryID == 40 }
+            .sorted { $0.id < $1.id }
 
-        if case let .success(rows) = viewModel.databaseManager.executeQuery(query) {
-            for row in rows {
-                guard let attributeId = row["attribute_id"] as? Int,
-                      let name = row["name"] as? String,
-                      let displayName = row["display_name"] as? String,
-                      !displayName.isEmpty
-                else {
-                    continue
-                }
+        for attr in cargoAttrs {
+            guard let displayName = attr.displayName else { continue }
 
-                // 通过 name 从 attributesByName 获取数值
-                let attributeValue = calculatedAttributesByName[name] ?? 0
+            // 通过 name 从 attributesByName 获取数值
+            let attributeValue = calculatedAttributesByName[attr.name] ?? 0
 
-                // 只显示有值的属性
-                guard attributeValue > 0 else {
-                    continue
-                }
+            // 只显示有值的属性
+            guard attributeValue > 0 else { continue }
 
-                let unitName = row["unitName"] as? String
-                attributes.append(
-                    CargoAttribute(
-                        id: attributeId,
-                        name: name,
-                        displayName: displayName,
-                        value: attributeValue,
-                        unitName: unitName
-                    )
+            let unitName = attr.unitNames.resolvedNonEmpty()
+            attributes.append(
+                CargoAttribute(
+                    id: attr.id,
+                    name: attr.name,
+                    displayName: displayName,
+                    value: attributeValue,
+                    unitName: unitName
                 )
-            }
+            )
         }
 
         return attributes

@@ -114,45 +114,18 @@ struct MarketItemTreeSelectorView: View {
             return []
         }
 
-        // 构建市场组ID限制条件
-        let marketGroupIDsString = marketGroupIDs.map { String($0) }.joined(separator: ",")
-
-        // 构建搜索条件：名称匹配 + 市场组限制 + 类型ID限制
-        var whereConditions: [String] = []
-        var parameters: [Any] = []
-
-        // 添加搜索条件（全语种，不区分大小写）
-        let langLikes = LocalizedText.typeLangNameColumns
-            .map { "LOWER(t.\($0)) LIKE LOWER(?)" }
-            .joined(separator: " OR ")
-        whereConditions.append("(\(langLikes) OR t.type_id = ?)")
-        let searchPattern = "%\(keyword)%"
-        parameters.append(contentsOf: Array(repeating: searchPattern, count: 8))
-        if let typeIdInt = Int(keyword) {
-            parameters.append(typeIdInt)
-        } else {
-            parameters.append(-1) // 不可能匹配的ID
+        let numericID = Int(keyword)
+        let results = databaseManager.searchItemsMemory { typeID, info in
+            guard let mg = info.marketGroupID, marketGroupIDs.contains(mg) else { return false }
+            if !allowTypeIDs.isEmpty, !allowTypeIDs.contains(typeID) { return false }
+            return info.names.matchesSearch(keyword) || numericID == typeID
         }
 
-        // 添加市场组限制
-        whereConditions.append("t.marketGroupID IN (\(marketGroupIDsString))")
-
-        // 添加类型ID限制（如果有的话）
-        if !allowTypeIDs.isEmpty {
-            let typeIDsString = allowTypeIDs.map { String($0) }.joined(separator: ",")
-            whereConditions.append("t.type_id IN (\(typeIDsString))")
-        }
-
-        let whereClause = whereConditions.joined(separator: " AND ")
-
-        let results = databaseManager.loadMarketItems(
-            whereClause: whereClause, parameters: parameters, limit: 100
-        )
         Logger.info(
             "树限制搜索找到 \(results.count) 个匹配项，耗时: \(Date().timeIntervalSince(startTime) * 1000)ms"
         )
 
-        return results
+        return Array(results.prefix(100))
     }
 
     var body: some View {
@@ -701,14 +674,11 @@ struct MarketNodeItemsView: View {
     private func loadItems() {
         isLoading = true
 
-        let typeIDsString = allowTypeIDs.map { String($0) }.joined(separator: ",")
-        var whereClause = "t.marketGroupID = ? AND t.type_id IN (\(typeIDsString))"
-        if typeIDsString.isEmpty {
-            whereClause = "t.marketGroupID = ?"
+        items = databaseManager.searchItemsMemory { typeID, info in
+            guard info.marketGroupID == group.id else { return false }
+            if !allowTypeIDs.isEmpty, !allowTypeIDs.contains(typeID) { return false }
+            return true
         }
-        let parameters: [Any] = [group.id]
-
-        items = databaseManager.loadMarketItems(whereClause: whereClause, parameters: parameters)
 
         // 加载科技等级名称
         let metaGroupIDs = Set(items.compactMap { $0.metaGroupID })

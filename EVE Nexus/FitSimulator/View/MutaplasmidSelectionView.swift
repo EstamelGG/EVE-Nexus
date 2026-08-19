@@ -8,10 +8,6 @@ struct MutaplasmidSelectionView: View {
 
     @Environment(\.dismiss) var dismiss
     @State private var mutaplasmids: [(typeID: Int, name: String, iconFileName: String)] = []
-    @State private var mutaplasmidAttributes: [Int: [(
-        attributeID: Int, name: String, iconFileName: String?, minValue: Double,
-        maxValue: Double, highIsGood: Bool
-    )]] = [:]
     @State private var isLoading = true
 
     var body: some View {
@@ -28,7 +24,9 @@ struct MutaplasmidSelectionView: View {
                 ForEach(mutaplasmids, id: \.typeID) { mutaplasmid in
                     MutaplasmidRowView(
                         mutaplasmid: mutaplasmid,
-                        attributes: mutaplasmidAttributes[mutaplasmid.typeID] ?? []
+                        attributes: SDEMemoryStore.dynamicItemAttributes(
+                            forTypeID: mutaplasmid.typeID
+                        )
                     ) {
                         // 选择突变质体
                         onSelectMutaplasmid?(mutaplasmid.typeID)
@@ -45,63 +43,16 @@ struct MutaplasmidSelectionView: View {
 
     private func loadMutaplasmids() {
         isLoading = true
-
-        // 获取可用突变质体列表
+        // 获取可用突变质体列表（属性范围从 SDEMemoryStore 内存缓存取）
         mutaplasmids = databaseManager.getRequiredMutaplasmids(for: itemTypeID)
-
-        // 为每个突变质体加载属性信息
-        for mutaplasmid in mutaplasmids {
-            loadMutaplasmidAttributes(mutaplasmidID: mutaplasmid.typeID)
-        }
-
         isLoading = false
-    }
-
-    private func loadMutaplasmidAttributes(mutaplasmidID: Int) {
-        let attributesQuery = """
-            SELECT a.attribute_id, d.display_name, COALESCE(d.icon_filename, '') as icon_filename, 
-                   a.min_value, a.max_value, d.highIsGood
-            FROM dynamic_item_attributes a
-            LEFT JOIN dogmaAttributes d ON a.attribute_id = d.attribute_id
-            WHERE a.type_id = ?
-            ORDER BY d.display_name
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(
-            attributesQuery, parameters: [mutaplasmidID]
-        ) {
-            let attributes = rows.compactMap { row -> (
-                attributeID: Int, name: String, iconFileName: String?, minValue: Double,
-                maxValue: Double, highIsGood: Bool
-            )? in
-                guard let attributeID = row["attribute_id"] as? Int,
-                      let name = row["display_name"] as? String,
-                      let minValue = row["min_value"] as? Double,
-                      let maxValue = row["max_value"] as? Double,
-                      let highIsGood = row["highIsGood"] as? Int
-                else { return nil }
-                let iconFileName = row["icon_filename"] as? String
-                return (
-                    attributeID: attributeID,
-                    name: name,
-                    iconFileName: iconFileName,
-                    minValue: minValue,
-                    maxValue: maxValue,
-                    highIsGood: highIsGood == 1
-                )
-            }
-            mutaplasmidAttributes[mutaplasmidID] = attributes
-        }
     }
 }
 
 /// 突变质体行视图
 struct MutaplasmidRowView: View {
     let mutaplasmid: (typeID: Int, name: String, iconFileName: String)
-    let attributes: [(
-        attributeID: Int, name: String, iconFileName: String?, minValue: Double,
-        maxValue: Double, highIsGood: Bool
-    )]
+    let attributes: [SDEMemoryStore.DynamicItemAttributeInfo]
     let onTap: () -> Void
 
     var body: some View {
@@ -163,6 +114,7 @@ struct MutaplasmidRowView: View {
                 }
             }
             .padding(.vertical, 4)
+            .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
     }

@@ -30,11 +30,13 @@ struct PIResourceChainView: View {
                         Spacer()
                     }
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             } else if let error = errorMessage {
                 Section {
                     Text(error)
                         .foregroundColor(.red)
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             } else {
                 // 基本信息部分
                 Section(
@@ -102,6 +104,7 @@ struct PIResourceChainView: View {
                         }
                     }
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
 
                 // P0资源需求部分
                 if !p0Resources.isEmpty {
@@ -139,6 +142,7 @@ struct PIResourceChainView: View {
                             }
                         }
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
             }
         }

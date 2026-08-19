@@ -276,28 +276,14 @@ class Step1 {
             return
         }
 
-        // 构建IN查询的占位符
-        let placeholders = Array(repeating: "?", count: ids.count).joined(separator: ",")
-
-        // 查询属性 - 使用单个查询获取所有属性
-        let attrQuery = """
-            SELECT ta.type_id, ta.attribute_id, ta.value, da.name 
-            FROM typeAttributes ta 
-            JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id
-            WHERE ta.type_id IN (\(placeholders))
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(attrQuery, parameters: ids) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let attrId = row["attribute_id"] as? Int,
-                   let value = row["value"] as? Double,
-                   let name = row["name"] as? String
-                {
-                    // 保存属性值到属性字典
-                    attributes[typeId]?[attrId] = value
-                    attributesByName[typeId]?[name] = value
-                }
+        // 批量取属性（内存索引）
+        for (typeId, attrs) in SDEMemoryStore.typeAttributes(for: ids) {
+            guard attributes[typeId] != nil else { continue }
+            for (attrId, value) in attrs.attributes {
+                attributes[typeId]?[attrId] = value
+            }
+            for (name, value) in attrs.attributesByName {
+                attributesByName[typeId]?[name] = value
             }
         }
     }
@@ -312,63 +298,32 @@ class Step1 {
         effects: inout [Int: [EffectDetail]],
         typeInfo: [Int: (name: String, groupId: Int)]
     ) {
-        // 构建IN查询的占位符
-        let placeholders = Array(repeating: "?", count: ids.count).joined(separator: ",")
+        // 收集效果信息（内存索引：typeEffects + dogmaEffects）
+        for typeId in ids {
+            let (typeName, groupId) = typeInfo[typeId] ?? ("Unknown", 0)
 
-        // 收集效果信息
-        let effectQuery = """
-            SELECT 
-                te.type_id, 
-                te.effect_id, 
-                e.effect_name, 
-                e.effect_category,
-                e.description,
-                e.modifier_info,
-                e.is_offensive,
-                e.is_assistance,
-                te.is_default
-            FROM typeEffects te
-            JOIN dogmaEffects e ON te.effect_id = e.effect_id
-            WHERE te.type_id IN (\(placeholders))
-        """
+            for entry in SDEMemoryStore.typeEffects(forType: typeId) {
+                guard let effect = SDEMemoryStore.dogmaEffect(for: entry.effectID) else { continue }
 
-        if case let .success(rows) = databaseManager.executeQuery(effectQuery, parameters: ids) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let effectId = row["effect_id"] as? Int,
-                   let effectName = row["effect_name"] as? String
-                {
-                    // 从typeInfo获取物品名称和分组ID
-                    let (typeName, groupId) = typeInfo[typeId] ?? ("Unknown", 0)
+                // 创建效果详情对象
+                let effectDetail = EffectDetail(
+                    effectId: effect.effectID,
+                    effectName: effect.effectName,
+                    effectCategory: effect.effectCategory,
+                    description: effect.description,
 
-                    // 提取可选字段
-                    let effectCategory = row["effect_category"] as? Int
-                    let description = row["description"] as? String
-                    let modifierInfo = row["modifier_info"] as? String
-                    let isOffensive = (row["is_offensive"] as? Int ?? 0) == 1
-                    let isAssistance = (row["is_assistance"] as? Int ?? 0) == 1
-                    let isDefault = (row["is_default"] as? Int ?? 0) == 1
+                    typeId: typeId,
+                    typeName: typeName,
+                    groupId: groupId,
 
-                    // 创建效果详情对象
-                    let effectDetail = EffectDetail(
-                        effectId: effectId,
-                        effectName: effectName,
-                        effectCategory: effectCategory,
-                        description: description,
+                    isDefault: entry.isDefault,
+                    isOffensive: effect.isOffensive,
+                    isAssistance: effect.isAssistance,
+                    modifierInfo: effect.modifierInfo
+                )
 
-                        typeId: typeId,
-                        typeName: typeName,
-                        groupId: groupId,
-
-                        isDefault: isDefault,
-                        isOffensive: isOffensive,
-                        isAssistance: isAssistance,
-                        modifierInfo: modifierInfo
-                    )
-
-                    // 添加到对应物品的效果数组
-                    effects[typeId]?.append(effectDetail)
-                }
+                // 添加到对应物品的效果数组
+                effects[typeId]?.append(effectDetail)
             }
         }
     }

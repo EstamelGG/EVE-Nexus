@@ -222,7 +222,7 @@ struct KillMailDetailData {
 
         return LocalFitting(
             description: "",
-            fitting_id: Int(Date().timeIntervalSince1970),
+            fitting_id: UUID(),
             items: fittingItems,
             name: NSLocalizedString("KillMail_Simulate_Fitting", comment: ""),
             ship_type_id: esi.victim.ship_type_id,

@@ -31,7 +31,7 @@ public enum WalletLoadingProgress {
 @MainActor
 final class CorpWalletJournalViewModel: ObservableObject {
     @Published private(set) var journalGroups: [CorpWalletJournalGroup] = []
-    @Published var isLoading = true
+    @Published var isLoading = false
     @Published var errorMessage: String?
     @Published private(set) var totalIncome: Double = 0.0
     @Published private(set) var totalExpense: Double = 0.0
@@ -40,7 +40,6 @@ final class CorpWalletJournalViewModel: ObservableObject {
     @Published var showFilter = false
     @Published var selectedRefTypes: Set<String> = []
     @Published var selectedTransactionTypes: Set<TransactionType> = []
-    private var initialLoadDone = false
     @Published private(set) var totalEntries: Int = 0
     @Published private(set) var isPartialData: Bool = false
 
@@ -136,7 +135,6 @@ final class CorpWalletJournalViewModel: ObservableObject {
 
     private let characterId: Int
     private let division: Int
-    private var loadingTask: Task<Void, Never>?
 
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -156,10 +154,6 @@ final class CorpWalletJournalViewModel: ObservableObject {
         self.characterId = characterId
         self.division = division
         // 不在这里自动加载，由视图的 .task 或显式调用 loadJournalData() 来控制加载时机
-    }
-
-    deinit {
-        loadingTask?.cancel()
     }
 
     /// 计算总收支
@@ -205,133 +199,104 @@ final class CorpWalletJournalViewModel: ObservableObject {
     }
 
     func loadJournalData(forceRefresh: Bool = false) async {
-        // 如果已经加载过且不是强制刷新，则跳过
-        if initialLoadDone, !forceRefresh {
-            return
+        // 防重入：加载中直接忽略后来者（含刷新请求）
+        guard !isLoading else { return }
+        // 幂等：已有数据且非强制刷新时跳过
+        guard forceRefresh || journalGroups.isEmpty else { return }
+
+        isLoading = true
+        errorMessage = nil
+        defer {
+            isLoading = false
+            loadingProgress = nil
         }
 
-        // 取消之前的加载任务
-        loadingTask?.cancel()
-
-        // 创建新的加载任务
-        loadingTask = Task {
-            isLoading = true
-            errorMessage = nil
-
-            do {
-                guard
-                    let jsonString = try await CorpWalletAPI.shared.getCorpWalletJournal(
-                        characterId: characterId,
-                        division: division,
-                        forceRefresh: forceRefresh,
-                        progressCallback: { progress in
-                            Task { @MainActor in
-                                self.loadingProgress = progress
-                            }
-                        }
-                    )
-                else {
-                    throw NetworkError.invalidResponse
-                }
-
-                if Task.isCancelled { return }
-
-                guard let jsonData = jsonString.data(using: .utf8),
-                      let entries = try? JSONDecoder().decode(
-                          [CorpWalletJournalEntry].self, from: jsonData
-                      )
-                else {
-                    throw NetworkError.invalidResponse
-                }
-
-                if Task.isCancelled { return }
-
-                // 检查数据量
-                totalEntries = entries.count
-
-                // 检查是否只显示部分数据
-                if totalEntries >= 9500 {
-                    // 获取最久远的记录日期
-                    if let oldestEntry = entries.min(by: { $0.date < $1.date }),
-                       let oldestDate = dateFormatter.date(from: oldestEntry.date)
-                    {
-                        let calendar = Calendar.current
-                        let now = Date()
-                        let days =
-                            calendar.dateComponents([.day], from: oldestDate, to: now).day ?? 0
-                        isPartialData = days < 30
-                    }
-                }
-
-                // 计算总收支
-                calculateTotals(from: entries)
-
-                // 按日期分组
-                var groupedEntries: [Date: [CorpWalletJournalEntry]] = [:]
-                for entry in entries {
-                    guard let date = FormatUtil.parseUTCDate(entry.date) else {
-                        Logger.error("Failed to parse date: \(entry.date)")
-                        continue
-                    }
-
-                    let components = calendar.dateComponents([.year, .month, .day], from: date)
-                    guard let dayDate = calendar.date(from: components) else {
-                        Logger.error("Failed to create date from components for: \(entry.date)")
-                        continue
-                    }
-
-                    groupedEntries[dayDate, default: []].append(entry)
-                }
-
-                if Task.isCancelled { return }
-
-                let groups = groupedEntries.map { date, entries -> CorpWalletJournalGroup in
-                    CorpWalletJournalGroup(date: date, entries: entries.sorted { $0.id > $1.id })
-                }.sorted { $0.date > $1.date }
-
-                await MainActor.run {
-                    self.journalGroups = groups
-                    self.isLoading = false
-                    self.loadingProgress = .completed
-                    let wasFirstLoad = !self.initialLoadDone
-                    self.initialLoadDone = true
-
-                    // 首次加载时，如果过滤器为空，自动选中所有选项
-                    if wasFirstLoad {
-                        let availableTypes = self.availableRefTypes
-                        if self.selectedRefTypes.isEmpty, !availableTypes.isEmpty {
-                            self.selectedRefTypes = Set(availableTypes)
-                        }
-                        if self.selectedTransactionTypes.isEmpty {
-                            self.selectedTransactionTypes = [.income, .expense]
+        do {
+            guard
+                let jsonString = try await CorpWalletAPI.shared.getCorpWalletJournal(
+                    characterId: characterId,
+                    division: division,
+                    forceRefresh: forceRefresh,
+                    progressCallback: { progress in
+                        Task { @MainActor in
+                            self.loadingProgress = progress
                         }
                     }
-                }
-                if !Task.isCancelled {
-                    await MainActor.run {
-                        self.loadingProgress = nil
-                    }
-                }
+                )
+            else {
+                throw NetworkError.invalidResponse
+            }
 
-            } catch {
-                // 忽略取消错误，这是预期的行为
-                if error is CancellationError {
-                    return
-                }
+            guard let jsonData = jsonString.data(using: .utf8),
+                  let entries = try? JSONDecoder().decode(
+                      [CorpWalletJournalEntry].self, from: jsonData
+                  )
+            else {
+                throw NetworkError.invalidResponse
+            }
 
-                Logger.error("加载军团钱包流水失败: \(error.localizedDescription)")
-                if !Task.isCancelled {
-                    await MainActor.run {
-                        self.errorMessage = error.localizedDescription
-                        self.isLoading = false
-                        self.loadingProgress = nil
-                    }
+            // 检查数据量
+            totalEntries = entries.count
+
+            // 检查是否只显示部分数据
+            if totalEntries >= 9500 {
+                // 获取最久远的记录日期
+                if let oldestEntry = entries.min(by: { $0.date < $1.date }),
+                   let oldestDate = dateFormatter.date(from: oldestEntry.date)
+                {
+                    let calendar = Calendar.current
+                    let now = Date()
+                    let days =
+                        calendar.dateComponents([.day], from: oldestDate, to: now).day ?? 0
+                    isPartialData = days < 30
                 }
             }
-        }
 
-        // 等待任务完成
-        await loadingTask?.value
+            // 计算总收支
+            calculateTotals(from: entries)
+
+            // 按日期分组
+            var groupedEntries: [Date: [CorpWalletJournalEntry]] = [:]
+            for entry in entries {
+                guard let date = FormatUtil.parseUTCDate(entry.date) else {
+                    Logger.error("Failed to parse date: \(entry.date)")
+                    continue
+                }
+
+                let components = calendar.dateComponents([.year, .month, .day], from: date)
+                guard let dayDate = calendar.date(from: components) else {
+                    Logger.error("Failed to create date from components for: \(entry.date)")
+                    continue
+                }
+
+                groupedEntries[dayDate, default: []].append(entry)
+            }
+
+            let groups = groupedEntries.map { date, entries -> CorpWalletJournalGroup in
+                CorpWalletJournalGroup(date: date, entries: entries.sorted { $0.id > $1.id })
+            }.sorted { $0.date > $1.date }
+
+            // 首次成功加载时自动全选过滤项（赋值前 journalGroups 为空即首载）
+            let isFirstLoad = journalGroups.isEmpty
+            journalGroups = groups
+
+            if isFirstLoad {
+                let availableTypes = availableRefTypes
+                if selectedRefTypes.isEmpty, !availableTypes.isEmpty {
+                    selectedRefTypes = Set(availableTypes)
+                }
+                if selectedTransactionTypes.isEmpty {
+                    selectedTransactionTypes = [.income, .expense]
+                }
+            }
+        } catch {
+            if error is CancellationError {
+                // 取消不作为错误展示
+            } else {
+                Logger.error("加载军团钱包流水失败: \(error.localizedDescription)")
+                errorMessage = error.localizedDescription
+            }
+        }
     }
 }
 
@@ -622,6 +587,15 @@ struct CorpWalletJournalView: View {
 
             if viewModel.isLoading {
                 WalletJournalSkeleton()
+            } else if let errorMessage = viewModel.errorMessage,
+                      viewModel.journalGroups.isEmpty
+            {
+                // 与军团钱包页一致的错误展示（含重试按钮）
+                ErrorStateSection(message: errorMessage) {
+                    Task {
+                        await viewModel.loadJournalData(forceRefresh: true)
+                    }
+                }
             } else if viewModel.journalGroups.isEmpty {
                 Section {
                     NoDataSection()

@@ -172,6 +172,12 @@ final class PersonalContractsViewModel: ObservableObject {
         {
             groupingMode = savedGroupingMode
         }
+
+        // 构造时启动数据加载（原先由视图 init 触发，移入以避免视图重复构造引发重复加载）
+        Task {
+            await loadContractsData()
+            isInitialized = true
+        }
     }
 
     /// 检查是否有军团合同访问权限

@@ -6,7 +6,11 @@ class SharedSkillsManager: ObservableObject {
     static let shared = SharedSkillsManager()
 
     @Published var characterSkills: [Int: Int] = [:]
+    @Published var skillQueue: [SkillQueueItem] = []
     @Published var isLoading = false
+    /// 认证满足矩阵：certificateID → 最高达标等级（0-5）
+    /// 技能加载成功后立即计算，与 characterSkills 同生命周期加载/失效
+    @Published var masteryCertLevels: [Int: Int] = [:]
 
     /// 跟踪当前加载的角色 ID，用于检测角色切换
     private var loadedCharacterId: Int = 0
@@ -21,6 +25,8 @@ class SharedSkillsManager: ObservableObject {
     func preloadSkills() {
         guard currentCharacterId != 0 else {
             characterSkills = [:]
+            skillQueue = []
+            masteryCertLevels = [:]
             loadedCharacterId = 0
             isLoading = false
             return
@@ -29,6 +35,8 @@ class SharedSkillsManager: ObservableObject {
         if loadedCharacterId != currentCharacterId {
             Logger.debug("检测到角色切换: \(loadedCharacterId) -> \(currentCharacterId)")
             characterSkills = [:]
+            skillQueue = []
+            masteryCertLevels = [:]
             loadedCharacterId = 0
             isLoading = false
         }
@@ -62,16 +70,22 @@ class SharedSkillsManager: ObservableObject {
 
                 await MainActor.run {
                     self.characterSkills = skillsDict
+                    self.masteryCertLevels = MasteryEvaluator.certificateLevels(
+                        characterSkills: skillsDict
+                    )
+                    self.skillQueue = queue
                     self.loadedCharacterId = currentCharacterId
                     self.isLoading = false
                     Logger.debug(
-                        "SharedSkillsManager技能数据预加载完成 - 角色ID: \(currentCharacterId), 技能数量: \(skillsDict.count)"
+                        "SharedSkillsManager技能数据预加载完成 - 角色ID: \(currentCharacterId), 技能数量: \(skillsDict.count), 队列长度: \(queue.count)"
                     )
                 }
             } catch {
                 Logger.error("SharedSkillsManager预加载技能数据失败: \(error)")
                 await MainActor.run {
                     self.characterSkills = [:]
+                    self.skillQueue = []
+                    self.masteryCertLevels = [:]
                     self.loadedCharacterId = 0
                     self.isLoading = false
                 }
@@ -86,10 +100,40 @@ class SharedSkillsManager: ObservableObject {
         return characterSkills[skillID] ?? -1
     }
 
+    /// 拉取角色属性（无角色或失败返回 nil），供技能要求/专精等视图共用
+    func fetchAttributes(characterId: Int) async -> CharacterAttributes? {
+        guard characterId != 0 else { return nil }
+        do {
+            return try await CharacterSkillsAPI.shared.fetchAttributes(
+                characterId: characterId,
+                forceRefresh: false
+            )
+        } catch {
+            Logger.error("获取角色属性失败: \(error)")
+            return nil
+        }
+    }
+
+    /// 拉取角色属性并异步回写到视图的 @State（技能要求/专精等视图的 onAppear 共用）
+    func loadAttributes(characterId: Int, into attributes: Binding<CharacterAttributes?>) {
+        Task { @MainActor in
+            attributes.wrappedValue = await fetchAttributes(characterId: characterId)
+        }
+    }
+
+    /// 获取某技能正在训练到的目标等级（仅当前正在训练的项，不含队列中排队的后续项）
+    /// - Returns: nil=未在训练；否则返回正在训练到的等级（1-5）
+    func getTrainingTargetLevel(for skillID: Int) -> Int? {
+        guard currentCharacterId != 0, !isLoading else { return nil }
+        return skillQueue.first(where: { $0.skill_id == skillID && $0.isCurrentlyTraining })?.finished_level
+    }
+
     /// 清除技能数据（角色切换或登出时调用）
     func clearSkillData() {
         Logger.debug("SharedSkillsManager清除技能数据")
         characterSkills = [:]
+        skillQueue = []
+        masteryCertLevels = [:]
         loadedCharacterId = 0
         isLoading = false
     }
@@ -99,8 +143,11 @@ enum ItemInfoMap {
     typealias TypeDisplayInfo = SDEMemoryStore.TypeInfo
 
     /// 在打开数据库 / 切换语言时调用；重建 SDE 内存索引
-    static func initializeCache(databaseManager: DatabaseManager) {
-        SDEMemoryStore.loadAll(databaseManager: databaseManager)
+    static func initializeCache(
+        databaseManager: DatabaseManager,
+        progress: ((Int, Int) -> Void)? = nil
+    ) {
+        SDEMemoryStore.loadAll(databaseManager: databaseManager, progress: progress)
     }
 
     static func typeInfo(for typeID: Int) -> TypeDisplayInfo? {

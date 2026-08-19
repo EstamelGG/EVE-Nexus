@@ -592,13 +592,10 @@ struct FittingSettingsView: View {
             )
         }
         .onAppear {
-            let items = databaseManager.loadMarketItems(
-                whereClause: "t.type_id = ?",
-                parameters: [shipTypeID]
+            shipItem = DatabaseListItem(
+                typeID: shipTypeID,
+                databaseManager: databaseManager
             )
-            if let item = items.first {
-                shipItem = item
-            }
 
             if !hasInitializedEnvironment {
                 hasInitializedEnvironment = true

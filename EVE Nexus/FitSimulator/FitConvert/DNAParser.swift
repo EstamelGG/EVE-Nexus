@@ -235,7 +235,7 @@ class DNAParser {
         // 创建LocalFitting对象
         let localFitting = LocalFitting(
             description: NSLocalizedString("DNA_Fitting_Link_Default_Description", comment: ""),
-            fitting_id: Int(Date().timeIntervalSince1970), // 使用时间戳作为ID
+            fitting_id: UUID(), // 全局唯一，避免时间戳碰撞互相覆盖
             items: items,
             name: dnaResult.displayName.isEmpty
                 ? NSLocalizedString("DNA_Fitting_Link_Default_Name", comment: "")

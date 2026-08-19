@@ -298,33 +298,15 @@ struct MarketQuickbarPickerRowView: View {
     }
 
     private func preferredIconTypeID(for quickbar: MarketQuickbar) -> Int? {
-        guard !quickbar.items.isEmpty else { return nil }
-        let typeIDs = quickbar.items.map { String($0.typeID) }.joined(separator: ",")
-        let loaded = databaseManager.loadMarketItems(
-            whereClause: "t.type_id IN (\(typeIDs))",
-            parameters: []
-        )
-        let typeIDToCategory: [Int: Int] = Dictionary(uniqueKeysWithValues: loaded.compactMap { item in
-            guard let cat = item.categoryID else { return nil }
-            return (item.id, cat)
-        })
-        for item in quickbar.items {
-            if typeIDToCategory[item.typeID] == 6 {
-                return item.typeID
-            }
+        for item in quickbar.items where SDEMemoryStore.type(for: item.typeID)?.categoryID == 6 {
+            return item.typeID
         }
         return quickbar.items.first?.typeID
     }
 
     private func itemIcon(typeID: Int) -> UIImage {
-        let itemData = databaseManager.loadMarketItems(
-            whereClause: "t.type_id = ?",
-            parameters: [typeID]
-        )
-        if let item = itemData.first {
-            return IconManager.shared.loadUIImage(for: item.iconFileName)
-        }
-        return UIImage(named: "not_found") ?? UIImage()
+        let iconFileName = ItemInfoMap.iconFilename(for: typeID)
+        return IconManager.shared.loadUIImage(for: iconFileName)
     }
 
     private func marketDisplayName(for quickbar: MarketQuickbar) -> String {

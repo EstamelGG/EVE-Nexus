@@ -62,57 +62,25 @@ struct StructureSearchView {
         return result
     }
 
-    /// 从数据库批量加载空间站信息
-    private func loadStationsInfo(stationIds: [Int]) throws -> [(
+    /// 从 SDEMemoryStore 内存缓存批量加载空间站信息
+    private func loadStationsInfo(stationIds: [Int]) -> [(
         id: Int, name: String, typeId: Int, systemId: Int
     )] {
-        let placeholders = String(repeating: "?,", count: stationIds.count).dropLast()
-        let sql = """
-            SELECT 
-                stationID,
-                stationName,
-                stationTypeID,
-                solarSystemID
-            FROM stations
-            WHERE stationID IN (\(placeholders))
-        """
-
-        guard
-            case let .success(rows) = DatabaseManager.shared.executeQuery(
-                sql, parameters: stationIds
-            )
-        else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "未找到空间站信息"])
-        }
-
-        return rows.map { row in
-            (
-                id: row["stationID"] as! Int,
-                name: row["stationName"] as! String,
-                typeId: row["stationTypeID"] as! Int,
-                systemId: row["solarSystemID"] as! Int
-            )
+        stationIds.compactMap { stationId in
+            guard let info = SDEMemoryStore.station(for: stationId),
+                  let typeId = info.stationTypeID,
+                  let systemId = info.solarSystemID
+            else { return nil }
+            return (id: stationId, name: info.name, typeId: typeId, systemId: systemId)
         }
     }
 
-    /// 从本地数据库搜索空间站
-    private func searchLocalStations(searchText: String) throws -> [Int] {
-        let sql = """
-            SELECT stationID 
-            FROM stations 
-            WHERE stationName LIKE ?
-            LIMIT 500
-        """
-
-        guard
-            case let .success(rows) = DatabaseManager.shared.executeQuery(
-                sql, parameters: ["%\(searchText)%"]
-            )
-        else {
-            throw NSError(domain: "", code: -1, userInfo: [NSLocalizedDescriptionKey: "本地数据库搜索失败"])
-        }
-
-        return rows.compactMap { $0["stationID"] as? Int }
+    /// 从 SDEMemoryStore 内存缓存搜索空间站
+    private func searchLocalStations(searchText: String) -> [Int] {
+        SDEMemoryStore.stations.values
+            .filter { $0.name.localizedStandardContains(searchText) }
+            .prefix(500)
+            .map { $0.id }
     }
 
     func search() async throws {
@@ -132,14 +100,10 @@ struct StructureSearchView {
         var allStationIds = Set<Int>()
         var structureIds: [Int] = []
 
-        // 1. 从本地数据库搜索
-        do {
-            let localStationIds = try searchLocalStations(searchText: searchText)
-            allStationIds.formUnion(localStationIds)
-            Logger.debug("本地数据库找到 \(localStationIds.count) 个空间站")
-        } catch {
-            Logger.error("本地数据库搜索失败: \(error)")
-        }
+        // 1. 从内存缓存搜索空间站
+        let localStationIds = searchLocalStations(searchText: searchText)
+        allStationIds.formUnion(localStationIds)
+        Logger.debug("本地缓存找到 \(localStationIds.count) 个空间站")
 
         // 2. 使用CharacterSearchAPI进行在线搜索
         do {
@@ -191,7 +155,7 @@ struct StructureSearchView {
                 try Task.checkCancellation()
 
                 // 批量获取空间站信息
-                let stationsInfo = try loadStationsInfo(stationIds: Array(allStationIds))
+                let stationsInfo = loadStationsInfo(stationIds: Array(allStationIds))
 
                 // 批量获取位置信息
                 let locationInfoMap = try await loadBatchLocationInfo(

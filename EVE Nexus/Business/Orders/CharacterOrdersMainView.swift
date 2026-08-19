@@ -56,6 +56,9 @@ final class CharacterOrdersViewModel: ObservableObject {
     init(characterId: Int64, databaseManager: DatabaseManager) {
         self.characterId = characterId
         self.databaseManager = databaseManager
+
+        // 构造时启动预加载（原先由视图 init 触发，移入以避免视图重复构造引发重复加载）
+        preloadOrders()
     }
 
     deinit {
@@ -199,14 +202,12 @@ struct CharacterOrdersView: View {
 
     init(characterId: Int64, databaseManager: DatabaseManager = DatabaseManager()) {
         self.characterId = characterId
-        let vm = CharacterOrdersViewModel(
+        // 构造表达式内联在 autoclosure 中，避免父视图每次重渲染都新建 ViewModel；
+        // 预加载已在 ViewModel init 中启动
+        _viewModel = StateObject(wrappedValue: CharacterOrdersViewModel(
             characterId: characterId,
             databaseManager: databaseManager
-        )
-        _viewModel = StateObject(wrappedValue: vm)
-
-        // 在初始化时预加载数据
-        vm.preloadOrders()
+        ))
     }
 
     var body: some View {

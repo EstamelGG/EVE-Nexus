@@ -26,6 +26,15 @@ class SkillTreeManager {
     /// 技能等级对应的基础点数
     static let levelBasePoints = [250, 1415, 8000, 45255, 256_000]
 
+    /// 技能等级所需技能点（等级 1-5；倍率缺失或等级越界返回 nil）
+    static func skillPoints(level: Int, multiplier: Double?) -> Int? {
+        guard let multiplier,
+              level > 0,
+              level <= levelBasePoints.count
+        else { return nil }
+        return Int(Double(levelBasePoints[level - 1]) * multiplier)
+    }
+
     /// [skillID: [(requiredSkillID, level)]]
     private var directRequirements: [Int: [(skillID: Int, level: Int)]] = [:]
 
@@ -291,5 +300,99 @@ class SkillTreeManager {
         }
 
         return multipliers
+    }
+}
+
+/// 技能需求统计：由需求列表 + 角色技能/属性一次性算出 SP 总量、缺口与预计训练时间
+/// （技能要求页 SkillRequirementsView 与专精详情页 ShipMasteryDetailView 共用）
+struct SkillRequirementStats {
+    /// 全部要求等级的 SP 总和
+    let totalPoints: Int
+    /// 未达标部分还差的 SP（未登录角色时为 0）
+    let missingPoints: Int
+    /// 未达标技能按角色属性预计的总训练时间（秒）；无角色属性或无需训练时为 0
+    let trainingTime: TimeInterval
+
+    init(
+        requirements: [(skillID: Int, level: Int, timeMultiplier: Double?)],
+        characterSkills: [Int: Int],
+        hasCharacter: Bool,
+        attributes: CharacterAttributes?
+    ) {
+        var total = 0
+        var missing = 0
+        var unmetSkillIDs: [Int] = []
+
+        for requirement in requirements {
+            guard let requiredPoints = SkillTreeManager.skillPoints(
+                level: requirement.level,
+                multiplier: requirement.timeMultiplier
+            ) else { continue }
+            total += requiredPoints
+
+            guard hasCharacter else { continue }
+            let currentLevel = characterSkills[requirement.skillID] ?? 0
+            guard currentLevel < requirement.level else { continue }
+
+            unmetSkillIDs.append(requirement.skillID)
+            let currentSP = currentLevel > 0
+                ? (SkillTreeManager.skillPoints(
+                    level: currentLevel,
+                    multiplier: requirement.timeMultiplier
+                ) ?? 0)
+                : 0
+            missing += max(0, requiredPoints - currentSP)
+        }
+
+        totalPoints = total
+        missingPoints = missing
+
+        guard let attributes, !unmetSkillIDs.isEmpty else {
+            trainingTime = 0
+            return
+        }
+
+        let skillAttributesMap = SkillTreeManager.shared.trainingAttributes(
+            forSkillIDs: unmetSkillIDs
+        )
+        var totalTime: TimeInterval = 0
+        for requirement in requirements {
+            guard (characterSkills[requirement.skillID] ?? 0) < requirement.level,
+                  let skillAttrs = skillAttributesMap[requirement.skillID],
+                  let requiredPoints = SkillTreeManager.skillPoints(
+                      level: requirement.level,
+                      multiplier: requirement.timeMultiplier
+                  )
+            else { continue }
+
+            let currentLevel = characterSkills[requirement.skillID] ?? 0
+            let currentSP = currentLevel > 0
+                ? (SkillTreeManager.skillPoints(
+                    level: currentLevel,
+                    multiplier: requirement.timeMultiplier
+                ) ?? 0)
+                : 0
+            let missingSP = requiredPoints - currentSP
+
+            guard missingSP > 0,
+                  let pointsPerHour = SkillTrainingCalculator.calculateTrainingRate(
+                      primaryAttrId: skillAttrs.primary,
+                      secondaryAttrId: skillAttrs.secondary,
+                      attributes: attributes
+                  ),
+                  pointsPerHour > 0
+            else { continue }
+
+            totalTime += Double(missingSP) / Double(pointsPerHour) * 3600
+        }
+        trainingTime = totalTime
+    }
+
+    /// footer 文案：共 X SP（有缺口时附 ", 需: Y SP"）
+    var footerText: String {
+        let total =
+            "\(NSLocalizedString("Misc_InAll", comment: "")): \(FormatUtil.format(Double(totalPoints))) SP"
+        guard missingPoints > 0 else { return total }
+        return "\(total), \(NSLocalizedString("Misc_Need", comment: "")): \(FormatUtil.format(Double(missingPoints))) SP"
     }
 }

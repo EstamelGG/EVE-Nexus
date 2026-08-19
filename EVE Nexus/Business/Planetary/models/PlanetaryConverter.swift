@@ -370,43 +370,16 @@ class PlanetaryConverter {
     /// - Parameter schematicId: 配方ID
     /// - Returns: 配方
     private static func getSchematic(_ schematicId: Int) -> Schematic? {
-        // 从数据库获取配方信息
-        let query = """
-            SELECT schematic_id, output_typeid, name, cycle_time, output_value, input_typeid, input_value
-            FROM planetSchematics
-            WHERE schematic_id = ?
-        """
-
-        let result = DatabaseManager.shared.executeQuery(query, parameters: [schematicId])
-        switch result {
-        case let .success(rows):
-            if rows.isEmpty {
-                Logger.warning("未找到配方数据，配方ID: \(schematicId)")
-                return nil
-            }
-        case let .error(errorMessage):
-            Logger.error("查询配方失败，配方ID: \(schematicId), 错误: \(errorMessage)")
+        // 内存索引获取配方信息
+        guard let schematicData = SDEMemoryStore.planetSchematicsByID[schematicId] else {
+            Logger.warning("未找到配方数据，配方ID: \(schematicId)")
             return nil
         }
 
-        guard case let .success(rows) = result,
-              let row = rows.first,
-              let id = row["schematic_id"] as? Int,
-              let outputTypeId = row["output_typeid"] as? Int,
-              let cycleTime = row["cycle_time"] as? Int,
-              let outputValue = row["output_value"] as? Int
-        else {
-            Logger.error("配方数据格式不正确，配方ID: \(schematicId)")
-            // 记录实际数据内容
-            if case let .success(rows) = result, let row = rows.first {
-                let keys = Array(row.keys).sorted()
-                let values = keys.map {
-                    "\($0)=\(type(of: row[$0])) \(String(describing: row[$0]))"
-                }
-                Logger.error("实际数据: \(values.joined(separator: ", "))")
-            }
-            return nil
-        }
+        let id = schematicData.id
+        let outputTypeId = schematicData.outputTypeID
+        let cycleTime = schematicData.cycleTime
+        let outputValue = schematicData.outputValue
 
         // 获取输出类型信息
         let outputTypeInfo = getTypeInfo(outputTypeId)
@@ -416,29 +389,18 @@ class PlanetaryConverter {
 
         // 解析输入类型ID和数量
         var inputs: [Type: Int64] = [:]
-        if let inputTypeIdString = row["input_typeid"] as? String,
-           let inputValueString = row["input_value"] as? String
-        {
-            let inputTypeIds = inputTypeIdString.components(separatedBy: ",").compactMap {
-                Int($0.trimmingCharacters(in: .whitespacesAndNewlines))
+        let parsed = schematicData.inputs
+        if !parsed.isEmpty {
+            for (typeId, quantity) in parsed {
+                let typeInfo = getTypeInfo(typeId)
+                let type = Type(id: typeId, name: typeInfo.name, volume: typeInfo.volume)
+                inputs[type] = Int64(quantity)
             }
-            let inputValues = inputValueString.components(separatedBy: ",").compactMap {
-                Int($0.trimmingCharacters(in: .whitespacesAndNewlines))
-            }
-
-            if inputTypeIds.count == inputValues.count {
-                for i in 0 ..< inputTypeIds.count {
-                    let typeId = inputTypeIds[i]
-                    let quantity = inputValues[i]
-
-                    let typeInfo = getTypeInfo(typeId)
-                    let type = Type(id: typeId, name: typeInfo.name, volume: typeInfo.volume)
-                    inputs[type] = Int64(quantity)
-                }
-            } else {
-                Logger.warning("输入类型ID和数量不匹配，配方ID: \(schematicId)")
-                Logger.warning("输入类型ID: \(inputTypeIdString), 输入数量: \(inputValueString)")
-            }
+        } else if !schematicData.rawInputTypeIDs.isEmpty {
+            Logger.warning("输入类型ID和数量不匹配，配方ID: \(schematicId)")
+            Logger.warning(
+                "输入类型ID: \(schematicData.rawInputTypeIDs), 输入数量: \(schematicData.rawInputValues)"
+            )
         }
 
         return Schematic(

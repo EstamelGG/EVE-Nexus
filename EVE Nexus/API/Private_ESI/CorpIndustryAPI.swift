@@ -87,12 +87,20 @@ class CorpIndustryAPI {
             }
         }
 
-        return try await fetchJobsFromServer(
+        // 403 负缓存统一由 CorpForbiddenCache 管理
+        return try await CorpForbiddenCache.shared.perform(
+            scope: "corpIndustry",
             corporationId: corporationId,
             characterId: characterId,
-            includeCompleted: includeCompleted,
-            progressCallback: progressCallback
-        )
+            forceRefresh: forceRefresh
+        ) {
+            try await fetchJobsFromServer(
+                corporationId: corporationId,
+                characterId: characterId,
+                includeCompleted: includeCompleted,
+                progressCallback: progressCallback
+            )
+        }
     }
 
     private func fetchJobsFromServer(

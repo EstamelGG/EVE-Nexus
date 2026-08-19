@@ -83,16 +83,69 @@ struct DatabaseListItem: Identifiable {
         self.attributeCompareEligible = attributeCompareEligible
         self.navigationDestination = navigationDestination
     }
+
+    /// 从 SDEMemoryStore 内存索引构建（迁移自 loadMarketItems 的 SQL 行映射）；内存中不存在该物品时返回 nil
+    init?(
+        typeID: Int,
+        databaseManager: DatabaseManager,
+        eligibleMarketGroupIDs: Set<Int>? = nil
+    ) {
+        guard let info = SDEMemoryStore.type(for: typeID) else { return nil }
+
+        let groupName = info.groupID.flatMap { SDEMemoryStore.group(for: $0)?.name }
+        let isEligible: Bool
+        if let mgID = info.marketGroupID, let eligible = eligibleMarketGroupIDs {
+            isEligible = eligible.contains(mgID)
+        } else {
+            isEligible = false
+        }
+
+        self.init(
+            id: typeID,
+            name: info.name,
+            enName: info.enName,
+            iconFileName: info.iconFilename,
+            published: info.published,
+            categoryID: info.categoryID,
+            groupID: info.groupID,
+            groupName: groupName,
+            pgNeed: info.pgNeed,
+            cpuNeed: info.cpuNeed,
+            rigCost: info.rigCost,
+            emDamage: info.emDamage,
+            themDamage: info.themDamage,
+            kinDamage: info.kinDamage,
+            expDamage: info.expDamage,
+            highSlot: info.highSlot,
+            midSlot: info.midSlot,
+            lowSlot: info.lowSlot,
+            rigSlot: info.rigSlot,
+            gunSlot: info.gunSlot,
+            missSlot: info.missSlot,
+            metaGroupID: info.metaGroupID,
+            marketGroupID: info.marketGroupID,
+            attributeCompareEligible: isEligible,
+            navigationDestination: ItemInfoMap.getItemInfoView(
+                itemID: typeID, databaseManager: databaseManager
+            )
+        )
+    }
+
+    /// 按 typeID 批量从内存索引构建（去重后按 id 升序，与旧 `type_id IN (...)` 查询 + 排序等价）
+    static func listItems(
+        for typeIDs: some Sequence<Int>,
+        databaseManager: DatabaseManager,
+        eligibleMarketGroupIDs: Set<Int>? = nil
+    ) -> [DatabaseListItem] {
+        Set(typeIDs)
+            .sorted()
+            .compactMap { DatabaseListItem(typeID: $0, databaseManager: databaseManager, eligibleMarketGroupIDs: eligibleMarketGroupIDs) }
+    }
 }
 
 /// 搜索/浏览列表的分组模型
-///
-/// 分组身份由 `Identity` 枚举表达：「精准匹配」等合成组拥有独立 case，
-/// 无需在分组 ID 命名空间里塞哨兵值（如 -9_887_642）。
 struct SearchResultSection<Item: Identifiable>: Identifiable {
     enum Identity: Hashable {
-        /// 「精准匹配」置顶组（合成组，无对应真实分组 ID）
-        case exactMatch
         /// 真实分组（市场组/元组等的 ID）
         case group(Int)
     }

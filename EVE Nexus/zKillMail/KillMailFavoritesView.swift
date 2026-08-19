@@ -152,7 +152,6 @@ private final class KillMailFavoritesListModel: ObservableObject {
     @Published private(set) var asyncISKByKillmailId: [Int: Double] = [:]
     @Published private(set) var iskLoadingKillmailIds: Set<Int> = []
 
-    private let databaseManager = DatabaseManager.shared
     // 懒加载：每批仅从收藏序列取 10 条做 ESI/展示；估值按行异步补全
     private let pageSize = 10
     private var recordsSnapshot: [FavoriteKillMailRecord] = []
@@ -467,23 +466,10 @@ private final class KillMailFavoritesListModel: ObservableObject {
     }
 
     private func getShipInfo(for typeIds: [Int]) -> [Int: (name: String, iconFileName: String)] {
-        guard !typeIds.isEmpty else { return [:] }
-        let placeholders = String(repeating: "?,", count: typeIds.count).dropLast()
-        let query = """
-            SELECT type_id, name, icon_filename
-            FROM types
-            WHERE type_id IN (\(placeholders))
-        """
-        let result = databaseManager.executeQuery(query, parameters: typeIds)
         var infoMap: [Int: (name: String, iconFileName: String)] = [:]
-        if case let .success(rows) = result {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let iconFileName = row["icon_filename"] as? String
-                {
-                    infoMap[typeId] = (name: name, iconFileName: iconFileName)
-                }
+        for typeId in typeIds {
+            if let info = SDEMemoryStore.type(for: typeId) {
+                infoMap[typeId] = (name: info.name, iconFileName: info.iconFilename)
             }
         }
         return infoMap

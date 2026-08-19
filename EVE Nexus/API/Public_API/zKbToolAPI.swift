@@ -18,35 +18,27 @@ class zKbToolAPI {
             "region": [],
         ]
 
-        // 1. 从本地数据库搜索物品
-        let query = """
-            SELECT type_id, name, icon_filename
-            FROM types t
-            WHERE \(LocalizedText.typeLangNameLikeSQL)
-            AND published = 1
-            AND categoryID IN (6, 65, 87)
-            order by categoryID
-            LIMIT 20
-        """
-
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(
-            query, parameters: LocalizedText.typeLangNameLikeParams(searchText)
-        ) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String
-                {
-                    let imageURL = "https://images.evetech.net/types/\(typeId)/icon?size=64"
-                    result["inventory_type"]?.append(
-                        ZKBSearchResult(
-                            id: typeId,
-                            name: name,
-                            type: "ship",
-                            image: imageURL
-                        )
-                    )
-                }
+        // 1. 从内存索引搜索舰船（categoryID 6/65/87，published）
+        let categoryIDs: Set = [6, 65, 87]
+        let matches = SDEMemoryStore.types
+            .filter { _, info in
+                info.published
+                    && info.names.matchesSearch(searchText)
+                    && categoryIDs.contains(info.categoryID)
             }
+            .sorted { $0.value.categoryID < $1.value.categoryID }
+            .prefix(20)
+
+        for (typeId, info) in matches {
+            let imageURL = "https://images.evetech.net/types/\(typeId)/icon?size=64"
+            result["inventory_type"]?.append(
+                ZKBSearchResult(
+                    id: typeId,
+                    name: info.name,
+                    type: "ship",
+                    image: imageURL
+                )
+            )
         }
 
         // 2. zkillboard 在线自动补全（至少 3 个字符才请求；短关键词仍可使用上方本地舰船搜索）

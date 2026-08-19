@@ -37,49 +37,17 @@ struct CorpStarbaseView: View {
                 }
             }
 
-            if viewModel.isLoading && viewModel.loadingDetailProgress == nil {
-                // 初始加载时显示加载视图（只有在没有详细信息进度时显示）
-                loadingView
-            } else if let error = viewModel.error,
-                      !viewModel.isLoading && viewModel.starbases.isEmpty
+            if let error = viewModel.error,
+               !viewModel.isLoading && viewModel.starbases.isEmpty
             {
                 // 显示错误信息
-                Section {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 12) {
-                            Image(systemName: "exclamationmark.triangle")
-                                .font(.system(size: 40))
-                                .foregroundColor(.orange)
-                            Text(NSLocalizedString("Corp_Starbase_Error", comment: "星堡信息加载失败"))
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            Text(error.localizedDescription)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                            Button(action: {
-                                Task {
-                                    do {
-                                        try await viewModel.loadStarbases(forceRefresh: true)
-                                    } catch {
-                                        if !(error is CancellationError) {
-                                            Logger.error("重试加载星堡信息失败: \(error)")
-                                        }
-                                    }
-                                }
-                            }) {
-                                Text(NSLocalizedString("ESI_Status_Retry", comment: ""))
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 8)
-                                    .background(Color.accentColor)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(8)
-                            }
-                            .padding(.top, 8)
+                ErrorStateSection(message: error.localizedDescription) {
+                    Task {
+                        do {
+                            try await viewModel.loadStarbases(forceRefresh: true)
+                        } catch {
+                            Logger.error("重试加载星堡信息失败: \(error)")
                         }
-                        .padding()
-                        Spacer()
                     }
                 }
             } else if viewModel.starbases.isEmpty {
@@ -131,21 +99,12 @@ struct CorpStarbaseView: View {
         }
     }
 
-    private var loadingView: some View {
-        HStack {
-            Spacer()
-            ProgressView()
-                .progressViewStyle(.circular)
-            Spacer()
-        }
-    }
-
     private var emptyView: some View {
-        HStack {
-            Spacer()
-            Text(NSLocalizedString("Corp_Starbase_No_Data", comment: "暂无星堡数据"))
-                .foregroundColor(.secondary)
-            Spacer()
+        ContentUnavailableView {
+            Label(
+                NSLocalizedString("Corp_Starbase_No_Data", comment: "暂无星堡数据"),
+                systemImage: "exclamationmark.triangle"
+            )
         }
     }
 
@@ -217,6 +176,7 @@ struct CorpStarbaseView: View {
                                     hasLowFuel: viewModel.hasLowFuel(starbaseId: starbase["starbase_id"] as? Int ?? 0),
                                     viewModel: viewModel
                                 )
+                                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                             }
                         }
                     }
@@ -751,10 +711,9 @@ class CorpStarbaseViewModel: ObservableObject {
             do {
                 try await loadStarbases()
             } catch {
-                if !(error is CancellationError) {
-                    Logger.error("初始化加载星堡信息失败: \(error)")
-                    self.error = error
-                }
+                // 记录错误，由视图展示错误页（带重试）
+                Logger.error("初始化加载星堡信息失败: \(error)")
+                self.error = error
             }
         }
     }
@@ -976,27 +935,16 @@ class CorpStarbaseViewModel: ObservableObject {
     }
 
     private func loadLocationInfo(systemIds: [Int]) async {
-        let locationQuery = """
-            SELECT DISTINCT solarsystem_id, region_id, system_security
-            FROM universe
-            WHERE solarsystem_id IN (\(Array(systemIds).sorted().map { String($0) }.joined(separator: ",")))
-        """
-        let locationResult = DatabaseManager.shared.executeQuery(locationQuery)
-        if case let .success(rows) = locationResult {
-            for row in rows {
-                guard let systemId = row["solarsystem_id"] as? Int else { continue }
-                if let systemName = SDEMemoryStore.solarSystemName(for: systemId) {
-                    systemNames[systemId] = systemName
-                }
-                if let regionId = row["region_id"] as? Int,
-                   let regionName = SDEMemoryStore.regionName(for: regionId)
-                {
-                    regionNames[systemId] = regionName
-                }
-                if let systemSecurity = row["system_security"] as? Double {
-                    regionSecs[systemId] = systemSecurity
-                }
+        // 内存索引获取星系位置信息
+        for systemId in Set(systemIds) {
+            guard let info = SDEMemoryStore.universeSystems[systemId] else { continue }
+            if let systemName = SDEMemoryStore.solarSystemName(for: systemId) {
+                systemNames[systemId] = systemName
             }
+            if let regionName = SDEMemoryStore.regionName(for: info.regionID) {
+                regionNames[systemId] = regionName
+            }
+            regionSecs[systemId] = info.security
         }
     }
 

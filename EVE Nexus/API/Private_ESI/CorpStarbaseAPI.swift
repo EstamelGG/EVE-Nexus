@@ -54,10 +54,15 @@ public class CorpStarbaseAPI {
             return cachedData
         }
 
-        // 3. 从API获取
-        return try await fetchStarbasesFromServer(
-            corporationId: corporationId, characterId: characterId
-        )
+        // 3. 从API获取（403 负缓存统一由 CorpForbiddenCache 管理）
+        return try await CorpForbiddenCache.shared.perform(
+            scope: "corpStarbase",
+            corporationId: corporationId,
+            characterId: characterId,
+            forceRefresh: forceRefresh
+        ) {
+            try await fetchStarbasesFromServer(corporationId: corporationId, characterId: characterId)
+        }
     }
 
     private func fetchStarbasesFromServer(corporationId: Int, characterId: Int) async throws

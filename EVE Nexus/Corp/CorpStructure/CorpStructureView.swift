@@ -27,42 +27,13 @@ struct CorpStructureView: View {
                       !viewModel.isLoading && viewModel.structures.isEmpty
             {
                 // 显示错误信息
-                Section {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 12) {
-                            Image(systemName: "exclamationmark.triangle")
-                                .font(.system(size: 40))
-                                .foregroundColor(.orange)
-                            Text(NSLocalizedString("Corp_Structure_Error", comment: ""))
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            Text(error.localizedDescription)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                            Button(action: {
-                                Task {
-                                    do {
-                                        try await viewModel.loadStructures(forceRefresh: true)
-                                    } catch {
-                                        if !(error is CancellationError) {
-                                            Logger.error("重试加载建筑信息失败: \(error)")
-                                        }
-                                    }
-                                }
-                            }) {
-                                Text(NSLocalizedString("ESI_Status_Retry", comment: ""))
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 8)
-                                    .background(Color.accentColor)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(8)
-                            }
-                            .padding(.top, 8)
+                ErrorStateSection(message: error.localizedDescription) {
+                    Task {
+                        do {
+                            try await viewModel.loadStructures(forceRefresh: true)
+                        } catch {
+                            Logger.error("重试加载建筑信息失败: \(error)")
                         }
-                        .padding()
-                        Spacer()
                     }
                 }
             } else if viewModel.structures.isEmpty {
@@ -247,11 +218,11 @@ struct CorpStructureView: View {
     }
 
     private var emptyView: some View {
-        HStack {
-            Spacer()
-            Text(NSLocalizedString("Corp_Structure_No_Data", comment: ""))
-                .foregroundColor(.secondary)
-            Spacer()
+        ContentUnavailableView {
+            Label(
+                NSLocalizedString("Corp_Structure_No_Data", comment: ""),
+                systemImage: "building.2"
+            )
         }
     }
 
@@ -286,6 +257,7 @@ struct CorpStructureView: View {
                                 structure: structure,
                                 iconName: viewModel.getIconName(typeId: typeId)
                             )
+                            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                         }
                     }
                 }
@@ -507,10 +479,9 @@ class CorpStructureViewModel: ObservableObject {
             do {
                 try await loadStructures()
             } catch {
-                if !(error is CancellationError) {
-                    Logger.error("初始化加载建筑信息失败: \(error)")
-                    self.error = error
-                }
+                // 记录错误，由视图展示错误页（带重试）
+                Logger.error("初始化加载建筑信息失败: \(error)")
+                self.error = error
             }
         }
     }
@@ -634,27 +605,16 @@ class CorpStructureViewModel: ObservableObject {
     }
 
     private func loadLocationInfo(systemIds: [Int]) async {
-        let universeQuery = """
-            SELECT DISTINCT solarsystem_id, region_id, system_security
-            FROM universe
-            WHERE solarsystem_id IN (\(systemIds.sorted().map(String.init).joined(separator: ",")))
-        """
-        let universeResult = DatabaseManager.shared.executeQuery(universeQuery)
-        if case let .success(rows) = universeResult {
-            for row in rows {
-                guard let systemId = row["solarsystem_id"] as? Int else { continue }
-                if let systemName = SDEMemoryStore.solarSystemName(for: systemId) {
-                    systemNames[systemId] = systemName
-                }
-                if let regionId = row["region_id"] as? Int,
-                   let regionName = SDEMemoryStore.regionName(for: regionId)
-                {
-                    regionNames[systemId] = regionName
-                }
-                if let systemSecurity = row["system_security"] as? Double {
-                    regionSecs[systemId] = systemSecurity
-                }
+        // 内存索引获取星系位置信息
+        for systemId in Set(systemIds) {
+            guard let info = SDEMemoryStore.universeSystems[systemId] else { continue }
+            if let systemName = SDEMemoryStore.solarSystemName(for: systemId) {
+                systemNames[systemId] = systemName
             }
+            if let regionName = SDEMemoryStore.regionName(for: info.regionID) {
+                regionNames[systemId] = regionName
+            }
+            regionSecs[systemId] = info.security
         }
     }
 

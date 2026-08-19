@@ -65,7 +65,7 @@ class FittingEditorViewModel: ObservableObject {
     }
 
     /// 初始化方法（加载本地配置）
-    init(fittingId: Int, databaseManager: DatabaseManager, characterSkills: [Int: Int]? = nil) {
+    init(fittingId: UUID, databaseManager: DatabaseManager, characterSkills: [Int: Int]? = nil) {
         self.databaseManager = databaseManager
         attributeCalculator = AttributeCalculator(databaseManager: databaseManager)
 
@@ -119,6 +119,8 @@ class FittingEditorViewModel: ObservableObject {
             // 计算初始属性
             Logger.info("加载本地配置，计算初始属性")
             calculateAttributes()
+            // 计算后统一校验同组限制（装配数量/在线/激活上限以计算结果为准）
+            validateGroupLimitsAfterCalculation()
             syncSelectedCharacterIdFromPreferencesIfNeeded()
         } catch {
             // 错误处理
@@ -131,7 +133,7 @@ class FittingEditorViewModel: ObservableObject {
 
             // 使用默认值 - 这里应该更优雅地处理
             simulationInput = SimulationInput(
-                fittingId: Int(Date().timeIntervalSince1970),
+                fittingId: .local(UUID()),
                 name: "",
                 description: "",
                 fighters: nil,
@@ -197,6 +199,8 @@ class FittingEditorViewModel: ObservableObject {
 
         Logger.info("创建临时装配视图模型，计算初始属性")
         calculateAttributes()
+        // 计算后统一校验同组限制（装配数量/在线/激活上限以计算结果为准）
+        validateGroupLimitsAfterCalculation()
         syncSelectedCharacterIdFromPreferencesIfNeeded()
     }
 
@@ -259,79 +263,12 @@ class FittingEditorViewModel: ObservableObject {
                     databaseManager: databaseManager
                 )
 
-                // 设置合适的装备状态
-                var updatedModules = processedInput.modules
-
-                // 对每个装备设置合适的状态
-                for i in 0 ..< updatedModules.count {
-                    let module = updatedModules[i]
-
-                    // 计算最大状态
-                    let maxStatus = getMaxStatus(
-                        itemEffects: module.effects,
-                        itemAttributes: module.attributes,
-                        databaseManager: databaseManager
-                    )
-
-                    // 根据最大状态设置默认状态
-                    var newStatus: Int
-                    switch maxStatus {
-                    case 3: // 可超载
-                        newStatus = 2 // 默认为激活状态
-                    case 2: // 可激活
-                        newStatus = 2 // 默认为激活状态
-                    case 1: // 可在线
-                        newStatus = 1 // 默认为在线状态
-                    default:
-                        newStatus = 0 // 默认为离线状态
-                    }
-
-                    // 创建临时模块列表，不包含当前处理的模块
-                    var otherModules = updatedModules
-                    otherModules.remove(at: i)
-
-                    // 考虑同组装备限制
-                    newStatus = setStatus(
-                        itemAttributes: module.attributes,
-                        itemAttributesName: module.attributesByName,
-                        typeId: module.typeId,
-                        typeGroupId: module.groupID,
-                        currentModules: otherModules,
-                        currentStatus: newStatus,
-                        maxStatus: maxStatus
-                    )
-
-                    // 更新模块状态
-                    updatedModules[i] = SimModule(
-                        instanceId: module.instanceId, // 保留原模块的instanceId
-                        typeId: module.typeId,
-                        attributes: module.attributes,
-                        attributesByName: module.attributesByName,
-                        effects: module.effects,
-                        groupID: module.groupID,
-                        status: newStatus,
-                        charge: module.charge,
-                        flag: module.flag,
-                        quantity: module.quantity,
-                        name: module.name,
-                        iconFileName: module.iconFileName,
-                        requiredSkills: module.requiredSkills,
-                        selectedMutaplasmidID: module.selectedMutaplasmidID,
-                        mutatedAttributes: module.mutatedAttributes,
-                        mutatedTypeId: module.mutatedTypeId,
-                        mutatedName: module.mutatedName,
-                        mutatedIconFileName: module.mutatedIconFileName,
-                        isSpoolUpFull: module.isSpoolUpFull
-                    )
-
-                    Logger.info("设置装备状态: \(module.name), 最大状态: \(maxStatus), 设置状态: \(newStatus)")
-                }
-
-                // 使用更新后的模块列表
-                var finalSimInput = processedInput
-                finalSimInput.modules = updatedModules
-
-                simulationInput = finalSimInput
+                // 装备状态沿用乐观安装结果（localFittingToSimulationInput 已按 getMaxStatus 提升；
+                // 同组限制由 calculateAttributes 后的 validateGroupLimitsAfterCalculation 用计算结果统一校验，
+                // 此处不再用裸属性逐个 setStatus 降级，避免"先装先占名额"的假性死锁）
+                simulationInput = processedInput
+                // 经 online2local 转换会带上临时 UUID，覆写回在线身份（删除/保存分支依赖）
+                simulationInput.fittingId = .online(onlineFitting.fitting_id)
                 self.invalidModules = invalidModules
 
                 // 如果有无效模块，设置错误消息
@@ -355,7 +292,7 @@ class FittingEditorViewModel: ObservableObject {
             // 如果转换失败，使用默认值
             Logger.error("在线配置转换失败: \(error.localizedDescription)")
             simulationInput = SimulationInput(
-                fittingId: onlineFitting.fitting_id,
+                fittingId: .online(onlineFitting.fitting_id),
                 name: onlineFitting.name,
                 description: onlineFitting.description ?? "",
                 fighters: nil,
@@ -374,6 +311,8 @@ class FittingEditorViewModel: ObservableObject {
 
         Logger.info("在线配置转换结束，计算初始属性")
         calculateAttributes()
+        // 计算后统一校验同组限制（装配数量/在线/激活上限以计算结果为准）
+        validateGroupLimitsAfterCalculation()
         if simulationInput.ship.typeId != 0 {
             syncSelectedCharacterIdFromPreferencesIfNeeded()
         }

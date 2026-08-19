@@ -178,48 +178,30 @@ struct EnvironmentEffectListView: View {
             return
         }
 
-        let placeholders = String(repeating: "?,", count: typeIds.count).dropLast()
-        let query = """
-            SELECT type_id as id, name, en_name, icon_filename as iconFileName
-            FROM types
-            WHERE type_id IN (\(placeholders))
-            ORDER BY name
-        """
+        // 内存索引构建环境效果物品
+        let loadedItems: [EnvironmentEffectItem] = typeIds.compactMap { typeId in
+            guard let info = SDEMemoryStore.type(for: typeId) else { return nil }
+            return EnvironmentEffectNaming.makeItem(
+                typeId: typeId,
+                enName: info.enName,
+                localName: info.name,
+                iconFileName: info.iconFilename,
+                category: category
+            )
+        }
 
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: typeIds) {
-            let loadedItems: [EnvironmentEffectItem] = rows.compactMap { row in
-                guard let id = row["id"] as? Int else { return nil }
-
-                let enName = (row["en_name"] as? String) ?? (row["name"] as? String) ?? ""
-                let localName = (row["name"] as? String) ?? enName
-                let iconFileName = (row["iconFileName"] as? String) ?? "not_found"
-
-                return EnvironmentEffectNaming.makeItem(
-                    typeId: id,
-                    enName: enName,
-                    localName: localName,
-                    iconFileName: iconFileName,
-                    category: category
-                )
-            }
-
-            switch category {
-            case .wormhole:
-                sections = EnvironmentEffectNaming.wormholeSections(from: loadedItems)
-                flatItems = []
-            case .abyssal:
-                sections = EnvironmentEffectNaming.abyssalSections(from: loadedItems)
-                flatItems = []
-            case .other:
-                sections = []
-                flatItems = loadedItems.sorted {
-                    $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
-                }
-            }
-        } else {
-            sections = []
+        switch category {
+        case .wormhole:
+            sections = EnvironmentEffectNaming.wormholeSections(from: loadedItems)
             flatItems = []
-            Logger.error("加载环境效果列表失败: \(category.rawValue)")
+        case .abyssal:
+            sections = EnvironmentEffectNaming.abyssalSections(from: loadedItems)
+            flatItems = []
+        case .other:
+            sections = []
+            flatItems = loadedItems.sorted {
+                $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending
+            }
         }
 
         isLoading = false

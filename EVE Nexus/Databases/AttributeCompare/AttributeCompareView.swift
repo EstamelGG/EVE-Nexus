@@ -23,7 +23,6 @@ struct AttributeItemSelectorView: View {
                 onDismiss: { dismiss() },
                 showSelected: showSelected
             )
-            .interactiveDismissDisabled()
         }
     }
 }
@@ -38,6 +37,8 @@ struct AttributeCompareView: View {
     @State private var isShowingRenameAlert = false
     @State private var renameCompare: AttributeCompare?
     @State private var renameCompareName = ""
+    /// 新建列表后自动导航进入该列表（非 nil 时触发 push 详情页）
+    @State private var autoNavigateCompareID: UUID?
 
     private var filteredCompares: [AttributeCompare] {
         if searchText.isEmpty {
@@ -110,6 +111,14 @@ struct AttributeCompareView: View {
                 .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             }
         }
+        .navigationDestination(item: $autoNavigateCompareID) { id in
+            if let compare = compares.first(where: { $0.id == id }) {
+                AttributeCompareDetailView(
+                    databaseManager: databaseManager,
+                    compare: compare
+                )
+            }
+        }
         .navigationTitle(NSLocalizedString("Main_Attribute_Compare", comment: ""))
         .searchable(
             text: $searchText,
@@ -117,12 +126,16 @@ struct AttributeCompareView: View {
             prompt: NSLocalizedString("Main_Database_Search", comment: "")
         )
         .toolbar {
-            ToolbarItem(placement: .navigationBarTrailing) {
-                Button {
-                    tempCompareName = ""
-                    isShowingAddAlert = true
-                } label: {
-                    Image(systemName: "plus")
+            if #available(iOS 26.0, *) {
+                // iOS 26：搜索框与添加按钮共处底部同一 Liquid Glass 行（搜索框左、+ 右）
+                DefaultToolbarItem(kind: .search, placement: .bottomBar)
+                ToolbarSpacer(.flexible, placement: .bottomBar)
+                ToolbarItem(placement: .bottomBar) {
+                    addCompareButton
+                }
+            } else {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    addCompareButton
                 }
             }
         }
@@ -145,6 +158,8 @@ struct AttributeCompareView: View {
                     compares.append(newCompare)
                     AttributeCompareManager.shared.saveCompare(newCompare)
                     tempCompareName = ""
+                    // 新建成功后自动进入该列表
+                    autoNavigateCompareID = newCompare.id
                 }
             }
             .disabled(tempCompareName.isEmpty)
@@ -175,6 +190,16 @@ struct AttributeCompareView: View {
         }
         .task {
             compares = AttributeCompareManager.shared.loadCompares()
+        }
+    }
+
+    /// 添加对比列表按钮（iOS 26 位于底部搜索栏右侧，旧系统位于右上角）
+    private var addCompareButton: some View {
+        Button {
+            tempCompareName = ""
+            isShowingAddAlert = true
+        } label: {
+            Image(systemName: "plus")
         }
     }
 
@@ -212,16 +237,8 @@ struct AttributeCompareView: View {
 
     /// 获取物品图标
     private func getItemIcon(typeID: Int) -> UIImage {
-        let itemData = databaseManager.loadMarketItems(
-            whereClause: "t.type_id = ?",
-            parameters: [typeID]
-        )
-
-        if let item = itemData.first {
-            return IconManager.shared.loadUIImage(for: item.iconFileName)
-        } else {
-            return UIImage(named: "not_found") ?? UIImage()
-        }
+        let iconFileName = ItemInfoMap.iconFilename(for: typeID)
+        return IconManager.shared.loadUIImage(for: iconFileName)
     }
 
     private func deleteCompare(at offsets: IndexSet) {

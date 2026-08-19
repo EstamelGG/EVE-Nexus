@@ -265,8 +265,11 @@ struct SovereigntyCell: View {
 
 struct SovereigntyView: View {
     @StateObject private var viewModel: SovereigntyViewModel
+    @State private var mapNavigation: RegionNavigation?
+    private let databaseManager: DatabaseManager
 
     init(databaseManager: DatabaseManager) {
+        self.databaseManager = databaseManager
         _viewModel = StateObject(
             wrappedValue: SovereigntyViewModel(databaseManager: databaseManager)
         )
@@ -299,11 +302,34 @@ struct SovereigntyView: View {
             } else {
                 ForEach(Array(viewModel.groupedCampaigns.keys.sorted()), id: \.self) { regionName in
                     Section(
-                        header: Text(regionName)
-                            .fontWeight(.semibold)
-                            .font(.system(size: 18))
-                            .foregroundColor(.primary)
-                            .textCase(.none)
+                        header: HStack {
+                            let regionCampaigns = viewModel.groupedCampaigns[regionName]
+                            Text(regionName)
+                                .fontWeight(.semibold)
+                                .font(.system(size: 18))
+                                .foregroundColor(.primary)
+                                .textCase(.none)
+                            Text("(\(regionCampaigns?.count ?? 0))")
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            if let regionCampaigns,
+                               let regionId = regionCampaigns.first?.location.regionId,
+                               StarMapRegionAvailability.isAvailable(regionId)
+                            {
+                                Button {
+                                    // 高亮该星域内所有正在发生主权争夺的星系
+                                    mapNavigation = .regionMap(
+                                        regionId,
+                                        regionName,
+                                        regionCampaigns.map(\.campaign.solar_system_id)
+                                    )
+                                } label: {
+                                    Text(NSLocalizedString("LP_Show_Map", comment: ""))
+                                        .font(.subheadline.weight(.medium))
+                                }
+                                .buttonStyle(.borderless)
+                            }
+                        }
                     ) {
                         ForEach(
                             viewModel.groupedCampaigns[regionName]?.sorted(by: {
@@ -321,5 +347,16 @@ struct SovereigntyView: View {
             await viewModel.fetchSovereignty(forceRefresh: true)
         }
         .navigationTitle(NSLocalizedString("Main_Sovereignty", comment: ""))
+        .navigationDestination(item: $mapNavigation) { navigation in
+            switch navigation {
+            case let .regionMap(regionId, regionName, systemIds):
+                RegionSystemMapView(
+                    databaseManager: databaseManager,
+                    regionId: regionId,
+                    regionName: regionName,
+                    highlightSystemIds: systemIds
+                )
+            }
+        }
     }
 }

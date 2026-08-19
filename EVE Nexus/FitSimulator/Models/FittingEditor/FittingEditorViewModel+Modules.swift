@@ -87,33 +87,62 @@ extension FittingEditorViewModel {
         saveConfiguration()
     }
 
-    /// 查询物品的属性（按ID和按名称）
-    private func queryTypeAttributes(typeId: Int)
-        -> (attributes: [Int: Double], attributesByName: [String: Double])
-    {
-        var attributes: [Int: Double] = [:]
-        var attributesByName: [String: Double] = [:]
+    /// 加载配置后的统一校验（两阶段装配的第二阶段）：
+    /// 乐观安装并跑完计算管线后，用**计算后**的同组限制统一校验并降级，有降级则补算一次。
+    /// 解决"装配数量/同组上限依赖计算结果（如加成处理器增加脉冲波槽位）而逐个安装时无法得知"的死锁。
+    func validateGroupLimitsAfterCalculation() {
+        guard let output = simulationOutput else { return }
 
-        let attrQuery = """
-            SELECT ta.attribute_id, ta.value, da.name 
-            FROM typeAttributes ta 
-            JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id 
-            WHERE ta.type_id = ?
-        """
+        let groups = Dictionary(grouping: simulationInput.modules) { $0.groupID }
+        var changed = false
 
-        if case let .success(rows) = databaseManager.executeQuery(attrQuery, parameters: [typeId]) {
-            for row in rows {
-                if let attrId = row["attribute_id"] as? Int,
-                   let value = row["value"] as? Double,
-                   let name = row["name"] as? String
-                {
-                    attributes[attrId] = value
-                    attributesByName[name] = value
+        for (groupID, modules) in groups {
+            // 同组任一模块的计算后属性即代表该组限制（修饰器来源相同）
+            guard let outModule = output.modules.first(where: { $0.groupID == groupID })
+            else { continue }
+
+            // 1. 装配数量上限（计算后值）：超限模块按槽位倒序强制离线，保留装配
+            let maxFitted = Int(outModule.attributesByName["maxGroupFitted"] ?? 0)
+            if maxFitted > 0, modules.count > maxFitted {
+                let overflow = modules
+                    .sorted { ($0.flag?.rawValue ?? "") > ($1.flag?.rawValue ?? "") }
+                    .dropFirst(maxFitted)
+                for m in overflow where m.status > 0 {
+                    if let idx = simulationInput.modules.firstIndex(where: { $0.instanceId == m.instanceId }) {
+                        simulationInput.modules[idx] = m.withStatus(0)
+                        changed = true
+                        Logger.warning(
+                            "装配数量超限（计算后上限 \(maxFitted)），强制离线: \(m.name) @ \(m.flag?.rawValue ?? "?")"
+                        )
+                    }
                 }
+            }
+
+            // 2. 同组在线/激活上限（计算后值）：链式降级
+            let maxOnline = Int(outModule.attributesByName["maxGroupOnline"] ?? 0)
+            let maxActive = Int(outModule.attributesByName["maxGroupActive"] ?? 0)
+            if maxOnline > 0 || maxActive > 0 {
+                let modified = ModuleGroupManager.handleGroupDowngrade(
+                    modules: &simulationInput.modules,
+                    groupID: groupID,
+                    maxGroupOnline: maxOnline,
+                    maxGroupActive: maxActive
+                )
+                changed = changed || !modified.isEmpty
             }
         }
 
-        return (attributes, attributesByName)
+        if changed {
+            Logger.info("计算后同组限制校验发生降级，补算一次属性")
+            calculateAttributes()
+        }
+    }
+
+    /// 查询物品的属性（按ID和按名称，内存索引）
+    private func queryTypeAttributes(typeId: Int)
+        -> (attributes: [Int: Double], attributesByName: [String: Double])
+    {
+        SDEMemoryStore.typeAttributesFull(for: typeId)
     }
 
     /// 加载弹药数据（属性、效果、分组、体积），并将volume写入属性字典

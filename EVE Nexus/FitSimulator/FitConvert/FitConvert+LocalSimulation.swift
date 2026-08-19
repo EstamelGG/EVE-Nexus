@@ -27,26 +27,10 @@ extension FitConvert {
         let chargeTypeIds = localFitting.items.compactMap { $0.charge_type_id }
         allTypeIds.append(contentsOf: chargeTypeIds)
 
-        let placeholders = Array(repeating: "?", count: allTypeIds.count).joined(separator: ",")
-        let attrQuery = """
-            SELECT ta.type_id, ta.attribute_id, ta.value, da.name 
-            FROM typeAttributes ta 
-            JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id 
-            WHERE ta.type_id IN (\(placeholders))
-        """
+        // 批量取属性（内存索引）
         var attrMap: [Int: ([Int: Double], [String: Double])] = [:]
-        if case let .success(rows) = databaseManager.executeQuery(attrQuery, parameters: allTypeIds) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let attrId = row["attribute_id"] as? Int,
-                   let value = row["value"] as? Double,
-                   let name = row["name"] as? String
-                {
-                    if attrMap[typeId] == nil { attrMap[typeId] = ([:], [:]) }
-                    attrMap[typeId]?.0[attrId] = value
-                    attrMap[typeId]?.1[name] = value
-                }
-            }
+        for (typeId, attrs) in SDEMemoryStore.typeAttributes(for: allTypeIds) {
+            attrMap[typeId] = (attrs.attributes, attrs.attributesByName)
         }
 
         // 查询所有效果（飞船、装备、无人机）
@@ -262,11 +246,19 @@ extension FitConvert {
                     effects: effects,
                     groupID: moduleInfo.groupID,
                     status: {
-                        if let status = item.status {
-                            return (0 ... 3).contains(status) ? status : 1
-                        } else {
-                            return 1
+                        // 乐观安装：非离线(1/缺失)的可激活模块默认提升为激活(2)，与游戏内装船即激活的行为一致；
+                        // 同组在线/激活上限在计算管线跑完后统一校验降级，避免"逐个安装用裸值检查"的死锁
+                        let maxStatus = getMaxStatus(
+                            itemEffects: effects,
+                            itemAttributes: updatedAttr,
+                            databaseManager: databaseManager
+                        )
+                        let optimistic = maxStatus >= 2 ? 2 : (maxStatus == 1 ? 1 : 0)
+
+                        if let status = item.status, (0 ... 3).contains(status) {
+                            return status == 1 ? optimistic : status
                         }
+                        return optimistic
                     }(),
                     charge: charge,
                     flag: item.flag,
@@ -435,55 +427,23 @@ extension FitConvert {
                 Logger.info("开始加载植入体数据，数量: \(implantTypeIds.count)")
             }
 
-            // 构建查询参数
-            let placeholders = String(repeating: "?,", count: implantTypeIds.count).dropLast()
-
-            // 查询植入体属性
-            let attrQuery = """
-                SELECT t.type_id, ta.attribute_id, ta.value, da.name, t.name as type_name, t.icon_filename, t.groupID
-                FROM typeAttributes ta
-                JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id
-                JOIN types t ON ta.type_id = t.type_id
-                WHERE ta.type_id IN (\(placeholders))
-            """
-
+            // 批量取植入体属性（内存索引）
             var typeAttributes: [Int: [Int: Double]] = [:]
             var typeAttributesByName: [Int: [String: Double]] = [:]
             var typeNames: [Int: String] = [:]
             var typeIcons: [Int: String] = [:]
             var typeGroupIDs: [Int: Int] = [:]
 
-            if case let .success(rows) = databaseManager.executeQuery(
-                attrQuery, parameters: implantTypeIds
-            ) {
-                for row in rows {
-                    if let typeId = row["type_id"] as? Int,
-                       let attrId = row["attribute_id"] as? Int,
-                       let value = row["value"] as? Double,
-                       let name = row["name"] as? String
-                    {
-                        // 初始化字典
-                        if typeAttributes[typeId] == nil {
-                            typeAttributes[typeId] = [:]
-                        }
-                        if typeAttributesByName[typeId] == nil {
-                            typeAttributesByName[typeId] = [:]
-                        }
+            for (typeId, attrs) in SDEMemoryStore.typeAttributes(for: implantTypeIds) {
+                typeAttributes[typeId] = attrs.attributes
+                typeAttributesByName[typeId] = attrs.attributesByName
 
-                        // 添加属性
-                        typeAttributes[typeId]?[attrId] = value
-                        typeAttributesByName[typeId]?[name] = value
-
-                        // 保存物品名称、图标和分组ID
-                        if let typeName = row["type_name"] as? String {
-                            typeNames[typeId] = typeName
-                        }
-                        if let iconFileName = row["icon_filename"] as? String {
-                            typeIcons[typeId] = iconFileName
-                        }
-                        if let groupID = row["groupID"] as? Int {
-                            typeGroupIDs[typeId] = groupID
-                        }
+                // 保存物品名称、图标和分组ID
+                if let info = SDEMemoryStore.type(for: typeId) {
+                    typeNames[typeId] = info.name
+                    typeIcons[typeId] = info.iconFilename
+                    if let groupID = info.groupID {
+                        typeGroupIDs[typeId] = groupID
                     }
                 }
             }
@@ -583,7 +543,7 @@ extension FitConvert {
         }
 
         return SimulationInput(
-            fittingId: localFitting.fitting_id,
+            fittingId: .local(localFitting.fitting_id),
             name: localFitting.name,
             description: localFitting.description,
             fighters: simFighters,

@@ -56,6 +56,8 @@ class MarketStructureManager: ObservableObject {
     @Published var structures: [MarketStructure] = []
     /// 最近一次建筑信息刷新时间，作为 StructureRowView 重新计算缓存状态的信号
     @Published var lastStructureInfoRefresh: Date? = nil
+    /// 防止重入（非 @Published，仅逻辑控制）
+    private var _isRefreshing = false
 
     private let fileManager = FileManager.default
     private let documentsDirectory: URL
@@ -153,9 +155,12 @@ class MarketStructureManager: ObservableObject {
     }
 
     /// 强制从 ESI 重新拉取所有已保存建筑的信息
+    /// 刷新完成后通过 lastStructureInfoRefresh 通知各 StructureRowView 自行触发订单刷新
     @MainActor
     func refreshStructureInfos() async {
-        guard !structures.isEmpty else { return }
+        guard !structures.isEmpty, !_isRefreshing else { return }
+        _isRefreshing = true
+        defer { _isRefreshing = false }
 
         let current = structures
         var refreshed = current
@@ -219,7 +224,6 @@ class MarketStructureManager: ObservableObject {
 struct MarketStructureSettingsView: View {
     @StateObject private var manager = MarketStructureManager.shared
     @State private var showingAddStructureSheet = false
-    @State private var isAutoRefreshing = false
 
     var body: some View {
         List {
@@ -246,28 +250,14 @@ struct MarketStructureSettingsView: View {
 
             if !manager.structures.isEmpty {
                 Section(
-                    header: HStack {
-                        Text(
-                            String(
-                                format: NSLocalizedString(
-                                    "Main_Setting_Market_Structure_Added_Count", comment: ""
-                                ),
-                                manager.structures.count
-                            )
+                    header: Text(
+                        String(
+                            format: NSLocalizedString(
+                                "Main_Setting_Market_Structure_Added_Count", comment: ""
+                            ),
+                            manager.structures.count
                         )
-                        Spacer()
-                        if isAutoRefreshing {
-                            HStack(spacing: 4) {
-                                ProgressView()
-                                    .scaleEffect(0.6)
-                                    .frame(width: 12, height: 12)
-                                Text(NSLocalizedString("Structure_Info_Refreshing", comment: ""))
-                                    .font(.caption2)
-                                    .foregroundColor(.secondary)
-                            }
-                            .transition(.opacity)
-                        }
-                    }
+                    )
                 ) {
                     ForEach(manager.structures) { structure in
                         StructureRowView(structure: structure)
@@ -290,9 +280,6 @@ struct MarketStructureSettingsView: View {
         .toolbar {
             ToolbarItem(placement: .navigationBarTrailing) {
                 HStack(spacing: 12) {
-                    if isAutoRefreshing {
-                        ProgressView()
-                    }
                     if !manager.structures.isEmpty {
                         EditButton()
                     }
@@ -303,9 +290,7 @@ struct MarketStructureSettingsView: View {
             AddMarketStructureSheet()
         }
         .task {
-            guard !isAutoRefreshing, !manager.structures.isEmpty else { return }
-            isAutoRefreshing = true
-            defer { isAutoRefreshing = false }
+            guard !manager.structures.isEmpty else { return }
             await manager.refreshStructureInfos()
         }
     }
@@ -449,7 +434,7 @@ struct StructureRowView: View {
             Task { await loadLocalOrdersStatistics() }
         }
         .onChange(of: manager.lastStructureInfoRefresh) {
-            refreshCacheState()
+            Task { await loadStructureOrders() }
         }
         .alert(
             NSLocalizedString("Structure_Orders_Reload_Title", comment: ""),

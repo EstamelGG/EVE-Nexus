@@ -58,6 +58,7 @@ struct P0ResourceDetailView: View {
                             }
                         }
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
             }
         }
@@ -76,102 +77,82 @@ struct P0ResourceDetailView: View {
         isLoading = true
 
         DispatchQueue.global(qos: .userInitiated).async {
-            // 查询星系内的行星数量
-            let query = """
-                SELECT 
-                    solarsystem_id,
-                    system_security,
-                    temperate,
-                    barren,
-                    oceanic,
-                    ice,
-                    gas,
-                    lava,
-                    storm,
-                    plasma
-                FROM universe
-                WHERE solarsystem_id IN (\(systemIds.map { String($0) }.joined(separator: ",")))
-            """
-
             var loadedSystemPlanets:
                 [(
                     systemId: Int, systemName: String, security: Double,
                     planets: [(type: Int, count: Int, iconFileName: String, typeName: String)]
                 )] = []
 
-            if case let .success(rows) = DatabaseManager.shared.executeQuery(query) {
-                // 获取资源可用的行星类型
-                let resourceCalculator = PlanetaryResourceCalculator(
-                    databaseManager: DatabaseManager.shared
-                )
-                let resourcePlanets = resourceCalculator.findResourcePlanets(for: [resourceId])
+            // 获取资源可用的行星类型
+            let resourceCalculator = PlanetaryResourceCalculator(
+                databaseManager: DatabaseManager.shared
+            )
+            let resourcePlanets = resourceCalculator.findResourcePlanets(for: [resourceId])
 
-                guard let resourceInfo = resourcePlanets.first else {
-                    DispatchQueue.main.async {
-                        isLoading = false
-                    }
-                    return
+            guard let resourceInfo = resourcePlanets.first else {
+                DispatchQueue.main.async {
+                    isLoading = false
                 }
+                return
+            }
 
-                // 创建行星类型到图标文件名的映射
-                var planetTypeToIcon: [Int: String] = [:]
-                for planet in resourceInfo.availablePlanets {
-                    planetTypeToIcon[planet.id] = planet.iconFileName
+            // 创建行星类型到图标文件名的映射
+            var planetTypeToIcon: [Int: String] = [:]
+            for planet in resourceInfo.availablePlanets {
+                planetTypeToIcon[planet.id] = planet.iconFileName
+            }
+
+            let availablePlanetTypes = Set(resourceInfo.availablePlanets.map { $0.id })
+
+            // 查询行星类型名称
+            var planetTypeNames: [Int: String] = [:]
+            for typeId in availablePlanetTypes {
+                if let name = ItemInfoMap.typeName(for: typeId) {
+                    planetTypeNames[typeId] = name
                 }
+            }
 
-                let availablePlanetTypes = Set(resourceInfo.availablePlanets.map { $0.id })
+            // 内存索引取星系行星数量与安等
+            for systemId in systemIds {
+                guard let info = SDEMemoryStore.universeSystems[systemId],
+                      let systemName = SDEMemoryStore.solarSystemName(for: systemId)
+                else { continue }
+                let security = info.security
 
-                // 查询行星类型名称
-                var planetTypeNames: [Int: String] = [:]
-                for typeId in availablePlanetTypes {
-                    if let name = ItemInfoMap.typeName(for: typeId) {
-                        planetTypeNames[typeId] = name
-                    }
-                }
+                var planetCounts:
+                    [(type: Int, count: Int, iconFileName: String, typeName: String)] = []
 
-                for row in rows {
-                    guard let systemId = row["solarsystem_id"] as? Int,
-                          let systemName = SDEMemoryStore.solarSystemName(for: systemId),
-                          let security = row["system_security"] as? Double
-                    else {
-                        continue
-                    }
-
-                    var planetCounts:
-                        [(type: Int, count: Int, iconFileName: String, typeName: String)] = []
-
-                    // 检查每种行星类型的数量
-                    for planetType in availablePlanetTypes {
-                        if let columnName = PlanetaryUtils.planetTypeToColumn[planetType],
-                           let count = row[columnName] as? Int,
-                           count > 0,
-                           let iconFileName = planetTypeToIcon[planetType],
-                           let typeName = planetTypeNames[planetType]
-                        {
-                            planetCounts.append(
-                                (
-                                    type: planetType,
-                                    count: count,
-                                    iconFileName: iconFileName,
-                                    typeName: typeName
-                                )
-                            )
-                        }
-                    }
-
-                    if !planetCounts.isEmpty {
-                        // 按type_id排序行星列表
-                        planetCounts.sort { $0.type < $1.type }
-
-                        loadedSystemPlanets.append(
+                // 检查每种行星类型的数量
+                for planetType in availablePlanetTypes {
+                    if let columnName = PlanetaryUtils.planetTypeToColumn[planetType],
+                       let count = info.planetCounts[columnName],
+                       count > 0,
+                       let iconFileName = planetTypeToIcon[planetType],
+                       let typeName = planetTypeNames[planetType]
+                    {
+                        planetCounts.append(
                             (
-                                systemId: systemId,
-                                systemName: systemName,
-                                security: security,
-                                planets: planetCounts
+                                type: planetType,
+                                count: count,
+                                iconFileName: iconFileName,
+                                typeName: typeName
                             )
                         )
                     }
+                }
+
+                if !planetCounts.isEmpty {
+                    // 按type_id排序行星列表
+                    planetCounts.sort { $0.type < $1.type }
+
+                    loadedSystemPlanets.append(
+                        (
+                            systemId: systemId,
+                            systemName: systemName,
+                            security: security,
+                            planets: planetCounts
+                        )
+                    )
                 }
             }
 

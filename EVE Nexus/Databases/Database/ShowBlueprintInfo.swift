@@ -95,29 +95,23 @@ struct BlueprintSkillRow: View {
 
     /// 获取当前技能点数（直接查表，不累加）
     private func getCurrentSkillPointsSimple() -> Int {
-        guard let currentLevel = currentSkillLevel, let multiplier = skill.timeMultiplier else {
-            return 0
-        }
-        if currentLevel <= 0 { return 0 }
-        if currentLevel > SkillTreeManager.levelBasePoints.count { return 0 }
-        return Int(Double(SkillTreeManager.levelBasePoints[currentLevel - 1]) * multiplier)
+        guard let currentLevel = currentSkillLevel else { return 0 }
+        return SkillTreeManager.skillPoints(level: currentLevel, multiplier: skill.timeMultiplier) ?? 0
     }
 
     /// 获取所需总点数（直接查表）
     private func getRequiredSkillPointsSimple() -> Int {
-        guard let multiplier = skill.timeMultiplier else { return 0 }
-        if skill.level <= 0 || skill.level > SkillTreeManager.levelBasePoints.count { return 0 }
-        return Int(Double(SkillTreeManager.levelBasePoints[skill.level - 1]) * multiplier)
+        SkillTreeManager.skillPoints(level: skill.level, multiplier: skill.timeMultiplier) ?? 0
     }
 
     /// 获取技能点数文本
     private var skillPointsText: String {
-        guard let multiplier = skill.timeMultiplier,
-              skill.level > 0 && skill.level <= SkillTreeManager.levelBasePoints.count
-        else {
+        guard let points = SkillTreeManager.skillPoints(
+            level: skill.level,
+            multiplier: skill.timeMultiplier
+        ) else {
             return ""
         }
-        let points = Int(Double(SkillTreeManager.levelBasePoints[skill.level - 1]) * multiplier)
         return "\(FormatUtil.format(Double(points))) SP"
     }
 
@@ -206,6 +200,74 @@ struct BlueprintSkillRow: View {
                 )
                 .foregroundColor(.secondary)
                 .frame(alignment: .trailing)
+            }
+        }
+    }
+}
+
+/// 活动区头：标题 + 复制材料按钮；存在不同英文名称时附加复制材料(EN)按钮
+struct BlueprintActivityHeader: View {
+    let title: String
+    let materials: [(typeID: Int, typeName: String, typeIcon: String, quantity: Int)]
+    let onCopied: () -> Void
+
+    /// 是否存在与当前显示名不同的英文名称
+    private var hasDifferentEnglishNames: Bool {
+        materials.contains { material in
+            guard let enName = ItemInfoMap.typeInfo(for: material.typeID)?.enName,
+                  !enName.isEmpty
+            else { return false }
+            return enName != material.typeName
+        }
+    }
+
+    /// 复制材料列表到剪贴板（英文名缺失时回退当前显示名）
+    private func copyMaterials(useEnglishNames: Bool) {
+        let materialsText = materials.map { material in
+            var name = material.typeName
+            if useEnglishNames,
+               let enName = ItemInfoMap.typeInfo(for: material.typeID)?.enName, !enName.isEmpty
+            {
+                name = enName
+            }
+            return "\(name)      \(material.quantity)"
+        }.joined(separator: "\n")
+        UIPasteboard.general.string = materialsText
+        onCopied()
+    }
+
+    var body: some View {
+        HStack {
+            Text(title).font(.headline)
+            Spacer()
+
+            if !materials.isEmpty {
+                Button(action: {
+                    copyMaterials(useEnglishNames: false)
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 14))
+                        Text(NSLocalizedString("Blueprint_Copy_Materials", comment: ""))
+                            .font(.system(size: 14))
+                    }
+                }
+                .buttonStyle(.borderless)
+
+                // 如果有不同的英文名称，显示复制英文版按钮
+                if hasDifferentEnglishNames {
+                    Button(action: {
+                        copyMaterials(useEnglishNames: true)
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "doc.on.doc")
+                                .font(.system(size: 14))
+                            Text(NSLocalizedString("Blueprint_Copy_Materials_EN", comment: ""))
+                                .font(.system(size: 14))
+                        }
+                    }
+                    .buttonStyle(.borderless)
+                }
             }
         }
     }
@@ -367,30 +429,11 @@ struct ShowBluePrintInfo: View {
             // 制造活动
             if let manufacturing = manufacturing {
                 Section(
-                    header: HStack {
-                        Text(NSLocalizedString("Blueprint_Manufacturing", comment: "")).font(
-                            .headline
-                        )
-                        Spacer()
-                        Button(action: {
-                            // 复制材料列表到剪贴板
-                            let materialsText = manufacturing.materials.map { material in
-                                "\(material.typeName)      \(material.quantity)"
-                            }.joined(separator: "\n")
-                            UIPasteboard.general.string = materialsText
-
-                            // 显示复制成功弹窗
-                            showingCopyAlert = true
-                        }) {
-                            HStack(spacing: 4) {
-                                Image(systemName: "doc.on.doc")
-                                    .font(.system(size: 14))
-                                Text(NSLocalizedString("Blueprint_Copy_Materials", comment: ""))
-                                    .font(.system(size: 14))
-                            }
-                        }
-                        .buttonStyle(.borderless)
-                    },
+                    header: BlueprintActivityHeader(
+                        title: NSLocalizedString("Blueprint_Manufacturing", comment: ""),
+                        materials: manufacturing.materials,
+                        onCopied: { showingCopyAlert = true }
+                    ),
                     footer: Button(action: {
                         showBlueprintCalculator = true
                     }) {
@@ -515,8 +558,11 @@ struct ShowBluePrintInfo: View {
             // 材料研究活动
             if let researchMaterial = researchMaterial {
                 Section(
-                    header: Text(NSLocalizedString("Blueprint_Research_Material", comment: ""))
-                        .font(.headline)
+                    header: BlueprintActivityHeader(
+                        title: NSLocalizedString("Blueprint_Research_Material", comment: ""),
+                        materials: researchMaterial.materials,
+                        onCopied: { showingCopyAlert = true }
+                    )
                 ) {
                     // 材料折叠组
                     if !researchMaterial.materials.isEmpty {
@@ -644,8 +690,10 @@ struct ShowBluePrintInfo: View {
             // 时间研究活动
             if let researchTime = researchTime {
                 Section(
-                    header: Text(NSLocalizedString("Blueprint_Research_Time", comment: "")).font(
-                        .headline
+                    header: BlueprintActivityHeader(
+                        title: NSLocalizedString("Blueprint_Research_Time", comment: ""),
+                        materials: researchTime.materials,
+                        onCopied: { showingCopyAlert = true }
                     )
                 ) {
                     // 材料折叠组
@@ -776,8 +824,10 @@ struct ShowBluePrintInfo: View {
             // 复制活动
             if let copying = copying {
                 Section(
-                    header: Text(NSLocalizedString("Blueprint_Copying", comment: "")).font(
-                        .headline
+                    header: BlueprintActivityHeader(
+                        title: NSLocalizedString("Blueprint_Copying", comment: ""),
+                        materials: copying.materials,
+                        onCopied: { showingCopyAlert = true }
                     )
                 ) {
                     // 材料折叠组
@@ -891,8 +941,10 @@ struct ShowBluePrintInfo: View {
             // 发明活动
             if let invention = invention {
                 Section(
-                    header: Text(NSLocalizedString("Blueprint_Invention", comment: "")).font(
-                        .headline
+                    header: BlueprintActivityHeader(
+                        title: NSLocalizedString("Blueprint_Invention", comment: ""),
+                        materials: invention.materials,
+                        onCopied: { showingCopyAlert = true }
                     )
                 ) {
                     // 产出物

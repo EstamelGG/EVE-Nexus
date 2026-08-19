@@ -1,5 +1,29 @@
 import SwiftUI
 
+// MARK: - 行内骨架条
+
+/// 行内骨架条：几何与加载后的字段一致，数据到位后原位替换，避免视觉抖动
+/// （用于列表行内单个字段的加载占位，如势力名称行）
+struct EntitySkeletonBar: View {
+    var width: CGFloat
+    var height: CGFloat
+    var cornerRadius: CGFloat = 4
+    @State private var isPulsing = false
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: cornerRadius)
+            .fill(Color.secondary.opacity(0.18))
+            .frame(width: width, height: height)
+            .opacity(isPulsing ? 0.55 : 1)
+            .animation(
+                .easeInOut(duration: 0.9).repeatForever(autoreverses: true),
+                value: isPulsing
+            )
+            .onAppear { isPulsing = true }
+            .accessibilityHidden(true)
+    }
+}
+
 /// 通用列表骨架屏行：可选左侧图标占位 + 文本条组 + 可选尾部数值条。
 /// 用于列表初始加载场景，替代居中的 ProgressView，让用户预感到内容的形状。
 struct ListSkeletonRow: View {

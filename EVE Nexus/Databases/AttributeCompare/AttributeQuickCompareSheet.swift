@@ -84,9 +84,8 @@ struct AttributeQuickCompareSheet: View {
     }
 
     private func loadAndCompare() {
-        items = databaseManager.loadMarketItems(
-            whereClause: "t.marketGroupID = ?",
-            parameters: [marketGroupID]
+        items = databaseManager.searchItemsMemory(
+            filter: { _, info in info.marketGroupID == marketGroupID }
         )
         .sorted { $0.id < $1.id }
 

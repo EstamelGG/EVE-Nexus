@@ -130,6 +130,11 @@ final class MiningLedgerViewModel: ObservableObject {
         if selectedCharacterIds.isEmpty {
             selectedCharacterIds.insert(characterId)
         }
+
+        // 构造时启动数据加载（原先由视图 init 触发，移入以避免视图重复构造引发重复加载）
+        Task {
+            await loadMiningData()
+        }
     }
 
     deinit {
@@ -465,14 +470,11 @@ struct MiningLedgerView: View {
     // 使用FormatUtil进行日期处理，无需自定义格式化器
 
     init(characterId: Int, databaseManager: DatabaseManager) {
-        // 创建ViewModel
-        let vm = MiningLedgerViewModel(characterId: characterId, databaseManager: databaseManager)
-        _viewModel = StateObject(wrappedValue: vm)
-
-        // 在初始化时立即启动数据加载
-        Task {
-            await vm.loadMiningData()
-        }
+        // 构造表达式内联在 autoclosure 中，避免父视图每次重渲染都新建 ViewModel；
+        // 数据加载已在 ViewModel init 中启动
+        _viewModel = StateObject(wrappedValue: MiningLedgerViewModel(
+            characterId: characterId, databaseManager: databaseManager
+        ))
     }
 
     /// 判断日期是否在近7天内
@@ -884,19 +886,10 @@ struct DailyMiningDetailView: View {
         itemVolumes = volumes
     }
 
-    /// 加载星系名称和安全等级
+    /// 加载星系名称和安全等级（内存索引）
     private func loadSolarSystemNames() async {
         let systemIds = Set(summary.rawEntries.map { $0.entry.solar_system_id })
         guard !systemIds.isEmpty else { return }
-
-        let systemIdsArray = Array(systemIds)
-        let placeholders = Array(repeating: "?", count: systemIdsArray.count).joined(separator: ",")
-        let query = """
-            SELECT solarsystem_id, system_security
-            FROM universe
-            WHERE solarsystem_id IN (\(placeholders))
-        """
-        let parameters = systemIdsArray.map { $0 as Any }
 
         var names: [Int: String] = [:]
         var securities: [Int: Double] = [:]
@@ -905,17 +898,8 @@ struct DailyMiningDetailView: View {
             if let systemName = SDEMemoryStore.solarSystemName(for: systemId) {
                 names[systemId] = systemName
             }
-        }
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: parameters) {
-            for row in rows {
-                if let systemId = (row["solarsystem_id"] as? Int64).map(Int.init)
-                    ?? (row["solarsystem_id"] as? Int),
-                    let security = (row["system_security"] as? Double)
-                    ?? (row["system_security"] as? Int).map(Double.init)
-                {
-                    securities[systemId] = security
-                }
+            if let info = SDEMemoryStore.universeSystems[systemId] {
+                securities[systemId] = info.security
             }
         }
 

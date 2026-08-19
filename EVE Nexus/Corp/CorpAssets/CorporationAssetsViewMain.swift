@@ -105,18 +105,13 @@ struct CorporationAssetsViewWrapper: View {
                 ProgressView()
                     .navigationTitle(NSLocalizedString("Main_Corporation_Assets", comment: ""))
             } else if let error = error {
-                VStack(spacing: 16) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .font(.system(size: 40))
-                        .foregroundColor(.orange)
-                    Text(NSLocalizedString("Assets_Loading_Error", comment: ""))
-                        .font(.headline)
-                    Text(error.localizedDescription)
-                        .font(.subheadline)
-                        .foregroundColor(.secondary)
-                        .multilineTextAlignment(.center)
+                ErrorStateView(message: error.localizedDescription) {
+                    isLoading = true
+                    self.error = nil
+                    Task {
+                        await loadCorporationId()
+                    }
                 }
-                .padding()
                 .navigationTitle(NSLocalizedString("Main_Corporation_Assets", comment: ""))
             }
         }
@@ -162,13 +157,11 @@ struct CorporationAssetsView: View {
     @AppStorage("enableLogging") private var enableLogging: Bool = false
 
     init(corporationId: Int, characterId: Int) {
-        // 创建ViewModel并立即开始加载资产
-        let vm = CorporationAssetsViewModel(corporationId: corporationId, characterId: characterId)
-        _viewModel = StateObject(wrappedValue: vm)
-        // 在初始化时启动资产加载任务
-        Task {
-            await vm.loadAssets()
-        }
+        // 构造表达式内联在 autoclosure 中，避免父视图每次重渲染都新建 ViewModel；
+        // 数据加载已在 ViewModel init 中启动
+        _viewModel = StateObject(wrappedValue: CorporationAssetsViewModel(
+            corporationId: corporationId, characterId: characterId
+        ))
     }
 
     var body: some View {
@@ -241,36 +234,9 @@ struct CorporationAssetsView: View {
                     searchText.isEmpty,
                     !viewModel.isLoading && viewModel.assetLocations.isEmpty
             {
-                Section {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 12) {
-                            Image(systemName: "exclamationmark.triangle")
-                                .font(.system(size: 40))
-                                .foregroundColor(.orange)
-                            Text(NSLocalizedString("Assets_Loading_Error", comment: ""))
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            Text(error.localizedDescription)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                            Button(action: {
-                                Task {
-                                    await viewModel.loadAssets(forceRefresh: true)
-                                }
-                            }) {
-                                Text(NSLocalizedString("ESI_Status_Retry", comment: ""))
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 8)
-                                    .background(Color.accentColor)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(8)
-                            }
-                            .padding(.top, 8)
-                        }
-                        .padding()
-                        Spacer()
+                ErrorStateSection(message: error.localizedDescription) {
+                    Task {
+                        await viewModel.loadAssets(forceRefresh: true)
                     }
                 }
             }

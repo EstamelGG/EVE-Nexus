@@ -37,14 +37,6 @@ enum MarketLocation: Equatable, Codable {
         return nil
     }
 
-    /// 持久化字符串（如 "region_id:10000002" / "structure_id:1034567890123"）
-    var persistedString: String {
-        switch self {
-        case let .region(id): return "region_id:\(id)"
-        case let .structure(id): return "structure_id:\(id)"
-        }
-    }
-
     /// 从持久化字符串解析（兼容旧格式 "region_id:-103..."，负数同样解析为建筑）
     init?(persistedString: String) {
         let components = persistedString.split(separator: "_")
@@ -123,10 +115,5 @@ enum MarketLocationType {
             return MarketStructureManager.shared.structures
                 .first { $0.structureId == Int(id) }?.structureName ?? "Structure"
         }
-    }
-
-    var isStructure: Bool {
-        if case .structure = self { return true }
-        return false
     }
 }

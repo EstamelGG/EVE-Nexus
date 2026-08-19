@@ -24,7 +24,6 @@ final class CorporationIssuedContractsViewModel: ObservableObject {
 
     @Published var isInitialized = false
 
-    private var loadingTask: Task<Void, Never>?
     private var cachedContracts: [ContractInfo] = []
     private var contractsInitialized = false
     let characterId: Int
@@ -48,6 +47,12 @@ final class CorporationIssuedContractsViewModel: ObservableObject {
             let savedGroupingMode = GroupingMode(rawValue: groupingModeValue)
         {
             groupingMode = savedGroupingMode
+        }
+
+        // 构造时启动数据加载（原先由视图 init 触发，移入以避免视图重复构造引发重复加载）
+        Task {
+            await loadContractsData()
+            isInitialized = true
         }
     }
 
@@ -105,24 +110,14 @@ final class CorporationIssuedContractsViewModel: ObservableObject {
                 isInitialized = true
             }
         } catch {
-            if !(error is CancellationError) {
-                await MainActor.run {
-                    self.errorMessage = error.localizedDescription
-                    Logger.error("加载军团发起的合同失败: \(error)")
-                    self.isLoading = false
-                    self.currentLoadingPage = nil
-                }
-            } else {
-                await MainActor.run {
-                    self.isLoading = false
-                    self.currentLoadingPage = nil
-                }
+            // 记录错误，由视图展示错误页（带重试）
+            await MainActor.run {
+                self.errorMessage = error.localizedDescription
+                Logger.error("加载军团发起的合同失败: \(error)")
+                self.isLoading = false
+                self.currentLoadingPage = nil
             }
         }
-    }
-
-    deinit {
-        loadingTask?.cancel()
     }
 
     private func updateContractGroups(with contracts: [ContractInfo]) async {
@@ -232,11 +227,12 @@ struct CorporationIssuedContractsView: View {
     ]
 
     init(character: EVECharacterInfo) {
-        let vm = CorporationIssuedContractsViewModel(
+        // 构造表达式内联在 autoclosure 中，避免父视图每次重渲染都新建 ViewModel；
+        // 数据加载已在 ViewModel init 中启动
+        _viewModel = StateObject(wrappedValue: CorporationIssuedContractsViewModel(
             characterId: character.CharacterID,
             character: character
-        )
-        _viewModel = StateObject(wrappedValue: vm)
+        ))
 
         let typesKey = "corpIssuedSelectedContractTypes_\(character.CharacterID)"
         let statusesKey = "corpIssuedSelectedContractStatuses_\(character.CharacterID)"
@@ -256,18 +252,6 @@ struct CorporationIssuedContractsView: View {
         _selectedContractTypes = AppStorage(wrappedValue: defaultTypes, typesKey)
         _selectedContractStatuses = AppStorage(wrappedValue: defaultStatuses, statusesKey)
         _maxContracts = AppStorage(wrappedValue: 300, "corpIssuedMaxContracts_\(character.CharacterID)")
-
-        // 在初始化后立即开始加载数据，但不在闭包中捕获self
-        Task {
-            // 等待数据加载完成
-            await vm.loadContractsData()
-
-            // 使用MainActor确保在主线程上更新UI状态
-            // 数据加载完成后，一次性更新 UI 状态
-            await MainActor.run {
-                vm.isInitialized = true
-            }
-        }
     }
 
     /// 过滤逻辑（完全复用PersonalContractsView的逻辑）
@@ -369,40 +353,16 @@ struct CorporationIssuedContractsView: View {
                 if let error = viewModel.errorMessage,
                    !viewModel.isLoading && viewModel.contractGroups.isEmpty
                 {
-                    Section {
-                        HStack {
-                            Spacer()
-                            VStack(spacing: 12) {
-                                Image(systemName: "exclamationmark.triangle")
-                                    .font(.system(size: 40))
-                                    .foregroundColor(.orange)
-                                Text(NSLocalizedString("Contract_Load_Error_Title", comment: ""))
-                                    .font(.headline)
-                                    .foregroundColor(.primary)
-                                Text(error)
-                                    .font(.subheadline)
-                                    .foregroundColor(.secondary)
-                                    .multilineTextAlignment(.center)
-                                Button(action: {
-                                    Task {
-                                        await viewModel.loadContractsData(forceRefresh: true)
-                                    }
-                                }) {
-                                    Text(NSLocalizedString("ESI_Status_Retry", comment: ""))
-                                        .padding(.horizontal, 20)
-                                        .padding(.vertical, 8)
-                                        .background(Color.accentColor)
-                                        .foregroundColor(.white)
-                                        .cornerRadius(8)
-                                }
-                                .padding(.top, 8)
-                            }
-                            .padding()
-                            Spacer()
+                    ErrorStateSection(message: error) {
+                        Task {
+                            await viewModel.loadContractsData(forceRefresh: true)
                         }
                     }
                 } else if filteredContractGroups.isEmpty && !viewModel.isLoading {
-                    NoDataSection(text: NSLocalizedString("Misc_No_Matched_Data", comment: ""))
+                    NoDataSection(
+                        icon: "line.3.horizontal.decrease.circle",
+                        text: NSLocalizedString("Misc_No_Matched_Data", comment: "")
+                    )
                 } else if !viewModel.isLoading || viewModel.isInitialized {
                     ForEach(filteredContractGroups) { group in
                         Section {
@@ -412,6 +372,7 @@ struct CorporationIssuedContractsView: View {
                                     databaseManager: viewModel.databaseManager,
                                     groupingMode: viewModel.groupingMode
                                 )
+                                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                             }
                         } header: {
                             if viewModel.groupingMode == .byCompletionDate && group.date == Date.distantFuture {

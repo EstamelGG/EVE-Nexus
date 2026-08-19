@@ -424,33 +424,24 @@ class AllInOneSystemFinderResultViewModel: ObservableObject {
         // 加载派系图标
         for (factionId, systems) in factionToSystems {
             let task = Task {
-                let query = "SELECT iconName, name FROM factions WHERE id = ?"
-                if case let .success(rows) = DatabaseManager.shared.executeQuery(
-                    query, parameters: [factionId]
-                ),
-                    let row = rows.first,
-                    let iconName = row["iconName"] as? String
-                {
-                    let icon = IconManager.shared.loadImage(for: iconName)
-                    let factionName = row["name"] as? String
+                guard let faction = SDEMemoryStore.faction(for: factionId) else {
+                    await MainActor.run {
+                        for systemId in systems {
+                            loadingSystemIcons.remove(systemId)
+                        }
+                    }
+                    return
+                }
 
-                    await MainActor.run {
-                        factionIcons[factionId] = icon
-                        if let name = factionName {
-                            factionNames[factionId] = name
-                        }
-                        for systemId in systems {
-                            loadingSystemIcons.remove(systemId)
-                        }
-                        objectWillChange.send()
+                let icon = IconManager.shared.loadImage(for: faction.iconName)
+
+                await MainActor.run {
+                    factionIcons[factionId] = icon
+                    factionNames[factionId] = faction.name
+                    for systemId in systems {
+                        loadingSystemIcons.remove(systemId)
                     }
-                } else {
-                    // 如果查询失败或没有找到数据，也要移除加载状态
-                    await MainActor.run {
-                        for systemId in systems {
-                            loadingSystemIcons.remove(systemId)
-                        }
-                    }
+                    objectWillChange.send()
                 }
             }
             loadingTasks[factionId] = task

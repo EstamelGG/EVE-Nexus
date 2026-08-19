@@ -9,20 +9,17 @@ extension OreRefineryCalculatorView {
     /// 加载物品列表
     func loadItems() {
         if !oreItems.isEmpty {
-            let itemIDs = oreItems.map { String($0.typeID) }.joined(separator: ",")
-            items = databaseManager.loadMarketItems(
-                whereClause: "t.type_id IN (\(itemIDs))",
-                parameters: []
+            // 内存索引批量构建（已按 id 升序）
+            items = DatabaseListItem.listItems(
+                for: oreItems.map(\.typeID),
+                databaseManager: databaseManager
             )
-            // 按 type_id 排序并更新
-            let sorted = items.sorted(by: { $0.id < $1.id })
-            items = sorted
             // 更新 itemQuantities
             itemQuantities = Dictionary(
                 uniqueKeysWithValues: oreItems.map { ($0.typeID, $0.quantity) }
             )
             // 确保 oreItems 的顺序与加载的物品顺序一致
-            oreItems = sorted.map { item in
+            oreItems = items.map { item in
                 QuickbarItem(
                     typeID: item.id,
                     quantity: oreItems.first(where: { $0.typeID == item.id })?.quantity ?? 1

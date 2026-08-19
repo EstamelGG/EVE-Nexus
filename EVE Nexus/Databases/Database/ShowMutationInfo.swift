@@ -5,14 +5,7 @@ struct ShowMutationInfo: View {
     @ObservedObject var databaseManager: DatabaseManager
 
     @State private var itemDetails: ItemDetails?
-    @State private var mutationAttributes: [(
-        attributeID: Int,
-        name: String,
-        iconFileName: String?,
-        minValue: Double,
-        maxValue: Double,
-        highIsGood: Bool
-    )] = []
+    @State private var mutationAttributes: [SDEMemoryStore.DynamicItemAttributeInfo] = []
     @State private var applicableItems: [(typeID: Int, name: String, iconFileName: String)] = []
     @State private var resultingItem: (typeID: Int, name: String, iconFileName: String)?
 
@@ -138,35 +131,8 @@ struct ShowMutationInfo: View {
     }
 
     private func loadMutationData() {
-        let attributesQuery = """
-            SELECT a.attribute_id, d.display_name, COALESCE(d.icon_filename, '') as icon_filename,
-                   a.min_value, a.max_value, d.highIsGood
-            FROM dynamic_item_attributes a
-            LEFT JOIN dogmaAttributes d ON a.attribute_id = d.attribute_id
-            WHERE a.type_id = ?
-            ORDER BY d.display_name
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(
-            attributesQuery, parameters: [itemID]
-        ) {
-            mutationAttributes = rows.compactMap { row in
-                guard let attributeID = row["attribute_id"] as? Int,
-                      let name = row["display_name"] as? String,
-                      let minValue = row["min_value"] as? Double,
-                      let maxValue = row["max_value"] as? Double,
-                      let highIsGood = row["highIsGood"] as? Int
-                else { return nil }
-                return (
-                    attributeID: attributeID,
-                    name: name,
-                    iconFileName: row["icon_filename"] as? String,
-                    minValue: minValue,
-                    maxValue: maxValue,
-                    highIsGood: highIsGood == 1
-                )
-            }
-        }
+        // 突变属性范围（含覆盖后的 highIsGood）从 SDEMemoryStore 内存缓存取
+        mutationAttributes = SDEMemoryStore.dynamicItemAttributes(forTypeID: itemID)
 
         // 映射数据从 SDEMemoryStore 获取（已随 SDE 初始化缓存到内存）
         let mappings = SDEMemoryStore.dynamicMappings(forTypeID: itemID)

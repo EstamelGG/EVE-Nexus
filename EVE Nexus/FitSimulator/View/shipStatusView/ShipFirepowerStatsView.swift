@@ -59,44 +59,27 @@ struct ShipFirepowerStatsView: View {
             return bombDamageMap
         }
 
-        // 构建IN语句的占位符
-        let placeholders = bombTypeIds.map { _ in "?" }.joined(separator: ", ")
+        // 查询所有投弹伤害属性（内存索引）
+        let damageAttrIDs: Set = [114, 116, 117, 118]
+        var tempDamages: [Int: [Int: Double]] = [:]
 
-        // 查询所有投弹伤害属性
-        let query = """
-            SELECT type_id, attribute_id, value 
-            FROM typeAttributes 
-            WHERE attribute_id IN (114, 116, 117, 118) AND type_id IN (\(placeholders))
-        """
-
-        if case let .success(rows) = viewModel.databaseManager.executeQuery(
-            query, parameters: bombTypeIds
-        ) {
-            // 临时存储每个类型的伤害值
-            var tempDamages: [Int: [Int: Double]] = [:]
-
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let attributeId = row["attribute_id"] as? Int,
-                   let value = row["value"] as? Double
-                {
-                    if tempDamages[typeId] == nil {
-                        tempDamages[typeId] = [:]
-                    }
-                    tempDamages[typeId]![attributeId] = value
-                }
+        for typeId in bombTypeIds {
+            let attributes = SDEMemoryStore.typeAttributes(for: typeId)
+            let damages = attributes.filter { damageAttrIDs.contains($0.key) }
+            if !damages.isEmpty {
+                tempDamages[typeId] = damages
             }
+        }
 
-            // 转换为BombDamage对象
-            for (typeId, damages) in tempDamages {
-                let bombDamage = BombDamage(
-                    em: damages[114] ?? 0, // EM伤害
-                    explosive: damages[116] ?? 0, // 爆炸伤害
-                    kinetic: damages[117] ?? 0, // 动能伤害
-                    thermal: damages[118] ?? 0 // 热能伤害
-                )
-                bombDamageMap[typeId] = bombDamage
-            }
+        // 转换为BombDamage对象
+        for (typeId, damages) in tempDamages {
+            let bombDamage = BombDamage(
+                em: damages[114] ?? 0, // EM伤害
+                explosive: damages[116] ?? 0, // 爆炸伤害
+                kinetic: damages[117] ?? 0, // 动能伤害
+                thermal: damages[118] ?? 0 // 热能伤害
+            )
+            bombDamageMap[typeId] = bombDamage
         }
 
         return bombDamageMap

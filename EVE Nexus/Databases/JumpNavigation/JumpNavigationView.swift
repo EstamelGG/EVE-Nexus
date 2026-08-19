@@ -14,50 +14,33 @@ struct JumpSystemData: Identifiable {
         SDEMemoryStore.solarSystemName(for: id) ?? "System \(id)"
     }
 
-    var region: String {
-        SDEMemoryStore.regionName(for: regionId) ?? "Region \(regionId)"
+    /// 跳跃导航可选星系谓词：有跳跃门、非虫洞空间、排除指定星域与特殊星系
+    /// （数据加载与星系选择器共用同一口径）
+    static func isJumpSelectable(systemId: Int, info: SDEMemoryStore.UniverseSystemInfo) -> Bool {
+        let excludedRegions: Set = [10_000_019, 10_000_004, 10_000_017, 10_000_070]
+        return info.hasJumpGate && !info.isJSpace
+            && !excludedRegions.contains(info.regionID) && systemId != 30_100_000
     }
 
-    /// 静态方法：从数据库加载所有跳跃星系数据
-    static func loadAllJumpSystems(databaseManager: DatabaseManager) -> [JumpSystemData] {
+    /// 静态方法：从内存索引加载所有跳跃星系数据
+    static func loadAllJumpSystems(databaseManager _: DatabaseManager) -> [JumpSystemData] {
         var systems: [JumpSystemData] = []
 
-        let query = """
-            SELECT solarsystem_id, system_security, region_id, x, y, z
-            FROM universe
-            WHERE hasJumpGate
-            AND NOT isJSpace
-            AND region_id NOT IN (10000019, 10000004, 10000017, 10000070)
-            AND solarsystem_id NOT IN (30100000)
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            Logger.info("加载跳跃星系数据：查询成功，获取到 \(rows.count) 条记录")
-
-            for row in rows {
-                guard let id = row["solarsystem_id"] as? Int,
-                      let security = row["system_security"] as? Double,
-                      let regionId = row["region_id"] as? Int,
-                      let x = row["x"] as? Double,
-                      let y = row["y"] as? Double,
-                      let z = row["z"] as? Double
-                else { continue }
-
-                systems.append(
-                    JumpSystemData(
-                        id: id,
-                        security: calculateDisplaySecurity(security),
-                        regionId: regionId,
-                        x: x,
-                        y: y,
-                        z: z
-                    )
+        for (id, info) in SDEMemoryStore.universeSystems
+            where Self.isJumpSelectable(systemId: id, info: info)
+        {
+            systems.append(
+                JumpSystemData(
+                    id: id,
+                    security: calculateDisplaySecurity(info.security),
+                    regionId: info.regionID,
+                    x: info.x,
+                    y: info.y,
+                    z: info.z
                 )
-            }
-            Logger.info("跳跃星系数据加载完成：符合条件的星系数量为 \(systems.count)")
-        } else {
-            Logger.error("跳跃星系数据查询失败")
+            )
         }
+        Logger.info("跳跃星系数据加载完成：符合条件的星系数量为 \(systems.count)")
 
         return systems
     }
@@ -78,11 +61,6 @@ struct JumpSystemData: Identifiable {
             result[system.id] = system.security
         }
         return result
-    }
-
-    /// 获取符合条件的星系列表（用于选择器）
-    static func getJumpableSystems(from systems: [JumpSystemData]) -> [JumpSystemData] {
-        return systems.sorted { $0.name < $1.name }
     }
 }
 
@@ -229,12 +207,12 @@ struct JumpNavigationView: View {
             JumpShipSelectorView(selectedShip: $selectedShip, ships: ships)
         }
         .sheet(isPresented: $showingStartPointSelector) {
-            SystemSelectorSheet(
+            SystemPickerSheet(
                 title: NSLocalizedString("Jump_Navigation_Select_Start", comment: ""),
                 currentSelection: startPointId,
-                onlyLowSec: false, // 起点可以选择所有星系
-                jumpSystems: allJumpSystems,
-                onSelect: { systemId in
+                includeSystem: { JumpSystemData.isJumpSelectable(systemId: $0, info: $1) }, // 仅可选择可跳跃星系
+                showsSovereignty: true,
+                onSelect: { systemId, _ in
                     startPointId = systemId
                     showingStartPointSelector = false
                 },
@@ -244,12 +222,16 @@ struct JumpNavigationView: View {
             )
         }
         .sheet(isPresented: $showingWaypointSelector) {
-            SystemSelectorSheet(
+            SystemPickerSheet(
                 title: NSLocalizedString("Jump_Navigation_Add_Waypoint", comment: ""),
                 currentSelection: waypointIds.last,
-                onlyLowSec: true, // 路径点只能选择低安全等级星系
-                jumpSystems: allJumpSystems,
-                onSelect: { systemId in
+                includeSystem: { systemId, info in
+                    // 路径点只能选择低安全等级的可跳跃星系
+                    JumpSystemData.isJumpSelectable(systemId: systemId, info: info)
+                        && getSecurityClass(trueSec: info.security) != .highSec
+                },
+                showsSovereignty: true,
+                onSelect: { systemId, _ in
                     waypointIds.append(systemId)
                     showingWaypointSelector = false
                 },
@@ -259,12 +241,16 @@ struct JumpNavigationView: View {
             )
         }
         .sheet(isPresented: $showingAvoidSystemSelector) {
-            SystemSelectorSheet(
+            SystemPickerSheet(
                 title: NSLocalizedString("Jump_Navigation_Add_Avoid", comment: ""),
                 currentSelection: nil,
-                onlyLowSec: true, // 路径点只能选择低安全等级星系
-                jumpSystems: allJumpSystems,
-                onSelect: { systemId in
+                includeSystem: { systemId, info in
+                    // 避开点只能选择低安全等级的可跳跃星系
+                    JumpSystemData.isJumpSelectable(systemId: systemId, info: info)
+                        && getSecurityClass(trueSec: info.security) != .highSec
+                },
+                showsSovereignty: true,
+                onSelect: { systemId, _ in
                     if !avoidSystemIds.contains(systemId) {
                         avoidSystemIds.append(systemId)
                     }
@@ -838,24 +824,14 @@ struct JumpNavigationView: View {
             return 0
         }
 
-        // 从数据库查询飞船基础跳跃范围 (attribute_id 867 表示跳跃范围)
+        // 查询飞船基础跳跃范围 (attribute_id 867 表示跳跃范围，内存索引)
         var baseRange = 5.0 // 默认值为5光年
 
-        // 尝试从数据库获取实际跳跃范围
-        let query = """
-            SELECT value FROM typeAttributes 
-            WHERE type_id = \(selectedShip) AND attribute_id = 867
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            if let row = rows.first, let jumpRange = row["value"] as? Double {
-                baseRange = jumpRange
-                Logger.info("从数据库获取到飞船(ID: \(selectedShip))基础跳跃范围: \(baseRange)光年")
-            } else {
-                Logger.info("未找到飞船(ID: \(selectedShip))的基础跳跃范围，使用默认值: \(baseRange)光年")
-            }
+        if let jumpRange = SDEMemoryStore.typeAttributeValue(for: selectedShip, attributeID: 867) {
+            baseRange = jumpRange
+            Logger.info("获取到飞船(ID: \(selectedShip))基础跳跃范围: \(baseRange)光年")
         } else {
-            Logger.error("查询飞船跳跃范围失败，使用默认值: \(baseRange)光年")
+            Logger.info("未找到飞船(ID: \(selectedShip))的基础跳跃范围，使用默认值: \(baseRange)光年")
         }
 
         // 技能等级影响 (每级增加20%)
@@ -951,291 +927,6 @@ struct JumpNavigationView: View {
         }
 
         return ships
-    }
-}
-
-/// 星系选择器Sheet
-struct SystemSelectorSheet: View {
-    let title: String
-    let onSelect: (Int) -> Void
-    let onCancel: () -> Void
-    let currentSelection: Int?
-    let onlyLowSec: Bool // 添加新参数，控制是否只显示低安全等级星系
-    let jumpSystems: [JumpSystemData] // 添加已加载的星系数据参数
-
-    @State private var searchText: String = ""
-    @State private var systems: [JumpSystemData] = []
-    @State private var selectedSystemId: Int? // 修改为星系ID
-    @State private var isLoading = true
-
-    // 添加主权相关状态
-    @State private var sovereigntyData: [SovereigntyData] = []
-    @StateObject private var allianceIconLoader = AllianceIconLoader()
-    @State private var factionIcons: [Int: Image] = [:]
-    @State private var allianceNames: [Int: String] = [:]
-    @State private var factionNames: [Int: String] = [:]
-
-    init(
-        title: String,
-        currentSelection: Int? = nil,
-        onlyLowSec: Bool = false, // 添加新参数，默认为false
-        jumpSystems: [JumpSystemData], // 添加已加载的星系数据参数
-        onSelect: @escaping (Int) -> Void,
-        onCancel: @escaping () -> Void
-    ) {
-        self.title = title
-        self.onSelect = onSelect
-        self.onCancel = onCancel
-        self.currentSelection = currentSelection
-        self.onlyLowSec = onlyLowSec
-        self.jumpSystems = jumpSystems
-        _selectedSystemId = State(initialValue: currentSelection)
-    }
-
-    var body: some View {
-        NavigationView {
-            VStack {
-                if isLoading {
-                    ProgressView()
-                        .scaleEffect(1.5)
-                        .padding()
-                    Text(NSLocalizedString("Jump_Navigation_Loading_Systems", comment: ""))
-                        .foregroundColor(.gray)
-                } else {
-                    List {
-                        // 显示星系列表
-                        ForEach(filteredSystems, id: \.id) { system in
-                            Button(action: {
-                                selectedSystemId = system.id
-                                onSelect(system.id)
-                            }) {
-                                HStack(spacing: 12) {
-                                    // 左侧：主权势力图标
-                                    if let sovereigntyInfo = getSovereigntyInfo(for: system.id) {
-                                        if let icon = sovereigntyInfo.icon {
-                                            icon
-                                                .resizable()
-                                                .scaledToFit()
-                                                .frame(width: 36, height: 36)
-                                                .cornerRadius(6)
-                                        } else {
-                                            // 有主权但图标未加载，显示加载指示器
-                                            ProgressView()
-                                                .frame(width: 36, height: 36)
-                                        }
-                                    } else {
-                                        // 无主权：显示faction_default图标
-                                        Image("faction_default")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .frame(width: 36, height: 36)
-                                            .cornerRadius(6)
-                                    }
-
-                                    // 右侧：星系信息
-                                    VStack(alignment: .leading, spacing: 4) {
-                                        // 第一行：安全等级 + 星系名称 + 星域
-                                        HStack(spacing: 8) {
-                                            Text(formatSystemSecurity(system.security))
-                                                .foregroundColor(getSecurityColor(system.security))
-                                                .font(.system(.body, design: .monospaced))
-
-                                            Text(system.name)
-                                                .foregroundColor(.primary)
-                                                .fontWeight(.semibold)
-                                                + Text(" / \(system.region)")
-                                                .foregroundColor(.secondary)
-
-                                            Spacer()
-
-                                            // 选中状态
-                                            if selectedSystemId == system.id {
-                                                Image(systemName: "checkmark")
-                                                    .foregroundColor(.blue)
-                                            }
-                                        }
-
-                                        // 第二行：主权势力名称
-                                        if let sovereigntyInfo = getSovereigntyInfo(for: system.id) {
-                                            Text(sovereigntyInfo.name)
-                                                .font(.caption)
-                                                .foregroundColor(.secondary)
-                                                .lineLimit(1)
-                                        } else {
-                                            Text(
-                                                NSLocalizedString(
-                                                    "Jump_Navigation_No_Sovereignty", comment: "无主权"
-                                                )
-                                            )
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                            .lineLimit(1)
-                                        }
-                                    }
-                                }
-                                .padding(.vertical, 2)
-                            }
-                            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
-                        }
-                    }
-                    .searchable(
-                        text: $searchText,
-                        // placement: .navigationBarDrawer(displayMode: .always),
-                        prompt: NSLocalizedString("Main_Search", comment: "")
-                    )
-                }
-            }
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(
-                        NSLocalizedString("Main_Setting_Cancel", comment: ""),
-                        action: {
-                            onCancel()
-                        }
-                    )
-                }
-            }
-            .onAppear {
-                loadSystems()
-            }
-            .onDisappear {
-                // 取消联盟图标加载任务
-                allianceIconLoader.cancelAllTasks()
-            }
-        }
-    }
-
-    /// 过滤后的星系列表
-    private var filteredSystems: [JumpSystemData] {
-        if searchText.isEmpty {
-            return systems
-        } else {
-            // 使用已创建的索引快速访问原始数据
-            return systems.filter { system in
-                SDEMemoryStore.solarSystemNames[system.id]?.matchesSearch(searchText) == true
-            }.sorted { $0.name < $1.name }
-        }
-    }
-
-    /// 获取星系的主权信息
-    private func getSovereigntyInfo(for systemId: Int) -> (name: String, icon: Image?)? {
-        // 查找该星系的主权数据
-        guard let systemSovereignty = sovereigntyData.first(where: { $0.systemId == systemId })
-        else {
-            return nil
-        }
-
-        // 优先检查联盟主权
-        if let allianceId = systemSovereignty.allianceId {
-            let name = allianceNames[allianceId] ?? "\(allianceId)"
-            let icon = allianceIconLoader.icons[allianceId]
-            return (name: name, icon: icon)
-        }
-
-        // 检查派系主权
-        if let factionId = systemSovereignty.factionId {
-            let name = factionNames[factionId] ?? "\(factionId)"
-            let icon = factionIcons[factionId]
-            return (name: name, icon: icon)
-        }
-
-        return nil
-    }
-
-    /// 加载星系数据
-    private func loadSystems() {
-        isLoading = true
-
-        // 使用传入的星系数据而不是重新加载
-        DispatchQueue.global(qos: .userInitiated).async {
-            // 获取所有可跳跃星系
-            let loadedSystems = JumpSystemData.getJumpableSystems(from: jumpSystems)
-
-            // 根据onlyLowSec参数过滤星系
-            let filteredSystems =
-                onlyLowSec ? loadedSystems.filter { $0.security < 0.5 } : loadedSystems
-
-            // 在主线程更新UI
-            DispatchQueue.main.async {
-                systems = filteredSystems.sorted { $0.name < $1.name }
-                isLoading = false
-
-                // 加载主权数据
-                loadSovereigntyData(for: filteredSystems.map { $0.id })
-            }
-        }
-    }
-
-    /// 加载主权数据
-    private func loadSovereigntyData(for _: [Int]) {
-        Task {
-            do {
-                // 获取主权数据
-                let data = try await SovereigntyDataAPI.shared.fetchSovereigntyData(
-                    forceRefresh: false
-                )
-
-                await MainActor.run {
-                    sovereigntyData = data
-
-                    // 提取需要加载的联盟和派系ID
-                    let allianceIds = Set(data.compactMap { $0.allianceId })
-                    let factionIds = Set(data.compactMap { $0.factionId })
-
-                    // 加载联盟和派系信息
-                    Task {
-                        await loadAllianceInfo(for: Array(allianceIds))
-                        await loadFactionInfo(for: Array(factionIds))
-                    }
-                }
-            } catch {
-                Logger.error("加载主权数据失败: \(error)")
-            }
-        }
-    }
-
-    /// 加载联盟信息
-    private func loadAllianceInfo(for allianceIds: [Int]) async {
-        // 批量获取联盟名称
-        do {
-            let allianceNamesWithCategories = try await UniverseAPI.shared.getNamesWithFallback(
-                ids: allianceIds
-            )
-
-            await MainActor.run {
-                for (allianceId, nameInfo) in allianceNamesWithCategories {
-                    allianceNames[allianceId] = nameInfo.name
-                }
-
-                // 使用 AllianceIconLoader 加载联盟图标
-                allianceIconLoader.loadIcons(for: allianceIds)
-            }
-        } catch {
-            Logger.error("加载联盟名称失败: \(error)")
-        }
-    }
-
-    /// 加载派系信息（名称/图标走内存缓存）
-    private func loadFactionInfo(for factionIds: [Int]) async {
-        guard !factionIds.isEmpty else { return }
-
-        var names: [Int: String] = [:]
-        var icons: [Int: Image] = [:]
-        for factionId in factionIds {
-            guard let faction = SDEMemoryStore.faction(for: factionId) else { continue }
-            names[factionId] = faction.name
-            icons[factionId] = IconManager.shared.loadImage(for: faction.iconName)
-        }
-        await MainActor.run {
-            for (id, name) in names {
-                factionNames[id] = name
-            }
-            for (id, icon) in icons {
-                factionIcons[id] = icon
-            }
-        }
     }
 }
 

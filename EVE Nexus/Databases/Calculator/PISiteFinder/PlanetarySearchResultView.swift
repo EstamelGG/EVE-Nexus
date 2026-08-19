@@ -17,6 +17,8 @@ class PlanetarySearchResultViewModel: ObservableObject {
     // 主权映射
     private var allianceToSystems: [Int: [Int]] = [:]
     private var factionToSystems: [Int: [Int]] = [:]
+    /// 星系ID → 主权数据 的索引（避免线性查找）
+    private var sovereigntyBySystem: [Int: SovereigntyData] = [:]
 
     /// 加载任务管理
     private var loadingTasks: [Int: Task<Void, Never>] = [:]
@@ -54,9 +56,15 @@ class PlanetarySearchResultViewModel: ObservableObject {
         allianceToSystems.removeAll()
         factionToSystems.removeAll()
 
+        // 建立星系ID → 主权数据 的索引（一次构建，O(n)）
+        sovereigntyBySystem = Dictionary(
+            sovereigntyData.map { ($0.systemId, $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+
         // 为每个星系ID查找主权信息并建立映射
         for systemId in systemIds {
-            if let systemData = sovereigntyData.first(where: { $0.systemId == systemId }) {
+            if let systemData = sovereigntyBySystem[systemId] {
                 // 标记星系正在加载图标
                 loadingSystemIcons.insert(systemId)
 
@@ -142,39 +150,29 @@ class PlanetarySearchResultViewModel: ObservableObject {
             let task = Task {
                 Logger.debug("开始加载派系图标: \(factionId)，影响 \(systems.count) 个星系")
 
-                let query = "SELECT iconName, name FROM factions WHERE id = ?"
-                if case let .success(rows) = DatabaseManager.shared.executeQuery(
-                    query, parameters: [factionId]
-                ),
-                    let row = rows.first,
-                    let iconName = row["iconName"] as? String
-                {
-                    let icon = IconManager.shared.loadImage(for: iconName)
-                    let factionName = row["name"] as? String
-
-                    // 保存到缓存 - 确保在主线程更新UI
+                guard let faction = SDEMemoryStore.faction(for: factionId) else {
+                    Logger.error("派系图标加载失败: \(factionId)")
                     await MainActor.run {
-                        factionIcons[factionId] = icon
-                        if let name = factionName {
-                            factionNames[factionId] = name
-                        }
-
-                        // 更新所有使用这个派系图标的星系的加载状态
                         for systemId in systems {
                             loadingSystemIcons.remove(systemId)
                         }
                     }
-                    Logger.debug("派系图标和名称加载成功: \(factionId)")
-                } else {
-                    Logger.error("派系图标加载失败: \(factionId)")
+                    return
+                }
 
-                    // 更新加载状态
-                    await MainActor.run {
-                        for systemId in systems {
-                            loadingSystemIcons.remove(systemId)
-                        }
+                let icon = IconManager.shared.loadImage(for: faction.iconName)
+
+                // 保存到缓存 - 确保在主线程更新UI
+                await MainActor.run {
+                    factionIcons[factionId] = icon
+                    factionNames[factionId] = faction.name
+
+                    // 更新所有使用这个派系图标的星系的加载状态
+                    for systemId in systems {
+                        loadingSystemIcons.remove(systemId)
                     }
                 }
+                Logger.debug("派系图标和名称加载成功: \(factionId)")
             }
             loadingTasks[factionId] = task
         }
@@ -187,7 +185,7 @@ class PlanetarySearchResultViewModel: ObservableObject {
 
     /// 获取星系的主权信息
     func getSovereigntyForSystem(_ systemId: Int) -> SovereigntyData? {
-        return sovereigntyData.first(where: { $0.systemId == systemId })
+        return sovereigntyBySystem[systemId]
     }
 
     /// 检查星系是否正在加载图标
@@ -245,6 +243,7 @@ struct PlanetarySearchResultView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.vertical, 4)
             }
+            .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
 
             if results.isEmpty {
                 // 无搜索结果时显示的提示信息
@@ -277,6 +276,7 @@ struct PlanetarySearchResultView: View {
                     .frame(maxWidth: .infinity)
                     .padding()
                 }
+                .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             } else {
                 // 搜索结果Sections
                 ForEach(results) { result in
@@ -401,7 +401,7 @@ struct PlanetarySearchResultView: View {
                         }
                         .padding(.top, 4)
                     }
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
             }
         }
@@ -461,30 +461,16 @@ struct PlanetarySearchResultView: View {
             return
         }
 
-        // 一次性查询所有资源信息
-        let query = """
-            SELECT type_id, name, icon_filename 
-            FROM types 
-            WHERE type_id IN (\(resourceIds.map { String($0) }.joined(separator: ",")))
-        """
+        // 内存索引一次性取所有资源信息
+        var tempInfo: [Int: (name: String, iconFileName: String)] = [:]
+        for resourceId in resourceIds {
+            guard let info = SDEMemoryStore.type(for: resourceId) else { continue }
+            tempInfo[resourceId] = (name: info.name, iconFileName: info.iconFilename)
+        }
 
-        if case let .success(rows) = DatabaseManager.shared.executeQuery(query) {
-            var tempInfo: [Int: (name: String, iconFileName: String)] = [:]
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let iconFileName = row["icon_filename"] as? String
-                {
-                    tempInfo[typeId] = (
-                        name: name, iconFileName: iconFileName.isEmpty ? "not_found" : iconFileName
-                    )
-                }
-            }
-
-            // 在主线程更新UI数据
-            DispatchQueue.main.async {
-                self.resourceInfo = tempInfo
-            }
+        // 在主线程更新UI数据
+        DispatchQueue.main.async {
+            self.resourceInfo = tempInfo
         }
     }
 

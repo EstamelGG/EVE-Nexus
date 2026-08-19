@@ -270,20 +270,13 @@ struct ShipFittingFightersView: View {
                             // 获取原舰载机的数量，保持不变
                             let currentQuantity = selectedFighter.fighterSquad?.quantity ?? 1
 
-                            // 获取新舰载机的最大中队大小
+                            // 获取新舰载机的最大中队大小（内存索引）
                             var maxQuantity = currentQuantity
-                            let query = """
-                                SELECT ta.value
-                                FROM typeAttributes ta
-                                JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id
-                                WHERE ta.type_id = ? AND da.name = 'fighterSquadronMaxSize'
-                            """
-
-                            if case let .success(rows) = viewModel.databaseManager.executeQuery(
-                                query, parameters: [newFighterTypeId]
-                            ),
-                                let row = rows.first,
-                                let value = row["value"] as? Double
+                            if
+                                let attrID = SDEMemoryStore.attributeID(named: "fighterSquadronMaxSize"),
+                                let value = SDEMemoryStore.typeAttributeValue(
+                                    for: newFighterTypeId, attributeID: attrID
+                                )
                             {
                                 maxQuantity = min(currentQuantity, Int(value))
                             }

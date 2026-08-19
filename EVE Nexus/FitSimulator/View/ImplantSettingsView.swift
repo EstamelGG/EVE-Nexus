@@ -374,52 +374,25 @@ struct ImplantSettingsView: View {
             return
         }
 
-        // 一次性查询所有植入体和增效剂的属性和效果
+        // 一次性查询所有植入体和增效剂的属性和效果（内存索引）
         let allIds = implantIds + boosterIds
         if allIds.isEmpty {
             return
         }
 
-        // 构建查询参数
-        let placeholders = String(repeating: "?,", count: allIds.count).dropLast()
-
-        // 查询属性和groupID
-        let attrQuery = """
-            SELECT t.type_id, ta.attribute_id, ta.value, da.name, t.groupID
-            FROM typeAttributes ta
-            JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id
-            JOIN types t ON ta.type_id = t.type_id
-            WHERE ta.type_id IN (\(placeholders))
-        """
+        // 批量取属性（byID + byName，name 从 dogmaAttributes 内存解析）
+        let attrResult = SDEMemoryStore.typeAttributes(for: allIds)
 
         var typeAttributes: [Int: [Int: Double]] = [:]
         var typeAttributesByName: [Int: [String: Double]] = [:]
         var typeGroupIDs: [Int: Int] = [:]
 
-        if case let .success(rows) = databaseManager.executeQuery(attrQuery, parameters: allIds) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let attrId = row["attribute_id"] as? Int,
-                   let value = row["value"] as? Double,
-                   let name = row["name"] as? String
-                {
-                    // 初始化字典
-                    if typeAttributes[typeId] == nil {
-                        typeAttributes[typeId] = [:]
-                    }
-                    if typeAttributesByName[typeId] == nil {
-                        typeAttributesByName[typeId] = [:]
-                    }
-
-                    // 添加属性
-                    typeAttributes[typeId]?[attrId] = value
-                    typeAttributesByName[typeId]?[name] = value
-
-                    // 保存groupID（只在第一次遇到该typeId时保存）
-                    if typeGroupIDs[typeId] == nil, let groupID = row["groupID"] as? Int {
-                        typeGroupIDs[typeId] = groupID
-                    }
-                }
+        for (typeId, attrs) in attrResult {
+            typeAttributes[typeId] = attrs.attributes
+            typeAttributesByName[typeId] = attrs.attributesByName
+            // groupID 从 types 内存索引获取
+            if let groupID = SDEMemoryStore.type(for: typeId)?.groupID {
+                typeGroupIDs[typeId] = groupID
             }
         }
 
@@ -541,62 +514,46 @@ struct ImplantSettingsView: View {
             return
         }
 
-        // 查询预设植入体的详细信息
-        let placeholders = String(repeating: "?,", count: typeIds.count).dropLast()
-        let query = """
-            SELECT t.type_id, t.name, t.icon_filename, ta.attribute_id, ta.value
-            FROM types t
-            JOIN typeAttributes ta ON t.type_id = ta.type_id
-            WHERE t.type_id IN (\(placeholders))
-            AND ta.attribute_id IN (331, 1087) -- 植入体和增效剂槽位属性ID
-        """
+        // 查询预设植入体的详细信息（内存索引：types + 槽位属性 331/1087）
+        var implantInfo:
+            [Int: (name: String, iconFile: String, slotNumber: Int, isImplant: Bool)] = [:]
 
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: typeIds) {
-            // 临时存储植入体信息
-            var implantInfo:
-                [Int: (name: String, iconFile: String, slotNumber: Int, isImplant: Bool)] = [:]
+        for typeId in typeIds {
+            guard let typeInfo = SDEMemoryStore.type(for: typeId) else { continue }
+            // 331 = 植入体槽位属性，1087 = 增效剂槽位属性
+            let implantSlot = SDEMemoryStore.typeAttributeValue(for: typeId, attributeID: 331)
+            let boosterSlot = SDEMemoryStore.typeAttributeValue(for: typeId, attributeID: 1087)
+            guard let slotValue = implantSlot ?? boosterSlot else { continue }
 
-            // 处理查询结果
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let attributeId = row["attribute_id"] as? Int,
-                   let value = row["value"] as? Double
-                {
-                    let iconFile = row["icon_filename"] as? String ?? ""
-                    let slotNumber = Int(value)
-                    let isImplant = attributeId == 331 // 331是植入体槽位属性ID
+            implantInfo[typeId] = (
+                name: typeInfo.name,
+                iconFile: typeInfo.iconFilename.isEmpty
+                    ? IconManager.defaultItemIcon : typeInfo.iconFilename,
+                slotNumber: Int(slotValue),
+                isImplant: implantSlot != nil
+            )
+        }
 
-                    implantInfo[typeId] = (
-                        name: name,
-                        iconFile: iconFile.isEmpty ? IconManager.defaultItemIcon : iconFile,
-                        slotNumber: slotNumber,
-                        isImplant: isImplant
-                    )
+        // 应用植入体到相应槽位
+        for (typeId, info) in implantInfo {
+            let item = DatabaseListItem(
+                id: typeId,
+                name: info.name,
+                enName: nil,
+                iconFileName: info.iconFile,
+                published: true,
+                categoryID: 0
+            )
+
+            if info.isImplant {
+                // 应用植入体
+                if let proxy = implantRows[info.slotNumber] {
+                    proxy.selectedImplant = item
                 }
-            }
-
-            // 应用植入体到相应槽位
-            for (typeId, info) in implantInfo {
-                let item = DatabaseListItem(
-                    id: typeId,
-                    name: info.name,
-                    enName: nil,
-                    iconFileName: info.iconFile,
-                    published: true,
-                    categoryID: 0
-                )
-
-                if info.isImplant {
-                    // 应用植入体
-                    if let proxy = implantRows[info.slotNumber] {
-                        proxy.selectedImplant = item
-                    }
-                } else {
-                    // 应用增效剂
-                    if let proxy = boosterRows[info.slotNumber] {
-                        proxy.selectedBooster = item
-                    }
+            } else {
+                // 应用增效剂
+                if let proxy = boosterRows[info.slotNumber] {
+                    proxy.selectedBooster = item
                 }
             }
         }

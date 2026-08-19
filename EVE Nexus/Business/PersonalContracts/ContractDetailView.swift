@@ -296,22 +296,14 @@ final class ContractDetailViewModel: ObservableObject {
 
         switch locationType {
         case .station:
-            // 从数据库获取空间站类型ID和图标
-            let query = """
-                SELECT s.stationTypeID, t.icon_filename
-                FROM stations s
-                LEFT JOIN types t ON s.stationTypeID = t.type_id
-                WHERE s.stationID = ?
-            """
-            if case let .success(rows) = databaseManager.executeQuery(
-                query, parameters: [Int(locationId)]
-            ),
-                let row = rows.first,
-                let typeId = row["stationTypeID"] as? Int
+            // 从 SDEMemoryStore 内存缓存获取空间站类型ID和图标
+            if let info = SDEMemoryStore.station(for: Int(locationId)),
+               let typeId = info.stationTypeID
             {
                 // 获取图标文件名
+                let rawIcon = SDEMemoryStore.type(for: typeId)?.iconFilename
                 let iconFileName: String?
-                if let iconFile = row["icon_filename"] as? String, !iconFile.isEmpty {
+                if let iconFile = rawIcon, !iconFile.isEmpty {
                     iconFileName = iconFile
                 } else {
                     // 如果空间站没有图标，使用通用空间站图标

@@ -81,6 +81,10 @@ final class IncursionsViewModel: ObservableObject {
 
     init(databaseManager: DatabaseManager) {
         self.databaseManager = databaseManager
+        // 构造时启动数据加载（原先由视图 init 触发，移入以避免视图重复构造引发重复加载）
+        Task {
+            await fetchIncursionsData()
+        }
     }
 
     deinit {
@@ -475,7 +479,8 @@ struct IncursionCell: View {
         NavigationLink(
             destination: InfestedSystemsView(
                 databaseManager: databaseManager,
-                systemIds: incursion.incursion.infestedSolarSystems
+                systemIds: incursion.incursion.infestedSolarSystems,
+                stagingSystemId: incursion.incursion.stagingSolarSystemId
             )
         ) {
             HStack(alignment: .center, spacing: 12) {
@@ -613,13 +618,9 @@ struct IncursionsView: View {
     @StateObject private var viewModel: IncursionsViewModel
 
     init(databaseManager: DatabaseManager) {
-        let vm = IncursionsViewModel(databaseManager: databaseManager)
-        _viewModel = StateObject(wrappedValue: vm)
-
-        // 在初始化时立即开始加载数据
-        Task {
-            await vm.fetchIncursionsData()
-        }
+        // 构造表达式内联在 autoclosure 中，避免父视图每次重渲染都新建 ViewModel；
+        // 数据加载已在 ViewModel init 中启动
+        _viewModel = StateObject(wrappedValue: IncursionsViewModel(databaseManager: databaseManager))
     }
 
     var body: some View {

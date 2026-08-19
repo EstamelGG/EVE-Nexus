@@ -85,13 +85,13 @@ private enum AssetShipFittingExport {
         return DNAParser.encodeFittingDNA(shipTypeId: shipTypeId, modules: pairs)
     }
 
-    /// - Returns: 保存后的本地装配 `fitting_id`
+    /// - Returns: 保存后的本地装配 `fitting_id`（UUID）
     @discardableResult
     static func exportToLocalFitting(
         parentNode: AssetTreeNode,
         databaseManager: DatabaseManager,
         displayName: String
-    ) throws -> Int {
+    ) throws -> UUID {
         let dna = buildDNAString(shipTypeId: parentNode.type_id, items: parentNode.items ?? [])
         guard let dnaResult = DNAParser.parseDNA(dna, displayName: displayName) else {
             throw NSError(
@@ -105,19 +105,8 @@ private enum AssetShipFittingExport {
                 userInfo: [NSLocalizedDescriptionKey: "DNA to LocalFitting failed"]
             )
         }
-        let uniqueId = Int(Int64(Date().timeIntervalSince1970 * 1000) * 1000 + Int64.random(in: 0 ... 999))
-        let toSave = LocalFitting(
-            description: base.description,
-            fitting_id: uniqueId,
-            items: base.items,
-            name: base.name,
-            ship_type_id: base.ship_type_id,
-            drones: base.drones,
-            fighters: base.fighters,
-            cargo: base.cargo,
-            implants: base.implants,
-            environment_type_id: base.environment_type_id
-        )
+        let uniqueId = UUID()
+        let toSave = base.duplicated(newId: uniqueId, name: base.name)
         try FitConvert.saveLocalFitting(toSave)
         return uniqueId
     }
@@ -125,8 +114,8 @@ private enum AssetShipFittingExport {
 
 /// 用于 `.sheet(item:)` 打开已保存的本地装配
 private struct SavedFittingSheetItem: Identifiable {
-    let fittingId: Int
-    var id: Int {
+    let fittingId: UUID
+    var id: UUID {
         fittingId
     }
 }
@@ -220,6 +209,7 @@ struct LocationAssetsView: View {
                 location: location,
                 stationNameCache: stationNameCache,
                 solarSystemNameCache: solarSystemNameCache,
+                typeCount: typeFilterContext.matchingTypeCount(in: location),
                 showOwner: showOwner,
                 ownerId: ownerId,
                 ownerName: ownerName,
@@ -272,7 +262,11 @@ struct LocationAssetsView: View {
                 typeFilterContext: typeFilterContext.containerContext(for: node)
             )
         } label: {
-            AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+            AssetItemView(
+                node: node,
+                itemInfo: viewModel.itemInfo(for: node.type_id),
+                typeCount: typeFilterContext.matchingTypeCount(in: node)
+            )
         }
     }
 
@@ -353,18 +347,20 @@ private struct ContainerInfoRow: View {
 struct AssetItemView: View {
     let node: AssetTreeNode
     let itemInfo: ItemInfo?
-    let showItemCount: Bool
+    /// 容器内容种类数（递归去重，按过滤器），nil 则不显示
+    var typeCount: Int?
     let showCustomName: Bool
     /// 是否显示 item_id（用于突变物品，同 type_id 但不同实例需要区分）
     let showItemId: Bool
 
     init(
-        node: AssetTreeNode, itemInfo: ItemInfo?, showItemCount: Bool = true,
+        node: AssetTreeNode, itemInfo: ItemInfo?,
+        typeCount: Int? = nil,
         showCustomName: Bool = true, showItemId: Bool = false
     ) {
         self.node = node
         self.itemInfo = itemInfo
-        self.showItemCount = showItemCount
+        self.typeCount = typeCount
         self.showCustomName = showCustomName
         self.showItemId = showItemId
     }
@@ -414,11 +410,13 @@ struct AssetItemView: View {
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
-                    if showItemCount, let items = node.items, !items.isEmpty {
+                    if let typeCount {
                         Text(
                             String(
-                                format: NSLocalizedString("Assets_Item_Count", comment: ""),
-                                items.count
+                                format: NSLocalizedString(
+                                    "Assets_Item_Summary_Format", comment: ""
+                                ),
+                                typeCount
                             )
                         )
                         .font(.caption)
@@ -444,7 +442,7 @@ struct SubLocationAssetsView: View {
     @State private var exportErrorMessage: String?
     @State private var showExportSuccessPrompt = false
     // 成功保存后、在「是否查看」对话框中使用
-    @State private var exportSuccessFittingId: Int?
+    @State private var exportSuccessFittingId: UUID?
     @State private var savedFittingSheetItem: SavedFittingSheetItem?
 
     init(
@@ -652,7 +650,11 @@ struct SubLocationAssetsView: View {
                     typeFilterContext: typeFilterContext.containerContext(for: node)
                 )
             } label: {
-                AssetItemView(node: node, itemInfo: viewModel.itemInfo(for: node.type_id))
+                AssetItemView(
+                    node: node,
+                    itemInfo: viewModel.itemInfo(for: node.type_id),
+                    typeCount: typeFilterContext.matchingTypeCount(in: node)
+                )
             }
         } else if dynamicResultingTypeIds.contains(node.type_id) {
             // 深渊变异产物，跳转深渊详情
@@ -989,19 +991,24 @@ struct MergedLocationAssetsView: View {
                                     size: CharacterAssetsIconSize.standard
                                 )
                             }
-                            Text(ownerName(entry.ownerId) ?? String(entry.ownerId))
-                                .foregroundColor(.primary)
-                            Spacer()
-                            let count = typeFilterContext.matchingItemQuantity(in: entry.location)
-                            if count > 0 {
-                                Text(
-                                    String(
-                                        format: NSLocalizedString("Assets_Item_Count", comment: ""),
-                                        count
-                                    )
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(ownerName(entry.ownerId) ?? String(entry.ownerId))
+                                    .foregroundColor(.primary)
+                                let typeCount = typeFilterContext.matchingTypeCount(
+                                    in: entry.location
                                 )
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                                if typeCount > 0 {
+                                    Text(
+                                        String(
+                                            format: NSLocalizedString(
+                                                "Assets_Item_Summary_Format", comment: ""
+                                            ),
+                                            typeCount
+                                        )
+                                    )
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                }
                             }
                         }
                     }

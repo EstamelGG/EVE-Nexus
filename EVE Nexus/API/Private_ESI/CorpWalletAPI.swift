@@ -173,6 +173,23 @@ class CorpWalletAPI {
         }
     }
 
+    /// 军团钱包类接口统一走 403 负缓存
+    /// （scope 固定为 corpWallet：钱包权限按角色 token 授权，与部门无关）
+    private func fetchWithForbiddenCache<T>(
+        characterId: Int,
+        corporationId: Int,
+        forceRefresh: Bool,
+        operation: () async throws -> T
+    ) async throws -> T {
+        try await CorpForbiddenCache.shared.perform(
+            scope: "corpWallet",
+            corporationId: corporationId,
+            characterId: characterId,
+            forceRefresh: forceRefresh,
+            operation: operation
+        )
+    }
+
     /// 获取军团钱包信息
     /// - Parameters:
     ///   - characterId: 角色ID
@@ -235,10 +252,15 @@ class CorpWalletAPI {
         guard let url = URL(string: urlString) else {
             throw NetworkError.invalidURL
         }
-        // 5. 发送请求
-        let data = try await NetworkManager.shared.fetchDataWithToken(
-            from: url, characterId: characterId
-        )
+        // 5. 发送请求（403 负缓存统一由 CorpForbiddenCache 管理）
+        let data = try await CorpForbiddenCache.shared.perform(
+            scope: "corpWallet",
+            corporationId: corporationId,
+            characterId: characterId,
+            forceRefresh: forceRefresh
+        ) {
+            try await NetworkManager.shared.fetchDataWithToken(from: url, characterId: characterId)
+        }
         var wallets = try JSONDecoder().decode([CorpWallet].self, from: data)
 
         // 6. 添加部门名称
@@ -301,10 +323,15 @@ class CorpWalletAPI {
             throw NetworkError.invalidURL
         }
 
-        // 4. 发送请求
-        let data = try await NetworkManager.shared.fetchDataWithToken(
-            from: url, characterId: characterId
-        )
+        // 4. 发送请求（403 负缓存统一由 CorpForbiddenCache 管理）
+        let data = try await CorpForbiddenCache.shared.perform(
+            scope: "corpWallet",
+            corporationId: corporationId,
+            characterId: characterId,
+            forceRefresh: forceRefresh
+        ) {
+            try await NetworkManager.shared.fetchDataWithToken(from: url, characterId: characterId)
+        }
         let divisions = try JSONDecoder().decode(CorpDivisions.self, from: data)
 
         // 5. 更新缓存
@@ -597,12 +624,20 @@ class CorpWalletAPI {
             || isCorpJournalCacheExpired(corporationId: corporationId, division: division)
         {
             Logger.info("军团钱包流水缓存过期或需要强制刷新，从网络获取数据 - 军团ID: \(corporationId), 部门: \(division)")
-            let journalData = try await fetchCorpJournalFromServer(
-                characterId: characterId,
+            // 403 负缓存统一由 CorpForbiddenCache 管理
+            let journalData = try await CorpForbiddenCache.shared.perform(
+                scope: "corpWallet",
                 corporationId: corporationId,
-                division: division,
-                progressCallback: progressCallback
-            )
+                characterId: characterId,
+                forceRefresh: forceRefresh
+            ) {
+                try await fetchCorpJournalFromServer(
+                    characterId: characterId,
+                    corporationId: corporationId,
+                    division: division,
+                    progressCallback: progressCallback
+                )
+            }
             if !saveCorpWalletJournalToCache(
                 corporationId: corporationId, division: division, entries: journalData
             ) {
@@ -655,9 +690,16 @@ class CorpWalletAPI {
         // 3. 如果强制刷新或缓存过期，则从网络获取
         if forceRefresh || isCorpTransactionsCacheExpired(corporationId: corporationId, division: division) {
             Logger.info("军团钱包交易记录缓存过期或需要强制刷新，从网络获取数据 - 军团ID: \(corporationId), 部门: \(division)")
-            let transactionData = try await fetchCorpTransactionsFromServer(
-                characterId: characterId, corporationId: corporationId, division: division
-            )
+            // 403 负缓存统一由 CorpForbiddenCache 管理
+            let transactionData = try await fetchWithForbiddenCache(
+                characterId: characterId,
+                corporationId: corporationId,
+                forceRefresh: forceRefresh
+            ) {
+                try await fetchCorpTransactionsFromServer(
+                    characterId: characterId, corporationId: corporationId, division: division
+                )
+            }
             if !saveCorpWalletTransactionsToCache(
                 corporationId: corporationId, division: division, entries: transactionData
             ) {

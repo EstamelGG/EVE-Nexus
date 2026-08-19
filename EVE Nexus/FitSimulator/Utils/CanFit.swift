@@ -216,30 +216,22 @@ private func checkSubsystemCompatibility(
 /// - Parameters:
 ///   - databaseManager: 数据库管理器实例
 /// - Returns: (shipGroupAttributes: [Int], shipTypeAttributes: [Int]) 返回飞船组和飞船类型的属性ID数组
-private func getCanFitAttributes(databaseManager: DatabaseManager) -> (
+private func getCanFitAttributes(databaseManager _: DatabaseManager) -> (
     shipGroupAttributes: [Int], shipTypeAttributes: [Int]
 ) {
     var shipGroupAttributes: [Int] = []
     var shipTypeAttributes: [Int] = []
 
-    let sql = """
-        SELECT attribute_id, name, unitID 
-        FROM dogmaAttributes 
-        WHERE (name LIKE 'canFitShipType%' OR name LIKE 'canFitShipGroup%') 
-        AND unitID IN (115, 116)
-    """
-
-    if case let .success(rows) = databaseManager.executeQuery(sql) {
-        for row in rows {
-            if let attrId = row["attribute_id"] as? Int,
-               let unitID = row["unitID"] as? Int
-            {
-                if unitID == 115 {
-                    shipGroupAttributes.append(attrId)
-                } else if unitID == 116 {
-                    shipTypeAttributes.append(attrId)
-                }
-            }
+    // 内存索引枚举 canFitShipType/canFitShipGroup 属性（原 dogmaAttributes LIKE 查询）
+    for attr in SDEMemoryStore.dogmaAttributes.values {
+        let name = attr.name
+        guard name.hasPrefix("canFitShipType") || name.hasPrefix("canFitShipGroup"),
+              let unitID = attr.unitID, unitID == 115 || unitID == 116
+        else { continue }
+        if unitID == 115 {
+            shipGroupAttributes.append(attr.id)
+        } else {
+            shipTypeAttributes.append(attr.id)
         }
     }
 
@@ -361,6 +353,7 @@ private func maxFit(
 ///   - databaseManager: 数据库管理器
 ///   - turretSlotsNum: 飞船炮台槽位数量
 ///   - launcherSlotsNum: 飞船发射器槽位数量
+///   - ignoreGroupLimit: 跳过同组装配数量上限检查（maxGroupFitted），用于加载配置时区分"仅数量超限"与"真不兼容"
 /// - Returns: 是否可以安装
 func canFit(
     simulationInput: SimulationInput,
@@ -372,7 +365,8 @@ func canFit(
     itemGroupID: Int,
     databaseManager: DatabaseManager,
     turretSlotsNum: Int,
-    launcherSlotsNum: Int
+    launcherSlotsNum: Int,
+    ignoreGroupLimit: Bool = false
 ) -> Bool {
     let shipTypeID = simulationInput.ship.typeId
     let shipGroupID = simulationInput.ship.groupID
@@ -394,8 +388,8 @@ func canFit(
         return false
     }
 
-    // 检查最大安装数量限制
-    if !maxFit(
+    // 检查最大安装数量限制（可通过 ignoreGroupLimit 跳过）
+    if !ignoreGroupLimit, !maxFit(
         itemAttributes: itemAttributes,
         itemAttributesName: itemAttributesName,
         currentModules: currentModules,

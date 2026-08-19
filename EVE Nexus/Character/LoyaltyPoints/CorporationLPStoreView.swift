@@ -426,6 +426,24 @@ struct CorporationLPStoreView: View {
                         }
                     }
                 } else {
+                    Section {
+                        NavigationLink(
+                            destination: LPStoreStationsView(
+                                corporationId: corporationId,
+                                corporationName: corporationName
+                            )
+                        ) {
+                            HStack {
+                                Image("station")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 36, height: 36)
+                                    .cornerRadius(6)
+                                Text(NSLocalizedString("LP_Find_Stations", comment: ""))
+                            }
+                        }
+                    }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
+
                     Section(NSLocalizedString("Main_LP_Store_category", comment: "")) {
                         if let jitaPriceListErrorMessage {
                             LPJitaPriceListErrorBanner(message: jitaPriceListErrorMessage) {

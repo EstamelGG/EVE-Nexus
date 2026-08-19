@@ -28,7 +28,6 @@ struct ShipSlotConfig {
 
 struct BRKillMailFittingView: View {
     let detailData: KillMailDetailData
-    let databaseManager = DatabaseManager.shared
 
     /// 添加状态变量存储实际槽位配置
     @State private var actualSlotConfig = ShipSlotConfig()
@@ -214,22 +213,15 @@ struct BRKillMailFittingView: View {
             return config
         }
 
-        let query = """
-            SELECT high_slot, mid_slot, low_slot, rig_slot, groupID
-            FROM types
-            WHERE type_id = ?
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]),
-           let row = rows.first
-        {
-            config.highSlots = (row["high_slot"] as? Int) ?? 0
-            config.mediumSlots = (row["mid_slot"] as? Int) ?? 0
-            config.lowSlots = (row["low_slot"] as? Int) ?? 0
-            config.rigSlots = (row["rig_slot"] as? Int) ?? 0
+        // 槽位配置（内存索引）
+        if let info = SDEMemoryStore.type(for: typeId) {
+            config.highSlots = info.highSlot ?? 0
+            config.mediumSlots = info.midSlot ?? 0
+            config.lowSlots = info.lowSlot ?? 0
+            config.rigSlots = info.rigSlot ?? 0
 
             // 检查是否为T3巡洋舰（groupID = 963）
-            if let groupId = row["groupID"] as? Int, groupId == 963 {
+            if info.groupID == 963 {
                 config.subsystemSlots = 4
             }
         }

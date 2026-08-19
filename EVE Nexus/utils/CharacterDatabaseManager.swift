@@ -176,7 +176,8 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
             CREATE TABLE IF NOT EXISTS universe_names (
                 id INTEGER NOT NULL PRIMARY KEY,
                 category TEXT NOT NULL,
-                name TEXT NOT NULL
+                name TEXT NOT NULL,
+                last_updated INTEGER NOT NULL DEFAULT 0
             );
             CREATE INDEX IF NOT EXISTS idx_universe_names_category ON universe_names(category);
 
@@ -468,6 +469,10 @@ class CharacterDatabaseManager: ObservableObject, @unchecked Sendable {
     private func migrateSchema() {
         // character_info 表添加 description 列
         addColumnIfNotExists(table: "character_info", column: "description", type: "TEXT")
+        // universe_names 表添加 last_updated 列（旧行自动置 0，即 1970，视为过期待刷新）
+        addColumnIfNotExists(
+            table: "universe_names", column: "last_updated", type: "INTEGER NOT NULL DEFAULT 0"
+        )
     }
 
     /// 检查并添加列（如果列不存在）

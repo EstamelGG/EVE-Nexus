@@ -354,39 +354,29 @@ class JumpResultViewModel: ObservableObject {
             let task = Task {
                 Logger.debug("开始加载派系图标: \(factionId)，影响 \(systems.count) 个星系")
 
-                let query = "SELECT iconName, name FROM factions WHERE id = ?"
-                if case let .success(rows) = DatabaseManager.shared.executeQuery(
-                    query, parameters: [factionId]
-                ),
-                    let row = rows.first,
-                    let iconName = row["iconName"] as? String
-                {
-                    let icon = IconManager.shared.loadImage(for: iconName)
-                    let factionName = row["name"] as? String
-
-                    // 保存到缓存 - 确保在主线程更新UI
+                guard let faction = SDEMemoryStore.faction(for: factionId) else {
+                    Logger.error("派系图标加载失败: \(factionId)")
                     await MainActor.run {
-                        factionIcons[factionId] = icon
-                        if let name = factionName {
-                            factionNames[factionId] = name
-                        }
-
-                        // 更新所有使用这个派系图标的星系的加载状态
                         for systemId in systems {
                             loadingSystemIcons.remove(systemId)
                         }
                     }
-                    Logger.debug("派系图标和名称加载成功: \(factionId)")
-                } else {
-                    Logger.error("派系图标加载失败: \(factionId)")
+                    return
+                }
 
-                    // 更新加载状态
-                    await MainActor.run {
-                        for systemId in systems {
-                            loadingSystemIcons.remove(systemId)
-                        }
+                let icon = IconManager.shared.loadImage(for: faction.iconName)
+
+                // 保存到缓存 - 确保在主线程更新UI
+                await MainActor.run {
+                    factionIcons[factionId] = icon
+                    factionNames[factionId] = faction.name
+
+                    // 更新所有使用这个派系图标的星系的加载状态
+                    for systemId in systems {
+                        loadingSystemIcons.remove(systemId)
                     }
                 }
+                Logger.debug("派系图标和名称加载成功: \(factionId)")
             }
             loadingTasks[factionId] = task
         }

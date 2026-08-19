@@ -6,11 +6,7 @@ extension FittingEditorViewModel {
 
     /// 根据ID获取数据库物品信息
     func getDatabaseItemInfo(typeId: Int) -> DatabaseListItem? {
-        let whereClause = "t.type_id = ?"
-        let results = databaseManager.loadMarketItems(
-            whereClause: whereClause, parameters: [typeId], limit: 1
-        )
-        return results.first
+        DatabaseListItem(typeID: typeId, databaseManager: databaseManager)
     }
 
     /// 获取舰载机信息
@@ -236,33 +232,7 @@ extension FittingEditorViewModel {
 
     /// 加载舰载机的基础属性
     func loadFighterBaseAttributes(typeId: Int) -> ([Int: Double], [String: Double]) {
-        var attributes: [Int: Double] = [:]
-        var attributesByName: [String: Double] = [:]
-
-        // 查询舰载机的基础属性
-        let query = """
-            SELECT ta.attribute_id, ta.value, da.name as attribute_name
-            FROM typeAttributes ta
-            LEFT JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id
-            WHERE ta.type_id = ?
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeId]) {
-            for row in rows {
-                if let attributeId = row["attribute_id"] as? Int,
-                   let value = row["value"] as? Double
-                {
-                    // 添加到ID映射字典
-                    attributes[attributeId] = value
-
-                    // 如果有属性名，添加到名称映射字典
-                    if let attributeName = row["attribute_name"] as? String {
-                        attributesByName[attributeName] = value
-                    }
-                }
-            }
-        }
-
-        return (attributes, attributesByName)
+        // 查询舰载机的基础属性（内存索引；name 缺失时跳过，与旧 LEFT JOIN 行为一致）
+        SDEMemoryStore.typeAttributesFull(for: typeId)
     }
 }

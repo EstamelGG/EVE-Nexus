@@ -54,6 +54,7 @@ struct SovereigntySelectorView: View {
                             }
                         }
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
 
                     // 过滤并显示主权列表
                     ForEach(filteredSovereignties, id: \.id) { sovereignty in
@@ -423,6 +424,7 @@ struct PlanetarySiteFinder: View {
                         .padding(.vertical, 8)
                         .frame(maxWidth: .infinity, alignment: .leading)
                     }
+                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
             }
 

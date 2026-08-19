@@ -81,38 +81,18 @@ class MarketItemGroupTreeBuilder {
         }
     }
 
-    /// 从数据库获取所有市场组信息
+    /// 从内存索引获取所有市场组信息
     private func fetchMarketGroups() -> [MarketGroupNode] {
-        let query = """
-            SELECT group_id, name, icon_name, parentgroup_id
-            FROM marketGroups
-            WHERE show = 1
-        """
-
-        var groups: [MarketGroupNode] = []
-
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            for row in rows {
-                if let groupId = row["group_id"] as? Int,
-                   let name = row["name"] as? String
-                {
-                    let iconName = (row["icon_name"] as? String) ?? ""
-                    let parentId = row["parentgroup_id"] as? Int
-
-                    // Logger.debug("市场组: ID=\(groupId), 名称=\(name), 图标=\(iconName)")
-
-                    let node = MarketGroupNode(
-                        id: groupId,
-                        name: name,
-                        iconName: iconName,
-                        parentGroupId: parentId
-                    )
-                    groups.append(node)
-                }
+        SDEMemoryStore.marketGroups.values
+            .filter { $0.show }
+            .map {
+                MarketGroupNode(
+                    id: $0.id,
+                    name: $0.name,
+                    iconName: $0.iconName,
+                    parentGroupId: $0.parentGroupID
+                )
             }
-        }
-
-        return groups
     }
 
     /// 构建完整的树结构
@@ -167,29 +147,18 @@ class MarketItemGroupTreeBuilder {
 
     /// 获取包含有效类型的市场组ID及其所有父节点ID
     private func fetchValidMarketGroupIDs() -> Set<Int> {
-        // 1. 获取直接包含有效类型的市场组ID
-        var directQuery = ""
-        if !allowedTypeIDs.isEmpty {
-            directQuery = """
-                SELECT DISTINCT marketGroupID
-                FROM types
-                WHERE type_id IN (\(allowedTypeIDs.map { String($0) }.joined(separator: ",")))
-                  AND marketGroupID IS NOT NULL
-            """
-        } else {
-            directQuery = """
-                SELECT DISTINCT marketGroupID
-                FROM types
-                WHERE marketGroupID IS NOT NULL
-            """
-        }
+        // 1. 获取直接包含有效类型的市场组ID（内存索引）
         var validGroupIDs = Set<Int>()
-
-        if case let .success(rows) = databaseManager.executeQuery(directQuery) {
-            for row in rows {
-                if let groupId = row["marketGroupID"] as? Int {
-                    validGroupIDs.insert(groupId)
-                    // Logger.debug("有效的市场组ID: \(groupId)")
+        if !allowedTypeIDs.isEmpty {
+            for typeId in allowedTypeIDs {
+                if let mg = SDEMemoryStore.type(for: typeId)?.marketGroupID {
+                    validGroupIDs.insert(mg)
+                }
+            }
+        } else {
+            for info in SDEMemoryStore.types.values {
+                if let mg = info.marketGroupID {
+                    validGroupIDs.insert(mg)
                 }
             }
         }
@@ -199,63 +168,29 @@ class MarketItemGroupTreeBuilder {
         // 如果没有找到有效的市场组ID，则返回所有市场组ID
         if validGroupIDs.isEmpty {
             Logger.info("没有找到有效的市场组ID，将返回所有市场组ID")
-            let allGroupsQuery = """
-                SELECT group_id
-                FROM marketGroups
-                WHERE show = 1
-            """
-
-            if case let .success(rows) = databaseManager.executeQuery(allGroupsQuery) {
-                for row in rows {
-                    if let groupId = row["group_id"] as? Int {
-                        validGroupIDs.insert(groupId)
-                    }
-                }
-            }
-
-            Logger.info("获取到所有市场组ID数量：\(validGroupIDs.count)")
-            return validGroupIDs
+            let allIDs = Set(SDEMemoryStore.marketGroups.values.filter { $0.show }.map { $0.id })
+            Logger.info("获取到所有市场组ID数量：\(allIDs.count)")
+            return allIDs
         }
 
-        // 2. 获取所有市场组的父子关系
-        let relationsQuery = """
-            SELECT group_id, parentgroup_id
-            FROM marketGroups
-            WHERE show = 1
-        """
-
-        var parentChildMap = [Int: Int]() // 子ID -> 父ID
-
-        if case let .success(rows) = databaseManager.executeQuery(relationsQuery) {
-            for row in rows {
-                if let groupId = row["group_id"] as? Int,
-                   let parentId = row["parentgroup_id"] as? Int
-                {
-                    parentChildMap[groupId] = parentId
-                }
-            }
-        }
-
-        // 3. 递归查找所有父节点
-        var currentIds = validGroupIDs
+        // 2. 递归查找所有父节点（内存索引，marketGroup.parentGroupID）
         var addedParents = Set<Int>()
-
+        var currentIds = validGroupIDs
         while !currentIds.isEmpty {
             var nextIds = Set<Int>()
-
             for id in currentIds {
-                if let parentId = parentChildMap[id], !validGroupIDs.contains(parentId) {
+                if let parentId = SDEMemoryStore.marketGroup(for: id)?.parentGroupID,
+                   !validGroupIDs.contains(parentId)
+                {
                     nextIds.insert(parentId)
                     validGroupIDs.insert(parentId)
                     addedParents.insert(parentId)
                 }
             }
-
             currentIds = nextIds
         }
 
         Logger.info("添加了 \(addedParents.count) 个父节点")
-
         return validGroupIDs
     }
 

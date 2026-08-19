@@ -55,11 +55,19 @@ public class CorporationAssetsJsonAPI {
         }
 
         Logger.info("开始获取新的军团资产数据 - 原因: \(forceRefresh ? "强制刷新" : "无缓存或缓存过期")")
-        let assets = try await fetchAllAssets(
+        // 403 负缓存统一由 CorpForbiddenCache 管理
+        let assets = try await CorpForbiddenCache.shared.perform(
+            scope: "corpAssets",
             corporationId: corporationId,
-            characterId: characterId
-        ) { progress in
-            progressCallback?(progress)
+            characterId: characterId,
+            forceRefresh: forceRefresh
+        ) {
+            try await fetchAllAssets(
+                corporationId: corporationId,
+                characterId: characterId
+            ) { progress in
+                progressCallback?(progress)
+            }
         }
 
         if let wrapper = try await buildAssetTree(
@@ -156,45 +164,25 @@ public class CorporationAssetsJsonAPI {
         )
     }
 
-    /// 获取空间站信息
-    private func fetchStationInfo(stationId: Int64, databaseManager: DatabaseManager) async throws
-        -> StationInfo
-    {
-        let query = """
-            SELECT stationID, stationTypeID, stationName, regionID, solarSystemID, security
-            FROM stations
-            WHERE stationID = ?
-        """
-
-        // 将 stationId 转换为字符串
-        let stationIdStr = String(stationId)
-        let result = databaseManager.executeQuery(query, parameters: [stationIdStr])
-
-        switch result {
-        case let .success(rows):
-            guard let row = rows.first,
-                  let stationName = row["stationName"] as? String,
-                  let stationTypeID = row["stationTypeID"] as? Int,
-                  let solarSystemID = row["solarSystemID"] as? Int,
-                  let regionID = row["regionID"] as? Int,
-                  let security = row["security"] as? Double
-            else {
-                throw AssetError.locationFetchError("Failed to fetch station info from database")
-            }
-
-            return StationInfo(
-                name: stationName,
-                station_id: stationId,
-                system_id: solarSystemID,
-                type_id: stationTypeID,
-                region_id: regionID,
-                security: security
-            )
-
-        case let .error(error):
-            Logger.error("从数据库获取空间站信息失败: \(error)")
-            throw AssetError.locationFetchError("Failed to fetch station info: \(error)")
+    /// 获取空间站信息（来自 SDEMemoryStore 内存缓存）
+    private func fetchStationInfo(stationId: Int64) async throws -> StationInfo {
+        guard let info = SDEMemoryStore.station(for: Int(stationId)),
+              let stationTypeID = info.stationTypeID,
+              let solarSystemID = info.solarSystemID,
+              let regionID = info.regionID,
+              let security = info.security
+        else {
+            throw AssetError.locationFetchError("Failed to fetch station info from database")
         }
+
+        return StationInfo(
+            name: info.name,
+            station_id: stationId,
+            system_id: solarSystemID,
+            type_id: stationTypeID,
+            region_id: regionID,
+            security: security
+        )
     }
 
     /// 收集所有容器的ID (除了最顶层建筑物)
@@ -584,21 +572,14 @@ public class CorporationAssetsJsonAPI {
                 securityStatus = systemInfo.security
                 regionId = systemInfo.regionId
             }
-            let typeQuery = "SELECT system_type FROM universe WHERE solarsystem_id = ?"
-            if case let .success(rows) = databaseManager.executeQuery(
-                typeQuery, parameters: [Int(locationId)]
-            ),
-                let row = rows.first,
-                let systemType = row["system_type"] as? Int
-            {
-                typeId = systemType
-            }
+            // typeId 存 system_type 供图标解析（内存索引）
+            typeId = SDEMemoryStore.universeSystems[Int(locationId)]?.systemType
             return (locationName, typeId, systemId, securityStatus, regionId)
         }
 
         if locationType == "station" {
             if let stationInfo = try? await fetchStationInfo(
-                stationId: locationId, databaseManager: databaseManager
+                stationId: locationId
             ) {
                 locationName = stationInfo.name
                 typeId = stationInfo.type_id
@@ -641,7 +622,7 @@ public class CorporationAssetsJsonAPI {
                     regionId = systemInfo.regionId
                 }
             } else if let stationInfo = try? await fetchStationInfo(
-                stationId: locationId, databaseManager: databaseManager
+                stationId: locationId
             ) {
                 locationName = stationInfo.name
                 typeId = stationInfo.type_id

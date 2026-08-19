@@ -683,8 +683,10 @@ struct ModuleSettingsView: View {
                 if isBatchMode {
                     Logger.info("批量模式: \(relatedModules.count) 个相关模块")
                 }
-                currentModuleID = module.typeId
-                selectedModuleState = module.status
+                // 从 viewModel 读取实时模块，避免快照值在 onAppear 再次触发时覆盖变体替换后的新装备
+                let liveModule = viewModel.simulationInput.modules.first(where: { $0.flag == slotFlag }) ?? module
+                currentModuleID = liveModule.typeId
+                selectedModuleState = liveModule.status
                 loadModuleDetails()
                 checkVariations()
                 updateAvailableStates()
@@ -767,15 +769,11 @@ struct ModuleSettingsView: View {
         Logger.info("加载物品:\(currentModuleID)的详细信息")
         isLoading = true
 
-        // 使用loadMarketItems方法获取模块数据
-        let items = databaseManager.loadMarketItems(
-            whereClause: "t.type_id = ?",
-            parameters: [currentModuleID]
+        // 内存索引单点构建
+        moduleDetails = DatabaseListItem(
+            typeID: currentModuleID,
+            databaseManager: databaseManager
         )
-
-        if let item = items.first {
-            moduleDetails = item
-        }
 
         isLoading = false
     }
@@ -858,61 +856,33 @@ struct ModuleSettingsView: View {
             )
         }
 
-        // 加载突变质体的属性信息（包含范围和highIsGood）
-        let attributesQuery = """
-            SELECT a.attribute_id, d.display_name, COALESCE(d.icon_filename, '') as icon_filename,
-                   a.min_value, a.max_value, d.highIsGood
-            FROM dynamic_item_attributes a
-            LEFT JOIN dogmaAttributes d ON a.attribute_id = d.attribute_id
-            WHERE a.type_id = ?
-            ORDER BY d.display_name
-        """
+        // 加载突变质体的属性信息（范围与 highIsGood 从 SDEMemoryStore 内存缓存取）
+        let mutatorAttributes = SDEMemoryStore.dynamicItemAttributes(forTypeID: mutaplasmidID)
 
-        if case let .success(rows) = databaseManager.executeQuery(
-            attributesQuery, parameters: [mutaplasmidID]
-        ) {
-            let attributeIDs = rows.compactMap { $0["attribute_id"] as? Int }
-            // 查询物品的原始属性值（用于 originalValueIsNegative 判断）
-            var originalValues: [Int: Double] = [:]
-            if !attributeIDs.isEmpty {
-                let placeholders = attributeIDs.map { _ in "?" }.joined(separator: ",")
-                let originalQuery = """
-                SELECT attribute_id, value FROM typeAttributes
-                WHERE type_id = ? AND attribute_id IN (\(placeholders))
-                """
-                var params: [Any] = [currentModuleID]
-                params.append(contentsOf: attributeIDs)
-                if case let .success(origRows) = databaseManager.executeQuery(originalQuery, parameters: params) {
-                    for row in origRows {
-                        if let attrId = row["attribute_id"] as? Int,
-                           let value = row["value"] as? Double
-                        {
-                            originalValues[attrId] = value
-                        }
-                    }
+        let attributeIDs = mutatorAttributes.map(\.attributeID)
+        // 查询物品的原始属性值（用于 originalValueIsNegative 判断，内存索引）
+        var originalValues: [Int: Double] = [:]
+        if !attributeIDs.isEmpty {
+            let moduleAttributes = SDEMemoryStore.typeAttributes(for: currentModuleID)
+            for attrID in attributeIDs {
+                if let value = moduleAttributes[attrID] {
+                    originalValues[attrID] = value
                 }
             }
+        }
 
-            mutaplasmidAttributes = rows.compactMap { row -> MutationAttribute? in
-                guard let attributeID = row["attribute_id"] as? Int,
-                      let name = row["display_name"] as? String,
-                      let minValue = row["min_value"] as? Double,
-                      let maxValue = row["max_value"] as? Double,
-                      let highIsGood = row["highIsGood"] as? Int
-                else { return nil }
-                let iconFileName = row["icon_filename"] as? String
-                return MutationAttribute(
-                    id: attributeID,
-                    attributeID: attributeID,
-                    name: name,
-                    iconFileName: iconFileName,
-                    minValue: minValue,
-                    maxValue: maxValue,
-                    highIsGood: highIsGood == 1,
-                    currentValue: nil, // 初始值为nil
-                    originalValue: originalValues[attributeID]
-                )
-            }
+        mutaplasmidAttributes = mutatorAttributes.map { attribute in
+            MutationAttribute(
+                id: attribute.attributeID,
+                attributeID: attribute.attributeID,
+                name: attribute.name,
+                iconFileName: attribute.iconFileName,
+                minValue: attribute.minValue,
+                maxValue: attribute.maxValue,
+                highIsGood: attribute.highIsGood,
+                currentValue: nil, // 初始值为nil
+                originalValue: originalValues[attribute.attributeID]
+            )
         }
     }
 
@@ -1530,8 +1500,8 @@ struct ChargeSelectionView: View {
             return
         }
 
-        // 构建弹药组ID的字符串
-        let groupIDsStr = chargeGroupIDs.map { String($0) }.joined(separator: ",")
+        // 弹药组 ID 集合（内存过滤用）
+        let groupIDSet = Set(chargeGroupIDs)
 
         // 获取模块的chargeSize属性
         var chargeSize: Double? = nil
@@ -1549,103 +1519,63 @@ struct ChargeSelectionView: View {
             moduleCapacity = capacity
         }
 
-        // 构建SQL查询
-        var whereClause = "t.groupID IN (\(groupIDsStr)) AND t.published = 1"
-        var parameters: [Any] = []
-
-        // 如果既有chargeSize又有容量限制，使用一个查询同时筛选
-        if let size = chargeSize, size > 0, let capacity = moduleCapacity, capacity > 0 {
-            // 构建筛选chargeSize和体积的SQL
-            let chargeQuery = """
-                SELECT t1.type_id
-                FROM typeAttributes t1
-                JOIN dogmaAttributes d1 ON t1.attribute_id = d1.attribute_id
-                JOIN types ty ON t1.type_id = ty.type_id
-                WHERE d1.name = 'chargeSize' AND t1.value = ?
-                AND ty.volume <= ?
-                AND ty.groupID IN (\(groupIDsStr)) AND ty.published = 1
-            """
-
-            if case let .success(rows) = databaseManager.executeQuery(
-                chargeQuery, parameters: [size, capacity]
-            ) {
-                var typeIDs: [Int] = []
-                for row in rows {
-                    if let typeID = row["type_id"] as? Int {
-                        typeIDs.append(typeID)
-                    }
-                }
-
-                Logger.info("找到符合chargeSize和容量要求的弹药数量: \(typeIDs.count)")
-
-                if !typeIDs.isEmpty {
-                    // 使用IN查询直接获取符合条件的弹药
-                    let typeIDsStr = typeIDs.map { String($0) }.joined(separator: ",")
-                    whereClause = "t.type_id IN (\(typeIDsStr))"
-                    parameters = []
-                } else {
-                    // 如果没有符合条件的弹药，返回空列表
-                    items = []
-                    isLoading = false
-                    return
-                }
+        // 基础候选：groupID 匹配且已发布（内存索引）
+        var candidateTypeIDs = Set<Int>()
+        for (typeID, info) in SDEMemoryStore.types {
+            if let gid = info.groupID, groupIDSet.contains(gid), info.published {
+                candidateTypeIDs.insert(typeID)
             }
         }
-        // 只有chargeSize限制
-        else if let size = chargeSize, size > 0 {
-            whereClause += """
-                AND t.type_id IN (
-                    SELECT ta.type_id 
-                    FROM typeAttributes ta
-                    JOIN dogmaAttributes dat ON ta.attribute_id = dat.attribute_id
-                    WHERE dat.name = 'chargeSize' AND ta.value = ? AND t.published = 1
-                )
-            """
-            parameters.append(size)
-            Logger.info("添加chargeSize筛选条件: \(size)")
-        }
-        // 只有容量限制
-        else if let capacity = moduleCapacity, capacity > 0 {
-            whereClause += """
-                AND t.type_id IN (
-                    SELECT type_id 
-                    FROM types 
-                    WHERE volume <= ? AND groupID IN (\(groupIDsStr)) AND published = 1
-                )
-            """
-            parameters.append(capacity)
+
+        // 容量限制（内存索引）
+        if let capacity = moduleCapacity, capacity > 0 {
+            candidateTypeIDs = candidateTypeIDs.filter { typeID in
+                let volume = SDEMemoryStore.type(for: typeID)?.volume ?? .infinity
+                return volume <= capacity
+            }
             Logger.info("添加容量筛选条件: \(capacity)")
         }
 
-        // 获取所有符合条件的弹药
-        items = databaseManager.loadMarketItems(whereClause: whereClause, parameters: parameters)
-        Logger.info("找到 \(items.count) 种可用弹药")
-
-        // 获取Meta组名称
-        let query = """
-            SELECT metagroup_id, name
-            FROM metaGroups
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: []) {
-            for row in rows {
-                if let metaGroupID = row["metagroup_id"] as? Int,
-                   let metaGroupName = row["name"] as? String
-                {
-                    metaGroupNames[metaGroupID] = metaGroupName
+        // chargeSize 限制（typeAttributes 未预加载，保留 SQL 查询）
+        if let size = chargeSize, size > 0 {
+            let chargeQuery = """
+                SELECT ta.type_id
+                FROM typeAttributes ta
+                JOIN dogmaAttributes dat ON ta.attribute_id = dat.attribute_id
+                WHERE dat.name = 'chargeSize' AND ta.value = ?
+            """
+            var chargeTypeIDs = Set<Int>()
+            if case let .success(rows) = databaseManager.executeQuery(
+                chargeQuery, parameters: [size]
+            ) {
+                for row in rows {
+                    if let typeID = row["type_id"] as? Int {
+                        chargeTypeIDs.insert(typeID)
+                    }
                 }
             }
+            candidateTypeIDs.formIntersection(chargeTypeIDs)
+            Logger.info("添加chargeSize筛选条件: \(size)")
         }
+
+        // 内存索引批量构建弹药
+        items = DatabaseListItem.listItems(
+            for: candidateTypeIDs.sorted(),
+            databaseManager: databaseManager
+        )
+        Logger.info("找到 \(items.count) 种可用弹药")
+
+        // 获取Meta组名称（内存索引）
+        metaGroupNames = SDEMemoryStore.localizedMetaGroupNames
 
         // 加载货舱中可作为弹药的物品（含伤害属性）
         let cargoTypeIds = viewModel.simulationInput.cargo.items
             .filter { viewModel.canLoadCharge(moduleTypeId: typeID, chargeTypeId: $0.typeId) }
             .map { $0.typeId }
         if !cargoTypeIds.isEmpty {
-            let placeholders = Array(repeating: "?", count: cargoTypeIds.count).joined(separator: ",")
-            cargoAmmoDbItems = databaseManager.loadMarketItems(
-                whereClause: "t.type_id IN (\(placeholders))",
-                parameters: cargoTypeIds
+            cargoAmmoDbItems = DatabaseListItem.listItems(
+                for: cargoTypeIds,
+                databaseManager: databaseManager
             )
         } else {
             cargoAmmoDbItems = []

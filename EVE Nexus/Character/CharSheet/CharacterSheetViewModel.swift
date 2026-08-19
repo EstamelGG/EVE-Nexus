@@ -389,6 +389,11 @@ extension CharacterSheetViewModel {
         // 玩家军团名异步加载，不阻塞 section，加载完通过 @Published 自动刷新
         isLoadingCorpNames = true
         Task { await loadPlayerCorporationNames() }
+
+        // 联盟信息流水线：一次性批量加载（军团史并发 → 名称一次批量 → 图标并发）
+        Task {
+            await employmentAllianceCache.loadIfNeeded(history: employmentHistory)
+        }
     }
 
     /// 从 SDE 同步填充 NPC 军团名称和 ID 集合
@@ -453,19 +458,9 @@ extension CharacterSheetViewModel {
     }
 
     func getSystemIcon(solarSystemId: Int) -> String? {
-        let query = """
-            SELECT t.icon_filename
-            FROM universe u
-            JOIN types t ON u.system_type = t.type_id
-            WHERE u.solarsystem_id = ?
-        """
-
-        guard
-            case let .success(rows) = databaseManager.executeQuery(
-                query, parameters: [solarSystemId]
-            ),
-            let row = rows.first,
-            let iconFileName = row["icon_filename"] as? String
+        // 星系类型图标（内存索引：universe.system_type → types.icon_filename）
+        guard let systemType = SDEMemoryStore.universeSystems[solarSystemId]?.systemType,
+              let iconFileName = SDEMemoryStore.type(for: systemType)?.iconFilename
         else {
             return nil
         }

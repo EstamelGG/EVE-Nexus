@@ -464,3 +464,15 @@ Fixes & Improvements:
 2. Wallet transactions can be filtered by buy/sell
 3. Added an extra attributes table to the detail page of fighters
 
+# v1.14 August 30, 2026
+
+1. New Ship Mastery feature: browse and filter mastery progress of all ships by level and eligibility
+2. Ship item pages now show your current mastery level; tap to view mastery details
+3. Fitting simulation: fixed modules being incorrectly removed when group fitting limits depend on calculation results (e.g. command processors adding burst slots) (beta)
+4. Added command burst / warfare bonus display in fitting simulation and item database (beta)
+5. Brand-new startup splash with per-stage loading progress and less startup stutter
+6. Market structure settings: prevent duplicate refreshes; orders reload automatically after structure info refresh
+7. Mail: the "Recent" range is extended from 7 to 14 days
+8. Updated built-in SDE database
+9. LP Store: new "Find Stations" feature to browse all stations hosting a corporation's LP store, with star map highlighting support
+

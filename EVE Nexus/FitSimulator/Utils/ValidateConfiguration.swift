@@ -95,10 +95,34 @@ func processConfiguration(simulationInput: SimulationInput, databaseManager: Dat
                 Logger.success("成功安装装备: \(module.name) 到槽位 \(module.flag?.rawValue ?? "未知")")
             }
         } else {
-            // 如果不能安装，记录到被跳过模块列表
-            let reason = "该装备无法安装到当前飞船: \(module.name)"
-            Logger.fault(reason)
-            skippedModules.append((module: module, reason: reason))
+            // 复查：跳过同组装配数量上限（maxGroupFitted）后再试一次。
+            // 若通过说明仅是数量超限（同组数量上限依赖计算后属性，如加成处理器增加脉冲波槽位，
+            // 逐个累积检查会产生"先装先占名额"的假性死锁）→ 保留装配但强制离线，待计算后统一校验
+            let canInstallIgnoringGroupLimit = canFit(
+                simulationInput: processedInput,
+                itemAttributes: module.attributes,
+                itemAttributesName: module.attributesByName,
+                itemEffects: module.effects,
+                volume: module.attributesByName["volume"] ?? 0,
+                typeId: module.typeId,
+                itemGroupID: module.groupID,
+                databaseManager: databaseManager,
+                turretSlotsNum: turretSlotsNum,
+                launcherSlotsNum: launcherSlotsNum,
+                ignoreGroupLimit: true
+            )
+
+            if canInstallIgnoringGroupLimit {
+                processedInput.modules.append(module.withStatus(0))
+                Logger.warning(
+                    "装备同组数量超限，保留装配但强制离线（待计算后校验）: \(module.name) 到槽位 \(module.flag?.rawValue ?? "未知")"
+                )
+            } else {
+                // 真不兼容（槽位/挂点/船型限制等），剔除并记录
+                let reason = "该装备无法安装到当前飞船: \(module.name)"
+                Logger.fault(reason)
+                skippedModules.append((module: module, reason: reason))
+            }
         }
     }
 

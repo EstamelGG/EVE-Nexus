@@ -5,6 +5,7 @@ struct ItemBasicInfoView: View {
     @ObservedObject var databaseManager: DatabaseManager
     let modifiedAttributes: [Int: Double]?
 
+    @StateObject private var skillsManager = SharedSkillsManager.shared
     @State private var renderImage: UIImage?
     @State private var orientation = UIDevice.current.orientation
     @State private var marketPath: String = ""
@@ -12,6 +13,7 @@ struct ItemBasicInfoView: View {
     @State private var showSaveError = false
     @State private var isModelAvailable = false
     @State private var itemNameShowsEnglish = false
+    @State private var showMasteryDetail = false
 
     private let cornerRadius: CGFloat = 10
     private let standardPadding: CGFloat = 16
@@ -65,15 +67,55 @@ struct ItemBasicInfoView: View {
             || itemDetails.repackagedVolume != nil
     }
 
+    // MARK: - Mastery
+
+    /// 专精显示状态（共享 helper 计算；未登录/加载中/无数据时为 nil）
+    private var masteryDisplayState: MasteryLevelState? {
+        MasteryDisplayHelper.state(
+            typeID: itemDetails.typeId,
+            databaseManager: databaseManager,
+            skillsManager: skillsManager
+        )
+    }
+
+    /// 文字块右侧的专精图标（64pt，与名称+目录左右布局）；点击跳转专精详情页
+    /// 用状态 + navigationDestination 解耦导航与布局，避免 NavigationLink 影响行内排版
+    @ViewBuilder
+    private func masteryTrailingIcon(state: MasteryLevelState?) -> some View {
+        if let state {
+            Image(MasteryDisplayHelper.iconName(for: state))
+                .resizable()
+                .scaledToFit()
+                .frame(width: 64, height: 64)
+                .onTapGesture { showMasteryDetail = true }
+                .navigationDestination(isPresented: $showMasteryDetail) {
+                    ShipMasteryDetailView(
+                        typeID: itemDetails.typeId,
+                        databaseManager: databaseManager
+                    )
+                }
+        }
+    }
+
+    /// 渲染图文遮罩右端的专精背景色（与左侧半透明黑做横向渐变）；无专精状态时为 nil
+    private func masteryBackdropColor(for state: MasteryLevelState?) -> Color? {
+        state.map { MasteryDisplayHelper.backdropColor(for: $0) }
+    }
+
     var body: some View {
+        // masteryDisplayState 底层含 SQL 查询，单次渲染只求值一次
+        bodyContent(masteryState: masteryDisplayState)
+    }
+
+    private func bodyContent(masteryState: MasteryLevelState?) -> some View {
         Group {
             Section {
                 Group {
                     if let renderImage {
                         if shouldUseCompactLayout {
-                            compactLayoutView(renderImage: renderImage)
+                            compactLayoutView(renderImage: renderImage, masteryState: masteryState)
                         } else {
-                            renderImageLayoutView(renderImage: renderImage)
+                            renderImageLayoutView(renderImage: renderImage, masteryState: masteryState)
                         }
                     } else {
                         originalLayoutView()
@@ -88,6 +130,7 @@ struct ItemBasicInfoView: View {
             }
             .onAppear {
                 loadRenderImage(for: itemDetails.typeId)
+                skillsManager.preloadSkills()
                 Logger.debug(
                     "物品 \(itemDetails.name) 的 marketGroupID: \(String(describing: itemDetails.marketGroupID))"
                 )
@@ -125,7 +168,7 @@ struct ItemBasicInfoView: View {
                 }
             }
 
-            if itemDetails.marketGroupID != nil || isModelAvailable {
+            if itemDetails.marketGroupID != nil || isModelAvailable || masteryState != nil {
                 Section {
                     if itemDetails.marketGroupID != nil {
                         NavigationLink {
@@ -194,6 +237,17 @@ struct ItemBasicInfoView: View {
                             )
                         }
                     }
+
+                    if let masteryState {
+                        NavigationLink {
+                            ShipMasteryDetailView(
+                                typeID: itemDetails.typeId,
+                                databaseManager: databaseManager
+                            )
+                        } label: {
+                            masteryRow(for: masteryState)
+                        }
+                    }
                 }
                 .listRowInsets(rowInsets)
             }
@@ -249,7 +303,7 @@ struct ItemBasicInfoView: View {
 
     // MARK: - Layout
 
-    private func compactLayoutView(renderImage: UIImage) -> some View {
+    private func compactLayoutView(renderImage: UIImage, masteryState: MasteryLevelState?) -> some View {
         HStack(alignment: .center) {
             Image(uiImage: renderImage)
                 .resizable()
@@ -280,39 +334,61 @@ struct ItemBasicInfoView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 8)
+
+            masteryTrailingIcon(state: masteryState)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 8)
     }
 
-    private func renderImageLayoutView(renderImage: UIImage) -> some View {
-        ZStack(alignment: .bottomLeading) {
+    private func renderImageLayoutView(renderImage: UIImage, masteryState: MasteryLevelState?) -> some View {
+        ZStack(alignment: .bottom) {
             Image(uiImage: renderImage)
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(maxWidth: .infinity)
-                .cornerRadius(cornerRadius)
-                .padding(.horizontal, standardPadding)
-                .padding(.vertical, standardPadding)
 
-            VStack(alignment: .leading, spacing: 4) {
-                itemTitleLabel(lineLimit: 2)
-                Text(categoryGroupIDText)
-                    .font(.subheadline)
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    itemTitleLabel(lineLimit: 2)
+                    Text(categoryGroupIDText)
+                        .font(.subheadline)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                masteryTrailingIcon(state: masteryState)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
             .contextMenu { itemNameContextMenu(includeSaveImage: true) }
             .padding(.horizontal, standardPadding * 2)
             .padding(.vertical, standardPadding)
-            .background(
-                Color.black.opacity(0.5)
-                    .cornerRadius(cornerRadius, corners: [.bottomLeft, .topRight])
-            )
+            .background(masteryBackdrop(for: masteryState))
             .foregroundColor(.white)
-            .padding(.horizontal, standardPadding)
-            .padding(.bottom, standardPadding)
         }
+        // 图片四角圆角与文字遮罩共用同一裁剪，文字块无需自身圆角
+        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+        .padding(.horizontal, standardPadding)
+        .padding(.vertical, standardPadding)
         .listRowInsets(EdgeInsets())
+    }
+
+    /// 渲染图文字遮罩背景：底层恒定半透明黑，右侧叠加专精色透明度淡入
+    /// 叠加式可避免黑↔彩色的 RGB 插值（中间段发灰），色相全程纯正
+    /// 自身无需圆角，由外层 clipShape 跟随图片圆角裁剪
+    private func masteryBackdrop(for state: MasteryLevelState?) -> some View {
+        ZStack {
+            Color.black.opacity(0.5)
+
+            if let masteryColor = masteryBackdropColor(for: state) {
+                LinearGradient(
+                    stops: [
+                        .init(color: masteryColor.opacity(0), location: 0.4),
+                        .init(color: masteryColor.opacity(0.9), location: 1.0),
+                    ],
+                    startPoint: .leading,
+                    endPoint: .trailing
+                )
+            }
+        }
     }
 
     private func originalLayoutView() -> some View {
@@ -382,6 +458,28 @@ struct ItemBasicInfoView: View {
                 .cornerRadius(6)
             Text(title)
             Spacer()
+        }
+    }
+
+    /// 专精等级行：locked = 驾驶技能未满足，level = 当前专精等级图标
+    @ViewBuilder
+    private func masteryRow(for state: MasteryLevelState) -> some View {
+        let romanNumerals = ["0", "I", "II", "III", "IV", "V"]
+
+        switch state {
+        case .locked:
+            iconTitleRow(
+                icon: MasteryDisplayHelper.iconName(for: state),
+                title: NSLocalizedString("Item_Mastery_Locked", comment: "未满足飞船驾驶技能")
+            )
+        case let .level(level):
+            iconTitleRow(
+                icon: MasteryDisplayHelper.iconName(for: state),
+                title: String(
+                    format: NSLocalizedString("Item_Mastery_Level", comment: "专精等级"),
+                    romanNumerals[min(max(level, 0), 5)]
+                )
+            )
         }
     }
 

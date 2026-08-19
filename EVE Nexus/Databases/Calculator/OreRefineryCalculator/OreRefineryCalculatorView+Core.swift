@@ -114,47 +114,28 @@ extension OreRefineryCalculatorView {
         }
     }
 
-    /// 批量获取多个物品的精炼信息
+    /// 批量获取多个物品的精炼信息（内存索引）
     func getBatchTypeMaterials(for typeIDs: [Int]) -> [Int: [DatabaseManager.TypeMaterial]] {
         guard !typeIDs.isEmpty else { return [:] }
 
-        // 构建IN查询的占位符
-        let placeholders = String(repeating: "?,", count: typeIDs.count).dropLast()
-        let query = """
-            SELECT typeid, process_size, output_material, output_quantity, output_material_name, output_material_icon
-            FROM typeMaterials
-            WHERE typeid IN (\(placeholders))
-            ORDER BY typeid, output_material
-        """
-
         var result: [Int: [DatabaseManager.TypeMaterial]] = [:]
+        for typeID in typeIDs {
+            let entries = SDEMemoryStore.materials(for: typeID)
+            guard !entries.isEmpty else { continue }
 
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: typeIDs) {
-            for row in rows {
-                guard let typeID = row["typeid"] as? Int,
-                      let processSize = row["process_size"] as? Int,
-                      let outputMaterial = row["output_material"] as? Int,
-                      let outputQuantity = row["output_quantity"] as? Int,
-                      let outputMaterialName = row["output_material_name"] as? String,
-                      let outputMaterialIcon = row["output_material_icon"] as? String
-                else {
-                    continue
-                }
-
-                let material = DatabaseManager.TypeMaterial(
-                    process_size: processSize,
-                    outputMaterial: outputMaterial,
-                    outputQuantity: outputQuantity,
-                    outputMaterialName: outputMaterialName,
-                    outputMaterialIcon: outputMaterialIcon.isEmpty
-                        ? IconManager.defaultItemIcon : outputMaterialIcon
+            let materials: [DatabaseManager.TypeMaterial] = entries.map { entry in
+                let outputInfo = SDEMemoryStore.type(for: entry.outputMaterial)
+                let iconName = outputInfo?.iconFilename ?? ""
+                return DatabaseManager.TypeMaterial(
+                    process_size: entry.processSize,
+                    outputMaterial: entry.outputMaterial,
+                    outputQuantity: entry.outputQuantity,
+                    outputMaterialName: outputInfo?.name ?? "",
+                    outputMaterialIcon: iconName.isEmpty
+                        ? IconManager.defaultItemIcon : iconName
                 )
-
-                if result[typeID] == nil {
-                    result[typeID] = []
-                }
-                result[typeID]?.append(material)
             }
+            result[typeID] = materials
         }
 
         Logger.info("批量查询精炼信息: 查询了 \(typeIDs.count) 个物品，找到 \(result.count) 个物品的精炼数据")
@@ -165,42 +146,31 @@ extension OreRefineryCalculatorView {
     func getBatchItemCategories(for typeIDs: [Int]) -> [Int: ItemCategoryInfo] {
         guard !typeIDs.isEmpty else { return [:] }
 
-        let placeholders = String(repeating: "?,", count: typeIDs.count).dropLast()
-        let query = """
-            SELECT type_id, categoryID, groupID
-            FROM types
-            WHERE type_id IN (\(placeholders))
-        """
-
+        // 内存索引获取物品分类/组信息
         var result: [Int: ItemCategoryInfo] = [:]
+        for typeID in typeIDs {
+            guard let info = SDEMemoryStore.type(for: typeID),
+                  let groupID = info.groupID
+            else { continue }
+            let categoryID = info.categoryID
 
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: typeIDs) {
-            for row in rows {
-                guard let typeID = row["type_id"] as? Int,
-                      let categoryID = row["categoryID"] as? Int,
-                      let groupID = row["groupID"] as? Int
-                else {
-                    continue
-                }
-
-                // 确定物品类型
-                let itemType: RefineryItemType
-                if categoryID == 25 {
-                    itemType = .oreAndIce
-                } else if categoryID == 2, groupID == 4168 {
-                    itemType = .gas
-                } else {
-                    itemType = .other
-                }
-
-                result[typeID] = ItemCategoryInfo(
-                    typeID: typeID,
-                    categoryID: categoryID,
-                    groupID: groupID,
-                    itemType: itemType,
-                    reprocessingSkillType: nil // 稍后单独查询
-                )
+            // 确定物品类型
+            let itemType: RefineryItemType
+            if categoryID == 25 {
+                itemType = .oreAndIce
+            } else if categoryID == 2, groupID == 4168 {
+                itemType = .gas
+            } else {
+                itemType = .other
             }
+
+            result[typeID] = ItemCategoryInfo(
+                typeID: typeID,
+                categoryID: categoryID,
+                groupID: groupID,
+                itemType: itemType,
+                reprocessingSkillType: nil // 稍后单独查询
+            )
         }
 
         // 对于矿石和冰矿，查询专业技能类型

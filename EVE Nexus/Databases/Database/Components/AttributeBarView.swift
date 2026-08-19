@@ -497,54 +497,183 @@ struct AttributesView: View {
         sortedGroups.contains { $0.id == Self.fighterAbilitiesGroupID }
     }
 
+    // MARK: - 指挥脉冲波 / 作战链 buff
+
+    @State private var warfareBuffPairs: [(Int, Double)] = []
+
     var body: some View {
-        ForEach(sortedGroups) { group in
-            if group.id == Self.skillRequirementsGroupID {
-                SkillRequirementsView(
-                    typeID: typeID, groupName: group.name, databaseManager: databaseManager
-                )
-            } else {
-                AttributeGroupView(
-                    group: group,
-                    allAttributes: allAttributes,
-                    typeID: typeID,
-                    databaseManager: databaseManager
-                )
+        Group {
+            ForEach(sortedGroups) { group in
+                if group.id == Self.skillRequirementsGroupID {
+                    SkillRequirementsView(
+                        typeID: typeID, groupName: group.name, databaseManager: databaseManager
+                    )
+                } else {
+                    AttributeGroupView(
+                        group: group,
+                        allAttributes: allAttributes,
+                        typeID: typeID,
+                        databaseManager: databaseManager
+                    )
+                }
+                // 紧跟在 id==34 的属性分组之后展示舰载机能力概览
+                if group.id == Self.fighterAbilitiesGroupID && !fighterAbilities.isEmpty {
+                    FighterAbilitiesSection(abilities: fighterAbilities)
+                }
             }
-            // 紧跟在 id==34 的属性分组之后展示舰载机能力概览
-            if group.id == Self.fighterAbilitiesGroupID && !fighterAbilities.isEmpty {
+
+            // 无 id==34 分组但有数据时，放到所有属性分组之后
+            if !fighterAbilities.isEmpty && !hasFighterAbilitiesGroup {
                 FighterAbilitiesSection(abilities: fighterAbilities)
             }
-        }
 
-        // 无 id==34 分组但有数据时，放到所有属性分组之后
-        if !fighterAbilities.isEmpty && !hasFighterAbilitiesGroup {
-            FighterAbilitiesSection(abilities: fighterAbilities)
-        }
+            // 指挥脉冲波 / 作战链加成
+            if !warfareBuffPairs.isEmpty {
+                WarfareBuffSection(typeID: typeID, buffs: warfareBuffPairs)
+            }
 
-        if let value = derivativeOreValue {
-            let items = databaseManager.getItemsByAttributeValue(
-                attributeID: Self.derivativeOreAttributeID, value: value
-            )
-            if !items.isEmpty {
-                Section(
-                    header: Text(NSLocalizedString("Main_Ore_Variations", comment: "")).font(.headline)
-                ) {
-                    ForEach(items, id: \.typeID) { item in
-                        NavigationLink {
-                            ShowItemInfo(databaseManager: databaseManager, itemID: item.typeID)
-                        } label: {
-                            HStack {
-                                IconManager.shared.loadImage(for: item.iconFileName)
-                                    .resizable()
-                                    .frame(width: 32, height: 32)
-                                Text(item.name)
-                                    .foregroundColor(.primary)
+            if let value = derivativeOreValue {
+                let items = databaseManager.getItemsByAttributeValue(
+                    attributeID: Self.derivativeOreAttributeID, value: value
+                )
+                if !items.isEmpty {
+                    Section(
+                        header: Text(NSLocalizedString("Main_Ore_Variations", comment: "")).font(.headline)
+                    ) {
+                        ForEach(items, id: \.typeID) { item in
+                            NavigationLink {
+                                ShowItemInfo(databaseManager: databaseManager, itemID: item.typeID)
+                            } label: {
+                                HStack {
+                                    IconManager.shared.loadImage(for: item.iconFileName)
+                                        .resizable()
+                                        .frame(width: 32, height: 32)
+                                    Text(item.name)
+                                        .foregroundColor(.primary)
+                                }
                             }
+                            .listRowInsets(attributeRowInsets)
                         }
-                        .listRowInsets(attributeRowInsets)
                     }
                 }
+            }
+        }
+        .task {
+            loadWarfareBuffs()
+        }
+    }
+
+    /// 按 attribute_key 模式查询 warfareBuff* 属性并解析配对（覆盖弹药、泰坦现象发生器等一切 dbuff 物品）
+    private func loadWarfareBuffs() {
+        let query = """
+            SELECT da.attribute_key, ta.value
+            FROM typeAttributes ta
+            JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id
+            WHERE ta.type_id = ? AND da.attribute_key LIKE 'warfareBuff%'
+        """
+        var keyValues: [String: Double] = [:]
+        if case let .success(rows) = databaseManager.executeQuery(query, parameters: [typeID]) {
+            for row in rows {
+                if let key = row["attribute_key"] as? String,
+                   let value = row["value"] as? Double
+                {
+                    keyValues[key] = value
+                }
+            }
+        }
+        warfareBuffPairs = SDEMemoryStore.parseWarfareBuffPairs(keyValues)
+            .map { ($0.buffID, $0.value) }
+    }
+}
+
+// MARK: - Warfare Buff Section
+
+/// 指挥脉冲波 / 作战链加成展示：物品自身图标 + 本地化 buff 名称 + 百分比
+private struct WarfareBuffSection: View {
+    let typeID: Int
+    let buffs: [(Int, Double)]
+
+    /// 物品自身图标
+    private var itemIcon: String? {
+        let icon = SDEMemoryStore.types[typeID]?.iconFilename ?? ""
+        return icon.isEmpty ? nil : icon
+    }
+
+    var body: some View {
+        Section(
+            header: Text(NSLocalizedString("Misc_Warfare_Buffs", comment: "")).font(.headline)
+        ) {
+            ForEach(Array(buffs.enumerated()), id: \.offset) { _, pair in
+                WarfareBuffRow(
+                    name: SDEMemoryStore.warfareBuff(for: pair.0, typeID: typeID)?.displayName ?? "Buff \(pair.0)",
+                    iconFileName: itemIcon,
+                    multiplier: pair.1
+                )
+                .listRowInsets(attributeRowInsets)
+            }
+        }
+    }
+}
+
+/// 单个 buff 行（物品属性页与装配页模块行共用，样式经参数区分）
+/// 属性页用默认样式；装配页传 .caption 字号、20pt 图标并开启 isInline 内嵌样式
+struct WarfareBuffRow: View {
+    let name: String
+    let iconFileName: String?
+    let multiplier: Double
+    /// 文本字号（属性页 .body / 装配页 .caption）
+    var font: Font = .body
+    /// 图标边长（属性页 24 / 装配页 20）
+    var iconSize: CGFloat = 24
+    /// 百分比小数位数（属性页 0 / 装配页 2）
+    var fractionDigits: Int = 0
+    /// 内嵌样式（装配页）：整体间距 4、图标 1pt 圆角、名称灰色单行追加冒号、数值紧随名称而非右对齐
+    var isInline: Bool = false
+
+    /// 带符号百分比：%+ 自动补正负号，无需手动拼接
+    private var bonusText: String {
+        String(format: "%+.*f%%", fractionDigits, multiplier)
+    }
+
+    var body: some View {
+        HStack(spacing: isInline ? 4 : 8) {
+            // 上游已保证：iconFileName 非 nil 时必为非空串（空串在来源处已回退为 nil/默认图标）
+            if let icon = iconFileName {
+                IconManager.shared.loadImage(for: icon)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: iconSize, height: iconSize)
+                    .clipShape(RoundedRectangle(cornerRadius: isInline ? 1 : 0))
+            } else {
+                Image(systemName: "bolt.fill")
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: iconSize, height: iconSize)
+                    .foregroundColor(isInline ? .green.opacity(0.7) : .green)
+            }
+
+            if isInline {
+                HStack(spacing: 0) {
+                    Text(name + ": ")
+                        .font(font)
+                        .foregroundColor(.secondary)
+                        .lineLimit(1)
+                    Text(bonusText)
+                        .font(font)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.secondary)
+                }
+            } else {
+                Text(name)
+                    .font(font)
+                    .lineLimit(2)
+
+                Spacer()
+
+                Text(bonusText)
+                    .font(font)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.secondary)
             }
         }
     }

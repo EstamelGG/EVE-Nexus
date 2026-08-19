@@ -463,25 +463,26 @@ class CharacterIndustryViewModel: ObservableObject {
         var corpJobBatches: [[CorpIndustryAPI.CorpIndustryJob]] = []
 
         await withTaskGroup(of: Result<[CorpIndustryAPI.CorpIndustryJob], Error>.self) { group in
+            // 军团权限按角色 token 各自独立，同军团下每个成员角色都各自请求
+            // （军团级成功缓存命中时各调用直接返回缓存，不发网络请求；403 由 API 层负缓存节流）
             for corpId in uniqueCorpIds {
-                guard let tokenCharacterId = corpIdToCharacterIds[corpId]?.sorted().first else {
-                    continue
-                }
-                group.addTask {
-                    do {
-                        let jobs = try await CorpIndustryAPI.shared.fetchCorpIndustryJobsForCorporation(
-                            corporationId: corpId,
-                            characterId: tokenCharacterId,
-                            forceRefresh: forceRefresh,
-                            includeCompleted: includeCompleted,
-                            progressCallback: nil
-                        )
-                        return .success(jobs)
-                    } catch {
-                        Logger.error(
-                            "获取军团 \(corpId) 工业项目失败（跳过，可能无权限）: \(error.localizedDescription)"
-                        )
-                        return .failure(error)
+                for memberId in corpIdToCharacterIds[corpId]?.sorted() ?? [] {
+                    group.addTask {
+                        do {
+                            let jobs = try await CorpIndustryAPI.shared.fetchCorpIndustryJobsForCorporation(
+                                corporationId: corpId,
+                                characterId: memberId,
+                                forceRefresh: forceRefresh,
+                                includeCompleted: includeCompleted,
+                                progressCallback: nil
+                            )
+                            return .success(jobs)
+                        } catch {
+                            Logger.error(
+                                "获取军团 \(corpId) 工业项目失败（角色 \(memberId)，跳过，可能无权限）: \(error.localizedDescription)"
+                            )
+                            return .failure(error)
+                        }
                     }
                 }
             }

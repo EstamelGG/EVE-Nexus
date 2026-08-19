@@ -24,37 +24,26 @@ private struct ImplantInfo {
     let icon: String
     let attributeValue: Double
 
-    static func loadImplantInfo(typeIds: [Int], databaseManager: DatabaseManager) async
+    static func loadImplantInfo(typeIds: [Int], databaseManager _: DatabaseManager) async
         -> [ImplantInfo]
     {
         var implantInfos: [ImplantInfo] = []
 
-        // 获取基本信息
-        let query = """
-            SELECT t.type_id, t.name, t.icon_filename, COALESCE(ta.value, 0) as attribute_value
-            FROM types t
-            LEFT JOIN typeAttributes ta ON t.type_id = ta.type_id AND ta.attribute_id = 331
-            WHERE t.type_id IN (\(typeIds.sorted().map { String($0) }.joined(separator: ",")))
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(query) {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String
-                {
-                    let iconFile =
-                        (row["icon_filename"] as? String) ?? IconManager.defaultItemIcon
-                    let attributeValue = (row["attribute_value"] as? Double) ?? 0.0
-                    implantInfos.append(
-                        ImplantInfo(
-                            typeId: typeId,
-                            name: name,
-                            icon: iconFile.isEmpty ? IconManager.defaultItemIcon : iconFile,
-                            attributeValue: attributeValue
-                        )
-                    )
-                }
-            }
+        // 获取基本信息（内存索引；attribute 331 = 植入体槽位）
+        for typeId in typeIds.sorted() {
+            guard let info = SDEMemoryStore.type(for: typeId) else { continue }
+            let attributeValue = SDEMemoryStore.typeAttributeValue(
+                for: typeId, attributeID: 331
+            ) ?? 0.0
+            implantInfos.append(
+                ImplantInfo(
+                    typeId: typeId,
+                    name: info.name,
+                    icon: info.iconFilename.isEmpty
+                        ? IconManager.defaultItemIcon : info.iconFilename,
+                    attributeValue: attributeValue
+                )
+            )
         }
 
         // 按属性值和ID排序

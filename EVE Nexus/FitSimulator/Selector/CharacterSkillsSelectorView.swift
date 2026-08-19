@@ -150,24 +150,11 @@ enum CharacterSkillsUtils {
     /// - Parameter level: 要设置的技能等级
     /// - Returns: 技能ID与等级的字典
     private static func getAllSkillsWithLevel(_ level: Int) -> [Int: Int] {
-        // 查询所有已发布的技能（categoryID = 16 代表技能分类）
-        let skillsQuery = "SELECT type_id FROM types WHERE categoryID = 16 AND published = 1"
-
-        guard
-            case let .success(rows) = DatabaseManager.shared.executeQuery(skillsQuery)
-        else {
-            Logger.error("获取所有技能列表失败")
-            return [:]
-        }
-
-        // 生成所有技能指定等级的字典
+        // 内存索引获取所有已发布的技能（categoryID = 16 代表技能分类）
         var skillsDict = [Int: Int]()
-        for row in rows {
-            if let typeId = row["type_id"] as? Int {
-                skillsDict[typeId] = level // 所有技能都设为指定等级
-            }
+        for (typeId, info) in SDEMemoryStore.types where info.categoryID == 16 && info.published {
+            skillsDict[typeId] = level // 所有技能都设为指定等级
         }
-
         return skillsDict
     }
 
@@ -318,6 +305,7 @@ struct CharacterSkillsSelectorView: View {
                             Spacer()
                         }
                     }
+                    .foregroundColor(.primary)
                     .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                     .disabled(loadingCharacterId != nil)
                 }

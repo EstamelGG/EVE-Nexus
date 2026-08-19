@@ -9,7 +9,6 @@ struct ContentView: View {
     @StateObject var viewModel = MainViewModel()
     @ObservedObject var databaseManager: DatabaseManager
     @AppStorage("currentCharacterId") var currentCharacterId: Int = 0
-    @AppStorage("selectedTheme") var selectedTheme: String = "system"
     @AppStorage("showCorporationAffairs") var showCorporationAffairs: Bool = false
     @AppStorage("lastVersion") var lastVersion: String = ""
 
@@ -19,7 +18,6 @@ struct ContentView: View {
     @State var isCustomizeMode: Bool = false
     @State var hiddenFeatures: Set<String> = []
     @State var pinnedFeatures: [String] = [] // 使用数组保持顺序
-    @Environment(\.colorScheme) var systemColorScheme
     @State var columnVisibility = NavigationSplitViewVisibility.all
     @State var selectedItem: String? = nil
     @State var showUpdateAlert = false
@@ -29,18 +27,6 @@ struct ContentView: View {
     @State var hasInitialLayout = false // 添加初始布局标记
     @StateObject var sdeUpdateChecker = SDEUpdateChecker.shared // 观察SDE更新状态
     @State var showingSDEUpdateSheet = false // 控制SDE更新sheet显示
-
-    /// 使用计算属性来确定当前的颜色方案
-    var currentColorScheme: ColorScheme? {
-        switch selectedTheme {
-        case "light":
-            return .light
-        case "dark":
-            return .dark
-        default:
-            return nil
-        }
-    }
 
     var body: some View {
         GeometryReader { geometry in
@@ -127,10 +113,15 @@ struct ContentView: View {
                         shouldNavigateToUpdateLog = false
                     }
                 }
+                // 访问功能日志：仅在选中项实际变化时记录一次，
+                // 避免 GeometryReader 每帧重评估 body 导致的日志刷屏
+                .onChange(of: selectedItem) { _, newValue in
+                    guard let newValue else { return }
+                    logSelectedItem(newValue)
+                }
             }
         }
         .navigationSplitViewStyle(.balanced)
-        .preferredColorScheme(currentColorScheme)
         .onAppear {
             // 检查当前选择的角色是否在已登录列表中
             Logger.debug("Check current character: \(currentCharacterId)")
@@ -237,7 +228,6 @@ struct ContentView: View {
             Text(NSLocalizedString("Select_Item", comment: ""))
                 .foregroundColor(.gray)
         } else if selectedItem == "accounts" {
-            let _ = logSelectedItem(selectedItem)
             AccountsView(
                 databaseManager: databaseManager,
                 mainViewModel: viewModel,
@@ -253,7 +243,6 @@ struct ContentView: View {
                 }
             }
         } else if let featureID = selectedItem.flatMap(FeatureID.init(rawValue:)) {
-            let _ = logSelectedItem(selectedItem)
             featureID.destination(
                 databaseManager: databaseManager,
                 viewModel: viewModel,

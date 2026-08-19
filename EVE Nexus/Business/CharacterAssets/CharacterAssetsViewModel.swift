@@ -34,8 +34,8 @@ struct MergedAssetLocation: Identifiable {
     let locationId: Int64
     let representativeLocation: AssetTreeNode
     let entries: [AssetLocationWithOwner]
-    /// 所有人物在该地点的物品总数（创建时按过滤器预计算）
-    let totalItemCount: Int
+    /// 所有人物在该地点的物品种类数（跨人物去重，创建时按过滤器预计算）
+    let totalTypeCount: Int
 
     var id: Int64 {
         locationId
@@ -232,42 +232,47 @@ extension AssetTreeNode {
     }
 }
 
-struct AssetTypeCategoryFilter: Identifiable, Hashable {
+/// 筛选目录节点（分类/组共用）：全量 SDE 目录 + 资产覆盖率数据
+struct AssetTypeFilterNode: Identifiable {
     let id: Int
     let name: String
     let iconFileName: String
-    let groupIds: [Int]
-    let itemCount: Int
+    /// 资产中存在的物品种数
+    let ownedTypeCount: Int
+    /// SDE 全量物品种数
+    let totalTypeCount: Int
+
+    /// 资产中完全没有该目录物品时行置灰（仍可进入查看）
+    var isEnabled: Bool {
+        ownedTypeCount > 0
+    }
 }
 
-struct AssetTypeGroupFilter: Identifiable, Hashable {
+/// 目录图标回退：空文件名使用默认图标
+private func assetFilterIcon(_ filename: String) -> String {
+    filename.isEmpty ? IconManager.defaultIcon : filename
+}
+
+/// 筛选目录物品行（全量 SDE 物品，未拥有时置灰且不可选）
+struct AssetTypeItemFilter: Identifiable {
     let id: Int
     let name: String
     let iconFileName: String
-    let itemCount: Int
+    let isOwned: Bool
 }
 
 /// 资产类型过滤上下文（主列表筛选后传入详情页）
 struct AssetTypeFilterContext {
-    let selectedCategoryId: Int?
-    let selectedGroupId: Int?
-    let typeIdToClassification: [Int: (categoryId: Int, groupId: Int?)]
+    let selectedTypeIds: Set<Int>
 
-    static let inactive = AssetTypeFilterContext(
-        selectedCategoryId: nil, selectedGroupId: nil, typeIdToClassification: [:]
-    )
+    static let inactive = AssetTypeFilterContext(selectedTypeIds: [])
 
     var isActive: Bool {
-        selectedCategoryId != nil
+        !selectedTypeIds.isEmpty
     }
 
     func matches(_ typeId: Int) -> Bool {
-        guard let categoryId = selectedCategoryId else { return true }
-        guard let meta = typeIdToClassification[typeId], meta.categoryId == categoryId else {
-            return false
-        }
-        if let groupId = selectedGroupId { return meta.groupId == groupId }
-        return true
+        selectedTypeIds.isEmpty || selectedTypeIds.contains(typeId)
     }
 
     func filterNodesForDisplay(_ nodes: [AssetTreeNode]) -> [AssetTreeNode] {
@@ -296,18 +301,17 @@ struct AssetTypeFilterContext {
         return node.items?.contains(where: subtreeContainsMatch) ?? false
     }
 
-    /// 地点子树内符合条件的物品数量（按 quantity 累加）
-    func matchingItemQuantity(in location: AssetTreeNode) -> Int {
-        guard isActive, let items = location.items else {
-            return location.items?.count ?? 0
-        }
-        var total = 0
+    /// 地点内符合过滤条件的物品种类数（递归去重，不含地点节点本身）
+    func matchingTypeCount(in location: AssetTreeNode) -> Int {
+        var typeIds = Set<Int>()
         func walk(_ node: AssetTreeNode) {
-            if matches(node.type_id) { total += node.quantity }
+            if matches(node.type_id) {
+                typeIds.insert(node.type_id)
+            }
             node.items?.forEach(walk)
         }
-        items.forEach(walk)
-        return total
+        location.items?.forEach(walk)
+        return typeIds.count
     }
 
     /// 进入匹配过滤条件的容器后，展示其全部内容
@@ -366,9 +370,9 @@ class CharacterAssetsViewModel: ObservableObject {
 
     @Published var availableCharacters: [(id: Int, name: String)] = []
     @Published private(set) var ownerPortraits: [Int: UIImage] = [:]
-    @Published private(set) var availableCategoryFilters: [AssetTypeCategoryFilter] = []
-    @Published var selectedCategoryId: Int?
-    @Published var selectedGroupId: Int?
+    @Published private(set) var selectedTypeIds: Set<Int> = []
+    /// 过滤命中的物品件数总和（过滤徽标第二行"共 x 件"）
+    @Published private(set) var activeFilterItemCount = 0
 
     // MARK: - 私有属性
 
@@ -378,10 +382,16 @@ class CharacterAssetsViewModel: ObservableObject {
     private(set) var itemInfoCache: [Int: ItemInfo] = [:]
     private(set) var dynamicResultingTypeIds: Set<Int> = []
     private var searchIndexByTypeId: [Int: [AssetSearchEntry]] = [:]
-    private var typeIdToClassification: [Int: (categoryId: Int, groupId: Int?)] = [:]
-    private var groupNamesById: [Int: String] = [:]
-    private var groupIconsById: [Int: String] = [:]
-    private var groupItemCounts: [Int: Int] = [:]
+    /// 筛选徽标：资产内持有的物品种类集合
+    private var ownedTypeIds: Set<Int> = []
+
+    // MARK: 市场视图筛选数据（marketGroupID 体系）
+
+    private var marketFilterNodesById: [Int: AssetTypeFilterNode] = [:]
+    private var marketChildrenByParent: [Int: [Int]] = [:]
+    private var marketRootIds: [Int] = []
+    /// 各目录子树内资产已持有的物品种类集合（目录层"全部过滤"开关用）
+    private var marketOwnedTypeIdsByGroup: [Int: Set<Int>] = [:]
     private let characterId: Int
     private let databaseManager: DatabaseManager
 
@@ -405,46 +415,102 @@ class CharacterAssetsViewModel: ObservableObject {
         typeFilterContext.isActive
     }
 
-    var selectedCategoryName: String? {
-        guard let categoryId = selectedCategoryId else { return nil }
-        return availableCategoryFilters.first { $0.id == categoryId }?.name
-    }
-
-    var selectedGroupName: String? {
-        guard let groupId = selectedGroupId else { return nil }
-        return groupNamesById[groupId]
-    }
-
     var activeFilterLabel: String? {
-        guard let category = selectedCategoryName else { return nil }
-        let detail = selectedGroupName.map { "\(category) - \($0)" } ?? category
+        guard isTypeFilterActive else { return nil }
         return String.localizedStringWithFormat(
-            NSLocalizedString("Assets_Filter_Active_Summary", comment: ""), detail
+            NSLocalizedString("Assets_Filter_Active_Types_Format", comment: ""),
+            selectedTypeIds.count
+        )
+    }
+
+    /// 过滤命中件数文案（过滤徽标第二行）
+    var activeFilterItemCountLabel: String? {
+        guard isTypeFilterActive else { return nil }
+        return String.localizedStringWithFormat(
+            NSLocalizedString("Assets_Filter_Active_Item_Count_Format", comment: ""),
+            activeFilterItemCount
         )
     }
 
     var typeFilterContext: AssetTypeFilterContext {
-        AssetTypeFilterContext(
-            selectedCategoryId: selectedCategoryId,
-            selectedGroupId: selectedGroupId,
-            typeIdToClassification: typeIdToClassification
-        )
+        AssetTypeFilterContext(selectedTypeIds: selectedTypeIds)
     }
 
-    func groupFilters(for categoryId: Int) -> [AssetTypeGroupFilter] {
-        guard let category = availableCategoryFilters.first(where: { $0.id == categoryId }) else {
-            return []
-        }
-        return category.groupIds.compactMap { groupId in
-            guard let name = groupNamesById[groupId] else { return nil }
-            return AssetTypeGroupFilter(
-                id: groupId,
-                name: name,
-                iconFileName: groupIconsById[groupId] ?? IconManager.defaultIcon,
-                itemCount: groupItemCounts[groupId] ?? 0
+    // MARK: - 筛选目录（市场视图）
+
+    /// 市场视图：根目录列表（子树内无 SDE 物品的目录不显示）
+    var marketRootFilterNodes: [AssetTypeFilterNode] {
+        marketRootIds.compactMap { marketFilterNodesById[$0] }
+            .filter { $0.totalTypeCount > 0 }
+            .sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+    }
+
+    /// 市场视图：某目录的子目录（子树内无 SDE 物品的目录不显示）
+    func marketGroupFilters(for id: Int) -> [AssetTypeFilterNode] {
+        (marketChildrenByParent[id] ?? []).compactMap { marketFilterNodesById[$0] }
+            .filter { $0.totalTypeCount > 0 }
+            .sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+    }
+
+    /// 市场视图：叶子目录直属物品，未拥有时置灰；已拥有（可选）优先展示
+    func marketFilterItems(for id: Int) -> [AssetTypeItemFilter] {
+        var items: [AssetTypeItemFilter] = []
+        for (typeId, info) in SDEMemoryStore.types
+            where info.published && info.marketGroupID == id
+        {
+            items.append(
+                AssetTypeItemFilter(
+                    id: typeId,
+                    name: info.names.resolved(),
+                    iconFileName: assetFilterIcon(info.iconFilename),
+                    isOwned: ownedTypeIds.contains(typeId)
+                )
             )
         }
-        .sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+        items.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
+        return items.filter(\.isOwned) + items.filter { !$0.isOwned }
+    }
+
+    /// 市场视图：某目录子树内资产已持有的物品种类集合（目录层"全部过滤"开关用）
+    func marketOwnedTypeIds(for id: Int) -> Set<Int> {
+        marketOwnedTypeIdsByGroup[id] ?? []
+    }
+
+    /// 资产中存在、但没有市场目录的物品（含数据库无记录的）
+    func filterOwnedItemsWithoutMarketGroup() -> [AssetTypeItemFilter] {
+        ownedItemFilter { info in
+            guard let info else { return true }
+            return info.marketGroupID == nil
+        }
+    }
+
+    /// 资产中存在、但在物品数据库中未发布的物品（含数据库无记录的）
+    func filterOwnedUnpublishedItems() -> [AssetTypeItemFilter] {
+        ownedItemFilter { info in
+            guard let info else { return true }
+            return !info.published
+        }
+    }
+
+    /// 按条件从资产持有的物品构建筛选项（按名称排序，全部可选）
+    private func ownedItemFilter(
+        where keep: (SDEMemoryStore.TypeInfo?) -> Bool
+    ) -> [AssetTypeItemFilter] {
+        var items: [AssetTypeItemFilter] = []
+        for typeId in ownedTypeIds {
+            let info = SDEMemoryStore.type(for: typeId)
+            guard keep(info) else { continue }
+            items.append(
+                AssetTypeItemFilter(
+                    id: typeId,
+                    name: info?.names.resolved() ?? "Type ID: \(typeId)",
+                    iconFileName: assetFilterIcon(info?.iconFilename ?? ""),
+                    isOwned: true
+                )
+            )
+        }
+        items.sort { $0.name.localizedCompare($1.name) == .orderedAscending }
+        return items
     }
 
     var pinnedLocations: [AssetLocationWithOwner] {
@@ -460,7 +526,7 @@ class CharacterAssetsViewModel: ObservableObject {
     // MARK: - 合并地点（多人物聚合 + mergeLocations 模式）
 
     /// 合并模式下的置顶地点：按 location_id 去重，任一人物置顶即显示
-    /// entries 只包含有匹配物品的人物；totalItemCount 按过滤器预计算
+    /// entries 只包含有匹配物品的人物；totalTypeCount 按过滤器预计算
     var mergedPinnedLocations: [MergedAssetLocation] {
         let pinnedLocationIds = Set(
             assetLocations.filter { isLocationPinned($0) }.map { $0.location.location_id }
@@ -472,21 +538,18 @@ class CharacterAssetsViewModel: ObservableObject {
                 .filter { context.subtreeContainsMatch($0.location) }
                 .sorted { $0.ownerId < $1.ownerId }
             guard !entries.isEmpty else { return nil }
-            let totalCount = entries.reduce(0) {
-                $0 + context.matchingItemQuantity(in: $1.location)
-            }
             return MergedAssetLocation(
                 locationId: locId,
                 representativeLocation: entries[0].location,
                 entries: entries,
-                totalItemCount: totalCount
+                totalTypeCount: mergedTypeCount(for: entries)
             )
         }
         .sorted { $0.locationId < $1.locationId }
     }
 
     /// 合并模式下的非置顶地点：按 location_id 去重，按星域分组
-    /// entries 只包含有匹配物品的人物；totalItemCount 按过滤器预计算
+    /// entries 只包含有匹配物品的人物；totalTypeCount 按过滤器预计算
     var mergedUnpinnedLocationsByRegion:
         [(region: String, locations: [MergedAssetLocation])]
     {
@@ -517,14 +580,11 @@ class CharacterAssetsViewModel: ObservableObject {
                 regionName = unknownRegion
             }
 
-            let totalCount = filtered.reduce(0) {
-                $0 + context.matchingItemQuantity(in: $1.location)
-            }
             let merged = MergedAssetLocation(
                 locationId: locId,
                 representativeLocation: filtered[0].location,
                 entries: filtered,
-                totalItemCount: totalCount
+                totalTypeCount: mergedTypeCount(for: filtered)
             )
             regionDict[regionName, default: []].append(merged)
         }
@@ -535,6 +595,22 @@ class CharacterAssetsViewModel: ObservableObject {
                 if pair2.region == unknownRegion { return true }
                 return pair1.region < pair2.region
             }
+    }
+
+    /// 合并地点的多人物物品种类数（跨人物去重，不含地点节点本身，按过滤器）
+    private func mergedTypeCount(for entries: [AssetLocationWithOwner]) -> Int {
+        let context = typeFilterContext
+        var typeIds = Set<Int>()
+        func walk(_ node: AssetTreeNode) {
+            if context.matches(node.type_id) {
+                typeIds.insert(node.type_id)
+            }
+            node.items?.forEach(walk)
+        }
+        for entry in entries {
+            entry.location.items?.forEach(walk)
+        }
+        return typeIds.count
     }
 
     private func sortMergedLocations(_ locations: [MergedAssetLocation]) -> [MergedAssetLocation] {
@@ -582,6 +658,11 @@ class CharacterAssetsViewModel: ObservableObject {
         }
         if selectedCharacterIds.isEmpty {
             selectedCharacterIds.insert(characterId)
+        }
+
+        // 构造时启动资产加载（原先由视图 init 触发，移入以避免视图重复构造引发重复加载）
+        Task {
+            await loadAssets()
         }
     }
 
@@ -704,129 +785,94 @@ class CharacterAssetsViewModel: ObservableObject {
         }
     }
 
-    func selectCategoryFilter(_ categoryId: Int?) {
-        selectedCategoryId = categoryId
-        if categoryId == nil {
-            selectedGroupId = nil
-        } else if let groupId = selectedGroupId,
-                  let category = availableCategoryFilters.first(where: { $0.id == categoryId }),
-                  !category.groupIds.contains(groupId)
-        {
-            selectedGroupId = nil
-        }
+    /// 应用物品多选筛选（筛选面板"完成"时调用）
+    func applyTypeFilter(_ typeIds: Set<Int>) {
+        selectedTypeIds = typeIds
         rebuildRegionGroups()
     }
 
-    func selectCategoryAndGroup(categoryId: Int, groupId: Int?) {
-        selectedCategoryId = categoryId
-        selectedGroupId = groupId
-        rebuildRegionGroups()
-    }
-
-    func clearTypeFilter() {
-        selectedCategoryId = nil
-        selectedGroupId = nil
-        rebuildRegionGroups()
-    }
-
+    /// 构建筛选数据：持有物品种类集合 + 市场目录覆盖率统计
     private func buildTypeFilterIndex() {
-        let typeIds = collectAllTypeIds()
-        guard !typeIds.isEmpty else {
-            availableCategoryFilters = []
-            typeIdToClassification = [:]
-            groupNamesById = [:]
-            groupIconsById = [:]
-            groupItemCounts = [:]
-            return
+        // 顶层地点（空间站/建筑/星系）不算自己拥有的物品，统计从地点内的东西开始
+        var ownedTypes = Set<Int>()
+        func walk(_ node: AssetTreeNode) {
+            ownedTypes.insert(node.type_id)
+            node.items?.forEach(walk)
         }
-
-        var typeMap: [Int: (categoryId: Int, groupId: Int?)] = [:]
-        var categoryGroups: [Int: Set<Int>] = [:]
-        var categoryNames: [Int: String] = [:]
-        var categoryIcons: [Int: String] = [:]
-        var groupNames: [Int: String] = [:]
-        var groupIcons: [Int: String] = [:]
-
-        for typeId in typeIds {
-            guard let typeInfo = SDEMemoryStore.type(for: typeId) else { continue }
-            let categoryId = typeInfo.categoryID
-            let groupId = typeInfo.groupID
-            typeMap[typeId] = (categoryId, groupId)
-
-            if let catInfo = SDEMemoryStore.categories[categoryId] {
-                categoryNames[categoryId] = catInfo.name
-                if !catInfo.iconFilename.isEmpty {
-                    categoryIcons[categoryId] = catInfo.iconFilename
-                }
-            } else {
-                categoryNames[categoryId] = "\(categoryId)"
-            }
-
-            if let groupId {
-                if let groupInfo = SDEMemoryStore.groups[groupId] {
-                    groupNames[groupId] = groupInfo.name
-                    if !groupInfo.iconFilename.isEmpty {
-                        groupIcons[groupId] = groupInfo.iconFilename
-                    }
-                } else {
-                    groupNames[groupId] = "\(groupId)"
-                }
-                categoryGroups[categoryId, default: []].insert(groupId)
-            }
+        for entry in assetLocations {
+            entry.location.items?.forEach(walk)
         }
+        ownedTypeIds = ownedTypes
 
-        typeIdToClassification = typeMap
-        groupNamesById = groupNames
-        groupIconsById = groupIcons
-        let counts = buildFilterItemCounts()
-        groupItemCounts = counts.group
-        availableCategoryFilters = categoryNames.keys
-            .sorted {
-                (categoryNames[$0] ?? "").localizedCompare(categoryNames[$1] ?? "")
-                    == .orderedAscending
-            }
-            .map { categoryId in
-                AssetTypeCategoryFilter(
-                    id: categoryId,
-                    name: categoryNames[categoryId] ?? "\(categoryId)",
-                    iconFileName: categoryIcons[categoryId] ?? IconManager.defaultIcon,
-                    groupIds: Array(categoryGroups[categoryId] ?? []).sorted(),
-                    itemCount: counts.category[categoryId] ?? 0
-                )
-            }
-
-        if let categoryId = selectedCategoryId,
-           !availableCategoryFilters.contains(where: { $0.id == categoryId })
-        {
-            selectedCategoryId = nil
-            selectedGroupId = nil
-        } else if let groupId = selectedGroupId,
-                  let categoryId = selectedCategoryId,
-                  let category = availableCategoryFilters.first(where: { $0.id == categoryId }),
-                  !category.groupIds.contains(groupId)
-        {
-            selectedGroupId = nil
-        }
+        // 无资产时市场目录仍可浏览（覆盖率为 0）
+        buildMarketFilterIndex()
     }
 
-    private func buildFilterItemCounts() -> (category: [Int: Int], group: [Int: Int]) {
-        var categoryCounts: [Int: Int] = [:]
-        var groupCounts: [Int: Int] = [:]
-
-        func accumulate(_ node: AssetTreeNode) {
-            if let meta = typeIdToClassification[node.type_id] {
-                categoryCounts[meta.categoryId, default: 0] += node.quantity
-                if let groupId = meta.groupId {
-                    groupCounts[groupId, default: 0] += node.quantity
-                }
+    /// 构建市场筛选目录：marketGroupID 树 + 子树覆盖率统计（子树种类向上汇总）
+    private func buildMarketFilterIndex() {
+        // 直属统计：资产物品按 marketGroupID 归集（不含地点节点本身）
+        var directOwnedTypes: [Int: Set<Int>] = [:]
+        func walkMarket(_ node: AssetTreeNode) {
+            if let info = SDEMemoryStore.type(for: node.type_id),
+               let marketGroupID = info.marketGroupID
+            {
+                directOwnedTypes[marketGroupID, default: []].insert(node.type_id)
             }
-            node.items?.forEach(accumulate)
+            node.items?.forEach(walkMarket)
+        }
+        for entry in assetLocations {
+            entry.location.items?.forEach(walkMarket)
         }
 
-        for entry in assetLocations {
-            accumulate(entry.location)
+        // 各市场目录直属 SDE 已发布物品种数
+        var directTypeCounts: [Int: Int] = [:]
+        for info in SDEMemoryStore.types.values where info.published {
+            if let marketGroupID = info.marketGroupID {
+                directTypeCounts[marketGroupID, default: 0] += 1
+            }
         }
-        return (categoryCounts, groupCounts)
+
+        // 目录树结构
+        var children: [Int: [Int]] = [:]
+        var roots: [Int] = []
+        for (id, group) in SDEMemoryStore.marketGroups {
+            if let parentID = group.parentGroupID {
+                children[parentID, default: []].append(id)
+            } else {
+                roots.append(id)
+            }
+        }
+
+        // 后序遍历汇总子树统计并生成节点
+        var nodes: [Int: AssetTypeFilterNode] = [:]
+        var ownedSets: [Int: Set<Int>] = [:]
+        func buildNode(_ id: Int) -> (owned: Set<Int>, total: Int) {
+            var owned = directOwnedTypes[id] ?? []
+            var total = directTypeCounts[id] ?? 0
+            for childID in children[id] ?? [] {
+                let result = buildNode(childID)
+                owned.formUnion(result.owned)
+                total += result.total
+            }
+            let info = SDEMemoryStore.marketGroups[id]
+            nodes[id] = AssetTypeFilterNode(
+                id: id,
+                name: info?.name ?? "\(id)",
+                iconFileName: assetFilterIcon(info?.iconName ?? ""),
+                ownedTypeCount: owned.count,
+                totalTypeCount: total
+            )
+            ownedSets[id] = owned
+            return (owned, total)
+        }
+        for rootID in roots {
+            _ = buildNode(rootID)
+        }
+
+        marketFilterNodesById = nodes
+        marketChildrenByParent = children
+        marketRootIds = roots
+        marketOwnedTypeIdsByGroup = ownedSets
     }
 
     private func rebuildRegionGroups() {
@@ -852,6 +898,24 @@ class CharacterAssetsViewModel: ObservableObject {
                 if pair2.region == unknownRegion { return true }
                 return pair1.region < pair2.region
             }
+
+        // 同步过滤命中物品件数（资产加载与过滤变更后均会重建）
+        activeFilterItemCount = matchingItemCount(context: context)
+    }
+
+    /// 过滤命中的物品件数总和：递归累加命中节点的 quantity（不含地点节点本身）
+    private func matchingItemCount(context: AssetTypeFilterContext) -> Int {
+        var count = 0
+        func walk(_ node: AssetTreeNode) {
+            if context.matches(node.type_id) {
+                count += node.quantity
+            }
+            node.items?.forEach(walk)
+        }
+        for entry in assetLocations {
+            entry.location.items?.forEach(walk)
+        }
+        return count
     }
 
     private func buildSearchIndex() {

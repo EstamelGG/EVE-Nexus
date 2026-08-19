@@ -7,6 +7,25 @@ enum SQLiteResult {
     case error(String) // 查询失败，返回错误信息
 }
 
+/// 直读查询列解析器：按列名取 SELECT 列索引（prepare 后构建一次，行内不查找）。
+/// 名字不在 SELECT 中时启动即报错（debug 断言崩溃 / release 记 error 日志），
+/// 消除"SELECT 列顺序 ↔ 回调数字索引"的隐式耦合。
+struct SQLiteColumnResolver {
+    fileprivate let indexes: [String: Int32]
+    fileprivate let context: String
+
+    /// 按名取列索引；列不存在时报错并返回 0（debug 下先行断言崩溃）
+    func index(_ name: String) -> Int32 {
+        guard let index = indexes[name] else {
+            let msg = "[SDE] 列解析失败 [\(context)]: SELECT 中不存在列 \(name)，请检查 SELECT 与取值列名"
+            Logger.error(msg)
+            assertionFailure(msg)
+            return 0
+        }
+        return index
+    }
+}
+
 class SQLiteManager {
     // 单例模式
     static let shared = SQLiteManager()
@@ -181,15 +200,22 @@ class SQLiteManager {
             }
 
             // 执行查询
+            // 列名在整个查询期间不变：循环外取一次，避免每行每列重复构造字符串（全表加载热点）
+            let columnCount = sqlite3_column_count(statement)
+            var columnNames: [String] = []
+            columnNames.reserveCapacity(Int(columnCount))
+            for i in 0 ..< columnCount {
+                columnNames.append(String(cString: sqlite3_column_name(statement, i)))
+            }
+
             var stepResult = sqlite3_step(statement)
             while stepResult == SQLITE_ROW {
                 var row: [String: Any] = [:]
-                let columnCount = sqlite3_column_count(statement)
+                row.reserveCapacity(Int(columnCount))
 
                 for i in 0 ..< columnCount {
-                    let columnName = String(cString: sqlite3_column_name(statement, i))
                     if let value = getValue(from: statement, column: i) {
-                        row[columnName] = value
+                        row[columnNames[Int(i)]] = value
                     }
                 }
 
@@ -219,6 +245,58 @@ class SQLiteManager {
             Logger.info("[SQLite] \(query)\(paramPart) - 成功")
 
             return .success(results)
+        }
+    }
+
+    /// 按名取列的直读查询（SDE 全表加载专用）：
+    /// prepare 后从实际 SELECT 列构建"列名→索引"解析器，`makeRow` 按列名解析出索引常量
+    /// 并返回行闭包；行内只消费常量，热路径与手写数字索引等价、无每行字典查找。
+    /// SELECT 重排/增删列均不影响取值正确性，列名不存在时启动即报错。
+    /// - Parameters:
+    ///   - query: 无参数 SQL
+    ///   - context: 表/loader 名，出错定位用
+    ///   - makeRow: prepare 后调用一次；返回的闭包在每行回调，回调内不要 finalize/step
+    /// - Returns: 是否执行成功（错误已记录日志）
+    @discardableResult
+    func executeQueryMapped(
+        _ query: String,
+        context: String,
+        makeRow: (SQLiteColumnResolver) -> (OpaquePointer?) -> Void
+    ) -> Bool {
+        return dbAccessQueue.sync {
+            guard let db = self.db else {
+                Logger.error("[SQLite] 数据库连接未打开 - SQL: \(query)")
+                return false
+            }
+
+            var statement: OpaquePointer?
+            guard sqlite3_prepare_v2(db, query, -1, &statement, nil) == SQLITE_OK else {
+                let errorMessage = String(cString: sqlite3_errmsg(db))
+                Logger.error("[SQLite] \(query) - 失败 准备语句失败: \(errorMessage)")
+                return false
+            }
+            defer { sqlite3_finalize(statement) }
+
+            var indexes: [String: Int32] = [:]
+            let columnCount = sqlite3_column_count(statement)
+            for i in 0 ..< columnCount {
+                let name = String(cString: sqlite3_column_name(statement, i))
+                indexes[name] = i
+            }
+            let rowHandler = makeRow(SQLiteColumnResolver(indexes: indexes, context: context))
+
+            var stepResult = sqlite3_step(statement)
+            while stepResult == SQLITE_ROW {
+                rowHandler(statement)
+                stepResult = sqlite3_step(statement)
+            }
+
+            guard stepResult == SQLITE_DONE else {
+                let errorMessage = String(cString: sqlite3_errmsg(db))
+                Logger.error("[SQLite] \(query) - 失败 SQL执行失败[代码\(stepResult)]: \(errorMessage)")
+                return false
+            }
+            return true
         }
     }
 
@@ -255,7 +333,11 @@ class SQLiteManager {
         }
 
         let type = sqlite3_column_type(statement, column)
-        let columnName = String(cString: sqlite3_column_name(statement, column))
+
+        /// 列名仅在错误分支需要：延迟构造，避免每个单元格一次无谓的字符串分配（全表加载热点）
+        func columnNameForLog() -> String {
+            String(cString: sqlite3_column_name(statement, column))
+        }
 
         switch type {
         case SQLITE_INTEGER:
@@ -264,7 +346,7 @@ class SQLiteManager {
             return Double(sqlite3_column_double(statement, column))
         case SQLITE_TEXT:
             guard let cString = sqlite3_column_text(statement, column) else {
-                Logger.error("[SQLite] getValue: 无法获取 TEXT 类型数据，列名: \(columnName)")
+                Logger.error("[SQLite] getValue: 无法获取 TEXT 类型数据，列名: \(columnNameForLog())")
                 return nil
             }
             return String(cString: cString)
@@ -272,13 +354,13 @@ class SQLiteManager {
             return nil
         case SQLITE_BLOB:
             guard let blob = sqlite3_column_blob(statement, column) else {
-                Logger.error("[SQLite] getValue: 无法获取 BLOB 类型数据，列名: \(columnName)")
+                Logger.error("[SQLite] getValue: 无法获取 BLOB 类型数据，列名: \(columnNameForLog())")
                 return nil
             }
             let size = Int(sqlite3_column_bytes(statement, column))
             return Data(bytes: blob, count: size)
         default:
-            Logger.error("[SQLite] getValue: 未知的列类型 \(type)，列名: \(columnName)")
+            Logger.error("[SQLite] getValue: 未知的列类型 \(type)，列名: \(columnNameForLog())")
             return nil
         }
     }

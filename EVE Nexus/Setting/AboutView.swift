@@ -11,6 +11,11 @@ struct AboutView: View {
 
     @State private var databaseVersionInfo: AppConfiguration.Database.VersionInfo?
     @State private var showingSDEUpdateSheet = false
+    @State private var sdeSource: String?
+
+    private func reloadSDESource() {
+        sdeSource = MetadataManager.shared.readLocalMetadata()?.source
+    }
 
     private var otherAboutItems: [AboutItem] {
         [
@@ -82,7 +87,8 @@ struct AboutView: View {
             Section {
                 DatabaseVersionRow(
                     versionInfo: databaseVersionInfo,
-                    showingUpdateSheet: $showingSDEUpdateSheet
+                    showingUpdateSheet: $showingSDEUpdateSheet,
+                    sdeSource: sdeSource
                 )
             }
 
@@ -103,6 +109,7 @@ struct AboutView: View {
         .sheet(isPresented: $showingSDEUpdateSheet, onDismiss: {
             // 更新完成后重新加载数据库版本信息
             databaseVersionInfo = AppConfiguration.Database.detailedVersionInfo
+            reloadSDESource()
 
             // 重新检查更新状态
             Task.detached(priority: .background) {
@@ -114,6 +121,7 @@ struct AboutView: View {
         }
         .onAppear {
             databaseVersionInfo = AppConfiguration.Database.detailedVersionInfo
+            reloadSDESource()
         }
     }
 }
@@ -122,6 +130,7 @@ struct AboutView: View {
 struct DatabaseVersionRow: View {
     let versionInfo: AppConfiguration.Database.VersionInfo?
     @Binding var showingUpdateSheet: Bool
+    var sdeSource: String?
 
     @StateObject private var updateChecker = SDEUpdateChecker.shared
     @State private var statusBounce = 0
@@ -139,6 +148,38 @@ struct DatabaseVersionRow: View {
     private var isUsingBuiltInDatabase: Bool {
         StaticResourceManager.shared.shouldUseBundleSDE()
     }
+
+    #if DEBUG
+        /// SDE 安装来源 tag（仅 Debug 构建显示，用于区分 GitHub / CloudKit / 内置）
+        @ViewBuilder
+        private var sdeSourceTag: some View {
+            if sdeSource == CloudKitMetadata.sourceGitHub {
+                Text(NSLocalizedString("SDE_Source_GitHub", comment: "GitHub"))
+                    .font(.system(size: 11))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.purple)
+                    .cornerRadius(4)
+            } else if sdeSource == CloudKitMetadata.sourceBundle {
+                Text(NSLocalizedString("Main_About_Database_BuiltIn", comment: ""))
+                    .font(.system(size: 11))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color(red: 0.4, green: 0.7, blue: 1.0))
+                    .cornerRadius(4)
+            } else {
+                Text(NSLocalizedString("SDE_Source_CloudKit", comment: "CloudKit"))
+                    .font(.system(size: 11))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Color.blue)
+                    .cornerRadius(4)
+            }
+        }
+    #endif
 
     var body: some View {
         HStack(spacing: 16) {
@@ -161,6 +202,11 @@ struct DatabaseVersionRow: View {
                             .background(Color(red: 0.4, green: 0.7, blue: 1.0))
                             .cornerRadius(4)
                     }
+                    #if DEBUG
+                        if !isUsingBuiltInDatabase {
+                            sdeSourceTag
+                        }
+                    #endif
 
                     if hasUpdate {
                         Text(NSLocalizedString("Main_About_Database_Update_Available", comment: ""))

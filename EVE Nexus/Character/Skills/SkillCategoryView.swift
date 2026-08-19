@@ -116,10 +116,14 @@ class SkillCategoryViewModel: ObservableObject {
             }
 
             // 计算从起始等级到目标等级需要的点数
-            let targetLevelPoints = Int(Double(SkillTreeManager.levelBasePoints[targetLevel - 1]) * timeMultiplier)
-            let startLevelPoints = startLevel > 0 && startLevel <= 5
-                ? Int(Double(SkillTreeManager.levelBasePoints[startLevel - 1]) * timeMultiplier)
-                : 0
+            let targetLevelPoints = SkillTreeManager.skillPoints(
+                level: targetLevel,
+                multiplier: timeMultiplier
+            ) ?? 0
+            let startLevelPoints = SkillTreeManager.skillPoints(
+                level: startLevel,
+                multiplier: timeMultiplier
+            ) ?? 0
 
             totalQueuePoints += targetLevelPoints - startLevelPoints
 
@@ -683,17 +687,22 @@ struct SkillCategoryView: View {
                     }
                 } else {
                     // 显示搜索结果
-                    ForEach(viewModel.filteredSkills, id: \.typeId) { skill in
-                        NavigationLink {
-                            ShowItemInfo(
-                                databaseManager: databaseManager,
-                                itemID: skill.typeId
-                            )
-                        } label: {
-                            SkillCellView(skill: skill, viewModel: viewModel)
+                    if viewModel.filteredSkills.isEmpty {
+                        Text(NSLocalizedString("Main_Search_No_Results", comment: ""))
+                            .foregroundColor(.secondary)
+                    } else {
+                        ForEach(viewModel.filteredSkills, id: \.typeId) { skill in
+                            NavigationLink {
+                                ShowItemInfo(
+                                    databaseManager: databaseManager,
+                                    itemID: skill.typeId
+                                )
+                            } label: {
+                                SkillCellView(skill: skill, viewModel: viewModel)
+                            }
                         }
+                        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                     }
-                    .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 }
             }
         }

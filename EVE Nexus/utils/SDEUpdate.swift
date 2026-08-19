@@ -1,19 +1,9 @@
 import Foundation
-import SwiftUI
 
 // MARK: - Update UI Logs
 
 enum LogMessageType {
     case info, warning, error, success
-
-    var color: Color {
-        switch self {
-        case .info: return .secondary
-        case .warning: return .orange
-        case .error: return .red
-        case .success: return .green
-        }
-    }
 }
 
 struct LogMessage: Identifiable, Equatable {
@@ -30,13 +20,18 @@ enum SDEPackageKind {
     case icons, sde
 }
 
-enum PackageUpdatePhase: Equatable {
-    case pending, running, skipped, done, failed
+enum PackageStep: Equatable {
+    case pending, downloading, verifying, installing, done, skipped, failed
+
+    var isActive: Bool {
+        self == .downloading || self == .verifying || self == .installing
+    }
 }
 
 struct PackageUpdateState: Equatable {
-    var phase: PackageUpdatePhase = .pending
+    var step: PackageStep = .pending
     var progress: Double = 0
+    var errorMessage: String?
     var lines: [LogMessage] = []
 }
 
@@ -62,6 +57,26 @@ final class SDEUpdateChecker: ObservableObject {
 
     private let lastCheckTimeKey = "SDE_LastCheckTime"
     private let checkInterval: TimeInterval = 60
+    static let useGitHubKey = "useGithubSDEUpdate"
+
+    /// 当前是否使用 GitHub 数据源：仅 Debug 构建且开关开启时生效，正式版永远走 CloudKit
+    var useGitHubSource: Bool {
+        #if DEBUG
+            return UserDefaults.standard.bool(forKey: Self.useGitHubKey)
+        #else
+            return false
+        #endif
+    }
+
+    /// 按数据源获取最新版本信息（GitHub / CloudKit）
+    private func fetchLatestUpdateInfo() async -> SDEUpdateInfo? {
+        #if DEBUG
+            if useGitHubSource {
+                return await SDEGitHubManager.shared.fetchLatestSDEUpdate()
+            }
+        #endif
+        return await SDECloudKitManager.shared.fetchLatestSDEUpdate()
+    }
 
     private init() {
         if let t = UserDefaults.standard.object(forKey: lastCheckTimeKey) as? TimeInterval {
@@ -105,8 +120,9 @@ final class SDEUpdateChecker: ObservableObject {
 
         SDEDownloader().clearCloudKitAssets()
 
-        guard let info = await SDECloudKitManager.shared.fetchLatestSDEUpdate() else {
-            Logger.warning("CloudKit 无 SDE 更新信息，继续使用本地数据")
+        let info = await fetchLatestUpdateInfo()
+        guard let info else {
+            Logger.warning("SDE 数据源无更新信息，继续使用本地数据")
             await markLocalAsLatest()
             return
         }
@@ -268,7 +284,7 @@ final class SDEUpdateManager: ObservableObject {
             updateChecker.clearCheckCache()
             reloadDataWithNewSDE()
         } catch {
-            if iconsState.phase == .running {
+            if iconsState.step.isActive {
                 markFailed(.icons, error)
             } else {
                 markFailed(.sde, error)
@@ -289,26 +305,16 @@ final class SDEUpdateManager: ObservableObject {
         successLog: String,
         extract: @escaping (@escaping (Double) -> Void) async throws -> Void
     ) async throws {
-        setPhase(kind, .running)
+        setStep(kind, .downloading)
         setProgress(kind, 0)
         appendLine(kind, downloadLog)
 
-        guard let recordID = updateChecker.currentUpdateInfo?.recordID else {
-            throw NSError(domain: "SDEUpdateManager", code: -1,
-                          userInfo: [NSLocalizedDescriptionKey: "RecordID not found"])
-        }
-
-        let assetURL = try await SDECloudKitManager.shared.fetchAsset(recordID: recordID, field: field) {
-            [weak self] p in
-            Task { @MainActor in
-                self?.setProgress(kind, p * 0.6)
-            }
-        }
+        let staged = try await downloadZip(kind: kind, field: field, zipName: zipName)
         appendLine(kind, String(localized: "SDE_Log_Download_Completed"), .success)
         setProgress(kind, 0.6)
 
         appendLine(kind, prepareLog)
-        let staged = try downloader.stageAsset(assetURL, as: zipName)
+        setStep(kind, .verifying)
         setProgress(kind, 0.65)
 
         appendLine(kind, String(localized: "SDE_Log_Calculating_SHA", defaultValue: "正在计算 SHA256…"))
@@ -323,6 +329,7 @@ final class SDEUpdateManager: ObservableObject {
         setProgress(kind, 0.75)
 
         appendLine(kind, extractLog)
+        setStep(kind, .installing)
         try await extract { [weak self] p in
             Task { @MainActor in
                 self?.setProgress(kind, 0.75 + p * 0.25)
@@ -330,11 +337,55 @@ final class SDEUpdateManager: ObservableObject {
         }
         appendLine(kind, successLog, .success)
         setProgress(kind, 1)
-        setPhase(kind, .done)
+        setStep(kind, .done)
+    }
+
+    /// 下载数据包并就位到下载目录（GitHub 直链优先，其次 CloudKit Asset）
+    private func downloadZip(kind: SDEPackageKind, field: String, zipName: String) async throws -> URL {
+        #if DEBUG
+            if let info = updateChecker.currentUpdateInfo,
+               let githubURL = kind == .icons ? info.githubIconsURL : info.githubSDEURL
+            {
+                let tmp = downloader.downloadDirectory.appendingPathComponent("tmp_\(zipName)")
+                try await SDEGitHubManager.shared.download(from: githubURL, to: tmp) { [weak self] p in
+                    Task { @MainActor in
+                        self?.setProgress(kind, p * 0.6)
+                    }
+                }
+                return try downloader.stageAsset(tmp, as: zipName)
+            }
+        #endif
+
+        guard let recordID = updateChecker.currentUpdateInfo?.recordID else {
+            throw NSError(domain: "SDEUpdateManager", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "RecordID not found"])
+        }
+
+        let assetURL = try await SDECloudKitManager.shared.fetchAsset(recordID: recordID, field: field) {
+            [weak self] p in
+            Task { @MainActor in
+                self?.setProgress(kind, p * 0.6)
+            }
+        }
+        return try downloader.stageAsset(assetURL, as: zipName)
+    }
+
+    /// 本次更新的安装来源（与 downloadZip 的数据源判断一致）
+    private var installSource: String {
+        #if DEBUG
+            if let info = updateChecker.currentUpdateInfo,
+               info.githubIconsURL != nil || info.githubSDEURL != nil
+            {
+                return CloudKitMetadata.sourceGitHub
+            }
+        #endif
+        return CloudKitMetadata.sourceCloudKit
     }
 
     private func saveMetadataJSON(to kind: SDEPackageKind) {
-        guard let meta = updateChecker.currentMetadata else { return }
+        guard var meta = updateChecker.currentMetadata else { return }
+        // 记录本次安装来源，供关于页展示
+        meta.source = installSource
         do {
             try MetadataManager.shared.saveLocalMetadata(meta)
             appendLine(kind, NSLocalizedString("SDE_Log_Metadata_Saved", comment: ""), .success)
@@ -353,7 +404,7 @@ final class SDEUpdateManager: ObservableObject {
     private func skipPackage(_ kind: SDEPackageKind, message: String) {
         appendLine(kind, message, .success)
         setProgress(kind, 1)
-        setPhase(kind, .skipped)
+        setStep(kind, .skipped)
     }
 
     private func markFailed(_ kind: SDEPackageKind, _ error: Error) {
@@ -365,7 +416,8 @@ final class SDEUpdateManager: ObservableObject {
             ),
             .error
         )
-        setPhase(kind, .failed)
+        setError(kind, error.localizedDescription)
+        setStep(kind, .failed)
     }
 
     private func appendLine(_ kind: SDEPackageKind, _ message: String, _ type: LogMessageType = .info) {
@@ -384,10 +436,17 @@ final class SDEUpdateManager: ObservableObject {
         }
     }
 
-    private func setPhase(_ kind: SDEPackageKind, _ phase: PackageUpdatePhase) {
+    private func setStep(_ kind: SDEPackageKind, _ step: PackageStep) {
         switch kind {
-        case .icons: iconsState.phase = phase
-        case .sde: sdeState.phase = phase
+        case .icons: iconsState.step = step
+        case .sde: sdeState.step = step
+        }
+    }
+
+    private func setError(_ kind: SDEPackageKind, _ message: String) {
+        switch kind {
+        case .icons: iconsState.errorMessage = message
+        case .sde: sdeState.errorMessage = message
         }
     }
 

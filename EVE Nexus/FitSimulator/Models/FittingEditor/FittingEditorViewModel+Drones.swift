@@ -239,29 +239,12 @@ extension FittingEditorViewModel {
         var bandwidth: Double = 0
         let groupID = getDroneGroupID(typeId: typeId)
 
-        // 查询无人机属性
-        let attrQuery = """
-            SELECT ta.attribute_id, ta.value, da.name 
-            FROM typeAttributes ta 
-            JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id 
-            WHERE ta.type_id = ?
-        """
+        // 查询无人机属性（内存索引）
+        (attributes, attributesByName) = SDEMemoryStore.typeAttributesFull(for: typeId)
 
-        if case let .success(rows) = databaseManager.executeQuery(attrQuery, parameters: [typeId]) {
-            for row in rows {
-                if let attrId = row["attribute_id"] as? Int,
-                   let value = row["value"] as? Double,
-                   let name = row["name"] as? String
-                {
-                    attributes[attrId] = value
-                    attributesByName[name] = value
-
-                    // 如果是带宽属性，记录下来
-                    if name == "droneBandwidthUsed" {
-                        bandwidth = value
-                    }
-                }
-            }
+        // 如果是带宽属性，记录下来
+        if let value = attributesByName["droneBandwidthUsed"] {
+            bandwidth = value
         }
 
         // 查询无人机效果

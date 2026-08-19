@@ -628,10 +628,18 @@ class CorporationContractsAPI {
         // 3. 如果数据为空或强制刷新，则从网络获取
         if isEmpty || forceRefresh {
             Logger.debug("军团合同数据为空或强制刷新，从网络获取数据")
-            let contracts = try await fetchContractsFromServer(
-                corporationId: corporationId, characterId: characterId,
-                progressCallback: progressCallback
-            )
+            // 403 负缓存统一由 CorpForbiddenCache 管理
+            let contracts = try await CorpForbiddenCache.shared.perform(
+                scope: "corpContracts",
+                corporationId: corporationId,
+                characterId: characterId,
+                forceRefresh: forceRefresh
+            ) {
+                try await fetchContractsFromServer(
+                    corporationId: corporationId, characterId: characterId,
+                    progressCallback: progressCallback
+                )
+            }
             if !saveContractsToDB(corporationId: corporationId, contracts: contracts) {
                 Logger.error("保存军团合同到数据库失败")
             }
@@ -831,10 +839,18 @@ class CorporationContractsAPI {
         // 3. 如果数据为空或强制刷新，则从网络获取
         if isEmpty || forceRefresh {
             Logger.debug("军团发起合同数据为空或强制刷新，从网络获取数据")
-            let contracts = try await fetchContractsFromServer(
-                corporationId: corporationId, characterId: characterId,
-                progressCallback: progressCallback
-            )
+            // 403 负缓存统一由 CorpForbiddenCache 管理
+            let contracts = try await CorpForbiddenCache.shared.perform(
+                scope: "corpContracts",
+                corporationId: corporationId,
+                characterId: characterId,
+                forceRefresh: forceRefresh
+            ) {
+                try await fetchContractsFromServer(
+                    corporationId: corporationId, characterId: characterId,
+                    progressCallback: progressCallback
+                )
+            }
             // 使用issuer过滤模式保存到数据库
             if !saveContractsToDB(corporationId: corporationId, contracts: contracts, filterMode: .issuer) {
                 Logger.error("保存军团合同到数据库失败")
@@ -879,11 +895,17 @@ class CorporationContractsAPI {
             }
         }
 
-        // 从服务器获取数据
+        // 从服务器获取数据（403 负缓存统一由 CorpForbiddenCache 管理）
         Logger.debug("从服务器获取军团合同物品")
-        let items = try await fetchContractItemsFromServer(
-            corporationId: corporationId, contractId: contractId, characterId: characterId
-        )
+        let items = try await CorpForbiddenCache.shared.perform(
+            scope: "corpContracts",
+            corporationId: corporationId,
+            characterId: characterId
+        ) {
+            try await fetchContractItemsFromServer(
+                corporationId: corporationId, contractId: contractId, characterId: characterId
+            )
+        }
         Logger.debug("从服务器获取到\(items.count)个军团合同物品")
 
         // 保存到数据库

@@ -525,25 +525,12 @@ struct BRKillMailSearchView: View {
         let shipIds = entities.map(\.shipTypeId)
         guard !shipIds.isEmpty else { return }
 
-        let placeholders = String(repeating: "?,", count: shipIds.count).dropLast()
-        let query = """
-            SELECT type_id, name, icon_filename 
-            FROM types 
-            WHERE type_id IN (\(placeholders))
-        """
-
-        let result = DatabaseManager.shared.executeQuery(query, parameters: shipIds)
-        if case let .success(rows) = result {
-            for row in rows {
-                if let typeId = row["type_id"] as? Int,
-                   let name = row["name"] as? String,
-                   let iconFileName = row["icon_filename"] as? String
-                {
-                    filterDataCache[trigger]?.shipInfoMap[typeId] = (
-                        name: name, iconFileName: iconFileName
-                    )
-                }
-            }
+        // 内存索引批量取船名和图标
+        for typeId in Set(shipIds) {
+            guard let info = SDEMemoryStore.type(for: typeId) else { continue }
+            filterDataCache[trigger]?.shipInfoMap[typeId] = (
+                name: info.name, iconFileName: info.iconFilename
+            )
         }
     }
 
@@ -616,25 +603,11 @@ struct KillMailDirectSearchResultRow: View {
     }
 
     private func loadShipInfoFromDatabase() async {
-        let query = """
-            SELECT name, icon_filename
-            FROM types
-            WHERE type_id = ?
-        """
         let tid = entity.shipTypeId
-        guard case let .success(rows) = DatabaseManager.shared.executeQuery(
-            query, parameters: [tid]
-        ),
-            let row = rows.first,
-            let name = row["name"] as? String
-        else {
-            return
-        }
-        let rawIcon = row["icon_filename"] as? String ?? ""
-        let icon = rawIcon.isEmpty ? IconManager.defaultItemIcon : rawIcon
+        guard let info = SDEMemoryStore.type(for: tid) else { return }
         await MainActor.run {
-            shipName = name
-            shipIconFileName = icon
+            shipName = info.name
+            shipIconFileName = info.iconFilename
         }
     }
 }

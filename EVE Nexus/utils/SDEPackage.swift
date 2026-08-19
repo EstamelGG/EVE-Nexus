@@ -5,7 +5,7 @@ import Zip
 
 // MARK: - Models
 
-/// CloudKit / Bundle metadata；缺字段用默认值
+/// CloudKit / Bundle / GitHub metadata；缺字段用默认值
 struct CloudKitMetadata: Codable {
     let iconVersion: Int
     let iconSha256: String
@@ -13,6 +13,13 @@ struct CloudKitMetadata: Codable {
     let patchNumber: Int
     let releaseDate: String
     let sdeSha256: String
+    /// 安装来源标记（远端 metadata 不含此字段，安装时本地写入）
+    var source: String?
+
+    /// SDE 安装来源常量
+    static let sourceCloudKit = "cloudkit"
+    static let sourceGitHub = "github"
+    static let sourceBundle = "bundle"
 
     enum CodingKeys: String, CodingKey {
         case iconVersion = "icon_version"
@@ -21,6 +28,7 @@ struct CloudKitMetadata: Codable {
         case patchNumber = "patch_number"
         case releaseDate = "release_date"
         case sdeSha256 = "sde_sha256"
+        case source
     }
 
     init(from decoder: Decoder) throws {
@@ -31,6 +39,7 @@ struct CloudKitMetadata: Codable {
         patchNumber = try c.decodeIfPresent(Int.self, forKey: .patchNumber) ?? 0
         releaseDate = try c.decodeIfPresent(String.self, forKey: .releaseDate) ?? ""
         sdeSha256 = try c.decodeIfPresent(String.self, forKey: .sdeSha256) ?? ""
+        source = try c.decodeIfPresent(String.self, forKey: .source)
     }
 
     var isValid: Bool {
@@ -86,6 +95,11 @@ struct SDECheckLog {
 struct SDEUpdateInfo {
     let metadata: CloudKitMetadata
     var recordID: CKRecord.ID?
+    #if DEBUG
+        /// GitHub Release 模式下的安装包直链（仅 Debug 构建）
+        var githubIconsURL: URL? = nil
+        var githubSDEURL: URL? = nil
+    #endif
 
     var versionLabel: String {
         metadata.versionLabel
@@ -408,7 +422,8 @@ final class SDEDownloader {
         Logger.info("开始从 Bundle 播种完整 SDE 包（sde.zip + icons.zip + metadata）")
         try await extractBundledSDE { progress($0 * 0.65) }
         try await extractBundledIcons { progress(0.65 + $0 * 0.3) }
-        if let meta = MetadataManager.shared.readMetadataFromBundle() {
+        if var meta = MetadataManager.shared.readMetadataFromBundle() {
+            meta.source = CloudKitMetadata.sourceBundle
             try MetadataManager.shared.saveLocalMetadata(meta)
         }
         LocalSDELayout.purgeLegacyInstallArtifacts()
@@ -651,3 +666,142 @@ final class SDECloudKitManager {
         }
     }
 }
+
+// MARK: - GitHub（仅 Debug 构建可用；正式版永远走 CloudKit）
+
+#if DEBUG
+    /// GitHub Release SDE 查询与下载；故障时软失败，不影响 App
+    /// 非 MainActor：下载写盘在后台线程执行，避免阻塞 UI（progress 由调用方切主线程）
+    final class SDEGitHubManager {
+        static let shared = SDEGitHubManager()
+
+        static let latestReleaseAPI = URL(
+            string: "https://api.github.com/repos/EstamelGG/EveSDE_3.0/releases/latest"
+        )!
+
+        private let requestTimeout: TimeInterval = 20
+        private init() {}
+
+        private func makeRequest(_ url: URL, timeout: TimeInterval) -> URLRequest {
+            var request = URLRequest(url: url)
+            request.timeoutInterval = timeout
+            request.setValue("application/vnd.github+json", forHTTPHeaderField: "Accept")
+            // GitHub API 强制要求 User-Agent
+            request.setValue("EVE-Nexus-Debug", forHTTPHeaderField: "User-Agent")
+            return request
+        }
+
+        /// 软失败返回 nil。拉取最新 Release，下载 assets 中的 metadata.json 并解析
+        func fetchLatestSDEUpdate() async -> SDEUpdateInfo? {
+            do {
+                Logger.info("GitHub 查询 SDE: latest release")
+                let (data, _) = try await URLSession.shared.data(for: makeRequest(Self.latestReleaseAPI, timeout: requestTimeout))
+                let release = try JSONDecoder().decode(GitHubRelease.self, from: data)
+                guard let metaAsset = release.asset(named: "metadata.json") else {
+                    Logger.warning("GitHub Release 缺少 metadata.json asset")
+                    return nil
+                }
+
+                // metadata.json 体积很小（<1KB），直接整体下载
+                let (metaData, _) = try await URLSession.shared.data(
+                    for: makeRequest(metaAsset.browserDownloadURL, timeout: requestTimeout)
+                )
+                let meta = try JSONDecoder().decode(CloudKitMetadata.self, from: metaData)
+                guard meta.isValid else {
+                    Logger.warning("GitHub metadata.json 无效")
+                    return nil
+                }
+
+                Logger.info("命中 SDE(GitHub): \(meta.versionLabel), icon=\(meta.iconVersion), tag=\(release.tagName)")
+                return SDEUpdateInfo(
+                    metadata: meta,
+                    recordID: nil,
+                    githubIconsURL: release.asset(named: "icons.zip")?.browserDownloadURL,
+                    githubSDEURL: release.asset(named: "sde.zip")?.browserDownloadURL
+                )
+            } catch {
+                Logger.warning("GitHub 查询 SDE 失败: \(error.localizedDescription)")
+                return nil
+            }
+        }
+
+        /// 流式下载安装包到指定路径，支持进度回调（0-1）
+        func download(
+            from url: URL,
+            to destination: URL,
+            progress: @escaping (Double) -> Void
+        ) async throws {
+            let (bytes, response) = try await URLSession.shared.bytes(
+                for: makeRequest(url, timeout: 60)
+            )
+            guard let http = response as? HTTPURLResponse, (200 ..< 300).contains(http.statusCode) else {
+                throw SDEGitHubError.badResponse((response as? HTTPURLResponse)?.statusCode ?? -1)
+            }
+
+            let fm = FileManager.default
+            try fm.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+            if fm.fileExists(atPath: destination.path) { try fm.removeItem(at: destination) }
+            // FileHandle(forWritingTo:) 不会创建文件，必须先建空文件
+            guard fm.createFile(atPath: destination.path, contents: nil) else {
+                throw SDEGitHubError.createFileFailed(destination.lastPathComponent)
+            }
+
+            let expected = http.expectedContentLength
+            var received: Int64 = 0
+            var buffer = [UInt8]()
+            buffer.reserveCapacity(1 << 20)
+
+            let handle = try FileHandle(forWritingTo: destination)
+            defer { try? handle.close() }
+
+            for try await byte in bytes {
+                buffer.append(byte)
+                received += 1
+                if buffer.count >= 1 << 20 { // 每累积 1MB 落盘一次
+                    try handle.write(contentsOf: buffer)
+                    buffer.removeAll(keepingCapacity: true)
+                    if expected > 0 { progress(Double(received) / Double(expected)) }
+                }
+            }
+            if !buffer.isEmpty { try handle.write(contentsOf: buffer) }
+            progress(1)
+        }
+    }
+
+    /// GitHub Release API 响应中我们关心的字段
+    struct GitHubRelease: Decodable {
+        let tagName: String
+        let assets: [Asset]
+
+        enum CodingKeys: String, CodingKey {
+            case tagName = "tag_name"
+            case assets
+        }
+
+        struct Asset: Decodable {
+            let name: String
+            let browserDownloadURL: URL
+
+            enum CodingKeys: String, CodingKey {
+                case name
+                case browserDownloadURL = "browser_download_url"
+            }
+        }
+
+        func asset(named name: String) -> Asset? {
+            assets.first { $0.name == name }
+        }
+    }
+
+    enum SDEGitHubError: LocalizedError {
+        case badResponse(Int)
+        case createFileFailed(String)
+
+        var errorDescription: String? {
+            switch self {
+            case let .badResponse(code): return "GitHub 下载失败，HTTP \(code)"
+            case let .createFileFailed(name): return "创建下载文件失败: \(name)"
+            }
+        }
+    }
+#endif

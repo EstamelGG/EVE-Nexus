@@ -13,8 +13,8 @@ struct MarketBaseView<Content: View>: View {
     @ObservedObject var databaseManager: DatabaseManager
     let title: String
     let content: () -> Content
-    let searchQuery: (String) -> String
-    let searchParameters: (String) -> [Any]
+    /// 内存搜索过滤：接收搜索词，返回针对 (typeID, TypeInfo) 的谓词；范围集合在谓词外一次性计算
+    let searchFilter: (String) -> ((Int, SDEMemoryStore.TypeInfo) -> Bool)
     /// 提供市场目录树时，搜索结果按剪枝目录树展示（仅保留含命中物品的分支）；否则扁平分组
     var searchTree: MarketTree? = nil
     /// 目录树展示的根节点（nil = 从 roots 开始）
@@ -187,9 +187,10 @@ struct MarketBaseView<Content: View>: View {
 
     private func performSearch(with text: String) {
         isLoading = true
-        // 无数量上限：结果按剪枝目录树承载索引；精确匹配由 SQL 排序优先返回
-        items = databaseManager.loadMarketItems(
-            whereClause: searchQuery(text), parameters: searchParameters(text),
+        // 内存过滤替代 SQL：结果排序（精确匹配优先 + metaGroup）由 searchItemsMemory 复刻
+        let predicate = searchFilter(text)
+        items = databaseManager.searchItemsMemory(
+            filter: predicate,
             eligibleMarketGroupIDs: eligibleMarketGroupIDs,
             exactMatchText: text
         )
@@ -469,11 +470,12 @@ struct MarketBrowserView: View {
                     }
                     .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                 },
-                searchQuery: { _ in
-                    "t.marketGroupID IS NOT NULL AND (\(LocalizedText.typeLangNameLikeSQL) OR t.type_id = ?)"
-                },
-                searchParameters: { text in
-                    LocalizedText.typeLangNameLikeParams(text) + ["\(text)"]
+                searchFilter: { text in
+                    let numericID = Int(text)
+                    return { typeID, info in
+                        guard info.marketGroupID != nil else { return false }
+                        return info.names.matchesSearch(text) || numericID == typeID
+                    }
                 },
                 searchTree: marketTree,
                 eligibleMarketGroupIDs: AttributeCompareMarketPolicy.eligibleMarketGroupIDs
@@ -531,15 +533,13 @@ struct MarketGroupView: View {
                     )
                 }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             },
-            searchQuery: { _ in
+            searchFilter: { text in
                 // 通过索引树一次性枚举当前节点所有子孙组 ID，限定搜索范围到子树
                 let groupIDs = tree.allSubGroupIDs(from: group.id)
-                let groupIDsString = groupIDs.sorted().map { String($0) }.joined(separator: ",")
-                return
-                    "t.marketGroupID IN (\(groupIDsString)) AND \(LocalizedText.typeLangNameLikeSQL)"
-            },
-            searchParameters: { text in
-                LocalizedText.typeLangNameLikeParams(text)
+                return { _, info in
+                    guard let marketGroupID = info.marketGroupID else { return false }
+                    return groupIDs.contains(marketGroupID) && info.names.matchesSearch(text)
+                }
             },
             searchTree: tree,
             searchTreeRootID: group.id,
@@ -631,8 +631,11 @@ struct MarketItemListView: View {
                     }
                 }.listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
             },
-            searchQuery: { _ in "t.marketGroupID = ? AND \(LocalizedText.typeLangNameLikeSQL)" },
-            searchParameters: { text in [marketGroupID] + LocalizedText.typeLangNameLikeParams(text) },
+            searchFilter: { text in
+                { _, info in
+                    info.marketGroupID == marketGroupID && info.names.matchesSearch(text)
+                }
+            },
             eligibleMarketGroupIDs: AttributeCompareMarketPolicy.eligibleMarketGroupIDs
         )
         .sheet(item: $leafQuickCompareID) { id in
@@ -649,9 +652,8 @@ struct MarketItemListView: View {
     }
 
     private func loadItems() {
-        items = databaseManager.loadMarketItems(
-            whereClause: "t.marketGroupID = ?",
-            parameters: [marketGroupID],
+        items = databaseManager.searchItemsMemory(
+            filter: { _, info in info.marketGroupID == marketGroupID },
             eligibleMarketGroupIDs: AttributeCompareMarketPolicy.eligibleMarketGroupIDs
         )
 

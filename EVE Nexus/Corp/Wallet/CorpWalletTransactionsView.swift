@@ -71,7 +71,7 @@ struct CorpWalletTransactionGroup: Identifiable {
 @MainActor
 final class CorpWalletTransactionsViewModel: ObservableObject {
     @Published private(set) var transactionGroups: [CorpWalletTransactionGroup] = []
-    @Published var isLoading = true
+    @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var searchText = "" // 添加搜索文本状态
     @Published var showSettings = false // 添加设置显示状态
@@ -81,14 +81,11 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
         }
     }
 
-    private var initialLoadDone = false
-
     let characterId: Int
     private let division: Int
     let databaseManager: DatabaseManager
     var itemInfoCache: [Int: TransactionItemInfo] = [:]
     private var locationInfoCache: [Int64: LocationInfoDetail] = [:]
-    private var loadingTask: Task<Void, Never>?
 
     private let dateFormatter: DateFormatter = {
         let formatter = DateFormatter()
@@ -110,10 +107,6 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
         self.databaseManager = databaseManager
         mergeSimilarTransactions = UserDefaultsManager.shared.mergeSimilarTransactions
         // 不在这里自动加载，由视图的 .task 或显式调用 loadTransactionData() 来控制加载时机
-    }
-
-    deinit {
-        loadingTask?.cancel()
     }
 
     /// 批量加载所有物品信息
@@ -181,120 +174,88 @@ final class CorpWalletTransactionsViewModel: ObservableObject {
     }
 
     func loadTransactionData(forceRefresh: Bool = false) async {
-        // 如果已经加载过且不是强制刷新，则跳过
-        if initialLoadDone, !forceRefresh {
-            return
-        }
+        // 防重入：加载中直接忽略后来者（含刷新请求）
+        guard !isLoading else { return }
+        // 幂等：已有数据且非强制刷新时跳过
+        guard forceRefresh || transactionGroups.isEmpty else { return }
 
-        // 取消之前的加载任务
-        loadingTask?.cancel()
+        isLoading = true
+        errorMessage = nil
+        defer { isLoading = false }
 
-        // 创建新的加载任务
-        loadingTask = Task {
-            isLoading = true
-            errorMessage = nil
+        do {
+            let jsonString = try await CorpWalletAPI.shared.getCorpWalletTransactions(
+                characterId: characterId, division: division, forceRefresh: forceRefresh
+            )
 
+            guard let jsonString = jsonString else {
+                Logger.error("加载军团交易记录失败: API 返回 nil (characterId: \(characterId), division: \(division))")
+                throw NetworkError.invalidResponse
+            }
+
+            guard let jsonData = jsonString.data(using: .utf8) else {
+                Logger.error("加载军团交易记录失败: 无法将 JSON 字符串转换为 Data (长度: \(jsonString.count))")
+                throw NetworkError.invalidResponse
+            }
+
+            let entries: [CorpWalletTransactionEntry]
             do {
-                let jsonString = try await CorpWalletAPI.shared.getCorpWalletTransactions(
-                    characterId: characterId, division: division, forceRefresh: forceRefresh
+                entries = try JSONDecoder().decode([CorpWalletTransactionEntry].self, from: jsonData)
+            } catch let decodeError {
+                let preview = String(jsonString.prefix(5000))
+                Logger.error("加载军团交易记录失败: JSON 解码失败 - \(decodeError.localizedDescription)")
+                Logger.error("JSON 预览 (前5000字符): \(preview)")
+                throw decodeError
+            }
+
+            // 收集所有位置ID
+            let locationIds = Set(entries.map { $0.location_id })
+
+            // 收集所有物品ID并一次性加载所有物品信息
+            let typeIds = Array(Set(entries.map { $0.type_id }))
+            loadAllItemInfo(for: typeIds)
+
+            // 使用 LocationInfoLoader 加载位置信息
+            let locationLoader = LocationInfoLoader(
+                databaseManager: databaseManager, characterId: Int64(characterId)
+            )
+            locationInfoCache = await locationLoader.loadLocationInfo(locationIds: locationIds)
+
+            var groupedEntries: [Date: [CorpWalletTransactionEntry]] = [:]
+            for entry in entries {
+                guard let date = dateFormatter.date(from: entry.date) else {
+                    Logger.error("Failed to parse date: \(entry.date)")
+                    continue
+                }
+
+                let components = calendar.dateComponents([.year, .month, .day], from: date)
+                guard let dayDate = calendar.date(from: components) else {
+                    Logger.error("Failed to create date from components for: \(entry.date)")
+                    continue
+                }
+
+                groupedEntries[dayDate, default: []].append(entry)
+            }
+
+            let groups = groupedEntries.map { date, entries -> CorpWalletTransactionGroup in
+                let sortedEntries = entries.sorted { $0.transaction_id > $1.transaction_id }
+                let mergedEntries = mergeSimilarTransactions(sortedEntries)
+                return CorpWalletTransactionGroup(
+                    date: date,
+                    entries: sortedEntries,
+                    mergedEntries: mergedEntries
                 )
+            }.sorted { $0.date > $1.date }
 
-                guard let jsonString = jsonString else {
-                    Logger.error("加载军团交易记录失败: API 返回 nil (characterId: \(characterId), division: \(division))")
-                    throw NetworkError.invalidResponse
-                }
-
-                if Task.isCancelled { return }
-
-                guard let jsonData = jsonString.data(using: .utf8) else {
-                    Logger.error("加载军团交易记录失败: 无法将 JSON 字符串转换为 Data (长度: \(jsonString.count))")
-                    throw NetworkError.invalidResponse
-                }
-
-                let entries: [CorpWalletTransactionEntry]
-                do {
-                    entries = try JSONDecoder().decode([CorpWalletTransactionEntry].self, from: jsonData)
-                } catch let decodeError {
-                    let preview = String(jsonString.prefix(5000))
-                    Logger.error("加载军团交易记录失败: JSON 解码失败 - \(decodeError.localizedDescription)")
-                    Logger.error("JSON 预览 (前5000字符): \(preview)")
-                    throw decodeError
-                }
-
-                if Task.isCancelled { return }
-
-                // 收集所有位置ID
-                let locationIds = Set(entries.map { $0.location_id })
-
-                // 收集所有物品ID并一次性加载所有物品信息
-                let typeIds = Array(Set(entries.map { $0.type_id }))
-                loadAllItemInfo(for: typeIds)
-
-                // 使用 LocationInfoLoader 加载位置信息
-                let locationLoader = LocationInfoLoader(
-                    databaseManager: databaseManager, characterId: Int64(characterId)
-                )
-                locationInfoCache = await locationLoader.loadLocationInfo(locationIds: locationIds)
-
-                if Task.isCancelled { return }
-
-                var groupedEntries: [Date: [CorpWalletTransactionEntry]] = [:]
-                for entry in entries {
-                    guard let date = dateFormatter.date(from: entry.date) else {
-                        Logger.error("Failed to parse date: \(entry.date)")
-                        continue
-                    }
-
-                    let components = calendar.dateComponents([.year, .month, .day], from: date)
-                    guard let dayDate = calendar.date(from: components) else {
-                        Logger.error("Failed to create date from components for: \(entry.date)")
-                        continue
-                    }
-
-                    groupedEntries[dayDate, default: []].append(entry)
-                }
-
-                if Task.isCancelled { return }
-
-                let groups = groupedEntries.map { date, entries -> CorpWalletTransactionGroup in
-                    let sortedEntries = entries.sorted { $0.transaction_id > $1.transaction_id }
-                    let mergedEntries = mergeSimilarTransactions(sortedEntries)
-                    return CorpWalletTransactionGroup(
-                        date: date,
-                        entries: sortedEntries,
-                        mergedEntries: mergedEntries
-                    )
-                }.sorted { $0.date > $1.date }
-
-                await MainActor.run {
-                    self.transactionGroups = groups
-                    self.isLoading = false
-                    self.initialLoadDone = true
-                }
-
-            } catch {
-                // 忽略取消错误，这是预期的行为
-                if error is CancellationError {
-                    return
-                }
-
+            transactionGroups = groups
+        } catch {
+            if error is CancellationError {
+                // 取消不作为错误展示
+            } else {
                 Logger.error("加载军团交易记录失败: \(error.localizedDescription)")
-                Logger.error("错误类型: \(type(of: error))")
-                if let networkError = error as? NetworkError {
-                    Logger.error("网络错误详情: \(networkError)")
-                }
-
-                if !Task.isCancelled {
-                    await MainActor.run {
-                        self.errorMessage = error.localizedDescription
-                        self.isLoading = false
-                    }
-                }
+                errorMessage = error.localizedDescription
             }
         }
-
-        // 等待任务完成
-        await loadingTask?.value
     }
 
     /// 修改过滤后的交易记录计算属性,返回按日期分组的过滤结果
@@ -423,7 +384,6 @@ struct CorpWalletTransactionsView: View {
             baseList
                 .searchable(
                     text: $viewModel.searchText,
-                    placement: .navigationBarDrawer(displayMode: .always),
                     prompt: Text(NSLocalizedString("Main_Database_Search", comment: ""))
                 )
         } else {
@@ -436,6 +396,15 @@ struct CorpWalletTransactionsView: View {
             if viewModel.isLoading {
                 ForEach(0 ..< 8, id: \.self) { _ in
                     ListSkeletonRow.walletJournal
+                }
+            } else if let errorMessage = viewModel.errorMessage,
+                      viewModel.transactionGroups.isEmpty
+            {
+                // 与军团钱包页一致的错误展示（含重试按钮）
+                ErrorStateSection(message: errorMessage) {
+                    Task {
+                        await viewModel.loadTransactionData(forceRefresh: true)
+                    }
                 }
             } else if viewModel.transactionGroups.isEmpty {
                 Section {

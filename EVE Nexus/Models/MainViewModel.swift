@@ -561,11 +561,7 @@ class MainViewModel: ObservableObject {
         if let factionId = publicInfo.faction_id,
            let stored = SDEMemoryStore.faction(for: factionId)
         {
-            factionInfo = FactionInfo(
-                id: factionId,
-                name: stored.name,
-                iconName: stored.iconName
-            )
+            factionInfo = stored
             factionLogo = IconManager.shared.loadUIImage(for: stored.iconName)
         } else {
             if let factionId = publicInfo.faction_id {

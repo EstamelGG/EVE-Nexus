@@ -10,13 +10,10 @@ struct CharacterIndustryView: View {
 
     init(characterId: Int, databaseManager: DatabaseManager = DatabaseManager()) {
         self.characterId = characterId
-        // 创建ViewModel
-        let vm = CharacterIndustryViewModel(
+        // 构造表达式必须内联在 autoclosure 中：StateObject 只在视图身份首次建立时求值一次，
+        _viewModel = StateObject(wrappedValue: CharacterIndustryViewModel(
             characterId: characterId, databaseManager: databaseManager
-        )
-        _viewModel = StateObject(wrappedValue: vm)
-
-        // ViewModel已在其init方法中启动数据加载，此处无需重复加载
+        ))
     }
 
     /// 格式化状态组标题
@@ -238,11 +235,10 @@ struct CharacterIndustryView: View {
                 // 工业任务列表部分
                 if viewModel.filteredGroupedJobs.isEmpty && !viewModel.isFiltering {
                     Section {
-                        // 计算总项目数和过滤后的项目数
+                        // 计算总项目数
                         let totalJobsCount = viewModel.groupedJobs.values.reduce(0) {
                             $0 + $1.count
                         }
-                        let _ = viewModel.filteredGroupedJobs.values.reduce(0) { $0 + $1.count }
 
                         HStack {
                             Spacer()

@@ -532,42 +532,13 @@ class Step3 {
             return result
         }
 
-        // 构建IN查询的占位符
-        let placeholders = Array(repeating: "?", count: skillIds.count).joined(separator: ",")
-
-        // 查询技能的基本信息和属性
-        let query = """
-            SELECT 
-                t.type_id, 
-                t.groupID, 
-                ta.attribute_id, 
-                ta.value, 
-                da.name as attribute_name
-            FROM types t
-            LEFT JOIN typeAttributes ta ON t.type_id = ta.type_id
-            LEFT JOIN dogmaAttributes da ON ta.attribute_id = da.attribute_id
-            WHERE t.type_id IN (\(placeholders))
-        """
-
-        if case let .success(rows) = databaseManager.executeQuery(query, parameters: skillIds) {
-            for row in rows {
-                guard let typeId = row["type_id"] as? Int else { continue }
-
-                // 初始化技能条目（如果不存在）
-                if result[typeId] == nil {
-                    let groupId = row["groupID"] as? Int ?? 0
-                    result[typeId] = (attributes: [:], attributesByName: [:], groupId: groupId)
-                }
-
-                // 添加属性（如果有）
-                if let attributeId = row["attribute_id"] as? Int,
-                   let value = row["value"] as? Double,
-                   let attributeName = row["attribute_name"] as? String
-                {
-                    result[typeId]!.attributes[attributeId] = value
-                    result[typeId]!.attributesByName[attributeName] = value
-                }
-            }
+        // 批量取技能的基本信息和属性（内存索引）
+        for typeId in skillIds {
+            let (attributes, attributesByName) = SDEMemoryStore.typeAttributesFull(for: typeId)
+            let groupId = SDEMemoryStore.type(for: typeId)?.groupID ?? 0
+            result[typeId] = (
+                attributes: attributes, attributesByName: attributesByName, groupId: groupId
+            )
         }
 
         return result

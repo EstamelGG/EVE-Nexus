@@ -350,15 +350,11 @@ struct CargoItemSettingsView: View {
     private func loadItemDetails() {
         isLoading = true
 
-        // 使用loadMarketItems方法获取物品数据
-        let items = viewModel.databaseManager.loadMarketItems(
-            whereClause: "t.type_id = ?",
-            parameters: [cargoItem.typeId]
+        // 内存索引单点构建
+        itemDetails = DatabaseListItem(
+            typeID: cargoItem.typeId,
+            databaseManager: viewModel.databaseManager
         )
-
-        if let item = items.first {
-            itemDetails = item
-        }
 
         isLoading = false
     }

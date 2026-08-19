@@ -23,42 +23,13 @@ struct CorpMoonMiningView: View {
                       !viewModel.isLoading && viewModel.moonExtractions.isEmpty
             {
                 // 显示错误信息
-                Section {
-                    HStack {
-                        Spacer()
-                        VStack(spacing: 12) {
-                            Image(systemName: "exclamationmark.triangle")
-                                .font(.system(size: 40))
-                                .foregroundColor(.orange)
-                            Text(NSLocalizedString("Common_Error", comment: ""))
-                                .font(.headline)
-                                .foregroundColor(.primary)
-                            Text(error.localizedDescription)
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                            Button(action: {
-                                Task {
-                                    do {
-                                        try await viewModel.fetchMoonExtractions(forceRefresh: true)
-                                    } catch {
-                                        if !(error is CancellationError) {
-                                            Logger.error("重试加载月矿提取信息失败: \(error)")
-                                        }
-                                    }
-                                }
-                            }) {
-                                Text(NSLocalizedString("ESI_Status_Retry", comment: ""))
-                                    .padding(.horizontal, 20)
-                                    .padding(.vertical, 8)
-                                    .background(Color.accentColor)
-                                    .foregroundColor(.white)
-                                    .cornerRadius(8)
-                            }
-                            .padding(.top, 8)
+                ErrorStateSection(message: error.localizedDescription) {
+                    Task {
+                        do {
+                            try await viewModel.fetchMoonExtractions(forceRefresh: true)
+                        } catch {
+                            Logger.error("重试加载月矿提取信息失败: \(error)")
                         }
-                        .padding()
-                        Spacer()
                     }
                 }
             } else if viewModel.moonExtractions.isEmpty {
@@ -93,6 +64,7 @@ struct CorpMoonMiningView: View {
                                     "Main_Corporation_Moon_Mining_Unknown_Moon", comment: ""
                                 )
                         )
+                        .listRowInsets(EdgeInsets(top: 4, leading: 18, bottom: 4, trailing: 18))
                     }
                 }
             }
@@ -325,10 +297,9 @@ class CorpMoonMiningViewModel: ObservableObject {
             do {
                 try await fetchMoonExtractions()
             } catch {
-                if !(error is CancellationError) {
-                    Logger.error("初始化加载月矿提取信息失败: \(error)")
-                    self.error = error
-                }
+                // 记录错误，由视图展示错误页（带重试）
+                Logger.error("初始化加载月矿提取信息失败: \(error)")
+                self.error = error
             }
         }
     }

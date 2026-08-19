@@ -5,7 +5,7 @@ import Foundation
 /// 用于属性模拟的完整输入数据，包含飞船、装备、无人机、货舱、植入体、环境效果和技能等
 struct SimulationInput {
     // 元数据
-    var fittingId: Int // 本地配置ID
+    var fittingId: FittingRef // 装配引用（本地 UUID / 线上 ESI Int）
     var name: String // 配置名称
     var description: String // 配置描述
 
@@ -40,7 +40,7 @@ struct SimulationInput {
 
     init(
         // 元数据
-        fittingId: Int = Int(Date().timeIntervalSince1970),
+        fittingId: FittingRef = .local(UUID()),
         name: String = "",
         description: String = "",
         fighters: [SimFighterSquad]? = nil,
@@ -230,6 +230,32 @@ struct SimModule {
         self.mutatedName = mutatedName
         self.mutatedIconFileName = mutatedIconFileName
         self.isSpoolUpFull = isSpoolUpFull
+    }
+
+    /// 返回仅替换激活状态的副本（保留其余全部字段）
+    func withStatus(_ newStatus: Int) -> SimModule {
+        SimModule(
+            instanceId: instanceId,
+            typeId: typeId,
+            attributes: attributes,
+            attributesByName: attributesByName,
+            effects: effects,
+            groupID: groupID,
+            status: newStatus,
+            charge: charge,
+            flag: flag,
+            quantity: quantity,
+            name: name,
+            iconFileName: iconFileName,
+            requiredSkills: requiredSkills,
+            attributeModifiers: attributeModifiers,
+            selectedMutaplasmidID: selectedMutaplasmidID,
+            mutatedAttributes: mutatedAttributes,
+            mutatedTypeId: mutatedTypeId,
+            mutatedName: mutatedName,
+            mutatedIconFileName: mutatedIconFileName,
+            isSpoolUpFull: isSpoolUpFull
+        )
     }
 }
 

@@ -28,6 +28,7 @@ struct MarketQuickbarDetailView: View {
     @State var quantityEditTypeID: Int?
     @State var quantityEditText = ""
     @State private var showDistinctTypeLimitAlert = false
+    @State private var hasListChanges = false // 编辑会话内列表是否有增/删，关闭选择器时据此统一加载订单
 
     /// 新增：订单类型枚举
     private enum OrderType: String, CaseIterable {
@@ -322,7 +323,17 @@ struct MarketQuickbarDetailView: View {
                 )
             )
         }
-        .sheet(isPresented: $isShowingItemSelector) {
+        .sheet(isPresented: $isShowingItemSelector, onDismiss: {
+            // 列表编辑结束（点 X 或下拉关闭）：有改动才统一提交，无改动零开销
+            if hasListChanges {
+                hasListChanges = false
+                // 统一提交：保存列表文件 + 重载市场订单
+                MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                Task {
+                    await loadAllMarketOrders()
+                }
+            }
+        }) {
             MarketItemSelectorView(
                 databaseManager: databaseManager,
                 existingItems: Set(quickbar.items.map { $0.typeID }),
@@ -334,7 +345,8 @@ struct MarketQuickbarDetailView: View {
                         quickbar.items.removeAll { $0.typeID == item.id }
                         // 移除对应的体积信息
                         itemVolumes.removeValue(forKey: item.id)
-                        MarketQuickbarManager.shared.saveQuickbar(quickbar)
+                        // 编辑期间不保存不重载订单，关闭选择器时统一处理
+                        hasListChanges = true
                     }
                 },
                 showSelected: true,
@@ -353,10 +365,9 @@ struct MarketQuickbarDetailView: View {
 
             selectedLocation = quickbar.locationID
 
-            // 只在第一次加载时获取市场订单
+            // 只在第一次加载时获取市场订单（函数内部 defer 会置位 hasLoadedOrders）
             if !hasLoadedOrders {
                 await loadAllMarketOrders()
-                hasLoadedOrders = true
             }
         }
     }
@@ -693,13 +704,11 @@ struct MarketQuickbarDetailView: View {
             if MarketQuickbarDestinationPicker.trimToMaxDistinctTypesRemovingFromEnd(&quickbar.items) {
                 MarketQuickbarManager.shared.saveQuickbar(quickbar)
             }
-            let itemIDs = quickbar.items.map { String($0.typeID) }.joined(separator: ",")
-            items = databaseManager.loadMarketItems(
-                whereClause: "t.type_id IN (\(itemIDs))",
-                parameters: []
+            // 内存索引批量构建（已按 id 升序）
+            items = DatabaseListItem.listItems(
+                for: quickbar.items.map(\.typeID),
+                databaseManager: databaseManager
             )
-            // 按 type_id 排序并更新
-            items.sort(by: { $0.id < $1.id })
             // 更新 itemQuantities
             itemQuantities = Dictionary(
                 uniqueKeysWithValues: quickbar.items.map { ($0.typeID, $0.quantity) }
@@ -763,7 +772,7 @@ struct MarketQuickbarDetailView: View {
 // MARK: - MarketQuickbarDetailView扩展
 
 extension MarketQuickbarDetailView {
-    /// 从选择器合并新增物品：一次保存、一次体积查询、一次订单加载（与剪贴板导入思路一致）
+    /// 从选择器合并新增物品：编辑期间只更新内存状态与体积查询，保存与订单加载延后到关闭选择器时统一处理
     private func applyNewWatchlistItems(_ newItems: [DatabaseListItem]) {
         let existingTypeIDs = Set(quickbar.items.map(\.typeID))
         let toAdd = newItems.filter { !existingTypeIDs.contains($0.id) }
@@ -783,34 +792,8 @@ extension MarketQuickbarDetailView {
             showDistinctTypeLimitAlert = true
             loadItems()
         }
-        MarketQuickbarManager.shared.saveQuickbar(quickbar)
         loadItemVolumes()
-        Task {
-            await loadAllMarketOrders()
-        }
-    }
-
-    /// 根据建筑ID获取建筑信息
-    private func getStructureById(_ structureId: Int64) -> MarketStructure? {
-        return MarketStructureManager.shared.structures.first { $0.structureId == Int(structureId) }
-    }
-
-    /// 验证区域ID是否有效（星域或存在的建筑）
-    private func isValidRegionID(_ regionID: Int) -> Bool {
-        // 检查是否是建筑ID（负数表示建筑）
-        if StructureMarketManager.isStructureId(regionID) {
-            // 验证建筑是否存在
-            guard let structureId = StructureMarketManager.getStructureId(from: regionID) else {
-                return false
-            }
-            return getStructureById(structureId) != nil
-        }
-
-        // 检查是否是有效的星域ID
-        if regionID > 0 && regionID < 11_000_000 {
-            return SDEMemoryStore.regionNames[regionID] != nil
-        }
-
-        return false
+        // 编辑期间不保存不重载订单，关闭选择器时统一处理
+        hasListChanges = true
     }
 }

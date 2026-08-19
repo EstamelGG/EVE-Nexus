@@ -584,31 +584,52 @@ struct WalletJournalView: View {
                     ) {
                         ForEach(viewModel.filteredJournalGroups) { group in
                             NavigationLink(destination: WalletJournalDayDetailView(group: group)) {
+                                let dayIncome = group.entries
+                                    .filter { $0.amount > 0 }
+                                    .reduce(0.0) { $0 + $1.amount }
+                                let dayExpense = group.entries
+                                    .filter { $0.amount < 0 }
+                                    .reduce(0.0) { $0 - $1.amount }
+                                let dayNetIncome = dayIncome - dayExpense
+
                                 HStack {
-                                    // 左侧：日期和交易数垂直排列
+                                    // 左侧：日期、交易数和当日净收益垂直排列
                                     VStack(alignment: .leading, spacing: 4) {
                                         Text(FormatUtil.formatDateToLocalDate(group.date))
                                             .font(.system(size: 16))
 
-                                        Text(
-                                            "\(group.entries.count) \(NSLocalizedString("transactions", comment: ""))"
-                                        )
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        HStack(spacing: 4) {
+                                            Text(
+                                                "\(group.entries.count) \(NSLocalizedString("transactions", comment: ""))"
+                                            )
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+
+                                            Text(
+                                                "\(dayNetIncome >= 0 ? "+" : "")\(FormatUtil.formatISK(dayNetIncome))"
+                                            )
+                                            .font(.system(.caption, design: .monospaced))
+                                            .foregroundColor(
+                                                dayNetIncome > 0
+                                                    ? .green : dayNetIncome < 0 ? .red : .secondary
+                                            )
+                                        }
                                     }
 
                                     Spacer()
 
-                                    // 右侧：净收益
-                                    let dayNetIncome = group.entries.reduce(0.0) { $0 + $1.amount }
-                                    Text(
-                                        "\(dayNetIncome >= 0 ? "+" : "")\(FormatUtil.formatISK(dayNetIncome))"
-                                    )
-                                    .font(.caption)
-                                    .foregroundColor(
-                                        dayNetIncome > 0
-                                            ? .green : dayNetIncome < 0 ? .red : .secondary
-                                    )
+                                    // 右侧：第一行支出，第二行收入
+                                    VStack(alignment: .trailing, spacing: 4) {
+                                        Text(FormatUtil.formatISK(-dayExpense))
+                                            .font(.system(.caption, design: .monospaced))
+                                            .foregroundColor(dayExpense > 0 ? .red : .secondary)
+
+                                        Text(
+                                            "\(dayIncome > 0 ? "+" : "")\(FormatUtil.formatISK(dayIncome))"
+                                        )
+                                        .font(.system(.caption, design: .monospaced))
+                                        .foregroundColor(dayIncome > 0 ? .green : .secondary)
+                                    }
                                 }
                                 .padding(.vertical, 4)
                             }
