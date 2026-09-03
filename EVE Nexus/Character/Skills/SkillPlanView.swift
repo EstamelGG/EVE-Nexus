@@ -1,13 +1,22 @@
 import Foundation
 import SwiftUI
 
-struct SkillPlan: Identifiable {
+struct SkillPlan: Identifiable, Hashable {
     let id: UUID
     var name: String
     var skills: [PlannedSkill]
     var totalTrainingTime: TimeInterval
     var totalSkillPoints: Int
     var lastUpdated: Date
+
+    /// 仅按 id 判等/哈希（供 navigationDestination(item:) 使用）
+    static func == (lhs: SkillPlan, rhs: SkillPlan) -> Bool {
+        lhs.id == rhs.id
+    }
+
+    func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
 }
 
 struct PlannedSkill: Identifiable {
@@ -364,6 +373,8 @@ struct SkillPlanView: View {
     @State private var isShowingRenameAlert = false
     @State private var renamePlan: SkillPlan?
     @State private var renamePlanName = ""
+    /// 手动新建计划后自动进入的详情页
+    @State private var newPlanToOpen: SkillPlan?
 
     /// 添加过滤后的计划列表计算属性
     private var filteredPlans: [SkillPlan] {
@@ -438,6 +449,14 @@ struct SkillPlanView: View {
             }
         }
         .navigationTitle(NSLocalizedString("Main_Skills_Plan", comment: ""))
+        .navigationDestination(item: $newPlanToOpen) { plan in
+            SkillPlanDetailView(
+                plan: plan,
+                characterId: characterId,
+                databaseManager: databaseManager,
+                skillPlans: $skillPlans
+            )
+        }
         .searchable(
             text: $searchText,
             // placement: .navigationBarDrawer(displayMode: .always),
@@ -473,6 +492,8 @@ struct SkillPlanView: View {
                         skillPlans[index] = SkillPlanFileManager.shared.saveSkillPlan(
                             characterId: characterId, plan: newPlan, databaseManager: databaseManager
                         )
+                        // 自动进入新计划详情页（传入修正后的计划）
+                        newPlanToOpen = skillPlans[index]
                     }
                     newPlanName = ""
                 }

@@ -1383,6 +1383,8 @@ struct KillMailAttackersView: View {
     @State private var searchText = ""
     /// 参与者页按需加载的实体名称（与 `detailData.names` 合并后展示；受害者名称以详情中为准）
     @State private var supplementalAttackerNames: [Int: String] = [:]
+    /// 名称批量解析中（未解析名称显示骨架占位而非 ID 兜底文案）
+    @State private var isLoadingNames = true
 
     /// 搜索关键词（至少2字符才生效）
     private var searchQuery: String {
@@ -1491,7 +1493,8 @@ struct KillMailAttackersView: View {
                     ForEach(filteredMyAttackers.map { AttackerRowItem(attacker: $0, stableId: attackerStableId($0), section: "my") }) { item in
                         AttackerRowView(
                             attacker: item.attacker, entityNameMap: nameMap,
-                            totalDamageDone: total, character: character
+                            totalDamageDone: total, character: character,
+                            isNamesLoading: isLoadingNames
                         )
                     }
                 }
@@ -1501,7 +1504,8 @@ struct KillMailAttackersView: View {
                     ForEach(filteredFinalBlowAttackers.map { AttackerRowItem(attacker: $0, stableId: attackerStableId($0), section: "final") }) { item in
                         AttackerRowView(
                             attacker: item.attacker, entityNameMap: nameMap,
-                            totalDamageDone: total, character: character
+                            totalDamageDone: total, character: character,
+                            isNamesLoading: isLoadingNames
                         )
                     }
                 }
@@ -1511,7 +1515,8 @@ struct KillMailAttackersView: View {
                     ForEach(filteredMostDamageAttackers.map { AttackerRowItem(attacker: $0, stableId: attackerStableId($0), section: "damage") }) { item in
                         AttackerRowView(
                             attacker: item.attacker, entityNameMap: nameMap,
-                            totalDamageDone: total, character: character
+                            totalDamageDone: total, character: character,
+                            isNamesLoading: isLoadingNames
                         )
                     }
                 }
@@ -1526,7 +1531,8 @@ struct KillMailAttackersView: View {
                     ForEach(filteredAllAttackers.map { AttackerRowItem(attacker: $0, stableId: attackerStableId($0), section: "all") }) { item in
                         AttackerRowView(
                             attacker: item.attacker, entityNameMap: nameMap,
-                            totalDamageDone: total, character: character
+                            totalDamageDone: total, character: character,
+                            isNamesLoading: isLoadingNames
                         )
                     }
                 }
@@ -1543,6 +1549,8 @@ struct KillMailAttackersView: View {
 
     /// 仅查询参与者相关且详情中尚未有的实体名称（触发 `universe_names` 等）
     private func loadAttackerEntityNamesIfNeeded() async {
+        defer { isLoadingNames = false }
+
         var ids = Set<Int>()
         for atk in detailData.attackers {
             if let c = atk.character_id { ids.insert(c) }
@@ -1574,6 +1582,8 @@ private struct AttackerRowView: View {
     let entityNameMap: [Int: String]
     let totalDamageDone: Int
     let character: EVECharacterInfo?
+    /// 名称批量解析中：未解析名称显示骨架占位，完成后才落 ID 兜底文案
+    var isNamesLoading: Bool = false
     @State private var characterPortrait: UIImage?
     @State private var resolvedShipName: String? // 未知参与者时，从数据库查询 ship_type_id 的 name
 
@@ -1622,6 +1632,25 @@ private struct AttackerRowView: View {
         return entityNameMap[id] ?? "Alliance \(id)"
     }
 
+    /// 名称三态：已解析 → 文本；解析中 → 骨架；完成仍缺失 → ID 兜底
+    private var isPrimaryNamePending: Bool {
+        let id = attacker.character_id
+            ?? (attacker.alliance_id ?? 0 > 0 ? attacker.alliance_id : nil)
+            ?? attacker.corporation_id
+        guard let id else { return false }
+        return entityNameMap[id] == nil && isNamesLoading
+    }
+
+    private var isCorpNamePending: Bool {
+        guard let id = attacker.corporation_id else { return false }
+        return entityNameMap[id] == nil && isNamesLoading
+    }
+
+    private var isAllianceNamePending: Bool {
+        guard let id = attacker.alliance_id, id > 0 else { return false }
+        return entityNameMap[id] == nil && isNamesLoading
+    }
+
     /// 上方图标：优先 ship_type_id，缺失时用 weapon_type_id 替代
     private var shipIconName: String {
         let typeId = attacker.ship_type_id ?? attacker.weapon_type_id
@@ -1661,15 +1690,27 @@ private struct AttackerRowView: View {
 
             // 中间三行文字
             VStack(alignment: .leading, spacing: 4) {
-                Text(displayNameText)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text(corporationName)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-                Text(allianceName)
-                    .font(.caption)
-                    .foregroundColor(.secondary)
+                if isPrimaryNamePending {
+                    EntitySkeletonBar(width: 110, height: 16)
+                } else {
+                    Text(displayNameText)
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                }
+                if isCorpNamePending {
+                    EntitySkeletonBar(width: 140, height: 12)
+                } else {
+                    Text(corporationName)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+                if isAllianceNamePending {
+                    EntitySkeletonBar(width: 130, height: 12)
+                } else {
+                    Text(allianceName)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 

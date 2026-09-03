@@ -438,18 +438,18 @@ class CharacterAssetsViewModel: ObservableObject {
 
     // MARK: - 筛选目录（市场视图）
 
-    /// 市场视图：根目录列表（子树内无 SDE 物品的目录不显示）
+    /// 市场视图：根目录列表（子树内无 SDE 物品的目录不显示；按市场组 ID 固定排序）
     var marketRootFilterNodes: [AssetTypeFilterNode] {
         marketRootIds.compactMap { marketFilterNodesById[$0] }
             .filter { $0.totalTypeCount > 0 }
-            .sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+            .sorted { $0.id < $1.id }
     }
 
-    /// 市场视图：某目录的子目录（子树内无 SDE 物品的目录不显示）
+    /// 市场视图：某目录的子目录（子树内无 SDE 物品的目录不显示；按市场组 ID 固定排序）
     func marketGroupFilters(for id: Int) -> [AssetTypeFilterNode] {
         (marketChildrenByParent[id] ?? []).compactMap { marketFilterNodesById[$0] }
             .filter { $0.totalTypeCount > 0 }
-            .sorted { $0.name.localizedCompare($1.name) == .orderedAscending }
+            .sorted { $0.id < $1.id }
     }
 
     /// 市场视图：叶子目录直属物品，未拥有时置灰；已拥有（可选）优先展示

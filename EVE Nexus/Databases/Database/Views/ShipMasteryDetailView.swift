@@ -265,13 +265,18 @@ struct ShipMasteryDetailView: View {
         )
     }
 
-    /// 所选等级的全部技能要求（专精 0 = 飞船直接技能要求，1-5 = 跨认证去重取最高）
+    /// 所选等级的全部技能要求（专精 0 = 飞船直接技能要求，1-5 = 专精技能 + 船体技能要求，同技能取最高）
     private var planRequirements: [(skillID: Int, requiredLevel: Int, currentLevel: Int, skillName: String)] {
         let pairs: [(skillID: Int, level: Int)]
         if selectedLevel == 0 {
             pairs = databaseManager.getDirectSkillRequirements(for: typeID)
         } else {
-            pairs = dedupedRequirements.map { (skillID: $0.key, level: $0.value) }
+            // 专精 1-5 的认证技能不含船体本身（专精 0）的技能要求，导出计划时需合并
+            var required = dedupedRequirements
+            for requirement in databaseManager.getDirectSkillRequirements(for: typeID) {
+                required[requirement.skillID] = max(required[requirement.skillID] ?? 0, requirement.level)
+            }
+            pairs = required.map { (skillID: $0.key, level: $0.value) }
         }
 
         return pairs.map {

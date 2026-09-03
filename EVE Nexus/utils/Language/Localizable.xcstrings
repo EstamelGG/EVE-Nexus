@@ -29,7 +29,20 @@
       "shouldTranslate" : false
     },
     " | DPH: " : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/ DPH"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "/ DPH"
+          }
+        }
+      }
     },
     "-" : {
       "shouldTranslate" : false
@@ -116,7 +129,7 @@
       "shouldTranslate" : false
     },
     "/ %@" : {
-
+      "shouldTranslate" : false
     },
     "/ %lld" : {
       "shouldTranslate" : false
@@ -475,7 +488,8 @@
             "value" : "%1$@/%2$@"
           }
         }
-      }
+      },
+      "shouldTranslate" : false
     },
     "%@/%@ SP" : {
       "localizations" : {
@@ -3723,7 +3737,7 @@
       }
     },
     "Assets_Filter_Deselect_All_In_Section" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -9015,13 +9029,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Loading %@ ..."
+            "value" : "Loading %@…"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "正在加载%@..."
+            "state" : "translated",
+            "value" : "正在加载%@…"
           }
         }
       }
@@ -11130,7 +11144,7 @@
       }
     },
     "DPS: " : {
-
+      "shouldTranslate" : false
     },
     "DroneBay" : {
       "comment" : "无人机舱",
@@ -16065,13 +16079,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Delete Broken"
+            "value" : "Delete All"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "needs_review",
-            "value" : "一键清除"
+            "state" : "translated",
+            "value" : "全部删除"
           }
         }
       }
@@ -19512,23 +19526,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "第%d跳 (%@ 光年)"
-          }
-        }
-      }
-    },
-    "Jump_Navigation_Loading_Systems" : {
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading Systems..."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "加载星系中..."
           }
         }
       }
@@ -41935,22 +41932,32 @@
       }
     },
     "SDE_Status_Downloading" : {
-      "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
+            "value" : "Downloading"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "正在下载"
           }
         }
       }
     },
     "SDE_Status_Installing" : {
-      "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
+            "value" : "Installing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "正在安装"
           }
         }
@@ -42005,11 +42012,16 @@
       }
     },
     "SDE_Status_Verifying" : {
-      "extractionState" : "extracted_with_value",
       "localizations" : {
         "en" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
+            "value" : "Verifying"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "正在校验"
           }
         }
@@ -43461,24 +43473,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "自定义名称"
-          }
-        }
-      }
-    },
-    "Structure_Facility_Selector_Loading_Systems" : {
-      "comment" : "加载星系数据中...",
-      "extractionState" : "stale",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loading Systems..."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "加载星系数据中..."
           }
         }
       }

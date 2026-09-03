@@ -4,17 +4,14 @@ import SwiftUI
 final class EmploymentAllianceCache: ObservableObject {
     /// record_id → 当时联盟ID（nil 表示当时无联盟）
     @Published private(set) var recordAlliance: [Int: Int?] = [:]
-    /// 联盟ID → 名称（不可解析的以 "Alliance {id}" 兜底）
     @Published private(set) var allianceNames: [Int: String] = [:]
-    /// 军团/联盟ID → 图标
+    /// 军团/联盟共用图标表
     @Published private(set) var icons: [Int: UIImage] = [:]
-    /// 联盟史加载失败的记录（行显示重试态）
     @Published private(set) var failedRecordIds: Set<Int> = []
 
     private var isLoaded = false
     private var lastHistory: [CharacterEmploymentHistory] = []
 
-    /// 行状态
     enum RowAllianceState {
         case loading
         case failed
@@ -30,7 +27,6 @@ final class EmploymentAllianceCache: ObservableObject {
         return .loading
     }
 
-    /// 页面加载入口：只跑一次；force 供重试
     func loadIfNeeded(history: [CharacterEmploymentHistory], force: Bool = false) async {
         guard force || !isLoaded else { return }
         isLoaded = true
@@ -41,10 +37,8 @@ final class EmploymentAllianceCache: ObservableObject {
 
         let uniqueCorpIds = Array(Set(records.map(\.corporationId)))
 
-        // 军团图标与联盟史并行启动，互不依赖
         async let corpIconsTask: Void = fetchCorpIcons(uniqueCorpIds)
 
-        // 1. 联盟史：到一份解析一份发布（快的行先显示，不被慢请求拖住）
         var resolved: [Int: Int?] = [:]
         var failed: Set<Int> = []
         await withTaskGroup(of: (Int, [CorporationAllianceHistory]?).self) { group in
@@ -84,7 +78,6 @@ final class EmploymentAllianceCache: ObservableObject {
             return
         }
 
-        // 2. 名称批量（限速关键，保持整批）与联盟图标并行
         async let namesTask: Void = fetchAllianceNames(allianceIds)
         async let allianceIconsTask: Void = fetchAllianceIcons(allianceIds)
         await namesTask
@@ -92,7 +85,6 @@ final class EmploymentAllianceCache: ObservableObject {
         await corpIconsTask
     }
 
-    /// 并发拉军团图标，到一张发一张（CDN）
     private func fetchCorpIcons(_ corpIds: [Int]) async {
         await withTaskGroup(of: (Int, UIImage?).self) { group in
             for corpId in corpIds where icons[corpId] == nil {
@@ -111,7 +103,7 @@ final class EmploymentAllianceCache: ObservableObject {
         }
     }
 
-    /// 联盟名称一次批量解析（避免逐行请求触发 ESI 限速；不可解析以 ID 兜底）
+    /// 名称保持整批：逐行请求会触发 ESI 限速；不可解析的以 "Alliance {id}" 兜底
     private func fetchAllianceNames(_ allianceIds: [Int]) async {
         guard let namesMap = try? await UniverseAPI.shared.getNamesWithFallback(ids: allianceIds)
         else { return }
@@ -123,7 +115,6 @@ final class EmploymentAllianceCache: ObservableObject {
         allianceNames = names
     }
 
-    /// 并发拉联盟图标，到一张发一张（CDN）
     private func fetchAllianceIcons(_ allianceIds: [Int]) async {
         await withTaskGroup(of: (Int, UIImage?).self) { group in
             for allianceId in allianceIds where icons[allianceId] == nil {
@@ -142,15 +133,13 @@ final class EmploymentAllianceCache: ObservableObject {
         }
     }
 
-    /// 重试（失败行点击触发），重跑上次的历史
+    /// 失败行点击触发，重跑上次的历史
     func retry() async {
         failedRecordIds.removeAll()
         await loadIfNeeded(history: lastHistory, force: true)
     }
 
-    // MARK: - 工具
-
-    /// 由雇佣记录构建查询需求（结束时间 = 更新一条记录的开始时间，与行视图一致）
+    /// 结束时间 = 更新一条记录的开始时间（与行视图一致）
     static func records(from history: [CharacterEmploymentHistory]) -> [(
         recordId: Int, corporationId: Int, endDate: Date?
     )] {
@@ -161,7 +150,7 @@ final class EmploymentAllianceCache: ObservableObject {
         }
     }
 
-    /// 按时间点在联盟史中回溯当时的联盟（记录按开始时间倒序）
+    /// 联盟史记录按开始时间倒序，取第一条不晚于 date 的联盟
     private static func findAlliance(at date: Date, in history: [CorporationAllianceHistory]) -> Int? {
         for record in history {
             guard let recordDate = parseDate(record.start_date) else { continue }

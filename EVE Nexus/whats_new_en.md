@@ -476,3 +476,9 @@ Fixes & Improvements:
 8. Updated built-in SDE database
 9. LP Store: new "Find Stations" feature to browse all stations hosting a corporation's LP store, with star map highlighting support
 
+# v1.14.1 August 31, 2026
+
+1. Ship Mastery: exporting mastery I-V skills to a skill plan now also merges the ship hull's own (mastery 0) skill requirements.
+2. Skill Plans: manually created plans now open their detail page automatically.
+3. Additional localization text and UI optimizations.
+
