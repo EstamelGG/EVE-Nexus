@@ -7412,6 +7412,23 @@
         }
       }
     },
+    "Character_Faction_And_Rank" : {
+      "comment" : "势力与军衔",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Faction & Rank"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "势力与军衔"
+          }
+        }
+      }
+    },
     "Character_Home_Location" : {
       "localizations" : {
         "en" : {
@@ -7658,6 +7675,23 @@
         }
       }
     },
+    "Character_No_Faction" : {
+      "comment" : "无势力占位",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Faction"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无势力"
+          }
+        }
+      }
+    },
     "Character_No_Implants" : {
       "localizations" : {
         "en" : {
@@ -7690,6 +7724,23 @@
         }
       }
     },
+    "Character_No_Medals" : {
+      "comment" : "无奖章占位",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No Medals"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "无奖章"
+          }
+        }
+      }
+    },
     "Character_Rank" : {
       "localizations" : {
         "en" : {
@@ -7718,6 +7769,74 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "安全等级"
+          }
+        }
+      }
+    },
+    "Character_Standings_Contacts" : {
+      "comment" : "声望与联系人",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Standings & Contacts"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "声望与联系人"
+          }
+        }
+      }
+    },
+    "Character_Tag_Agent" : {
+      "comment" : "代理人标签",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agent"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "代理人"
+          }
+        }
+      }
+    },
+    "Character_Tag_Corporation" : {
+      "comment" : "军团标签",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Corporation"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "军团"
+          }
+        }
+      }
+    },
+    "Character_Tag_Faction" : {
+      "comment" : "势力标签",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Faction"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "势力"
           }
         }
       }
@@ -7911,6 +8030,51 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "发生未知错误"
+          }
+        }
+      }
+    },
+    "Contacts" : {
+      "comment" : "Contacts Related",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "联系人"
+          }
+        }
+      }
+    },
+    "Contacts_Blocked" : {
+      "comment" : "已屏蔽",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blocked"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已屏蔽"
+          }
+        }
+      }
+    },
+    "Contacts_Watched" : {
+      "comment" : "已关注",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Watched"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已关注"
           }
         }
       }

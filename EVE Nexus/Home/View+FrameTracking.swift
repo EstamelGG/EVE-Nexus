@@ -3,6 +3,7 @@ import SwiftUI
 
 // MARK: - PreferenceKey for frame tracking
 
+/// ID 为 phantom type：通过泛型实参区分不同用途的 preference key（periphery:ignore:all）
 struct AppendPreferenceKey<Value, ID>: PreferenceKey {
     static var defaultValue: [Value] {
         []

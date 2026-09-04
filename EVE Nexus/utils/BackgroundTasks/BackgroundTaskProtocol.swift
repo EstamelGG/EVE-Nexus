@@ -1,41 +1,9 @@
 import BackgroundTasks
 import Foundation
 
-/// 后台任务协议，定义所有后台任务需要实现的方法
-@MainActor
-protocol BackgroundTaskProtocol {
-    /// 任务标识符
-    var identifier: String { get }
-
-    /// 任务执行间隔（秒）
-    var interval: TimeInterval { get }
-
-    /// 执行任务
-    func perform() async
-
-    /// 处理任务被系统触发
-    func handle(task: BGAppRefreshTask)
-}
-
-/// 处理任务协议，用于需要更长执行时间的后台任务
-@MainActor
-protocol ProcessingTaskProtocol {
-    /// 任务标识符
-    var identifier: String { get }
-
-    /// 任务执行间隔（秒），BGProcessingTask 最小间隔为 15 分钟
-    var interval: TimeInterval { get }
-
-    /// 执行任务
-    func perform() async
-
-    /// 处理任务被系统触发
-    func handle(task: BGProcessingTask)
-}
-
 /// 后台任务基类，提供通用功能
 @MainActor
-class BaseBackgroundTask: BackgroundTaskProtocol {
+class BaseBackgroundTask {
     let identifier: String
     let interval: TimeInterval
     private var task: Task<Void, Never>?
@@ -100,7 +68,7 @@ class BaseBackgroundTask: BackgroundTaskProtocol {
 /// 处理任务基类，提供更长的执行时间
 /// 使用 BGProcessingTask 而不是 BGAppRefreshTask，可以获得更长的执行时间窗口
 @MainActor
-class BaseProcessingTask: ProcessingTaskProtocol {
+class BaseProcessingTask {
     let identifier: String
     let interval: TimeInterval
     private var task: Task<Void, Never>?

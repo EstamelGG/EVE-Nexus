@@ -3,9 +3,6 @@ import SwiftUI
 struct CharacterSheetView: View {
     @StateObject private var viewModel: CharacterSheetViewModel
 
-    /// 奖章 Section 是否已以动画淡入
-    @State private var isMedalsVisible = false
-
     init(
         character: EVECharacterInfo, characterPortrait: UIImage?,
         databaseManager: DatabaseManager = DatabaseManager()
@@ -23,29 +20,13 @@ struct CharacterSheetView: View {
         List {
             basicInfoSection
             fatigueSection
-            attributesSection
-            factionSection
-
-            if let medals = viewModel.medals, !medals.isEmpty, isMedalsVisible {
-                medalsSection
-                    .transition(.opacity)
-            }
-
-            employmentSection
+            detailPagesSection
         }
         .navigationTitle(NSLocalizedString("Main_Character_Sheet", comment: ""))
         .onAppear {
             viewModel.loadInitialData()
         }
-        .onChange(of: viewModel.isMedalsReady) { _, ready in
-            if ready, !isMedalsVisible {
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    isMedalsVisible = true
-                }
-            }
-        }
         .refreshable {
-            isMedalsVisible = false
             await viewModel.refresh()
         }
     }
@@ -314,140 +295,61 @@ struct CharacterSheetView: View {
         .listRowInsets(listRowPadding)
     }
 
-    private var attributesSection: some View {
+    /// 详情入口 section：技能属性/奖章/雇佣记录/势力与军衔跳转（子页面懒加载）
+    private var detailPagesSection: some View {
         Section {
-            if let attributes = viewModel.attributes {
-                AttributeRow(
-                    name: NSLocalizedString("Character_Attribute_Perception", comment: ""),
-                    icon: "perception", value: attributes.perception
-                )
-                AttributeRow(
-                    name: NSLocalizedString("Character_Attribute_Memory", comment: ""),
-                    icon: "memory", value: attributes.memory
-                )
-                AttributeRow(
-                    name: NSLocalizedString("Character_Attribute_Willpower", comment: ""),
-                    icon: "willpower", value: attributes.willpower
-                )
-                AttributeRow(
-                    name: NSLocalizedString("Character_Attribute_Intelligence", comment: ""),
-                    icon: "intelligence", value: attributes.intelligence
-                )
-                AttributeRow(
-                    name: NSLocalizedString("Character_Attribute_Charisma", comment: ""),
-                    icon: "charisma", value: attributes.charisma
-                )
-            } else if viewModel.isLoadingAttributes {
-                ProgressView()
-                    .frame(maxWidth: .infinity, alignment: .center)
-                    .transition(.opacity)
+            detailPageLink(
+                title: NSLocalizedString("Character_Attributes_Basic", comment: ""),
+                icon: "attributes"
+            ) {
+                CharacterAttributesPage(character: viewModel.character)
             }
-        } header: {
-            Text(NSLocalizedString("Character_Attributes_Basic", comment: ""))
-        }
-        .listRowInsets(listRowPadding)
-    }
 
-    private var factionSection: some View {
-        Group {
-            if let faction = viewModel.factionInfo {
-                Section {
-                    HStack {
-                        typeIconView(iconFileName: faction.iconName)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(NSLocalizedString("Character_Faction", comment: ""))
-                                .font(.body)
-                                .foregroundColor(.primary)
-                            Text(faction.name)
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-
-                    if let rank = faction.rank {
-                        HStack {
-                            typeIconView(iconFileName: "\(faction.faction_id)_\(rank)")
-
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(NSLocalizedString("Character_Rank", comment: ""))
-                                    .font(.body)
-                                    .foregroundColor(.primary)
-                                Text(
-                                    NSLocalizedString(
-                                        "rank_\(faction.faction_id)_\(rank)", comment: ""
-                                    )
-                                )
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            }
-                        }
-                    }
-                } header: {
-                    Text(NSLocalizedString("Main_Faction_War", comment: ""))
-                }
-                .listRowInsets(listRowPadding)
+            detailPageLink(
+                title: NSLocalizedString("Character_Medals", comment: ""),
+                icon: "achievements"
+            ) {
+                CharacterMedalsPage(character: viewModel.character)
             }
-        }
-    }
 
-    private var medalsSection: some View {
-        Section {
-            if let medals = viewModel.medals, !medals.isEmpty {
-                ForEach(medals, id: \.title) { medal in
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack {
-                            assetIconView(name: "achievements")
+            detailPageLink(
+                title: NSLocalizedString("Employment History", comment: ""),
+                icon: "employmenthistory"
+            ) {
+                CharacterEmploymentPage(character: viewModel.character)
+            }
 
-                            VStack(alignment: .leading, spacing: 2) {
-                                if let date = viewModel.isoDateFormatter.date(from: medal.date) {
-                                    Text(viewModel.formatMedalDate(date))
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
+            detailPageLink(
+                title: NSLocalizedString("Character_Standings_Contacts", comment: "声望与联系人"),
+                icon: "personalstandings"
+            ) {
+                CharacterStandingsContactsPage(character: viewModel.character)
+            }
 
-                                Text(medal.title)
-                                    .font(.body)
-                                    .foregroundColor(.primary)
-
-                                Text(medal.description)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
-                                    .fixedSize(horizontal: false, vertical: true)
-
-                                if let reason = medal.reason {
-                                    Text(reason)
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
-                            }
-                        }
-                    }
-                    .padding(.vertical, 2)
+            if viewModel.hasFaction {
+                detailPageLink(
+                    title: NSLocalizedString("Character_Faction_And_Rank", comment: "势力与军衔"),
+                    icon: "corporationdecorations"
+                ) {
+                    CharacterFactionPage(character: viewModel.character)
                 }
             }
-        } header: {
-            Text(NSLocalizedString("Character_Medals", comment: ""))
         }
-        .listRowInsets(listRowPadding)
+        .listRowInsets(EdgeInsets(top: 8, leading: 18, bottom: 8, trailing: 18))
     }
 
-    private var employmentSection: some View {
-        Section {
-            CharacterEmploymentHistoryView(
-                history: viewModel.employmentHistory,
-                corporationNamesCache: viewModel.employmentCorporationNames,
-                character: viewModel.character,
-                isLoadingCorpNames: viewModel.isLoadingCorpNames,
-                isLoading: viewModel.isLoadingEmployment,
-                allianceCache: viewModel.employmentAllianceCache,
-                npcCorporationIds: viewModel.npcCorporationIds
-            )
-        } header: {
-            Text(NSLocalizedString("Employment History", comment: ""))
+    private func detailPageLink<Content: View>(
+        title: String, icon: String, @ViewBuilder destination: @escaping () -> Content
+    ) -> some View {
+        NavigationLink {
+            destination()
+        } label: {
+            HStack(spacing: 12) {
+                assetIconView(name: icon)
+
+                Text(title)
+            }
         }
-        .listRowInsets(listRowPadding)
     }
 
     // MARK: - View Builders

@@ -482,3 +482,8 @@ Fixes & Improvements:
 2. Skill Plans: manually created plans now open their detail page automatically.
 3. Additional localization text and UI optimizations.
 
+# v1.14.2 September 4, 2026
+
+1. Character sheet redesigned: attributes, medals, employment history, and faction & rank moved behind a unified entry into lazy-loaded sub-pages — shorter sheet and faster opening
+2. New "Standings & Contacts" feature: the Standings tab lists faction/corporation/agent standings with type tags and colored values; the Contacts tab shows all contacts with corporation/alliance affiliations, blocked/watched markers, filters by standing level and status, and long-press navigation to character/corporation/alliance details
+

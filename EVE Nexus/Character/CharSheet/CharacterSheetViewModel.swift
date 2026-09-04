@@ -22,23 +22,8 @@ final class CharacterSheetViewModel: ObservableObject {
     @Published var fatigue: CharacterFatigue?
     @Published var isLoadingFatigue = true
     @Published var birthday: String?
-    @Published var medals: [CharacterMedal]?
-    @Published var isLoadingMedals = true
-    @Published var factionInfo: (name: String, faction_id: Int, iconName: String, rank: Int?)?
-    @Published var attributes: CharacterAttributes?
-    @Published var isLoadingAttributes = true
-
-    /// 雇佣记录
-    @Published var employmentHistory: [CharacterEmploymentHistory] = []
-    @Published var employmentCorporationNames: [Int: String] = [:]
-    @Published var isLoadingEmployment = false
-    /// 玩家军团名是否仍在加载（NPC 军团已通过 SDE 同步就绪）
-    @Published var isLoadingCorpNames = false
-    @Published var npcCorporationIds: Set<Int> = []
-    let employmentAllianceCache = EmploymentAllianceCache()
-
-    /// 奖章 Section 就绪后淡入
-    @Published var isMedalsReady = false
+    /// 是否有 NPC 势力（决定是否显示「势力与军衔」入口；详情由子页面懒加载）
+    @Published var hasFaction = false
 
     private let lastShipTypeIdKey: String
     private let lastLocationKey: String
@@ -109,9 +94,6 @@ final class CharacterSheetViewModel: ObservableObject {
                 group.addTask { await self.loadShipInfo() }
                 group.addTask { await self.loadFatigueInfo() }
                 group.addTask { await self.loadCorporationAndAllianceInfo() }
-                group.addTask { await self.loadMedalsInfo() }
-                group.addTask { await self.loadAttributes() }
-                group.addTask { await self.loadEmploymentHistory() }
             }
         }
     }
@@ -119,7 +101,6 @@ final class CharacterSheetViewModel: ObservableObject {
     /// 下拉刷新：强制重新获取所有网络数据
     func refresh() async {
         Logger.info("开始刷新人物表单的所有数据")
-        isMedalsReady = false
 
         await withTaskGroup(of: Void.self) { group in
             group.addTask { await self.loadOnlineStatus(forceRefresh: true) }
@@ -127,9 +108,6 @@ final class CharacterSheetViewModel: ObservableObject {
             group.addTask { await self.loadShipInfo() }
             group.addTask { await self.loadFatigueInfo() }
             group.addTask { await self.loadCorporationAndAllianceInfo(forceRefresh: true) }
-            group.addTask { await self.loadMedalsInfo() }
-            group.addTask { await self.loadAttributes(forceRefresh: true) }
-            group.addTask { await self.loadEmploymentHistory() }
         }
 
         Logger.info("所有数据刷新完成")
@@ -332,105 +310,9 @@ extension CharacterSheetViewModel {
                 securityStatus = publicInfo.security_status
             }
 
-            if let factionId = publicInfo.faction_id,
-               let faction = SDEMemoryStore.faction(for: factionId)
-            {
-                let fwStats = try? await CharacterFWStatsAPI.shared.getFWStats(
-                    characterId: character.CharacterID, forceRefresh: forceRefresh
-                )
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    factionInfo = (
-                        name: faction.name,
-                        faction_id: factionId,
-                        iconName: faction.iconName,
-                        rank: fwStats?.current_rank
-                    )
-                }
-            }
+            // 势力详情由子页面懒加载，这里只记录是否存在（publicInfo 同一响应，零额外请求）
+            hasFaction = publicInfo.faction_id != nil
         }
-    }
-
-    private func loadAttributes(forceRefresh: Bool = false) async {
-        let attrs = try? await CharacterSkillsAPI.shared.fetchAttributes(
-            characterId: character.CharacterID, forceRefresh: forceRefresh
-        )
-        withAnimation(.easeInOut(duration: 0.3)) {
-            attributes = attrs
-            isLoadingAttributes = false
-        }
-    }
-
-    private func loadMedalsInfo() async {
-        let medals = try? await CharacterMedalsAPI.shared.fetchCharacterMedals(
-            characterId: character.CharacterID
-        )
-        self.medals = medals
-        isLoadingMedals = false
-        isMedalsReady = true
-    }
-
-    /// 加载雇佣历史：拿到记录即返回，section 立即显示，军团名/图标/联盟信息由 row 异步加载
-    private func loadEmploymentHistory() async {
-        isLoadingEmployment = true
-
-        let history = try? await CharacterAPI.shared.fetchEmploymentHistory(
-            characterId: character.CharacterID
-        )
-        employmentHistory = history ?? []
-
-        // NPC 军团名走 SDE 同步查表（零网络），立即填充
-        applyNPCCorporationNames()
-
-        // 数据就绪后以动画方式切换到展示状态（loading -> 列表）
-        withAnimation(.easeInOut(duration: 0.3)) {
-            isLoadingEmployment = false
-        }
-
-        // 玩家军团名异步加载，不阻塞 section，加载完通过 @Published 自动刷新
-        isLoadingCorpNames = true
-        Task { await loadPlayerCorporationNames() }
-
-        // 联盟信息流水线：一次性批量加载（军团史并发 → 名称一次批量 → 图标并发）
-        Task {
-            await employmentAllianceCache.loadIfNeeded(history: employmentHistory)
-        }
-    }
-
-    /// 从 SDE 同步填充 NPC 军团名称和 ID 集合
-    private func applyNPCCorporationNames() {
-        let corporationIds = Set(employmentHistory.map { $0.corporation_id })
-        var npcIds = Set<Int>()
-        var names = employmentCorporationNames
-
-        for corpId in corporationIds {
-            if let npc = SDEMemoryStore.npcCorporation(for: corpId) {
-                npcIds.insert(corpId)
-                names[corpId] = npc.name
-            }
-        }
-
-        npcCorporationIds = npcIds
-        employmentCorporationNames = names
-    }
-
-    /// 异步批量加载玩家军团名称
-    private func loadPlayerCorporationNames() async {
-        defer { isLoadingCorpNames = false }
-
-        let playerCorps = Set(employmentHistory.map { $0.corporation_id })
-            .subtracting(npcCorporationIds)
-
-        guard !playerCorps.isEmpty,
-              let namesMap = try? await UniverseAPI.shared.getNamesWithFallback(
-                  ids: Array(playerCorps)
-              )
-        else { return }
-
-        var names = employmentCorporationNames
-        for (corpId, info) in namesMap {
-            names[corpId] = info.name
-        }
-        employmentCorporationNames = names
     }
 
     private func loadLocalData() {
@@ -504,10 +386,6 @@ extension CharacterSheetViewModel {
 
     func formatBirthday(_ date: Date) -> String {
         FormatUtil.formatDateToLocalDate(date)
-    }
-
-    func formatMedalDate(_ date: Date) -> String {
-        formatBirthday(date)
     }
 
     func calculateAge(from birthday: Date) -> String {
