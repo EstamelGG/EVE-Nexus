@@ -36,6 +36,7 @@ swiftformat .
 periphery scan | grep -v "/Thirdparty/" > log.txt
 # 在 `log.txt` 中执行此正则以过滤出我们需要处理的行
 grep -iE 'Unused (Enum|Property|Function|Initializer|Class|struct)' log.txt
+# 如果为空，则说明没有未被使用的函数，无需优化
 ```
 
 针对这些过滤出的行进行优化即可
